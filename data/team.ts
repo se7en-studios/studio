@@ -12,7 +12,7 @@ export const team: TeamMember[] = [
   {
     id: "founder-02",
     name: "Federico Martín",
-    role: "Fundador · Producto y desarrollo",
+    role: "Fundador · Producto y diseño",
     bio: "Diseñador y desarrollador de producto. Creó APEX, software de entrenamiento: interfaz, código, pagos e IA. Traduce tu marca en pantallas cuidadas al detalle: tipografía, animación y experiencia.",
     imageUrl: "/team/federico-martin-2026-09.jpg",
     linkedin: "https://www.linkedin.com/in/federico-martin-632223231/",
