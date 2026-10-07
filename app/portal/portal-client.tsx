@@ -120,7 +120,7 @@ export function PortalClient() {
                   </span>
                 </div>
                 <p className="text-xs text-muted mt-0.5">
-                  Tech Lead: Franco Riquero · Design Lead: Federico
+                  Tech Lead: Franco Riquero · Product Lead: Federico
                 </p>
               </div>
             </div>

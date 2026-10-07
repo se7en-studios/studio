@@ -110,7 +110,7 @@ export function BookingModal() {
                     Discovery Call — 15 Minutos
                   </h3>
                   <p className="text-xs text-muted">
-                    Con Franco (Tech Lead) y Federico (Design Lead)
+                    Con Franco (Tech Lead) y Federico (Product Lead)
                   </p>
                 </div>
               </div>
