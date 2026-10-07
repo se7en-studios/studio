@@ -6,6 +6,8 @@ import { cookies } from "next/headers";
 
 const COOKIE = "se7en_admin";
 const TTL_MS = 1000 * 60 * 60 * 24 * 14; // 14 días
+const MIN_SECRET = 32;
+let warned = false;
 
 function password(): string | null {
   return process.env.ADMIN_PASSWORD || null;
@@ -14,9 +16,19 @@ function password(): string | null {
 function secret(): string | null {
   const p = password();
   if (!p) return null;
-  // Si ADMIN_SESSION_SECRET no está, se deriva de la contraseña: cambiarla
-  // cierra todas las sesiones abiertas.
-  return process.env.ADMIN_SESSION_SECRET || `se7en-admin:${p}`;
+  const s = process.env.ADMIN_SESSION_SECRET;
+  // Sin ADMIN_SESSION_SECRET se deriva de la contraseña: anda, pero la firma
+  // depende de un secreto más débil. No se corta el acceso para no dejar
+  // afuera al equipo; en producción se avisa en el log.
+  if (process.env.NODE_ENV === "production" && !warned && (!s || s.length < MIN_SECRET)) {
+    warned = true;
+    console.warn(
+      `[admin] ADMIN_SESSION_SECRET falta o tiene menos de ${MIN_SECRET} caracteres. ` +
+        "Generar uno con `openssl rand -hex 32` y cargarlo en Vercel."
+    );
+  }
+  if (s) return s;
+  return `se7en-admin:${p}`;
 }
 
 function sign(value: string, key: string) {

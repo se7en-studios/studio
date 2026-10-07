@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { SITE } from "@/data/site";
 import { insertLead } from "@/lib/admin/db";
+import { allowRequest, clientIp } from "@/lib/rate-limit";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_FIELD = 200;
 const MAX_IDEA = 5000;
+const RATE_LIMIT = 5;
+const RATE_WINDOW_MS = 10 * 60 * 1000;
+// Formularios que llaman a /api/contact (vía lib/send-lead.ts). Otro valor → "web".
+const SOURCES = new Set(["auditoría", "kickoff", "start", "reserva"]);
 
 function escapeHtml(value: string): string {
   return value
@@ -43,6 +48,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Ingresá un email válido." }, { status: 400 });
   }
 
+  if (!(await allowRequest("contact", clientIp(request.headers), RATE_LIMIT, RATE_WINDOW_MS))) {
+    return NextResponse.json(
+      { error: "Recibimos varios mensajes seguidos. Esperá unos minutos o escribinos por WhatsApp." },
+      { status: 429 }
+    );
+  }
+
   const lead = {
     name,
     email: rawEmail,
@@ -57,7 +69,7 @@ export async function POST(request: Request) {
   // El pedido se guarda para el panel /admin. Con eso solo ya no se pierde:
   // el mail es un aviso extra.
   const stored = await insertLead({
-    source: field(body.source, "formulario", 40),
+    source: typeof body.source === "string" && SOURCES.has(body.source) ? body.source : "web",
     channel: "email",
     name: lead.name,
     email: lead.email,
