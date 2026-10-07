@@ -8,7 +8,6 @@ import {
   Copy,
   Database,
   Inbox,
-  LogOut,
   Mail,
   Search,
   Trash2,
@@ -19,7 +18,7 @@ import { team } from "@/data/team";
 import { SITE } from "@/data/site";
 import { ago, budgetValue, headline, nextStep, priority, tags, type Priority } from "@/lib/admin/brief";
 import type { Lead, LeadOwner, LeadStatus } from "@/lib/admin/db";
-import { deleteLead, logout, setNotes, setOwner, setStatus } from "./actions";
+import { deleteLead, setNotes, setOwner, setStatus } from "./actions";
 
 // Tablero de pedidos: una columna por etapa (Nuevo → Ganado/Perdido). Cada
 // tarjeta resume el pedido para decidir rápido: qué quiere, cuánto vale,
@@ -113,18 +112,11 @@ export function Dashboard({ leads: initial, dbReady, error }: { leads: Lead[]; d
   const open = leads.find((l) => l.id === openId) ?? null;
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] px-4 pt-28 pb-20 md:px-8">
-      {/* Encabezado */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="font-mono text-[11px] tracking-widest text-accent uppercase">Panel · {SITE.name}</p>
-          <h1 className="mt-2 text-3xl text-foreground md:text-4xl">Pedidos de proyecto</h1>
-        </div>
-        <form action={logout}>
-          <button className="focus-ring inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm text-muted transition-colors hover:text-foreground">
-            <LogOut size={14} /> Salir
-          </button>
-        </form>
+    <div>
+      {/* Encabezado. Contenedor y botón de salir los pone el layout del panel. */}
+      <div>
+        <p className="font-mono text-[11px] tracking-widest text-accent uppercase">Panel · {SITE.name}</p>
+        <h1 className="mt-2 text-3xl text-foreground md:text-4xl">Pedidos de proyecto</h1>
       </div>
 
       {!dbReady && <SetupCard />}
