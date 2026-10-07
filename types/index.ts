@@ -85,6 +85,8 @@ export interface TeamMember {
   bio?: string;
   imageUrl?: string;
   linkedin?: string;
+  /** De qué se encarga en un proyecto. Se muestra como chips en /#about. */
+  focus?: string[];
 }
 
 export interface Testimonial {

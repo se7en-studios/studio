@@ -8,6 +8,7 @@ export const team: TeamMember[] = [
     bio: "Ingeniero industrial y fundador de dos startups propias (Sentinel y Takefyy). Construye cada producto digital del estudio de punta a punta: desde la base de datos hasta lo que ves en pantalla.",
     imageUrl: "/team/franco-riquero.jpg",
     linkedin: "https://www.linkedin.com/in/franco-riquero-117492355/",
+    focus: ["Arquitectura", "Base de datos", "Backend", "Frontend"],
   },
   {
     id: "founder-02",
@@ -16,6 +17,7 @@ export const team: TeamMember[] = [
     bio: "Diseñador y desarrollador de producto. Creó APEX, software de entrenamiento: interfaz, código, pagos e IA. Traduce tu marca en pantallas cuidadas al detalle: tipografía, animación y experiencia.",
     imageUrl: "/team/federico-martin-2026-09.jpg",
     linkedin: "https://www.linkedin.com/in/federico-martin-632223231/",
+    focus: ["Producto", "Interfaz", "Animación", "Pagos e IA"],
   },
 ];
 
