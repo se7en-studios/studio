@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { insertLead } from "@/lib/admin/db";
+import { allowRequest, clientIp } from "@/lib/rate-limit";
 
 // Registro de un pedido del formulario de la home, que sigue la charla por
 // WhatsApp o mail (no manda nada desde el servidor). Sólo guarda el pedido
@@ -24,6 +25,13 @@ export async function POST(request: Request) {
   const idea = field(body.idea, 5000);
   const email = field(body.email).toLowerCase();
   if (!name || !idea) return NextResponse.json({ error: "Faltan datos." }, { status: 400 });
+
+  if (!(await allowRequest("leads", clientIp(request.headers), 10, 10 * 60 * 1000))) {
+    return NextResponse.json(
+      { error: "Recibimos varios pedidos seguidos. Esperá unos minutos." },
+      { status: 429 }
+    );
+  }
 
   const channel = body.channel === "whatsapp" ? "whatsapp" : "email";
   const ok = await insertLead({
