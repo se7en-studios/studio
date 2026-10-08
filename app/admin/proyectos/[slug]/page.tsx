@@ -28,6 +28,7 @@ import { EventList } from "../../feed";
 import { Card, CardLink, Face, Progress, StatusPill, TabLinks, btnPrimary, btnSecondary, usd } from "../../kit";
 import { Chat } from "../../mensajes/chat";
 import { AdminGate, SetupNotice, bytes } from "../../ui";
+import { DeleteProject } from "./delete-project";
 import { FileCard } from "./file-card";
 import { ProjectTasks } from "./project-tasks";
 import { EditInfo, StatePanel } from "./state-panel";
@@ -307,6 +308,10 @@ function Files({
           </p>
         )
       )}
+
+      {/* Los casos de la web no llevan botón: viven en data/projects.ts y
+          sacarlos es un cambio de repo, no algo que el panel pueda hacer. */}
+      {!project.isCase && <DeleteProject slug={project.slug} name={project.name} files={files.length} />}
     </div>
   );
 }

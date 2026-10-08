@@ -271,6 +271,67 @@ export async function insertProject(p: {
   return slug;
 }
 
+/**
+ * Borra un proyecto del panel: desvincula sus tareas, saca sus archivos de
+ * Storage y de la tabla, y borra la fila. Devuelve el nombre y cuántos
+ * archivos se fueron, para contarlo en el feed.
+ *
+ * Los casos de data/projects.ts NO se pueden borrar desde acá: viven en el
+ * repo, así que sacarlos es un cambio de código y un deploy. La acción lo
+ * rechaza y la UI directamente no muestra el botón.
+ *
+ * El orden importa. Primero lo reversible (desvincular tareas) y último lo
+ * destructivo, para que un error a mitad de camino no deje archivos huérfanos
+ * sin proyecto al que pertenecer.
+ */
+export async function removeProject(slug: string): Promise<{ name: string; files: number }> {
+  if (cases.some((c) => c.slug === slug)) {
+    throw new Error("Ese proyecto es un caso de la web: se saca del repo, no del panel.");
+  }
+  const c = client();
+
+  const found = await c.from("panel_projects").select("name").eq("slug", slug).maybeSingle();
+  if (found.error) fail(found.error);
+  if (!found.data) throw new Error("Ese proyecto ya no existe.");
+  const { name } = found.data as { name: string };
+
+  // Las tareas sobreviven: son trabajo anotado y perderlas por borrar un
+  // proyecto sería peor que dejarlas sueltas. Quedan sin vincular.
+  const unlink = await c.from("panel_tasks").update({ project_slug: null }).eq("project_slug", slug);
+  if (unlink.error) fail(unlink.error);
+
+  // panel_files no tiene FK al proyecto, así que no hay cascade que lo haga
+  // solo. Va en lotes a propósito: una consulta de PostgREST devuelve 1000
+  // filas como máximo, y vaciar la tabla de una sin haber sacado todos los
+  // objetos de Storage los dejaría huérfanos para siempre. Cada vuelta borra
+  // de Storage y después exactamente esas filas, así que no queda nada suelto.
+  let files = 0;
+  for (;;) {
+    const rows = await c.from("panel_files").select("id, path").eq("project_slug", slug).limit(100);
+    if (rows.error) fail(rows.error);
+    const batch = rows.data as { id: string; path: string }[];
+    if (!batch.length) break;
+    const gone = await c.storage.from(BUCKET).remove(batch.map((r) => r.path));
+    if (gone.error) throw new Error(gone.error.message);
+    const del = await c.from("panel_files").delete().in(
+      "id",
+      batch.map((r) => r.id),
+    );
+    if (del.error) fail(del.error);
+    files += batch.length;
+  }
+
+  // El estado de gestión (panel v2) no tiene FK: sin esto, un proyecto nuevo
+  // con el mismo slug heredaría etapa, cliente y responsable del borrado.
+  // Si panel-v2.sql todavía no corrió no hay nada que limpiar.
+  const state = await c.from("panel_project_state").delete().eq("slug", slug);
+  if (state.error && state.error.code !== "PGRST205" && state.error.code !== "42P01") fail(state.error);
+
+  const del = await c.from("panel_projects").delete().eq("slug", slug);
+  if (del.error) fail(del.error);
+  return { name, files };
+}
+
 // --- Archivos --------------------------------------------------------------
 
 export async function listFiles(slug: string): Promise<PanelFile[]> {
