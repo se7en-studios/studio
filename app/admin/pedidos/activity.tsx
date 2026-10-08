@@ -21,7 +21,7 @@ import {
   type ActivityKind,
 } from "@/lib/admin/activity-shared";
 import { dayKey } from "@/lib/admin/task-shared";
-import { Face } from "../tareas/task-ui";
+import { Face } from "../kit";
 
 export const ACTIVITY_ICON: Record<ActivityKind, React.ReactNode> = {
   llamada: <Phone size={13} />,
@@ -63,12 +63,12 @@ export function ActivityLog({
 
   return (
     <>
-      <p className="mt-6 mb-2 font-mono text-[10px] tracking-widest text-muted uppercase">
+      <p className="mt-6 mb-2 text-[11px] font-medium tracking-wide text-muted uppercase">
         Historial de contacto
       </p>
       <form
         onSubmit={submit}
-        className="rounded-xl border border-border bg-background/60 p-3"
+        className="rounded-lg border border-[var(--line)] bg-black/20 p-3"
       >
         <div
           className="flex flex-wrap gap-1.5"
@@ -81,10 +81,10 @@ export function ActivityLog({
               type="button"
               onClick={() => setKind(k)}
               aria-pressed={kind === k}
-              className={`focus-ring inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+              className={`focus-ring inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[12px] transition-colors ${
                 kind === k
-                  ? "border-accent bg-accent/15 text-foreground"
-                  : "border-border text-muted hover:text-foreground"
+                  ? "border-accent/60 bg-accent/15 text-foreground"
+                  : "border-[var(--line-strong)] text-muted hover:text-foreground"
               }`}
             >
               {ACTIVITY_ICON[k]} {ACTIVITY_LABEL[k]}
@@ -101,7 +101,7 @@ export function ActivityLog({
           rows={2}
           placeholder={PLACEHOLDER[kind]}
           aria-label="Detalle del contacto"
-          className="focus-ring mt-2.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted/60 focus:border-accent"
+          className="focus-ring mt-2.5 w-full rounded-lg border border-[var(--line-strong)] bg-black/30 px-3 py-2 text-sm text-foreground placeholder:text-muted/60 focus:border-accent"
         />
         <div className="mt-2 flex items-center justify-between gap-2">
           <label className="flex items-center gap-2 text-xs text-muted">
@@ -111,13 +111,13 @@ export function ActivityLog({
               value={day}
               max={dayKey()}
               onChange={(e) => setDay(e.target.value || dayKey())}
-              className="focus-ring rounded-full border border-border bg-background px-2.5 py-1 text-xs text-foreground [color-scheme:dark]"
+              className="focus-ring rounded-md border border-[var(--line-strong)] bg-black/30 px-2 py-1 text-[12px] text-foreground [color-scheme:dark]"
             />
           </label>
           <button
             type="submit"
             disabled={!canSave}
-            className="focus-ring rounded-full bg-accent px-3.5 py-1.5 text-xs font-medium text-background disabled:opacity-40"
+            className="focus-ring rounded-lg bg-accent px-3 py-1.5 text-[12px] font-medium text-background disabled:opacity-40"
           >
             Registrar
           </button>
@@ -125,10 +125,10 @@ export function ActivityLog({
       </form>
 
       {items.length > 0 ? (
-        <ol className="mt-3 space-y-0 border-l border-border pl-4">
+        <ol className="mt-3 space-y-0 border-l border-[var(--line)] pl-4">
           {items.map((a) => (
             <li key={a.id} className="group relative pb-4 last:pb-0">
-              <span className="absolute top-0.5 -left-[25px] flex h-[18px] w-[18px] items-center justify-center rounded-full border border-border bg-surface text-muted">
+              <span className="absolute top-0.5 -left-[25px] flex h-[18px] w-[18px] items-center justify-center rounded-full border border-[var(--line-strong)] bg-[var(--panel)] text-muted">
                 {ACTIVITY_ICON[a.kind]}
               </span>
               <div className="flex items-center gap-2 text-xs">

@@ -1,7 +1,8 @@
 // «Para atender» en Inicio: lo que se está enfriando, en un solo lugar.
 // Componente de servidor; cada fila lleva directo a la ficha o al filtro.
 import Link from "next/link";
-import { AlertCircle, Inbox, Snowflake } from "lucide-react";
+import { AlertCircle, BellRing, Inbox, Snowflake } from "lucide-react";
+import { Card, CardLink } from "./kit";
 import { ago } from "@/lib/admin/brief";
 import type { Lead } from "@/lib/admin/db";
 import {
@@ -62,77 +63,48 @@ export function Attention({
 
   const total = rows.length + overdueTasks;
   return (
-    <section className="rounded-2xl border border-border bg-surface/50">
-      <header className="flex items-center justify-between border-b border-border px-4 py-3">
-        <h2 className="text-sm text-foreground">
-          Para atender{" "}
-          {total > 0 && (
-            <span className="ml-1 font-mono text-[11px] text-accent">
-              {total}
-            </span>
-          )}
-        </h2>
-        {cold.length > 0 && (
-          <Link
-            href="/admin/pedidos?frios=1"
-            className="focus-ring font-mono text-[11px] tracking-widest text-muted uppercase hover:text-foreground"
-          >
-            Ver fríos →
-          </Link>
-        )}
-      </header>
+    <Card
+      title="Para atender"
+      icon={<BellRing size={14} />}
+      count={total || undefined}
+      action={cold.length > 0 && <CardLink href="/admin/pedidos?frios=1">Ver fríos →</CardLink>}
+    >
       {total === 0 ? (
-        <p className="px-4 py-6 text-sm text-muted">
-          Todo al día: nada sin responder ni enfriándose.
-        </p>
+        <p className="px-4 py-5 text-[13px] text-muted">Todo al día: nada sin responder ni enfriándose.</p>
       ) : (
-        <ul>
+        <ul className="divide-y divide-[var(--line)]">
           {overdueTasks > 0 && (
-            <li className="border-b border-border">
-              <Link
-                href="/admin/tareas"
-                className="focus-ring flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.03]"
-              >
-                <span className="text-red-400">
+            <li>
+              <Link href="/admin/tareas" className="focus-ring flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.025]">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-500/10 text-red-400">
                   <AlertCircle size={14} />
                 </span>
-                <span className="text-sm text-foreground">
-                  {overdueTasks}{" "}
-                  {overdueTasks === 1 ? "tarea vencida" : "tareas vencidas"}
+                <span className="text-[13px]">
+                  {overdueTasks} {overdueTasks === 1 ? "tarea vencida" : "tareas vencidas"}
                 </span>
               </Link>
             </li>
           )}
           {rows.slice(0, SHOW).map((r) => (
-            <li key={r.id} className="border-b border-border last:border-0">
-              <Link
-                href={r.href}
-                className="focus-ring flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.03]"
-              >
-                <span className={r.tone}>{r.icon}</span>
+            <li key={r.id}>
+              <Link href={r.href} className="focus-ring flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.025]">
+                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.04] ${r.tone}`}>{r.icon}</span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm text-foreground">
-                    {r.title}
-                  </span>
-                  <span className="font-mono text-[10px] tracking-wide text-muted uppercase">
-                    {r.detail}
-                  </span>
+                  <span className="block truncate text-[13px] font-medium">{r.title}</span>
+                  <span className="block text-[12px] text-muted">{r.detail}</span>
                 </span>
               </Link>
             </li>
           ))}
           {rows.length > SHOW && (
             <li>
-              <Link
-                href="/admin/pedidos"
-                className="focus-ring block px-4 py-2.5 text-xs text-muted hover:text-foreground"
-              >
+              <Link href="/admin/pedidos" className="focus-ring block px-4 py-2.5 text-[12px] text-muted hover:text-foreground">
                 y {rows.length - SHOW} más en Pedidos…
               </Link>
             </li>
           )}
         </ul>
       )}
-    </section>
+    </Card>
   );
 }

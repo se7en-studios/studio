@@ -79,21 +79,22 @@ export async function listLeads(): Promise<Lead[]> {
   return (data ?? []) as Lead[];
 }
 
-/** Devuelve el nombre del pedido, para contarlo en el feed de cambios. */
-export async function patchLead(
-  id: string,
-  patch: Partial<Pick<Lead, "status" | "owner" | "notes" | "name" | "company" | "email" | "phone" | "value">>,
-): Promise<string> {
+export type LeadPatch = Partial<Pick<Lead, "status" | "owner" | "notes" | "name" | "company" | "email" | "phone" | "value">>;
+
+/** Devuelve el pedido antes y después del cambio, para el registro de cambios. */
+export async function patchLead(id: string, patch: LeadPatch): Promise<{ before: Lead; after: Lead }> {
   const c = db();
   if (!c) throw new Error("Base de datos no configurada");
+  const cur = await c.from("leads").select("*").eq("id", id).single();
+  if (cur.error) throw new Error(cur.error.message);
   const { data, error } = await c
     .from("leads")
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq("id", id)
-    .select("name")
+    .select("*")
     .single();
   if (error) throw new Error(missingColumn(error.message) ?? error.message);
-  return (data as { name: string }).name;
+  return { before: cur.data as Lead, after: data as Lead };
 }
 
 export async function removeLead(id: string): Promise<string> {

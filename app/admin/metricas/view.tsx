@@ -69,7 +69,7 @@ export function MetricsView({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
         <div
-          className="flex rounded-full border border-border bg-surface p-1 text-sm"
+          className="flex rounded-lg border border-[var(--line)] bg-[var(--panel)] p-0.5 text-[13px]"
           role="group"
           aria-label="Período"
         >
@@ -78,9 +78,9 @@ export function MetricsView({
               key={r.id}
               onClick={() => setRange(r.id)}
               aria-pressed={range === r.id}
-              className={`focus-ring rounded-full px-3.5 py-1.5 whitespace-nowrap transition-colors ${
+              className={`focus-ring rounded-md px-3 py-1.5 whitespace-nowrap transition-colors ${
                 range === r.id
-                  ? "bg-white/10 text-foreground"
+                  ? "bg-white/[0.08] text-foreground"
                   : "text-muted hover:text-foreground"
               }`}
             >
@@ -159,8 +159,8 @@ function Kpi({
   hint?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface p-4">
-      <p className="font-mono text-[10px] tracking-widest text-muted uppercase">
+    <div className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-4">
+      <p className="text-[11px] font-medium tracking-wide text-muted uppercase">
         {label}
       </p>
       <p className="mt-2 text-2xl text-foreground tabular-nums">{value}</p>
@@ -181,11 +181,11 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="min-w-0 rounded-2xl border border-border bg-surface/50 p-4">
+    <section className="min-w-0 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-4">
       <header className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-sm text-foreground">{title}</h2>
         {note && (
-          <span className="font-mono text-[10px] tracking-wide text-muted uppercase">
+          <span className="text-[11px] text-muted">
             {note}
           </span>
         )}
@@ -293,7 +293,7 @@ function GroupTable({
     <div className="-mx-1 overflow-x-auto">
       <table className="w-full min-w-[420px] text-sm">
         <thead>
-          <tr className="text-left font-mono text-[10px] tracking-widest text-muted uppercase">
+          <tr className="text-left text-[11px] font-medium tracking-wide text-muted uppercase">
             <th className="px-1 pb-2 font-normal">Nombre</th>
             <th className="px-1 pb-2 font-normal">Pedidos</th>
             <th className="px-1 pb-2 text-right font-normal">Ganados</th>

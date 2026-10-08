@@ -1,254 +1,263 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Palette, Upload } from "lucide-react";
+import { CalendarClock, FolderKanban, History, MessagesSquare, Plus } from "lucide-react";
 import { panelSession } from "@/lib/admin/auth";
-import { countNewLeads, db, listLeads, type Lead } from "@/lib/admin/db";
+import { db, listLeads, type Lead, type LeadOwner } from "@/lib/admin/db";
 import { listActivity } from "@/lib/admin/activity";
 import type { Activity } from "@/lib/admin/activity-shared";
-import { bucket } from "@/lib/admin/task-shared";
-import { Attention } from "./attention";
-import {
-  PanelNotReady,
-  caseProjects,
-  countFilesSince,
-  listEvents,
-  listProjects,
-  type PanelEvent,
-  type PanelProject,
-} from "@/lib/admin/panel";
-import { PEOPLE } from "@/lib/admin/people";
 import { ago } from "@/lib/admin/brief";
-import { EventList } from "./feed";
-import { MyTasks } from "./tareas/my-tasks";
+import { channelSummaries } from "@/lib/admin/messages";
+import { GENERAL, parseChannel, type ChannelSummary } from "@/lib/admin/message-shared";
+import { dealValue, monthKey } from "@/lib/admin/metrics";
+import { PanelNotReady, caseProjects, listEvents, listProjects, type PanelEvent, type PanelProject } from "@/lib/admin/panel";
+import { PEOPLE } from "@/lib/admin/people";
+import { ACTIVE_STATUSES, defaultState, type ProjectState } from "@/lib/admin/project-shared";
+import { listStates } from "@/lib/admin/projects";
+import { bucket, dayKey, dueLabel, type Task, type TaskLinks } from "@/lib/admin/task-shared";
 import { listTasks, taskLinks } from "@/lib/admin/tasks";
-import type { Task, TaskLinks } from "@/lib/admin/task-shared";
-import { AdminGate, PageHeader, SetupNotice, Stat, dayLabel } from "./ui";
+import { Attention } from "./attention";
+import { EventList } from "./feed";
+import { Card, CardLink, Empty, Face, Kpi, PageHeader, Progress, StatusPill, btnPrimary, btnSecondary, cn, usdShort } from "./kit";
+import { MyTasks } from "./tareas/my-tasks";
+import { AdminGate, SetupNotice } from "./ui";
 
-export const metadata: Metadata = { title: "Panel" };
+export const metadata: Metadata = { title: "Inicio" };
 
-/** Pedidos + historial para «Para atender». El historial es opcional (crm.sql). */
-async function loadAttention(): Promise<{
-  leads: Lead[];
-  activities: Activity[] | null;
-  now: number;
-} | null> {
-  if (!db()) return null;
-  let leads: Lead[];
+/** Lo que falte (tablas sin crear, base sin conectar) no tira abajo Inicio. */
+async function safe<T>(p: Promise<T>, fallback: T): Promise<{ value: T; missing: string | null }> {
   try {
-    leads = await listLeads();
+    return { value: await p, missing: null };
   } catch (e) {
-    // Inicio no se cae por esto: sin pedidos, el bloque no se muestra.
-    console.error("[panel] Para atender:", e instanceof Error ? e.message : e);
-    return null;
+    if (e instanceof PanelNotReady) return { value: fallback, missing: e.message };
+    console.error("[panel] Inicio:", e instanceof Error ? e.message : e);
+    return { value: fallback, missing: null };
   }
-  let activities: Activity[] | null = null;
-  try {
-    activities = await listActivity();
-  } catch (e) {
-    if (!(e instanceof PanelNotReady)) throw e;
-  }
-  return { leads, activities, now: Date.now() };
 }
 
-// Lo primero que se ve al entrar: qué pasó, qué hay pendiente y atajos.
+const TZ = "America/Argentina/Buenos_Aires";
+
+/**
+ * Todo lo que muestra Inicio, leído en paralelo. Fuera del componente: acá
+ * vive lo que depende de la hora (Date.now, saludos), que es por pedido.
+ */
+async function loadHome(who: LeadOwner) {
+  const hasDb = db() !== null;
+  const [leadsR, actsR, projectsR, statesR, eventsR, tasksR, linksR, chatsR] = await Promise.all([
+    safe<Lead[]>(hasDb ? listLeads() : Promise.resolve([]), []),
+    safe<Activity[] | null>(listActivity(), null),
+    safe<PanelProject[]>(listProjects(), caseProjects()),
+    safe<Map<string, ProjectState>>(listStates(), new Map()),
+    safe<PanelEvent[]>(listEvents({ limit: 10 }), []),
+    safe<Task[] | null>(listTasks(), null),
+    safe<TaskLinks>(taskLinks(), { leads: [], projects: [] }),
+    safe<ChannelSummary[]>(channelSummaries(who), []),
+  ]);
+
+  const leads = leadsR.value;
+  const now = Date.now();
+  const thisMonth = monthKey(new Date(now).toISOString());
+  const wonMonth = leads
+    .filter((l) => l.status === "ganado" && monthKey(l.updated_at ?? l.created_at) === thisMonth)
+    .reduce((s, l) => s + dealValue(l), 0);
+  const pipeline = leads.filter((l) => l.status === "contactado" || l.status === "propuesta").reduce((s, l) => s + dealValue(l), 0);
+  const fresh = leads.filter((l) => l.status === "nuevo").length;
+  const today = dayKey();
+  const tasks = tasksR.value;
+  const overdue = tasks?.filter((t) => t.assignee === who && bucket(t, today) === "vencidas").length ?? 0;
+
+  const states = statesR.value;
+  const projects = projectsR.value.map((p) => ({ p, s: states.get(p.slug) ?? defaultState(p.slug, p.isCase) }));
+  const active = projects
+    .filter(({ s }) => ACTIVE_STATUSES.includes(s.status))
+    .sort((a, b) => (a.s.due ?? "9999").localeCompare(b.s.due ?? "9999"));
+  const names = Object.fromEntries(projectsR.value.map((p) => [p.slug, p.name]));
+  const leadNames = Object.fromEntries(leads.map((l) => [l.id, l.name]));
+  const chats = [...chatsR.value].sort((a, b) => (b.last?.created_at ?? "").localeCompare(a.last?.created_at ?? "")).slice(0, 5);
+  const unread = chatsR.value.reduce((n, c) => n + c.unread, 0);
+  const setup = projectsR.missing ?? statesR.missing ?? chatsR.missing;
+
+  const date = new Date().toLocaleDateString("es-AR", { timeZone: TZ, weekday: "long", day: "numeric", month: "long" });
+  const hour = Number(new Date().toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit" }));
+  const hello = hour < 13 ? "Buen día" : hour < 20 ? "Buenas tardes" : "Buenas noches";
+
+  return { hasDb, fresh, active, projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now, actsR, eventsR, linksR };
+}
+
+// Lo primero que se ve al entrar: qué está pendiente, cómo vienen los
+// proyectos, qué se habló y qué cambió. Todo se lee en paralelo.
 export default async function AdminHome() {
   const me = await panelSession();
   if (!me) return <AdminGate />;
 
-  let projects: PanelProject[] = caseProjects();
-  let events: PanelEvent[] = [];
-  let filesWeek: number | null = null;
-  let setup: string | null = null;
-  const newLeads = await countNewLeads();
-  try {
-    [projects, events, filesWeek] = await Promise.all([
-      listProjects(),
-      listEvents({ limit: 50 }),
-      countFilesSince(new Date(Date.now() - 7 * 86_400_000).toISOString()),
-    ]);
-  } catch (e) {
-    if (!(e instanceof PanelNotReady)) throw e;
-    setup = e.message;
-  }
-  // Aparte: si falta la tabla de tareas, el resto de Inicio anda igual.
-  const attention = await loadAttention();
-  let tasks: { list: Task[]; links: TaskLinks } | null = null;
-  if (!setup) {
-    try {
-      const [list, links] = await Promise.all([listTasks(), taskLinks()]);
-      tasks = { list, links };
-    } catch (e) {
-      if (!(e instanceof PanelNotReady)) throw e;
-    }
-  }
-
-  const names = Object.fromEntries(projects.map((p) => [p.slug, p.name]));
-  const today = events.filter((e) => dayLabel(e.created_at) === "Hoy").length;
-  const active = projects.filter((p) => p.files > 0).slice(0, 4);
-  const date = new Date().toLocaleDateString("es-AR", {
-    timeZone: "America/Argentina/Buenos_Aires",
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
+  const d = await loadHome(me.who);
+  const { hasDb, fresh, active, projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now } = d;
+  const { actsR, eventsR, linksR } = d;
 
   return (
-    <div className="space-y-8">
-      <PageHeader title={`Buenas, ${PEOPLE[me.who].name}`}>
-        {date.charAt(0).toUpperCase() + date.slice(1)}.{" "}
-        {!setup &&
-          (today
-            ? `${today} ${today === 1 ? "cambio" : "cambios"} hoy en el panel.`
-            : "Hoy todavía no hubo cambios en el panel.")}
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow={date.charAt(0).toUpperCase() + date.slice(1)}
+        title={`${hello}, ${PEOPLE[me.who].name}`}
+        right={
+          <>
+            <Link href="/admin/mensajes" className={btnSecondary}>
+              <MessagesSquare size={14} /> Mensajes
+              {unread > 0 && <span className="rounded-full bg-accent px-1.5 font-mono text-[10px] text-background">{unread}</span>}
+            </Link>
+            <Link href="/admin/tareas?nueva=1" className={btnSecondary}>
+              <Plus size={14} /> Tarea
+            </Link>
+            <Link href="/admin/pedidos?nuevo=1" className={btnPrimary}>
+              <Plus size={14} /> Pedido
+            </Link>
+          </>
+        }
+      >
+        {[
+          fresh ? `${fresh} ${fresh === 1 ? "pedido espera" : "pedidos esperan"} respuesta` : "Ningún pedido sin responder",
+          active.length ? `${active.length} ${active.length === 1 ? "proyecto en curso" : "proyectos en curso"}` : null,
+          overdue ? `${overdue} ${overdue === 1 ? "tarea tuya vencida" : "tareas tuyas vencidas"}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+        .
       </PageHeader>
 
       {setup && <SetupNotice reason={setup} />}
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat
-          label="Pedidos sin responder"
-          value={newLeads ?? "—"}
-          accent={(newLeads ?? 0) > 0}
-          href="/admin/pedidos"
-        />
-        <Stat
-          label="Proyectos"
-          value={projects.length}
-          href="/admin/proyectos"
-        />
-        <Stat label="Archivos esta semana" value={filesWeek ?? "—"} />
-        <Stat
-          label="Cambios hoy"
-          value={setup ? "—" : today}
-          href="/admin/cambios"
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <Kpi label="Sin responder" value={hasDb ? fresh : "—"} tone={fresh ? "accent" : undefined} href="/admin/pedidos" hint="Pedidos nuevos" />
+        <Kpi label="Valor en juego" value={usdShort(pipeline)} href="/admin/metricas" hint="Contactados + propuesta" />
+        <Kpi label="Ganado este mes" value={usdShort(wonMonth)} tone={wonMonth ? "green" : undefined} href="/admin/metricas" />
+        <Kpi label="Proyectos en curso" value={active.length} href="/admin/proyectos" hint={`${projects.length} en total`} />
+        <Kpi
+          label="Tus tareas vencidas"
+          value={tasks ? overdue : "—"}
+          tone={overdue ? "red" : undefined}
+          href="/admin/tareas"
+          hint={tasks ? openLabel(tasks.filter((t) => t.assignee === me.who && !t.done_at).length) : undefined}
         />
       </div>
 
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <div className="space-y-4">
-          {attention && (
-            <Attention
-              leads={attention.leads}
-              activities={attention.activities}
-              now={attention.now}
-              overdueTasks={
-                tasks?.list.filter(
-                  (t) => t.assignee === me.who && bucket(t) === "vencidas",
-                ).length ?? 0
-              }
-            />
-          )}
-          <section className="rounded-2xl border border-border bg-surface/50">
-            <header className="flex items-center justify-between border-b border-border px-4 py-3">
-              <h2 className="text-sm text-foreground">Últimos cambios</h2>
-              <Link
-                href="/admin/cambios"
-                className="focus-ring font-mono text-[11px] tracking-widest text-muted uppercase hover:text-foreground"
-              >
-                Ver todos →
-              </Link>
-            </header>
-            <EventList events={events.slice(0, 8)} names={names} />
-          </section>
-        </div>
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-4">
+          {hasDb && <Attention leads={leads} activities={actsR.value} now={now} overdueTasks={overdue} />}
 
-        <div className="space-y-4">
-          {tasks && (
-            <MyTasks tasks={tasks.list} links={tasks.links} me={me.who} />
-          )}
-          <section className="rounded-2xl border border-border bg-surface/50">
-            <header className="border-b border-border px-4 py-3">
-              <h2 className="text-sm text-foreground">
-                Proyectos con movimiento
-              </h2>
-            </header>
+          <Card
+            title="Proyectos en curso"
+            icon={<FolderKanban size={14} />}
+            count={active.length}
+            action={<CardLink href="/admin/proyectos">Ver todos →</CardLink>}
+          >
             {active.length ? (
-              <ul>
-                {active.map((p) => (
-                  <li
-                    key={p.slug}
-                    className="border-b border-border last:border-0"
-                  >
+              <ul className="divide-y divide-[var(--line)]">
+                {active.slice(0, 6).map(({ p, s }) => (
+                  <li key={p.slug}>
                     <Link
                       href={`/admin/proyectos/${p.slug}`}
-                      className="focus-ring flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.03]"
+                      className="focus-ring grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.025] md:grid-cols-[auto_minmax(0,1fr)_120px_110px_auto]"
                     >
                       <Cover project={p} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm text-foreground">
-                          {p.name}
-                        </span>
-                        <span className="font-mono text-[10px] tracking-widest text-muted uppercase">
-                          {p.files} archivos
-                          {p.updatedAt && ` · ${ago(p.updatedAt)}`}
-                        </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-[13.5px] font-medium">{p.name}</span>
+                        <span className="mt-0.5 block truncate text-[12px] text-muted">{s.client || p.category || "Sin cliente"}</span>
                       </span>
-                      <ArrowRight size={14} className="text-muted" />
+                      <span className="hidden md:block">
+                        <span className="mb-1 flex justify-between text-[11px] text-muted">
+                          Avance <span className="tabular-nums">{s.progress}%</span>
+                        </span>
+                        <Progress value={s.progress} accent={p.accent} />
+                      </span>
+                      <span className="hidden md:block">
+                        <StatusPill status={s.status} />
+                      </span>
+                      <span className="flex items-center gap-2">
+                        {s.due && (
+                          <span className={cn("hidden text-[11.5px] sm:inline", s.due < today ? "text-red-400" : "text-muted")}>
+                            <CalendarClock size={12} className="mr-1 inline -translate-y-px" />
+                            {dueLabel(s.due, today)}
+                          </span>
+                        )}
+                        <Face who={s.owner} size={22} />
+                      </span>
                     </Link>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="px-4 py-6 text-sm text-muted">
-                Cuando suban archivos a un proyecto, aparece acá.
-              </p>
+              <Empty icon={<FolderKanban size={18} />} title="Nada en curso">
+                Pasá un proyecto a Descubrimiento, Diseño, Desarrollo o Revisión y aparece acá.
+              </Empty>
             )}
-          </section>
+          </Card>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Shortcut
-              href="/admin/proyectos"
-              icon={<Upload size={16} />}
-              label="Subir archivos"
-              hint="Elegí el proyecto"
-            />
-            <Shortcut
-              href="/admin/marca"
-              icon={<Palette size={16} />}
-              label="Marca"
-              hint="Logos, colores, fuentes"
-            />
-          </div>
+          <Card title="Actividad del equipo" icon={<History size={14} />} action={<CardLink href="/admin/cambios">Registro completo →</CardLink>}>
+            <EventList events={eventsR.value} names={names} compact />
+          </Card>
+        </div>
+
+        <div className="min-w-0 space-y-4">
+          {tasks && <MyTasks tasks={tasks} links={linksR.value} me={me.who} />}
+
+          <Card
+            title="Mensajes"
+            icon={<MessagesSquare size={14} />}
+            count={unread || undefined}
+            action={<CardLink href="/admin/mensajes">Abrir →</CardLink>}
+          >
+            {chats.length ? (
+              <ul className="divide-y divide-[var(--line)]">
+                {chats.map((c) => {
+                  const p = parseChannel(c.channel);
+                  const title =
+                    p.kind === "general" ? "# General" : p.kind === "proyecto" ? names[p.slug] ?? p.slug : leadNames[p.id] ?? "Pedido";
+                  return (
+                    <li key={c.channel}>
+                      <Link
+                        href={c.channel === GENERAL ? "/admin/mensajes" : `/admin/mensajes?c=${encodeURIComponent(c.channel)}`}
+                        className="focus-ring flex items-start gap-3 px-4 py-3 transition-colors hover:bg-white/[0.025]"
+                      >
+                        {c.last && <Face who={c.last.author} size={26} />}
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-baseline gap-2">
+                            <span className={cn("truncate text-[13px]", c.unread ? "font-semibold" : "font-medium")}>{title}</span>
+                            {c.last && <span className="ml-auto shrink-0 text-[11px] text-muted">{ago(c.last.created_at)}</span>}
+                          </span>
+                          <span className="mt-0.5 line-clamp-2 text-[12.5px] text-muted">{c.last?.body}</span>
+                        </span>
+                        {c.unread > 0 && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-accent" />}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <Empty icon={<MessagesSquare size={18} />} title="Sin mensajes todavía">
+                <Link href="/admin/mensajes" className="text-accent hover:underline">
+                  Escribile al equipo
+                </Link>{" "}
+                o abrí la conversación de un proyecto.
+              </Empty>
+            )}
+          </Card>
         </div>
       </div>
     </div>
   );
 }
 
+const openLabel = (n: number) => `${n} ${n === 1 ? "abierta" : "abiertas"}`;
+
 function Cover({ project }: { project: PanelProject }) {
-  const cls =
-    "h-10 w-16 shrink-0 rounded-md border border-border object-cover object-top";
+  const cls = "h-9 w-14 shrink-0 rounded-md border border-[var(--line)] object-cover object-top";
   if (!project.cover)
-    return <span className={cls} style={{ background: project.accent }} />;
+    return <span className={cls} style={{ background: `linear-gradient(135deg, ${project.accent}, #111)` }} />;
   return project.isCase ? (
-    <Image src={project.cover} alt="" width={128} height={80} className={cls} />
+    <Image src={project.cover} alt="" width={112} height={72} className={cls} />
   ) : (
     // URL firmada de Supabase: ver feed.tsx.
     // eslint-disable-next-line @next/next/no-img-element
     <img src={project.cover} alt="" className={cls} />
-  );
-}
-
-function Shortcut({
-  href,
-  icon,
-  label,
-  hint,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  label: string;
-  hint: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="focus-ring rounded-2xl border border-border bg-surface p-4 transition-colors hover:border-foreground/20"
-    >
-      <span className="text-accent">{icon}</span>
-      <span className="mt-3 block text-sm text-foreground">{label}</span>
-      <span className="block text-xs text-muted">{hint}</span>
-    </Link>
   );
 }

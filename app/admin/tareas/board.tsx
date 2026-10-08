@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AnimatePresence } from "framer-motion";
 import { CheckCircle2, Search } from "lucide-react";
 import type { LeadOwner } from "@/lib/admin/db";
 import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
@@ -14,7 +13,9 @@ import {
   type Task,
   type TaskLinks,
 } from "@/lib/admin/task-shared";
-import { QuickAdd, TaskDrawer, TaskRow, Toast, useFlash } from "./task-ui";
+import { Kpi, cn } from "../kit";
+import { useToast } from "../overlay";
+import { QuickAdd, TaskDrawer, TaskRow } from "./task-ui";
 import { useTasks } from "./use-tasks";
 
 // Tareas del equipo agrupadas por urgencia: vencidas, hoy, la semana, más
@@ -26,17 +27,24 @@ export function TasksBoard({
   tasks: initial,
   links,
   me,
+  initialOpen = null,
+  autoFocus = false,
 }: {
   tasks: Task[];
   links: TaskLinks;
   me: LeadOwner;
+  /** Desde un link (?tarea=<id>, la paleta de comandos): abre esa tarea. */
+  initialOpen?: string | null;
+  /** Desde un link (?nueva=1): el alta arranca enfocada. */
+  autoFocus?: boolean;
 }) {
-  const { toast, flash } = useFlash();
+  const flash = useToast();
   const api = useTasks(initial, flash);
-  const [who, setWho] = useState<Who>("mias");
+  const startsDone = Boolean(initialOpen && initial.find((t) => t.id === initialOpen)?.done_at);
+  const [who, setWho] = useState<Who>(initialOpen ? "todas" : "mias");
   const [query, setQuery] = useState("");
-  const [showDone, setShowDone] = useState(false);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [showDone, setShowDone] = useState(startsDone);
+  const [openId, setOpenId] = useState<string | null>(initialOpen);
   const today = dayKey();
 
   const matchesWho = (t: Task, w: Who) =>
@@ -96,18 +104,10 @@ export function TasksBoard({
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat
-          label="Vencidas"
-          value={stats.overdue}
-          tone={stats.overdue ? "red" : undefined}
-        />
-        <Stat
-          label="Para hoy"
-          value={stats.today}
-          tone={stats.today ? "accent" : undefined}
-        />
-        <Stat label="Abiertas" value={stats.open} />
-        <Stat label="Hechas en 7 días" value={stats.doneWeek} />
+        <Kpi label="Vencidas" value={stats.overdue} tone={stats.overdue ? "red" : undefined} />
+        <Kpi label="Para hoy" value={stats.today} tone={stats.today ? "accent" : undefined} />
+        <Kpi label="Abiertas" value={stats.open} />
+        <Kpi label="Hechas en 7 días" value={stats.doneWeek} tone={stats.doneWeek ? "green" : undefined} />
       </div>
 
       <QuickAdd
@@ -118,18 +118,19 @@ export function TasksBoard({
           who === "sin" ? null : who === "mias" || who === "todas" ? me : who
         }
         key={who}
+        autoFocus={autoFocus}
       />
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex max-w-full overflow-x-auto rounded-full border border-border bg-surface p-1 text-sm [scrollbar-width:none]">
+        <div className="flex max-w-full overflow-x-auto rounded-lg border border-[var(--line)] bg-[var(--panel)] p-0.5 text-[13px] [scrollbar-width:none]">
           {chips.map((c) => (
             <button
               key={c.id}
               onClick={() => setWho(c.id)}
               aria-pressed={who === c.id}
-              className={`focus-ring flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 whitespace-nowrap transition-colors ${
+              className={`focus-ring flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 whitespace-nowrap transition-colors ${
                 who === c.id
-                  ? "bg-white/10 text-foreground"
+                  ? "bg-white/[0.08] text-foreground"
                   : "text-muted hover:text-foreground"
               }`}
             >
@@ -149,24 +150,23 @@ export function TasksBoard({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar tareas…"
-            className="focus-ring w-full rounded-full border border-border bg-surface py-2.5 pr-4 pl-10 text-sm text-foreground placeholder:text-muted/70 focus:border-accent"
+            className="focus-ring w-full rounded-lg border border-[var(--line)] bg-[var(--panel)] py-2 pr-4 pl-10 text-[13px] text-foreground placeholder:text-muted/70 focus:border-accent/60"
           />
         </label>
         <button
           onClick={() => setShowDone((v) => !v)}
           aria-pressed={showDone}
-          className={`focus-ring rounded-full border px-3.5 py-2 text-sm transition-colors ${
-            showDone
-              ? "border-accent bg-accent/15 text-foreground"
-              : "border-border text-muted hover:text-foreground"
-          }`}
+          className={cn(
+            "focus-ring rounded-lg border px-3 py-2 text-[13px] transition-colors",
+            showDone ? "border-accent/60 bg-accent/15 text-foreground" : "border-[var(--line)] text-muted hover:text-foreground",
+          )}
         >
           {showDone ? "Ocultar hechas" : "Ver hechas"}
         </button>
       </div>
 
       {nothingOpen && !showDone ? (
-        <p className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border px-4 py-14 text-center text-sm text-muted">
+        <p className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-[var(--line-strong)] px-4 py-14 text-center text-[13px] text-muted">
           <CheckCircle2 size={20} className="text-accent" />
           {query
             ? "Nada coincide con la búsqueda."
@@ -180,7 +180,7 @@ export function TasksBoard({
             return (
               <section key={b.id}>
                 <h2
-                  className={`mb-2 flex items-baseline gap-2 px-1 font-mono text-[11px] tracking-widest uppercase ${
+                  className={`mb-2 flex items-baseline gap-2 px-1 text-[12px] font-medium ${
                     b.id === "vencidas"
                       ? "text-red-400"
                       : b.id === "hoy"
@@ -190,7 +190,7 @@ export function TasksBoard({
                 >
                   {b.label} <span className="text-muted">{items.length}</span>
                 </h2>
-                <ul className="rounded-2xl border border-border bg-surface/50">
+                <ul className="divide-y divide-[var(--line)] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)]">
                   {items.map((t) => (
                     <TaskRow
                       key={t.id}
@@ -207,8 +207,7 @@ export function TasksBoard({
         </div>
       )}
 
-      <AnimatePresence>
-        {open && (
+      {open && (
           <TaskDrawer
             key={open.id}
             task={open}
@@ -222,33 +221,6 @@ export function TasksBoard({
             }}
           />
         )}
-      </AnimatePresence>
-      <AnimatePresence>{toast && <Toast msg={toast} />}</AnimatePresence>
-    </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number;
-  tone?: "red" | "accent";
-}) {
-  const color =
-    tone === "red"
-      ? "text-red-400"
-      : tone === "accent"
-        ? "text-accent"
-        : "text-foreground";
-  return (
-    <div className="rounded-2xl border border-border bg-surface p-4">
-      <p className="font-mono text-[10px] tracking-widest text-muted uppercase">
-        {label}
-      </p>
-      <p className={`mt-2 text-2xl tabular-nums ${color}`}>{value}</p>
     </div>
   );
 }

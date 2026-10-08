@@ -1,46 +1,22 @@
-import { ArrowLeft, ArrowUpRight } from "lucide-react";
-import { Container } from "@/components/ui/container";
-import { ButtonLink } from "@/components/ui/button-link";
-import { Magnetic } from "@/components/ui/magnetic";
+import Link from "next/link";
 
+// 404 liviano para lo que no pasa por el sitio público (por ejemplo, un
+// proyecto del panel que ya no existe). El del sitio está en
+// app/(site)/not-found.tsx.
 export default function NotFound() {
   return (
-    <main className="relative flex min-h-[85vh] items-center justify-center pt-24">
-      {/* Resplandor de acento */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-10 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-accent/10 blur-[130px]"
-      />
-
-      <Container className="relative z-10 text-center">
-        <p className="font-mono text-xs tracking-widest text-accent uppercase">
-          Error 404
-        </p>
-
-        <h1 className="display mt-4 text-7xl text-foreground sm:text-8xl md:text-9xl">
-          4<span className="text-accent">0</span>4
-        </h1>
-
-        <p className="mx-auto mt-6 max-w-md text-lg leading-relaxed text-muted md:text-xl">
-          La página que buscás no existe o fue trasladada.
-        </p>
-
-        <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-          <Magnetic>
-            <ButtonLink href="/">
-              <ArrowLeft size={16} />
-              Volver al inicio
-            </ButtonLink>
-          </Magnetic>
-
-          <Magnetic>
-            <ButtonLink href="/#work" variant="secondary">
-              Ver proyectos
-              <ArrowUpRight size={16} />
-            </ButtonLink>
-          </Magnetic>
-        </div>
-      </Container>
+    <main className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
+      <p className="font-mono text-xs tracking-widest text-accent uppercase">Error 404</p>
+      <h1 className="text-3xl font-semibold tracking-[-0.02em] text-foreground">Esto no existe</h1>
+      <p className="max-w-sm text-sm text-muted">La página que buscás no existe o fue trasladada.</p>
+      <div className="mt-2 flex gap-2 text-sm">
+        <Link href="/admin" className="focus-ring rounded-lg border border-border px-3 py-1.5 text-foreground hover:bg-white/5">
+          Ir al panel
+        </Link>
+        <Link href="/" className="focus-ring rounded-lg px-3 py-1.5 text-muted hover:text-foreground">
+          Ir al sitio
+        </Link>
+      </div>
     </main>
   );
 }

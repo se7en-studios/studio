@@ -3,8 +3,9 @@
 // Alta manual de un pedido: los que llegan por WhatsApp, Instagram, un
 // referido o una llamada y nunca pasan por los formularios del sitio.
 import { useState, useTransition } from "react";
-import { motion } from "framer-motion";
 import { Plus, X } from "lucide-react";
+import { btnGhost, btnPrimary } from "../kit";
+import { Dialog } from "../overlay";
 import type { Lead, LeadOwner } from "@/lib/admin/db";
 import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
 import { MANUAL_CHANNELS } from "@/lib/admin/activity-shared";
@@ -20,24 +21,23 @@ const CHANNEL_LABEL: Record<(typeof MANUAL_CHANNELS)[number], string> = {
 };
 
 const input =
-  "focus-ring mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted/50 focus:border-accent";
-const label = "font-mono text-[10px] tracking-widest text-muted uppercase";
+  "focus-ring mt-1 w-full rounded-lg border border-[var(--line-strong)] bg-black/30 px-3 py-2 text-[13px] text-foreground placeholder:text-muted/50 focus:border-accent/70";
+const label = "text-[11px] font-medium tracking-wide text-muted uppercase";
 
 export function NewLeadButton({
   me,
   onCreated,
+  initialOpen = false,
 }: {
   me: LeadOwner;
   onCreated: (lead: Lead) => void;
+  initialOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initialOpen);
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="focus-ring inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-background"
-      >
-        <Plus size={15} /> Nuevo pedido
+      <button onClick={() => setOpen(true)} className={btnPrimary}>
+        <Plus size={14} /> Nuevo pedido
       </button>
       {open && (
         <NewLeadDialog
@@ -86,37 +86,18 @@ function NewLeadDialog({
   }
 
   return (
-    <motion.div
-      className="fixed inset-0 z-[55] flex items-end justify-center md:items-center"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-    >
-      <button
-        aria-label="Cerrar"
-        onClick={onClose}
-        className="absolute inset-0 bg-black/60"
-      />
-      <motion.form
-        onSubmit={submit}
-        role="dialog"
-        aria-label="Nuevo pedido"
-        initial={{ y: 24 }}
-        animate={{ y: 0 }}
-        transition={{ type: "spring", stiffness: 380, damping: 36 }}
-        className="relative max-h-[92dvh] w-full max-w-xl overflow-y-auto rounded-t-2xl border border-border bg-surface p-6 md:rounded-2xl"
-      >
+    <Dialog onClose={onClose} label="Nuevo pedido" width="max-w-xl">
+      <form onSubmit={submit} className="admin-scroll max-h-[92dvh] overflow-y-auto p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="font-mono text-[10px] tracking-widest text-accent uppercase">
-              Cargar a mano
-            </p>
-            <h2 className="mt-1.5 text-2xl text-foreground">Nuevo pedido</h2>
+            <p className="text-[12px] text-muted">Cargar a mano</p>
+            <h2 className="mt-0.5 text-[20px] font-semibold tracking-[-0.01em] text-foreground">Nuevo pedido</h2>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Cerrar"
-            className="focus-ring rounded-full border border-border p-2 text-muted hover:text-foreground"
+            className="focus-ring rounded-lg p-1.5 text-muted hover:bg-white/[0.06] hover:text-foreground"
           >
             <X size={16} />
           </button>
@@ -219,10 +200,10 @@ function NewLeadDialog({
                   type="button"
                   onClick={() => set({ owner: o })}
                   aria-pressed={form.owner === o}
-                  className={`focus-ring rounded-full border px-3 py-1 text-xs transition-colors ${
+                  className={`focus-ring rounded-md border px-2.5 py-1 text-[12px] transition-colors ${
                     form.owner === o
-                      ? "border-accent bg-accent/15 text-foreground"
-                      : "border-border text-muted hover:text-foreground"
+                      ? "border-accent/60 bg-accent/15 text-foreground"
+                      : "border-[var(--line-strong)] text-muted hover:text-foreground"
                   }`}
                 >
                   {o ? PEOPLE[o].name : "Sin asignar"}
@@ -239,22 +220,14 @@ function NewLeadDialog({
         )}
 
         <div className="mt-6 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="focus-ring rounded-full border border-border px-4 py-2 text-sm text-muted hover:text-foreground"
-          >
+          <button type="button" onClick={onClose} className={btnGhost}>
             Cancelar
           </button>
-          <button
-            type="submit"
-            disabled={saving || !form.name.trim()}
-            className="focus-ring rounded-full bg-accent px-4 py-2 text-sm font-medium text-background disabled:opacity-40"
-          >
+          <button type="submit" disabled={saving || !form.name.trim()} className={btnPrimary}>
             {saving ? "Guardando…" : "Guardar pedido"}
           </button>
         </div>
-      </motion.form>
-    </motion.div>
+      </form>
+    </Dialog>
   );
 }

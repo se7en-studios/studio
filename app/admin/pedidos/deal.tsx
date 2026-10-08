@@ -32,10 +32,10 @@ function Field({
   const [draft, setDraft] = useState(value);
   return (
     <label className="block">
-      <span className="font-mono text-[10px] tracking-widest text-muted uppercase">
+      <span className="text-[11px] font-medium tracking-wide text-muted uppercase">
         {label}
       </span>
-      <span className="mt-1 flex items-center rounded-lg border border-border bg-background focus-within:border-accent">
+      <span className="mt-1 flex items-center rounded-lg border border-[var(--line-strong)] bg-black/30 focus-within:border-accent">
         {prefix && (
           <span className="pl-3 font-mono text-xs text-muted">{prefix}</span>
         )}
@@ -69,10 +69,10 @@ export function DealFields({
   const wa = lead.phone ? waLink(lead.phone) : null;
   return (
     <>
-      <p className="mt-6 mb-2 font-mono text-[10px] tracking-widest text-muted uppercase">
+      <p className="mt-6 mb-2 text-[11px] font-medium tracking-wide text-muted uppercase">
         Negocio y contacto
       </p>
-      <div className="grid grid-cols-2 gap-3 rounded-xl border border-border bg-background/40 p-3">
+      <div className="grid grid-cols-2 gap-3 rounded-lg border border-[var(--line)] bg-black/20 p-3">
         <div className="col-span-2">
           <Field
             label="Monto acordado"
@@ -113,14 +113,14 @@ export function DealFields({
                 href={wa}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-[#25D366]/40 px-3 py-1.5 text-xs text-[#25D366] hover:bg-[#25D366]/10"
+                className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-[#25D366]/40 px-2.5 py-1 text-[12px] text-[#25D366] hover:bg-[#25D366]/10"
               >
                 <MessageCircle size={13} /> Abrir WhatsApp
               </a>
             )}
             <a
               href={`tel:${lead.phone.replace(/[^\d+]/g, "")}`}
-              className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted hover:text-foreground"
+              className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-[var(--line-strong)] px-2.5 py-1 text-[12px] text-muted hover:text-foreground"
             >
               <Phone size={13} /> Llamar
             </a>

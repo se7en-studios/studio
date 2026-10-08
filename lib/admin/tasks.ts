@@ -9,8 +9,8 @@ const COLUMNS =
 /** Las hechas sólo interesan un tiempo: más viejas que esto no se cargan. */
 const DONE_WINDOW_DAYS = 30;
 
-/** Abiertas + hechas en los últimos 30 días. Con `leadId`, sólo las de ese pedido. */
-export async function listTasks({ leadId }: { leadId?: string } = {}): Promise<
+/** Abiertas + hechas en los últimos 30 días. Con `leadId` o `projectSlug`, sólo las de ese pedido o proyecto. */
+export async function listTasks({ leadId, projectSlug }: { leadId?: string; projectSlug?: string } = {}): Promise<
   Task[]
 > {
   const since = new Date(
@@ -23,6 +23,7 @@ export async function listTasks({ leadId }: { leadId?: string } = {}): Promise<
     .order("created_at", { ascending: false })
     .limit(1000);
   if (leadId) q = q.eq("lead_id", leadId);
+  if (projectSlug) q = q.eq("project_slug", projectSlug);
   const { data, error } = await q;
   if (error) fail(error);
   return data as Task[];
@@ -55,15 +56,22 @@ export async function patchTask(
   return data as Task;
 }
 
-export async function removeTask(id: string): Promise<string> {
+export async function getTask(id: string): Promise<Task> {
+  const { data, error } = await client().from("panel_tasks").select(COLUMNS).eq("id", id).single();
+  if (error) fail(error);
+  return data as Task;
+}
+
+/** Devuelve la tarea borrada, para contarla en el registro. */
+export async function removeTask(id: string): Promise<Task> {
   const { data, error } = await client()
     .from("panel_tasks")
     .delete()
     .eq("id", id)
-    .select("title")
+    .select(COLUMNS)
     .single();
   if (error) fail(error);
-  return (data as { title: string }).title;
+  return data as Task;
 }
 
 /** Pedidos y proyectos para vincular tareas (sólo id/slug y nombre). */
@@ -82,4 +90,16 @@ export async function taskLinks(): Promise<TaskLinks> {
       ...caseProjects().map((p) => ({ slug: p.slug, name: p.name })),
     ],
   };
+}
+
+/** Tareas abiertas de `who` con fecha pasada (para el contador de la barra lateral). */
+export async function countOverdue(who: LeadOwner, today: string): Promise<number> {
+  const { count, error } = await client()
+    .from("panel_tasks")
+    .select("id", { count: "exact", head: true })
+    .eq("assignee", who)
+    .is("done_at", null)
+    .lt("due", today);
+  if (error) fail(error);
+  return count ?? 0;
 }

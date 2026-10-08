@@ -22,7 +22,9 @@ export async function insertActivity(a: { lead_id: string; kind: ActivityKind; t
   return data as Activity;
 }
 
-export async function removeActivity(id: string) {
-  const { error } = await client().from("panel_lead_activity").delete().eq("id", id);
+/** Devuelve lo que se borró, para contarlo en el registro. */
+export async function removeActivity(id: string): Promise<Activity> {
+  const { data, error } = await client().from("panel_lead_activity").delete().eq("id", id).select(COLUMNS).single();
   if (error) fail(error);
+  return data as Activity;
 }

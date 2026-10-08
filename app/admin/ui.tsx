@@ -1,20 +1,20 @@
 // Piezas compartidas por las páginas del panel (componentes de servidor).
-import Image from "next/image";
-import Link from "next/link";
 import { Database } from "lucide-react";
 import { adminConfigured } from "@/lib/admin/auth";
 import type { LeadOwner } from "@/lib/admin/db";
-import { PEOPLE } from "@/lib/admin/people";
+import { Face } from "./kit";
 import { LoginForm } from "./login-form";
 
 /** Lo que ve quien entra sin sesión a cualquier página del panel. */
 export function AdminGate() {
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center px-6 pt-24 pb-16">
+    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-6 py-16">
+      <div aria-hidden className="pointer-events-none absolute top-[-20%] left-1/2 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(255,77,46,0.16),transparent)]" />
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)]" />
       {adminConfigured() ? (
         <LoginForm />
       ) : (
-        <div className="max-w-md rounded-2xl border border-border bg-surface p-8">
+        <div className="relative max-w-md rounded-2xl border border-border bg-surface p-8">
           <p className="font-mono text-[11px] tracking-widest text-accent uppercase">Panel</p>
           <h1 className="mt-3 text-2xl text-foreground">Falta la contraseña del panel</h1>
           <p className="mt-3 text-sm leading-relaxed text-muted [&_code]:rounded [&_code]:bg-background [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-foreground">
@@ -27,74 +27,34 @@ export function AdminGate() {
   );
 }
 
-export function PageHeader({
-  title,
-  children,
-  right,
-}: {
-  title: string;
-  children?: React.ReactNode;
-  right?: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <p className="font-mono text-[11px] tracking-widest text-accent uppercase">Panel · Se7en Studio</p>
-        <h1 className="mt-2 text-3xl text-foreground md:text-4xl">{title}</h1>
-        {children && <p className="mt-2 max-w-2xl text-sm text-muted">{children}</p>}
-      </div>
-      {right}
-    </div>
-  );
-}
+export { PageHeader } from "./kit";
 
-export function Stat({
-  label,
-  value,
-  accent,
-  href,
-}: {
-  label: string;
-  value: string | number;
-  accent?: boolean;
-  href?: string;
-}) {
-  const body = (
-    <>
-      <p className="font-mono text-[10px] tracking-widest text-muted uppercase">{label}</p>
-      <p className={`mt-2 text-2xl tabular-nums ${accent ? "text-accent" : "text-foreground"}`}>{value}</p>
-    </>
-  );
-  const cls = "block rounded-2xl border border-border bg-surface p-4";
-  return href ? (
-    <Link href={href} className={`focus-ring ${cls} transition-colors hover:border-foreground/20`}>
-      {body}
-    </Link>
-  ) : (
-    <div className={cls}>{body}</div>
-  );
-}
-
+/** Cara de quien hizo algo (alias de Face, para los componentes de servidor). */
 export function Avatar({ who, size = 26 }: { who: LeadOwner | null; size?: number }) {
-  const p = who ? PEOPLE[who] : null;
-  return p?.image ? (
-    <Image src={p.image} alt={p.name} width={size} height={size} className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />
-  ) : (
-    <span className="shrink-0 rounded-full bg-white/10" style={{ width: size, height: size }} />
-  );
+  return <Face who={who} size={size} />;
 }
 
 /** Falta la base o faltan las tablas del panel: cómo activarlo, sin romper la página. */
 export function SetupNotice({ reason }: { reason: string }) {
+  const v2 = /panel-v2/.test(reason);
   return (
-    <div className="rounded-2xl border border-amber-400/30 bg-amber-400/5 p-6">
-      <p className="flex items-center gap-2 text-sm text-amber-300">
-        <Database size={15} /> {reason} Hasta entonces no se pueden subir archivos ni ver los cambios.
+    <div className="rounded-xl border border-amber-400/25 bg-amber-400/[0.04] p-5">
+      <p className="flex items-center gap-2 text-[13px] font-medium text-amber-300">
+        <Database size={15} /> {reason}
       </p>
-      <ol className="mt-4 list-decimal space-y-1.5 pl-5 text-sm text-muted [&_code]:text-foreground">
+      <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-[13px] text-muted [&_code]:rounded [&_code]:bg-white/[0.06] [&_code]:px-1 [&_code]:text-foreground">
         <li>
-          En Supabase → SQL Editor, pegar y correr <code>supabase/panel.sql</code> del repo. Crea las tablas y el bucket
-          privado <code>panel</code>.
+          {v2 ? (
+            <>
+              En Supabase → SQL Editor, pegar y correr <code>supabase/panel-v2.sql</code> del repo. Crea el estado de
+              los proyectos, los mensajes y el detalle del registro de cambios.
+            </>
+          ) : (
+            <>
+              En Supabase → SQL Editor, pegar y correr <code>supabase/panel.sql</code> del repo. Crea las tablas y el
+              bucket privado <code>panel</code>.
+            </>
+          )}
         </li>
         <li>
           Usa las mismas variables que los pedidos: <code>SUPABASE_URL</code> y <code>SUPABASE_SERVICE_ROLE_KEY</code> en

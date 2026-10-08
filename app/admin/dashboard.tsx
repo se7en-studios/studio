@@ -1,63 +1,68 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import Image from "next/image";
-import { AnimatePresence, motion } from "framer-motion";
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   ArrowRight,
   CalendarClock,
-  Download,
-  Snowflake,
   Copy,
   Database,
+  Download,
+  History,
   Inbox,
+  LayoutGrid,
+  List,
   Mail,
+  MessagesSquare,
   Search,
+  Snowflake,
   Trash2,
-  X,
 } from "lucide-react";
 import { WhatsAppLogo } from "@/components/icons/whatsapp-logo";
-import { team } from "@/data/team";
 import { SITE } from "@/data/site";
 import { ago, headline, nextStep, priority, tags, type Priority } from "@/lib/admin/brief";
 import type { Lead, LeadOwner, LeadStatus } from "@/lib/admin/db";
+import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
+import { leadChannel } from "@/lib/admin/message-shared";
+import type { PanelEvent } from "@/lib/admin/panel";
 import { bucket, compareTasks, dueLabel, type Task, type TaskLinks } from "@/lib/admin/task-shared";
 import { coldDays, isContact, lastContacts, type Activity, type ActivityKind } from "@/lib/admin/activity-shared";
+import { dealValue } from "@/lib/admin/metrics";
 import { deleteLead, setNotes, setOwner, setStatus } from "./actions";
+import { EventList } from "./feed";
+import { Face, Kpi, PageHeader, btnDanger, btnGhost, btnPrimary, btnSecondary, cn, usd } from "./kit";
+import { Chat } from "./mensajes/chat";
+import { Drawer, useStoredChoice, useToast } from "./overlay";
 import { ActivityLog } from "./pedidos/activity";
 import { deleteActivity, logActivity, setContact, setValue, type ContactFields } from "./pedidos/actions";
 import { DealFields } from "./pedidos/deal";
 import { NewLeadButton } from "./pedidos/new-lead";
 import { downloadCsv } from "./pedidos/csv";
-import { dealValue } from "@/lib/admin/metrics";
 import { QuickAdd, TaskDrawer, TaskRow } from "./tareas/task-ui";
 import { useTasks, type TasksApi } from "./tareas/use-tasks";
 
-// Tablero de pedidos: una columna por etapa (Nuevo → Ganado/Perdido). Cada
-// tarjeta resume el pedido para decidir rápido: qué quiere, cuánto vale,
-// quién lo toma y cuál es el próximo paso. Los cambios se ven al instante y
-// se guardan en segundo plano; si el servidor falla, se deshacen.
+// Tablero de pedidos: una columna por etapa (Nuevo → Ganado/Perdido), o una
+// lista. Cada tarjeta resume el pedido para decidir rápido: qué quiere, cuánto
+// vale, quién lo toma y cuál es el próximo paso. Los cambios se ven al
+// instante y se guardan en segundo plano; si el servidor falla, se deshacen.
 
-const COLUMNS: { id: LeadStatus; label: string; hint: string }[] = [
-  { id: "nuevo", label: "Nuevos", hint: "Sin responder" },
-  { id: "contactado", label: "Contactados", hint: "Charla en curso" },
-  { id: "propuesta", label: "Propuesta", hint: "Esperando respuesta" },
-  { id: "ganado", label: "Ganados", hint: "En producción" },
-  { id: "perdido", label: "Perdidos", hint: "Cerrados" },
+const COLUMNS: { id: LeadStatus; label: string; hint: string; dot: string }[] = [
+  { id: "nuevo", label: "Nuevos", hint: "Sin responder", dot: "bg-accent" },
+  { id: "contactado", label: "Contactados", hint: "Charla en curso", dot: "bg-sky-400" },
+  { id: "propuesta", label: "Propuesta", hint: "Esperando respuesta", dot: "bg-amber-400" },
+  { id: "ganado", label: "Ganados", hint: "En producción", dot: "bg-emerald-400" },
+  { id: "perdido", label: "Perdidos", hint: "Cerrados", dot: "bg-zinc-500" },
 ];
-
-const OWNER_INFO: Record<LeadOwner, { name: string; image?: string }> = {
-  franco: { name: "Franco", image: team.find((t) => /franco/i.test(t.name ?? ""))?.imageUrl ?? undefined },
-  federico: { name: "Federico", image: team.find((t) => /federico/i.test(t.name ?? ""))?.imageUrl ?? undefined },
-};
+const STAGE = Object.fromEntries(COLUMNS.map((c) => [c.id, c])) as Record<LeadStatus, (typeof COLUMNS)[number]>;
 
 const PRIORITY_STYLE: Record<Priority, string> = {
-  alta: "bg-accent text-background",
-  media: "bg-amber-400/15 text-amber-300",
-  baja: "bg-white/5 text-muted",
+  alta: "bg-accent/15 text-accent ring-accent/25",
+  media: "bg-amber-400/10 text-amber-300 ring-amber-400/20",
+  baja: "bg-white/[0.04] text-muted ring-white/10",
 };
 
 type OwnerFilter = "todos" | LeadOwner | "sin";
+type View = "tablero" | "lista";
+const VIEWS: readonly View[] = ["tablero", "lista"];
 
 export function Dashboard({
   leads: initial,
@@ -68,6 +73,7 @@ export function Dashboard({
   me,
   initialOpen = null,
   initialCold = false,
+  initialNew = false,
 }: {
   leads: Lead[];
   dbReady: boolean;
@@ -81,13 +87,17 @@ export function Dashboard({
   initialOpen?: string | null;
   /** Desde un link (?frios=1): arranca filtrando los fríos. */
   initialCold?: boolean;
+  /** Desde un link (?nuevo=1): abre el alta. */
+  initialNew?: boolean;
 }) {
+  const flash = useToast();
   const [leads, setLeads] = useState(initial);
   const [query, setQuery] = useState("");
+  const q = useDeferredValue(query);
   const [owner, setOwnerFilter] = useState<OwnerFilter>("todos");
   const [openId, setOpenId] = useState<string | null>(initialOpen);
   const [dragOver, setDragOver] = useState<LeadStatus | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const [view, pickView] = useStoredChoice<View>("panel:pedidos:vista", "tablero", VIEWS);
   const [, startTransition] = useTransition();
   const taskApi = useTasks(initialTasks?.list ?? [], flash);
   const [acts, setActs] = useState(initialActivities ?? []);
@@ -95,7 +105,7 @@ export function Dashboard({
   const [now] = useState(() => Date.now());
 
   const lastContact = useMemo(() => lastContacts(acts), [acts]);
-  const cold = (l: Lead) => coldDays(l, lastContact.get(l.id), now);
+  const coldOf = useCallback((l: Lead) => coldDays(l, lastContact.get(l.id), now), [lastContact, now]);
 
   /** Próximo seguimiento abierto de cada pedido, para la tarjeta. */
   const nextTask = useMemo(() => {
@@ -107,44 +117,58 @@ export function Dashboard({
   }, [taskApi.tasks]);
 
   const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const needle = q.trim().toLowerCase();
     return leads.filter((l) => {
       if (owner === "sin" ? l.owner : owner !== "todos" && l.owner !== owner) return false;
-      if (coldOnly && cold(l) === null) return false;
-      if (!q) return true;
-      return [l.name, l.company, l.email, l.idea, l.project_type, l.phone ?? ""].some((v) => v.toLowerCase().includes(q));
+      if (coldOnly && coldOf(l) === null) return false;
+      if (!needle) return true;
+      return [l.name, l.company, l.email, l.idea, l.project_type, l.phone ?? ""].some((v) => v.toLowerCase().includes(needle));
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [leads, query, owner, coldOnly, lastContact]);
+  }, [leads, q, owner, coldOnly, coldOf]);
+
+  const byStage = useMemo(() => {
+    const out = Object.fromEntries(COLUMNS.map((c) => [c.id, [] as Lead[]])) as Record<LeadStatus, Lead[]>;
+    for (const l of visible) out[l.status]?.push(l);
+    for (const k of Object.keys(out) as LeadStatus[]) out[k].sort((a, b) => rank(b) - rank(a));
+    return out;
+  }, [visible]);
 
   const stats = useMemo(() => {
     const active = leads.filter((l) => l.status === "contactado" || l.status === "propuesta");
-    const won = leads.filter((l) => l.status === "ganado").length;
-    const closed = won + leads.filter((l) => l.status === "perdido").length;
+    const won = leads.filter((l) => l.status === "ganado");
+    const closed = won.length + leads.filter((l) => l.status === "perdido").length;
     return {
       fresh: leads.filter((l) => l.status === "nuevo").length,
       active: active.length,
       pipeline: active.reduce((sum, l) => sum + dealValue(l), 0),
-      won: leads.filter((l) => l.status === "ganado").reduce((sum, l) => sum + dealValue(l), 0),
-      cold: leads.filter((l) => cold(l) !== null).length,
-      winRate: closed ? Math.round((won / closed) * 100) : null,
+      won: won.reduce((sum, l) => sum + dealValue(l), 0),
+      cold: leads.filter((l) => coldOf(l) !== null).length,
+      winRate: closed ? Math.round((won.length / closed) * 100) : null,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [leads, lastContact]);
+  }, [leads, coldOf]);
 
   /** Cambio optimista: se ve ya, se guarda después, se deshace si falla. */
-  function update(id: string, patch: Partial<Lead>, save: () => Promise<void>) {
-    const before = leads;
-    setLeads((ls) => ls.map((l) => (l.id === id ? { ...l, ...patch } : l)));
-    startTransition(async () => {
-      try {
-        await save();
-      } catch (e) {
-        setLeads(before);
-        flash(e instanceof Error ? e.message : "No se pudo guardar");
-      }
-    });
-  }
+  const leadsRef = useRef(leads);
+  useEffect(() => {
+    leadsRef.current = leads;
+  }, [leads]);
+  const update = useCallback(
+    (id: string, patch: Partial<Lead>, save: () => Promise<void>) => {
+      const before = leadsRef.current;
+      setLeads((ls) => ls.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+      startTransition(async () => {
+        try {
+          await save();
+        } catch (e) {
+          setLeads(before);
+          flash(e instanceof Error ? e.message : "No se pudo guardar");
+        }
+      });
+    },
+    [flash],
+  );
+
+  const move = useCallback((id: string, s: LeadStatus) => update(id, { status: s }, () => setStatus(id, s)), [update]);
 
   function remove(id: string) {
     const before = leads;
@@ -202,189 +226,206 @@ export function Dashboard({
     });
   }
 
-  function flash(msg: string) {
-    setToast(msg);
-    window.setTimeout(() => setToast(null), 2600);
-  }
-
+  const openLead = useCallback((id: string) => setOpenId(id), []);
   const open = leads.find((l) => l.id === openId) ?? null;
 
   return (
-    <div>
-      {/* Encabezado. Contenedor y botón de salir los pone el layout del panel. */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="font-mono text-[11px] tracking-widest text-accent uppercase">Panel · {SITE.name}</p>
-          <h1 className="mt-2 text-3xl text-foreground md:text-4xl">Pedidos de proyecto</h1>
-        </div>
-        {dbReady && (
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => downloadCsv(visible)}
-              disabled={!visible.length}
-              title="Descarga los pedidos que se ven ahora (con filtros y búsqueda)"
-              className="focus-ring inline-flex items-center gap-2 rounded-full border border-border px-4 py-2.5 text-sm text-muted hover:text-foreground disabled:opacity-40"
-            >
-              <Download size={15} /> Exportar CSV
-            </button>
-            <NewLeadButton me={me} onCreated={addLead} />
-          </div>
-        )}
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Pedidos"
+        right={
+          dbReady && (
+            <>
+              <button
+                onClick={() => downloadCsv(visible)}
+                disabled={!visible.length}
+                title="Descarga los pedidos que se ven ahora (con filtros y búsqueda)"
+                className={btnSecondary}
+              >
+                <Download size={14} /> CSV
+              </button>
+              <NewLeadButton me={me} onCreated={addLead} initialOpen={initialNew} />
+            </>
+          )
+        }
+      >
+        Los pedidos que llegan por la web y los que se cargan a mano, del primer mensaje al cierre.
+      </PageHeader>
 
       {!dbReady && <SetupCard />}
       {error && (
-        <p className="mt-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-[13px] text-red-300">
           No se pudieron leer los pedidos: {error}
         </p>
       )}
 
       {/* Números */}
-      <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <Stat label="Sin responder" value={stats.fresh} accent={stats.fresh > 0} />
-        <Stat label="En curso" value={stats.active} />
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <Kpi label="Sin responder" value={stats.fresh} tone={stats.fresh > 0 ? "accent" : undefined} />
+        <Kpi label="En curso" value={stats.active} />
         <button
           onClick={() => setColdOnly((v) => !v)}
           aria-pressed={coldOnly}
           title={`En curso y sin contacto hace ${COLD_HINT}. Tocá para filtrarlos.`}
-          className={`focus-ring rounded-2xl text-left ${coldOnly ? "ring-1 ring-amber-400/60" : ""}`}
+          className={cn("focus-ring rounded-xl text-left", coldOnly && "ring-1 ring-amber-400/60")}
         >
-          <Stat label={coldOnly ? "Fríos · filtrando" : "Fríos"} value={stats.cold} warn={stats.cold > 0} />
+          <Kpi label={coldOnly ? "Fríos · filtrando" : "Fríos"} value={stats.cold} tone={stats.cold > 0 ? "amber" : undefined} icon={<Snowflake size={13} />} />
         </button>
-        <Stat label="Valor en juego" value={usd(stats.pipeline)} />
-        <Stat label="Ganado" value={usd(stats.won)} />
-        <Stat label="Tasa de cierre" value={stats.winRate == null ? "—" : `${stats.winRate}%`} />
+        <Kpi label="Valor en juego" value={usd(stats.pipeline)} />
+        <Kpi label="Ganado" value={usd(stats.won)} tone={stats.won ? "green" : undefined} />
+        <Kpi label="Tasa de cierre" value={stats.winRate == null ? "—" : `${stats.winRate}%`} />
       </div>
 
       {/* Filtros */}
-      <div className="mt-6 flex flex-wrap items-center gap-3">
-        <label className="relative flex min-w-[240px] flex-1 items-center">
-          <Search size={15} className="pointer-events-none absolute left-3.5 text-muted" />
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="relative flex min-w-[220px] flex-1 items-center">
+          <Search size={14} className="pointer-events-none absolute left-3 text-muted" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar por nombre, empresa o idea…"
-            className="focus-ring w-full rounded-full border border-border bg-surface py-2.5 pr-4 pl-10 text-sm text-foreground placeholder:text-muted/70 focus:border-accent"
+            placeholder="Buscar por nombre, empresa, idea o teléfono…"
+            className="focus-ring w-full rounded-lg border border-[var(--line)] bg-[var(--panel)] py-2 pr-3 pl-9 text-[13px] text-foreground placeholder:text-muted/70 focus:border-accent/60"
           />
         </label>
-        <div className="flex rounded-full border border-border bg-surface p-1 text-sm">
-          {(["todos", "franco", "federico", "sin"] as OwnerFilter[]).map((o) => (
-            <button
-              key={o}
-              onClick={() => setOwnerFilter(o)}
-              className={`focus-ring rounded-full px-3.5 py-1.5 transition-colors ${owner === o ? "bg-white/10 text-foreground" : "text-muted hover:text-foreground"}`}
-            >
-              {o === "todos" ? "Todos" : o === "sin" ? "Sin asignar" : OWNER_INFO[o].name}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          value={owner}
+          onChange={setOwnerFilter}
+          options={[
+            { id: "todos", label: "Todos" },
+            ...PEOPLE_IDS.map((o) => ({ id: o as OwnerFilter, label: PEOPLE[o].name })),
+            { id: "sin", label: "Sin asignar" },
+          ]}
+        />
+        <Segmented
+          value={view}
+          onChange={pickView}
+          options={[
+            { id: "tablero", label: <LayoutGrid size={14} aria-label="Tablero" /> },
+            { id: "lista", label: <List size={14} aria-label="Lista" /> },
+          ]}
+        />
       </div>
 
-      {/* Tablero */}
-      <div className="mt-6 -mx-4 overflow-x-auto px-4 pb-4 md:mx-0 md:px-0">
-        <div className="grid min-w-[1100px] grid-cols-5 gap-3">
-          {COLUMNS.map((col) => {
-            const items = visible
-              .filter((l) => l.status === col.id)
-              .sort((a, b) => rank(b) - rank(a));
-            return (
-              <section
-                key={col.id}
-                aria-label={col.label}
-                onDragOver={(e) => {
-                  if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = "move";
-                  if (dragOver !== col.id) setDragOver(col.id);
-                }}
-                onDragLeave={(e) => {
-                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(null);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setDragOver(null);
-                  const id = e.dataTransfer.getData(DRAG_TYPE);
-                  const lead = leads.find((l) => l.id === id);
-                  if (lead && lead.status !== col.id) update(id, { status: col.id }, () => setStatus(id, col.id));
-                }}
-                className={`flex min-h-[200px] flex-col rounded-2xl border p-2.5 transition-colors ${
-                  dragOver === col.id ? "border-accent/60 bg-accent/[0.06]" : "border-border bg-surface/50"
-                }`}
-              >
-                <header className="flex items-baseline justify-between px-1.5 pt-1 pb-3">
-                  <h2 className="text-sm text-foreground">
-                    {col.label} <span className="ml-1 font-mono text-xs text-muted">{items.length}</span>
-                  </h2>
-                  <span className="font-mono text-[10px] text-muted">{col.hint}</span>
-                </header>
-                <div className="flex flex-col gap-2.5">
-                  {items.map((l) => (
-                    <div
-                      key={l.id}
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData(DRAG_TYPE, l.id);
-                        e.dataTransfer.effectAllowed = "move";
-                      }}
-                      onDragEnd={() => setDragOver(null)}
-                      className="cursor-grab active:cursor-grabbing"
-                    >
-                    <LeadCard key={l.id} lead={l} next={nextTask.get(l.id)} lastContact={lastContact.get(l.id)} cold={cold(l)} onOpen={() => setOpenId(l.id)} onMove={(s) => update(l.id, { status: s }, () => setStatus(l.id, s))} />
-                    </div>
-                  ))}
-                  {!items.length && (
-                    <p className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border px-3 py-8 text-center text-xs text-muted">
-                      <Inbox size={16} /> Nada acá
-                    </p>
+      {view === "tablero" ? (
+        <div className="-mx-4 overflow-x-auto px-4 pb-4 md:mx-0 md:px-0">
+          <div className="grid min-w-[1150px] grid-cols-5 gap-3">
+            {COLUMNS.map((col) => {
+              const items = byStage[col.id];
+              const value = items.reduce((s, l) => s + dealValue(l), 0);
+              return (
+                <section
+                  key={col.id}
+                  aria-label={col.label}
+                  onDragOver={(e) => {
+                    if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    if (dragOver !== col.id) setDragOver(col.id);
+                  }}
+                  onDragLeave={(e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(null);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOver(null);
+                    const id = e.dataTransfer.getData(DRAG_TYPE);
+                    const lead = leads.find((l) => l.id === id);
+                    if (lead && lead.status !== col.id) move(id, col.id);
+                  }}
+                  className={cn(
+                    "flex min-h-[220px] flex-col rounded-xl border p-2 transition-colors",
+                    dragOver === col.id ? "border-accent/50 bg-accent/[0.05]" : "border-[var(--line)] bg-white/[0.012]",
                   )}
-                </div>
-              </section>
-            );
-          })}
+                >
+                  <header className="flex items-center gap-2 px-1.5 pt-1 pb-2.5">
+                    <span className={cn("h-2 w-2 rounded-full", col.dot)} />
+                    <h2 className="text-[13px] font-medium">{col.label}</h2>
+                    <span className="font-mono text-[11px] text-muted">{items.length}</span>
+                    <span className="ml-auto text-[11px] text-muted">{value ? usd(value) : col.hint}</span>
+                  </header>
+                  <div className="flex flex-col gap-2">
+                    {items.map((l) => (
+                      <LeadCard
+                        key={l.id}
+                        lead={l}
+                        next={nextTask.get(l.id)}
+                        lastContact={lastContact.get(l.id)}
+                        cold={coldOf(l)}
+                        onOpen={openLead}
+                        onMove={move}
+                        onDragEnd={() => setDragOver(null)}
+                      />
+                    ))}
+                    {!items.length && (
+                      <p className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-[var(--line)] px-3 py-8 text-center text-[12px] text-muted">
+                        <Inbox size={15} /> Nada acá
+                      </p>
+                    )}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      ) : (
+        <LeadTable leads={visible} lastContact={lastContact} coldOf={coldOf} onOpen={openLead} />
+      )}
 
-      <AnimatePresence>
-        {open && (
-          <Detail
-            key={open.id}
-            lead={open}
-            onClose={() => setOpenId(null)}
-            onStatus={(s) => update(open.id, { status: s }, () => setStatus(open.id, s))}
-            onOwner={(o) => update(open.id, { owner: o }, () => setOwner(open.id, o))}
-            onNotes={(n) => update(open.id, { notes: n }, () => setNotes(open.id, n))}
-            onDelete={() => remove(open.id)}
-            onCopied={() => flash("Copiado")}
-            followUp={initialTasks ? { api: taskApi, links: initialTasks.links, me } : null}
-            deal={{
-              onContact: (f) => update(open.id, f, () => setContact(open.id, f)),
-              onValue: (v) => update(open.id, { value: v }, () => setValue(open.id, v)),
-            }}
-            history={
-              initialActivities
-                ? {
-                    items: acts.filter((a) => a.lead_id === open.id).sort((a, b) => b.at.localeCompare(a.at)),
-                    onLog: (kind, text, day) => logContact(open, kind, text, day),
-                    onDelete: dropActivity,
-                  }
-                : null
-            }
-          />
-        )}
-      </AnimatePresence>
+      {open && (
+        <Detail
+          key={open.id}
+          lead={open}
+          me={me}
+          onClose={() => setOpenId(null)}
+          onStatus={(s) => move(open.id, s)}
+          onOwner={(o) => update(open.id, { owner: o }, () => setOwner(open.id, o))}
+          onNotes={(n) => update(open.id, { notes: n }, () => setNotes(open.id, n))}
+          onDelete={() => remove(open.id)}
+          onCopied={() => flash("Copiado")}
+          followUp={initialTasks ? { api: taskApi, links: initialTasks.links, me } : null}
+          deal={{
+            onContact: (f) => update(open.id, f, () => setContact(open.id, f)),
+            onValue: (v) => update(open.id, { value: v }, () => setValue(open.id, v)),
+          }}
+          history={
+            initialActivities
+              ? {
+                  items: acts.filter((a) => a.lead_id === open.id).sort((a, b) => b.at.localeCompare(a.at)),
+                  onLog: (kind, text, day) => logContact(open, kind, text, day),
+                  onDelete: dropActivity,
+                }
+              : null
+          }
+        />
+      )}
+    </div>
+  );
+}
 
-      <AnimatePresence>
-        {toast && (
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 12 }}
-            className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-full border border-border bg-surface px-4 py-2 text-sm text-foreground shadow-xl"
-          >
-            {toast}
-          </motion.p>
-        )}
-      </AnimatePresence>
+function Segmented<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T;
+  onChange: (v: T) => void;
+  options: { id: T; label: React.ReactNode }[];
+}) {
+  return (
+    <div className="flex rounded-lg border border-[var(--line)] bg-[var(--panel)] p-0.5 text-[13px]" role="group">
+      {options.map((o) => (
+        <button
+          key={o.id}
+          onClick={() => onChange(o.id)}
+          aria-pressed={value === o.id}
+          className={cn(
+            "focus-ring flex items-center rounded-md px-2.5 py-1.5 whitespace-nowrap transition-colors",
+            value === o.id ? "bg-white/[0.08] text-foreground" : "text-muted hover:text-foreground",
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -398,102 +439,147 @@ function rank(l: Lead) {
 const COLD_HINT = "7 días o más";
 /** Tipo propio del drag: así una columna sólo acepta tarjetas, no texto ni archivos. */
 const DRAG_TYPE = "application/x-se7en-lead";
-const usd = (n: number) => (n ? `USD ${Math.round(n).toLocaleString("es-AR")}` : "—");
 
-function Stat({ label, value, accent, warn }: { label: string; value: string | number; accent?: boolean; warn?: boolean }) {
-  return (
-    <div className="h-full rounded-2xl border border-border bg-surface p-4">
-      <p className="font-mono text-[10px] tracking-widest text-muted uppercase">{label}</p>
-      <p className={`mt-2 text-2xl tabular-nums ${accent ? "text-accent" : warn ? "text-amber-300" : "text-foreground"}`}>{value}</p>
-    </div>
-  );
-}
-
-function OwnerBadge({ owner }: { owner: LeadOwner | null }) {
-  if (!owner) return <span className="font-mono text-[10px] text-muted">sin asignar</span>;
-  const o = OWNER_INFO[owner];
-  return (
-    <span className="flex items-center gap-1.5 text-xs text-foreground">
-      {o.image ? (
-        <Image src={o.image} alt="" width={20} height={20} className="h-5 w-5 rounded-full object-cover" />
-      ) : (
-        <span className="h-5 w-5 rounded-full bg-white/10" />
-      )}
-      {o.name}
-    </span>
-  );
-}
-
-function LeadCard({
+// memo: al escribir en la búsqueda o mover una tarjeta, las demás no se
+// vuelven a dibujar.
+const LeadCard = memo(function LeadCard({
   lead,
   next: task,
   lastContact,
   cold,
   onOpen,
   onMove,
+  onDragEnd,
 }: {
   lead: Lead;
   next?: Task;
   lastContact?: string;
   cold: number | null;
-  onOpen: () => void;
-  onMove: (s: LeadStatus) => void;
+  onOpen: (id: string) => void;
+  onMove: (id: string, s: LeadStatus) => void;
+  onDragEnd: () => void;
 }) {
   const p = priority(lead);
   const idx = COLUMNS.findIndex((c) => c.id === lead.status);
   const next = lead.status === "perdido" || lead.status === "ganado" ? null : COLUMNS[idx + 1];
   return (
-    <motion.article
-      layout
-      className="group rounded-xl border border-border bg-background/70 p-3 transition-colors hover:border-foreground/20"
+    <article
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData(DRAG_TYPE, lead.id);
+        e.dataTransfer.effectAllowed = "move";
+      }}
+      onDragEnd={onDragEnd}
+      className="group cursor-grab rounded-lg border border-[var(--line)] bg-[var(--panel)] p-3 shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_170px] hover:border-[var(--line-strong)] active:cursor-grabbing"
     >
-      <button onClick={onOpen} className="focus-ring block w-full text-left">
-        <div className="flex items-center justify-between gap-2">
-          <p className="truncate text-sm font-medium text-foreground">
+      <button onClick={() => onOpen(lead.id)} className="focus-ring block w-full text-left">
+        <div className="flex items-start justify-between gap-2">
+          <p className="min-w-0 text-[13px] leading-snug font-medium">
             {lead.name}
-            {lead.company && <span className="text-muted"> · {lead.company}</span>}
+            {lead.company && <span className="font-normal text-muted"> · {lead.company}</span>}
           </p>
-          <span className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-[9px] uppercase ${PRIORITY_STYLE[p]}`}>{p}</span>
+          <span className={cn("shrink-0 rounded px-1.5 py-px text-[10px] font-medium uppercase ring-1 ring-inset", PRIORITY_STYLE[p])}>{p}</span>
         </div>
-        <p className="mt-2 text-[13px] leading-snug text-foreground/90">{headline(lead.idea)}</p>
-        <div className="mt-2.5 flex flex-wrap gap-1">
-          {tags(lead).map((t) => (
-            <span key={t} className="rounded-md bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-muted">
-              {t}
-            </span>
-          ))}
-        </div>
-        <p className="mt-2.5 flex items-start gap-1.5 text-[11px] leading-snug text-accent/90">
-          <ArrowRight size={12} className="mt-px shrink-0" /> {nextStep(lead)}
-        </p>
+        <p className="mt-1.5 line-clamp-3 text-[12.5px] leading-snug text-foreground/75">{headline(lead.idea)}</p>
+        {tags(lead).length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {tags(lead).map((t) => (
+              <span key={t} className="rounded bg-white/[0.05] px-1.5 py-px text-[10.5px] text-muted">
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
         {task && <FollowUpBadge task={task} />}
         {cold !== null ? (
-          <span className="mt-2 flex items-center gap-1.5 rounded-lg border border-amber-400/30 px-2 py-1 text-[11px] text-amber-300">
-            <Snowflake size={12} className="shrink-0" /> Frío: {lastContact ? `${cold} días sin contacto` : `sin contacto en ${cold} días`}
+          <span className="mt-2 flex items-center gap-1.5 rounded-md bg-amber-400/[0.07] px-2 py-1 text-[11px] text-amber-300">
+            <Snowflake size={12} className="shrink-0" /> {lastContact ? `${cold} días sin contacto` : `Sin contacto en ${cold} días`}
           </span>
         ) : (
-          lastContact && <span className="mt-2 block font-mono text-[10px] text-muted">Último contacto {ago(lastContact)}</span>
-        )}
-        {lead.value != null && (
-          <span className="mt-2 block font-mono text-[10px] text-foreground/80">USD {Math.round(lead.value).toLocaleString("es-AR")} acordados</span>
+          lastContact && <span className="mt-2 block text-[11px] text-muted">Último contacto {ago(lastContact)}</span>
         )}
       </button>
-      <div className="mt-3 flex items-center justify-between border-t border-border pt-2.5">
-        <OwnerBadge owner={lead.owner} />
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] text-muted">{ago(lead.created_at)}</span>
-          {next && (
-            <button
-              onClick={() => onMove(next.id)}
-              title={`Mover a ${next.label}`}
-              className="focus-ring rounded-full border border-border px-2 py-0.5 text-[10px] text-muted transition-colors hover:border-accent hover:text-accent"
-            >
-              {next.label} →
-            </button>
-          )}
-        </div>
+      <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-[var(--line)] pt-2.5">
+        <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-muted">
+          <Face who={lead.owner} size={18} />
+          {lead.value != null ? <span className="truncate text-foreground/85">{usd(lead.value)}</span> : <span>{ago(lead.created_at)}</span>}
+        </span>
+        {next && (
+          <button
+            onClick={() => onMove(lead.id, next.id)}
+            title={`Mover a ${next.label}`}
+            className="focus-ring shrink-0 rounded-md px-1.5 py-0.5 text-[11px] text-muted opacity-0 transition-all group-hover:opacity-100 hover:bg-accent/10 hover:text-accent focus-visible:opacity-100"
+          >
+            {next.label} →
+          </button>
+        )}
       </div>
-    </motion.article>
+    </article>
+  );
+});
+
+function LeadTable({
+  leads,
+  lastContact,
+  coldOf,
+  onOpen,
+}: {
+  leads: Lead[];
+  lastContact: Map<string, string>;
+  coldOf: (l: Lead) => number | null;
+  onOpen: (id: string) => void;
+}) {
+  const sorted = useMemo(() => [...leads].sort((a, b) => b.created_at.localeCompare(a.created_at)), [leads]);
+  if (!sorted.length) return <p className="rounded-xl border border-dashed border-[var(--line)] px-4 py-12 text-center text-[13px] text-muted">Nada coincide.</p>;
+  return (
+    <div className="overflow-x-auto rounded-xl border border-[var(--line)] bg-[var(--panel)]">
+      <table className="w-full min-w-[860px] text-left text-[13px]">
+        <thead className="border-b border-[var(--line)] text-[11.5px] text-muted">
+          <tr>
+            <th className="px-4 py-2.5 font-medium">Pedido</th>
+            <th className="px-3 py-2.5 font-medium">Etapa</th>
+            <th className="px-3 py-2.5 font-medium">Responsable</th>
+            <th className="px-3 py-2.5 text-right font-medium">Valor</th>
+            <th className="px-3 py-2.5 font-medium">Último contacto</th>
+            <th className="px-4 py-2.5 font-medium">Llegó</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-[var(--line)]">
+          {sorted.map((l) => {
+            const cold = coldOf(l);
+            const last = lastContact.get(l.id);
+            return (
+              <tr key={l.id} onClick={() => onOpen(l.id)} className="cursor-pointer transition-colors hover:bg-white/[0.025]">
+                <td className="max-w-[360px] px-4 py-2.5">
+                  <button onClick={() => onOpen(l.id)} className="focus-ring block max-w-full text-left">
+                    <span className="block truncate font-medium">
+                      {l.name}
+                      {l.company && <span className="font-normal text-muted"> · {l.company}</span>}
+                    </span>
+                    <span className="block truncate text-[12px] text-muted">{headline(l.idea)}</span>
+                  </button>
+                </td>
+                <td className="px-3 py-2.5">
+                  <span className="inline-flex items-center gap-1.5 text-[12.5px]">
+                    <span className={cn("h-1.5 w-1.5 rounded-full", STAGE[l.status].dot)} /> {STAGE[l.status].label}
+                  </span>
+                </td>
+                <td className="px-3 py-2.5">
+                  <span className="flex items-center gap-1.5 text-[12.5px] text-muted">
+                    <Face who={l.owner} size={18} /> {l.owner ? PEOPLE[l.owner].name : "—"}
+                  </span>
+                </td>
+                <td className="px-3 py-2.5 text-right tabular-nums">{dealValue(l) ? usd(dealValue(l)) : "—"}</td>
+                <td className={cn("px-3 py-2.5 text-[12.5px]", cold !== null ? "text-amber-300" : "text-muted")}>
+                  {cold !== null ? `Frío · ${cold} días` : last ? ago(last) : "—"}
+                </td>
+                <td className="px-4 py-2.5 text-[12.5px] text-muted">{ago(l.created_at)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -503,8 +589,13 @@ function replyMail(l: Lead) {
   return `mailto:${l.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
+type Tab = "ficha" | "chat" | "cambios";
+
+const sectionLabel = "mb-2 text-[11px] font-medium tracking-wide text-muted uppercase";
+
 function Detail({
   lead,
+  me,
   onClose,
   onStatus,
   onOwner,
@@ -523,6 +614,7 @@ function Detail({
     onDelete: (id: string) => void;
   } | null;
   lead: Lead;
+  me: LeadOwner;
   onClose: () => void;
   onStatus: (s: LeadStatus) => void;
   onOwner: (o: LeadOwner | null) => void;
@@ -532,6 +624,7 @@ function Detail({
 }) {
   const [notes, setNotesDraft] = useState(lead.notes);
   const [confirm, setConfirm] = useState(false);
+  const [tab, setTab] = useState<Tab>("ficha");
 
   function copyAll() {
     const text = [
@@ -552,157 +645,214 @@ function Detail({
     ["Proyecto", lead.project_type],
     ["Presupuesto", lead.budget],
     ["Plazo", lead.timeline],
-    ["Empresa", lead.company],
-    ["Email", lead.email],
-    ["Teléfono", lead.phone ?? ""],
     ["Llegó por", [lead.source, lead.channel].filter(Boolean).join(" · ")],
     ["Fecha", new Date(lead.created_at).toLocaleString("es-AR", { dateStyle: "medium", timeStyle: "short" })],
   ];
 
+  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
+    { id: "ficha", label: "Ficha", icon: <Inbox size={13} /> },
+    { id: "chat", label: "Conversación", icon: <MessagesSquare size={13} /> },
+    { id: "cambios", label: "Cambios", icon: <History size={13} /> },
+  ];
+
   return (
-    <motion.div className="fixed inset-0 z-[55] flex justify-end" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-      <button aria-label="Cerrar" onClick={onClose} className="absolute inset-0 bg-black/60" />
-      <motion.aside
-        initial={{ x: 40 }}
-        animate={{ x: 0 }}
-        exit={{ x: 40 }}
-        transition={{ type: "spring", stiffness: 380, damping: 36 }}
-        className="relative flex h-full w-full max-w-lg flex-col overflow-y-auto border-l border-border bg-surface p-6"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="font-mono text-[10px] tracking-widest text-accent uppercase">Prioridad {priority(lead)}</p>
-            <h2 className="mt-1.5 text-2xl text-foreground">{lead.name}</h2>
-          </div>
-          <button onClick={onClose} aria-label="Cerrar" className="focus-ring rounded-full border border-border p-2 text-muted hover:text-foreground">
-            <X size={16} />
-          </button>
-        </div>
-
-        <p className="mt-4 rounded-xl border border-accent/25 bg-accent/5 px-3.5 py-3 text-sm text-foreground">
-          <span className="font-mono text-[10px] tracking-widest text-accent uppercase">Próximo paso</span>
-          <br />
-          {nextStep(lead)}
-        </p>
-
-        {/* Responder */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          {lead.email && (
-            <a href={replyMail(lead)} className="focus-ring inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-medium text-background">
-              <Mail size={14} /> Responder por mail
-            </a>
-          )}
-          {lead.channel === "whatsapp" && (
-            <span className="inline-flex items-center gap-2 rounded-full border border-[#25D366]/40 px-4 py-2 text-sm text-[#25D366]">
-              <WhatsAppLogo size={14} /> Escribió por WhatsApp
-            </span>
-          )}
-          <button onClick={copyAll} className="focus-ring inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm text-muted hover:text-foreground">
-            <Copy size={14} /> Copiar datos
-          </button>
-        </div>
-
-        {/* Etapa */}
-        <p className="mt-6 mb-2 font-mono text-[10px] tracking-widest text-muted uppercase">Etapa</p>
-        <div className="flex flex-wrap gap-1.5">
-          {COLUMNS.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => onStatus(c.id)}
-              className={`focus-ring rounded-full border px-3 py-1.5 text-xs transition-colors ${
-                lead.status === c.id ? "border-accent bg-accent/15 text-foreground" : "border-border text-muted hover:text-foreground"
-              }`}
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Responsable */}
-        <p className="mt-5 mb-2 font-mono text-[10px] tracking-widest text-muted uppercase">Lo toma</p>
-        <div className="flex gap-2">
-          {(["franco", "federico"] as LeadOwner[]).map((o) => (
-            <button
-              key={o}
-              onClick={() => onOwner(lead.owner === o ? null : o)}
-              className={`focus-ring flex items-center gap-2 rounded-full border py-1 pr-3.5 pl-1 text-sm transition-colors ${
-                lead.owner === o ? "border-accent bg-accent/15 text-foreground" : "border-border text-muted hover:text-foreground"
-              }`}
-            >
-              {OWNER_INFO[o].image && (
-                <Image src={OWNER_INFO[o].image as string} alt="" width={26} height={26} className="h-[26px] w-[26px] rounded-full object-cover" />
-              )}
-              {OWNER_INFO[o].name}
-            </button>
-          ))}
-        </div>
-
-        {/* La idea completa */}
-        <p className="mt-6 mb-2 font-mono text-[10px] tracking-widest text-muted uppercase">La idea</p>
-        <p className="rounded-xl border border-border bg-background/60 p-4 text-sm leading-relaxed whitespace-pre-wrap text-foreground/90">
-          {lead.idea || "Sin descripción."}
-        </p>
-
-        <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-          {fields
-            .filter(([, v]) => v)
-            .map(([k, v]) => (
-              <div key={k}>
-                <dt className="font-mono text-[10px] tracking-widest text-muted uppercase">{k}</dt>
-                <dd className="mt-0.5 break-words text-foreground">{v}</dd>
-              </div>
+    <Drawer
+      onClose={onClose}
+      label={`Pedido de ${lead.name}`}
+      width="max-w-2xl"
+      header={
+        <div>
+          <p className="flex items-center gap-2 text-[11.5px] text-muted">
+            <span className={cn("h-1.5 w-1.5 rounded-full", STAGE[lead.status].dot)} />
+            {STAGE[lead.status].label} · prioridad {priority(lead)}
+          </p>
+          <h2 className="mt-1 truncate text-[20px] font-semibold tracking-[-0.01em]">
+            {lead.name}
+            {lead.company && <span className="font-normal text-muted"> · {lead.company}</span>}
+          </h2>
+          <div className="mt-3 -mb-4 flex gap-1">
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                aria-pressed={tab === t.id}
+                className={cn(
+                  "focus-ring relative flex items-center gap-1.5 px-2.5 pt-1 pb-2.5 text-[13px] transition-colors",
+                  tab === t.id ? "text-foreground" : "text-muted hover:text-foreground",
+                )}
+              >
+                {t.icon} {t.label}
+                {tab === t.id && <span className="absolute inset-x-1.5 -bottom-px h-0.5 rounded-full bg-accent" />}
+              </button>
             ))}
-        </dl>
-
-        <DealFields lead={lead} onContact={deal.onContact} onValue={deal.onValue} />
-
-        {followUp && <FollowUps lead={lead} {...followUp} />}
-
-        {history && <ActivityLog items={history.items} onLog={history.onLog} onDelete={history.onDelete} />}
-
-        {/* Notas internas */}
-        <label htmlFor="notes" className="mt-6 mb-2 block font-mono text-[10px] tracking-widest text-muted uppercase">
-          Notas internas
-        </label>
-        <textarea
-          id="notes"
-          value={notes}
-          onChange={(e) => setNotesDraft(e.target.value)}
-          onBlur={() => notes !== lead.notes && onNotes(notes)}
-          rows={4}
-          placeholder="Qué hablamos, precio que pasamos, próximos pasos… (se guarda al salir del campo)"
-          className="focus-ring w-full rounded-xl border border-border bg-background px-3.5 py-3 text-sm text-foreground placeholder:text-muted/60 focus:border-accent"
-        />
-
-        <div className="mt-auto pt-8">
-          {confirm ? (
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted">¿Borrar este pedido?</span>
-              <button onClick={onDelete} className="focus-ring rounded-full bg-red-500/90 px-3 py-1.5 text-white">
-                Sí, borrar
-              </button>
-              <button onClick={() => setConfirm(false)} className="focus-ring rounded-full border border-border px-3 py-1.5 text-muted">
-                No
-              </button>
-            </div>
-          ) : (
-            <button onClick={() => setConfirm(true)} className="focus-ring inline-flex items-center gap-1.5 text-xs text-muted hover:text-red-400">
-              <Trash2 size={13} /> Borrar pedido
-            </button>
-          )}
+          </div>
         </div>
-      </motion.aside>
-    </motion.div>
+      }
+    >
+      {tab === "chat" ? (
+        <Chat channel={leadChannel(lead.id)} me={me} className="h-full" placeholder={`Escribí sobre ${lead.name}…`} />
+      ) : tab === "cambios" ? (
+        <LeadEvents id={lead.id} />
+      ) : (
+        <div className="flex min-h-full flex-col p-5">
+          <div className="rounded-lg border border-accent/20 bg-accent/[0.05] px-3.5 py-3">
+            <p className="text-[11px] font-medium tracking-wide text-accent uppercase">Próximo paso</p>
+            <p className="mt-1 text-[13.5px]">{nextStep(lead)}</p>
+          </div>
+
+          {/* Responder */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {lead.email && (
+              <a href={replyMail(lead)} className={btnPrimary}>
+                <Mail size={14} /> Responder por mail
+              </a>
+            )}
+            {lead.channel === "whatsapp" && (
+              <span className="inline-flex items-center gap-2 rounded-lg border border-[#25D366]/40 px-3 py-1.5 text-[13px] text-[#25D366]">
+                <WhatsAppLogo size={14} /> Escribió por WhatsApp
+              </span>
+            )}
+            <button onClick={copyAll} className={btnSecondary}>
+              <Copy size={14} /> Copiar datos
+            </button>
+          </div>
+
+          <div className="mt-6 grid gap-5 sm:grid-cols-2">
+            <div>
+              <p className={sectionLabel}>Etapa</p>
+              <div className="flex flex-wrap gap-1.5">
+                {COLUMNS.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => onStatus(c.id)}
+                    aria-pressed={lead.status === c.id}
+                    className={cn(
+                      "focus-ring inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[12px] transition-colors",
+                      lead.status === c.id ? "border-accent/60 bg-accent/15 text-foreground" : "border-[var(--line-strong)] text-muted hover:text-foreground",
+                    )}
+                  >
+                    <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} /> {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className={sectionLabel}>Lo toma</p>
+              <div className="flex flex-wrap gap-1.5">
+                {PEOPLE_IDS.map((o) => (
+                  <button
+                    key={o}
+                    onClick={() => onOwner(lead.owner === o ? null : o)}
+                    aria-pressed={lead.owner === o}
+                    className={cn(
+                      "focus-ring flex items-center gap-1.5 rounded-md border py-0.5 pr-2.5 pl-0.5 text-[12.5px] transition-colors",
+                      lead.owner === o ? "border-accent/60 bg-accent/15 text-foreground" : "border-[var(--line-strong)] text-muted hover:text-foreground",
+                    )}
+                  >
+                    <Face who={o} size={22} /> {PEOPLE[o].name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* La idea completa */}
+          <p className={cn(sectionLabel, "mt-6")}>La idea</p>
+          <p className="rounded-lg border border-[var(--line)] bg-black/20 p-3.5 text-[13.5px] leading-relaxed whitespace-pre-wrap text-foreground/90">
+            {lead.idea || "Sin descripción."}
+          </p>
+
+          <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+            {fields
+              .filter(([, v]) => v)
+              .map(([k, v]) => (
+                <div key={k}>
+                  <dt className="text-[11px] text-muted">{k}</dt>
+                  <dd className="mt-0.5 text-[13px] break-words">{v}</dd>
+                </div>
+              ))}
+          </dl>
+
+          <DealFields lead={lead} onContact={deal.onContact} onValue={deal.onValue} />
+
+          {followUp && <FollowUps lead={lead} {...followUp} />}
+
+          {history && <ActivityLog items={history.items} onLog={history.onLog} onDelete={history.onDelete} />}
+
+          {/* Notas internas */}
+          <label htmlFor="notes" className={cn(sectionLabel, "mt-6 block")}>
+            Notas internas
+          </label>
+          <textarea
+            id="notes"
+            value={notes}
+            onChange={(e) => setNotesDraft(e.target.value)}
+            onBlur={() => notes !== lead.notes && onNotes(notes)}
+            rows={4}
+            placeholder="Qué hablamos, precio que pasamos, próximos pasos… (se guarda al salir del campo)"
+            className="focus-ring w-full rounded-lg border border-[var(--line-strong)] bg-black/30 px-3 py-2.5 text-[13px] text-foreground placeholder:text-muted/60 focus:border-accent/70"
+          />
+
+          <div className="mt-auto pt-8">
+            {confirm ? (
+              <div className="flex items-center gap-2 text-[13px]">
+                <span className="text-muted">¿Borrar este pedido?</span>
+                <button onClick={onDelete} className={btnDanger}>
+                  Sí, borrar
+                </button>
+                <button onClick={() => setConfirm(false)} className={btnGhost}>
+                  No
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setConfirm(true)} className="focus-ring inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-red-400">
+                <Trash2 size={13} /> Borrar pedido
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </Drawer>
   );
+}
+
+/** Todo lo que se cambió de este pedido, con el antes y el después. */
+function LeadEvents({ id }: { id: string }) {
+  const [events, setEvents] = useState<PanelEvent[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetch(`/admin/api/events?lead=${id}`, { cache: "no-store" })
+      .then(async (r) => {
+        const d = await r.json();
+        if (!alive) return;
+        if (!r.ok) setError(d.error ?? "No se pudo leer el registro");
+        else setEvents(d.events);
+      })
+      .catch(() => alive && setError("Sin conexión"));
+    return () => {
+      alive = false;
+    };
+  }, [id]);
+  if (error) return <p className="p-5 text-[13px] text-amber-300">{error}</p>;
+  if (!events)
+    return (
+      <div className="space-y-3 p-5">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="admin-skeleton h-12 rounded-lg" />
+        ))}
+      </div>
+    );
+  return <EventList events={events} names={{}} />;
 }
 
 function SetupCard() {
   return (
-    <div className="mt-8 rounded-2xl border border-amber-400/30 bg-amber-400/5 p-6">
-      <p className="flex items-center gap-2 text-sm text-amber-300">
+    <div className="rounded-xl border border-amber-400/25 bg-amber-400/[0.04] p-5">
+      <p className="flex items-center gap-2 text-[13px] font-medium text-amber-300">
         <Database size={15} /> Falta conectar la base de datos: por ahora los pedidos no se guardan.
       </p>
-      <ol className="mt-4 list-decimal space-y-1.5 pl-5 text-sm text-muted">
+      <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-[13px] text-muted">
         <li>Crear un proyecto gratis en supabase.com.</li>
         <li>
           En SQL Editor, pegar y correr <code className="text-foreground">supabase/leads.sql</code> del repo.
@@ -720,12 +870,12 @@ function SetupCard() {
 /** En la tarjeta: el próximo seguimiento y para cuándo. */
 function FollowUpBadge({ task }: { task: Task }) {
   const b = bucket(task);
-  const tone = b === "vencidas" ? "border-red-400/30 text-red-300" : b === "hoy" ? "border-accent/40 text-accent" : "border-border text-muted";
+  const tone = b === "vencidas" ? "bg-red-500/[0.08] text-red-300" : b === "hoy" ? "bg-accent/[0.08] text-accent" : "bg-white/[0.04] text-muted";
   return (
-    <span className={`mt-2 flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] ${tone}`}>
+    <span className={cn("mt-2 flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px]", tone)}>
       <CalendarClock size={12} className="shrink-0" />
       <span className="truncate">{task.title}</span>
-      {task.due && <span className="ml-auto shrink-0 font-mono text-[10px]">{dueLabel(task.due)}</span>}
+      {task.due && <span className="ml-auto shrink-0">{dueLabel(task.due)}</span>}
     </span>
   );
 }
@@ -737,7 +887,9 @@ function FollowUps({ lead, api, links, me }: { lead: Lead; api: TasksApi; links:
   const open = mine.find((t) => t.id === openId) ?? null;
   return (
     <>
-      <p className="mt-6 mb-2 font-mono text-[10px] tracking-widest text-muted uppercase">Seguimiento</p>
+      <p className={cn(sectionLabel, "mt-6 flex items-center gap-1.5")}>
+        <ArrowRight size={12} /> Seguimiento
+      </p>
       <QuickAdd
         me={me}
         links={links}
@@ -747,28 +899,26 @@ function FollowUps({ lead, api, links, me }: { lead: Lead; api: TasksApi; links:
         placeholder="Próximo paso… (ej: mandar propuesta)"
       />
       {mine.length > 0 && (
-        <ul className="mt-2 rounded-xl border border-border bg-background/60">
+        <ul className="mt-2 divide-y divide-[var(--line)] overflow-hidden rounded-lg border border-[var(--line)] bg-black/20">
           {mine.map((t) => (
             <TaskRow key={t.id} task={t} links={links} hideLink onToggle={(d) => api.toggle(t.id, d)} onOpen={() => setOpenId(t.id)} />
           ))}
         </ul>
       )}
-      <AnimatePresence>
-        {open && (
-          <TaskDrawer
-            key={open.id}
-            task={open}
-            links={links}
-            onClose={() => setOpenId(null)}
-            onPatch={(p) => api.patch(open.id, p)}
-            onToggle={(d) => api.toggle(open.id, d)}
-            onDelete={() => {
-              api.remove(open.id);
-              setOpenId(null);
-            }}
-          />
-        )}
-      </AnimatePresence>
+      {open && (
+        <TaskDrawer
+          key={open.id}
+          task={open}
+          links={links}
+          onClose={() => setOpenId(null)}
+          onPatch={(p) => api.patch(open.id, p)}
+          onToggle={(d) => api.toggle(open.id, d)}
+          onDelete={() => {
+            api.remove(open.id);
+            setOpenId(null);
+          }}
+        />
+      )}
     </>
   );
 }
