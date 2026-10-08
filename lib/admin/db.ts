@@ -59,22 +59,35 @@ export async function listLeads(): Promise<Lead[]> {
   return (data ?? []) as Lead[];
 }
 
+/** Devuelve el nombre del pedido, para contarlo en el feed de cambios. */
 export async function patchLead(
   id: string,
   patch: Partial<Pick<Lead, "status" | "owner" | "notes">>,
-): Promise<void> {
+): Promise<string> {
   const c = db();
   if (!c) throw new Error("Base de datos no configurada");
-  const { error } = await c
+  const { data, error } = await c
     .from("leads")
     .update({ ...patch, updated_at: new Date().toISOString() })
-    .eq("id", id);
+    .eq("id", id)
+    .select("name")
+    .single();
   if (error) throw new Error(error.message);
+  return (data as { name: string }).name;
 }
 
-export async function removeLead(id: string): Promise<void> {
+export async function removeLead(id: string): Promise<string> {
   const c = db();
   if (!c) throw new Error("Base de datos no configurada");
-  const { error } = await c.from("leads").delete().eq("id", id);
+  const { data, error } = await c.from("leads").delete().eq("id", id).select("name").single();
   if (error) throw new Error(error.message);
+  return (data as { name: string }).name;
+}
+
+export async function countNewLeads(): Promise<number | null> {
+  const c = db();
+  if (!c) return null;
+  const { count, error } = await c.from("leads").select("id", { count: "exact", head: true }).eq("status", "nuevo");
+  if (error) return null;
+  return count ?? 0;
 }

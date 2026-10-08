@@ -1,68 +1,138 @@
 import type { Metadata } from "next";
-import { connection } from "next/server";
-import { adminConfigured, isAdmin } from "@/lib/admin/auth";
-import { db, listLeads, type Lead } from "@/lib/admin/db";
-import { LoginForm } from "./login-form";
-import { Dashboard } from "./dashboard";
+import Image from "next/image";
+import Link from "next/link";
+import { ArrowRight, Palette, Upload } from "lucide-react";
+import { panelSession } from "@/lib/admin/auth";
+import { countNewLeads } from "@/lib/admin/db";
+import {
+  PanelNotReady,
+  caseProjects,
+  countFilesSince,
+  listEvents,
+  listProjects,
+  type PanelEvent,
+  type PanelProject,
+} from "@/lib/admin/panel";
+import { PEOPLE } from "@/lib/admin/people";
+import { ago } from "@/lib/admin/brief";
+import { EventList } from "./feed";
+import { AdminGate, PageHeader, SetupNotice, Stat, dayLabel } from "./ui";
 
-// Panel interno de Franco y Federico: los pedidos que llegan por los
-// formularios del sitio, en un tablero para responderlos y darles
-// seguimiento. Fuera de buscadores (robots.ts también lo excluye).
-export const metadata: Metadata = {
-  title: "Panel",
-  robots: { index: false, follow: false },
-};
+export const metadata: Metadata = { title: "Panel" };
 
-export default async function AdminPage() {
-  // Siempre por pedido: la sesión y los pedidos no pueden quedar congelados
-  // en el build.
-  await connection();
-  if (!adminConfigured()) {
-    return (
-      <Shell>
-        <Notice title="Falta la contraseña del panel">
-          Cargá la variable <code>ADMIN_PASSWORD</code> en Vercel (Settings → Environment
-          Variables) y volvé a deployar. No va en el código porque el repositorio es público.
-        </Notice>
-      </Shell>
-    );
+// Lo primero que se ve al entrar: qué pasó, qué hay pendiente y atajos.
+export default async function AdminHome() {
+  const me = await panelSession();
+  if (!me) return <AdminGate />;
+
+  let projects: PanelProject[] = caseProjects();
+  let events: PanelEvent[] = [];
+  let filesWeek: number | null = null;
+  let setup: string | null = null;
+  const newLeads = await countNewLeads();
+  try {
+    [projects, events, filesWeek] = await Promise.all([
+      listProjects(),
+      listEvents({ limit: 50 }),
+      countFilesSince(new Date(Date.now() - 7 * 86_400_000).toISOString()),
+    ]);
+  } catch (e) {
+    if (!(e instanceof PanelNotReady)) throw e;
+    setup = e.message;
   }
 
-  if (!(await isAdmin())) {
-    return (
-      <Shell>
-        <LoginForm />
-      </Shell>
-    );
-  }
+  const names = Object.fromEntries(projects.map((p) => [p.slug, p.name]));
+  const today = events.filter((e) => dayLabel(e.created_at) === "Hoy").length;
+  const active = projects.filter((p) => p.files > 0).slice(0, 4);
+  const date = new Date().toLocaleDateString("es-AR", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
 
-  const ready = db() !== null;
-  let leads: Lead[] = [];
-  let error: string | null = null;
-  if (ready) {
-    try {
-      leads = await listLeads();
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Error leyendo los pedidos";
-    }
-  }
-  return <Dashboard leads={leads} dbReady={ready} error={error} />;
-}
-
-function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center px-6 pt-24 pb-16">{children}</div>
+    <div className="space-y-8">
+      <PageHeader title={`Buenas, ${PEOPLE[me.who].name}`}>
+        {date.charAt(0).toUpperCase() + date.slice(1)}.{" "}
+        {!setup && (today ? `${today} ${today === 1 ? "cambio" : "cambios"} hoy en el panel.` : "Hoy todavía no hubo cambios en el panel.")}
+      </PageHeader>
+
+      {setup && <SetupNotice reason={setup} />}
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Stat label="Pedidos sin responder" value={newLeads ?? "—"} accent={(newLeads ?? 0) > 0} href="/admin/pedidos" />
+        <Stat label="Proyectos" value={projects.length} href="/admin/proyectos" />
+        <Stat label="Archivos esta semana" value={filesWeek ?? "—"} />
+        <Stat label="Cambios hoy" value={setup ? "—" : today} href="/admin/cambios" />
+      </div>
+
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <section className="rounded-2xl border border-border bg-surface/50">
+          <header className="flex items-center justify-between border-b border-border px-4 py-3">
+            <h2 className="text-sm text-foreground">Últimos cambios</h2>
+            <Link href="/admin/cambios" className="focus-ring font-mono text-[11px] tracking-widest text-muted uppercase hover:text-foreground">
+              Ver todos →
+            </Link>
+          </header>
+          <EventList events={events.slice(0, 8)} names={names} />
+        </section>
+
+        <div className="space-y-4">
+          <section className="rounded-2xl border border-border bg-surface/50">
+            <header className="border-b border-border px-4 py-3">
+              <h2 className="text-sm text-foreground">Proyectos con movimiento</h2>
+            </header>
+            {active.length ? (
+              <ul>
+                {active.map((p) => (
+                  <li key={p.slug} className="border-b border-border last:border-0">
+                    <Link href={`/admin/proyectos/${p.slug}`} className="focus-ring flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.03]">
+                      <Cover project={p} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm text-foreground">{p.name}</span>
+                        <span className="font-mono text-[10px] tracking-widest text-muted uppercase">
+                          {p.files} archivos{p.updatedAt && ` · ${ago(p.updatedAt)}`}
+                        </span>
+                      </span>
+                      <ArrowRight size={14} className="text-muted" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="px-4 py-6 text-sm text-muted">Cuando suban archivos a un proyecto, aparece acá.</p>
+            )}
+          </section>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Shortcut href="/admin/proyectos" icon={<Upload size={16} />} label="Subir archivos" hint="Elegí el proyecto" />
+            <Shortcut href="/admin/marca" icon={<Palette size={16} />} label="Marca" hint="Logos, colores, fuentes" />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
-function Notice({ title, children }: { title: string; children: React.ReactNode }) {
+function Cover({ project }: { project: PanelProject }) {
+  const cls = "h-10 w-16 shrink-0 rounded-md border border-border object-cover object-top";
+  if (!project.cover) return <span className={cls} style={{ background: project.accent }} />;
+  return project.isCase ? (
+    <Image src={project.cover} alt="" width={128} height={80} className={cls} />
+  ) : (
+    // URL firmada de Supabase: ver feed.tsx.
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={project.cover} alt="" className={cls} />
+  );
+}
+
+function Shortcut({ href, icon, label, hint }: { href: string; icon: React.ReactNode; label: string; hint: string }) {
   return (
-    <div className="max-w-md rounded-2xl border border-border bg-surface p-8">
-      <p className="font-mono text-[11px] tracking-widest text-accent uppercase">Panel</p>
-      <h1 className="mt-3 text-2xl text-foreground">{title}</h1>
-      <p className="mt-3 text-sm leading-relaxed text-muted [&_code]:rounded [&_code]:bg-background [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-foreground">
-        {children}
-      </p>
-    </div>
+    <Link href={href} className="focus-ring rounded-2xl border border-border bg-surface p-4 transition-colors hover:border-foreground/20">
+      <span className="text-accent">{icon}</span>
+      <span className="mt-3 block text-sm text-foreground">{label}</span>
+      <span className="block text-xs text-muted">{hint}</span>
+    </Link>
   );
 }
