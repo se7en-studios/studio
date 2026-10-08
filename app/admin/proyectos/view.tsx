@@ -149,48 +149,59 @@ export function ProjectsView({
           </Empty>
         </div>
       ) : view === "tablero" ? (
-        <div className="-mx-4 overflow-x-auto px-4 pb-4 md:mx-0 md:px-0">
-          <div className="grid auto-cols-[minmax(220px,1fr)] grid-flow-col gap-3">
-            {(scope === "todos" ? PROJECT_STATUSES : scope === "activos" ? ACTIVE_STATUSES : [scope]).map(
-              (st) => {
-                const items = visible.filter((r) => r.s.status === st);
-                return (
-                  <section
-                    key={st}
-                    aria-label={PROJECT_STATUS[st].label}
-                    onDragOver={(e) => {
-                      if (!e.dataTransfer.types.includes(DRAG)) return;
-                      e.preventDefault();
-                      if (over !== st) setOver(st);
-                    }}
-                    onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && setOver(null)}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      setOver(null);
-                      const slug = e.dataTransfer.getData(DRAG);
-                      const row = rows.find((r) => r.p.slug === slug);
-                      if (row && row.s.status !== st) save(row.p, { status: st });
-                    }}
-                    className={cn(
-                      "flex min-h-[260px] flex-col rounded-xl border p-2 transition-colors",
-                      over === st ? "border-accent/50 bg-accent/[0.05]" : "border-[var(--line)] bg-white/[0.012]",
-                    )}
-                  >
-                    <header className="flex items-center gap-2 px-1.5 pt-1 pb-2.5">
-                      <span className={cn("h-2 w-2 rounded-full", PROJECT_STATUS[st].dot)} />
-                      <h2 className="text-[13px] font-medium">{PROJECT_STATUS[st].label}</h2>
-                      <span className="font-mono text-[11px] text-muted">{items.length}</span>
-                    </header>
-                    <div className="flex flex-col gap-2">
+        /* Etapas como franjas apiladas, no como columnas. Con columnas, una
+           etapa vacía ocupa toda la altura y hay que scrollear al costado para
+           llegar a columnas donde no hay nada; acá una etapa vacía es una
+           franja de dos renglones. Se arrastra de arriba abajo para cambiar de
+           etapa, y las tarjetas corren a lo ancho dentro de su franja. */
+        <div className="flex flex-col gap-3">
+          {(scope === "todos" ? PROJECT_STATUSES : scope === "activos" ? ACTIVE_STATUSES : [scope]).map(
+            (st) => {
+              const items = visible.filter((r) => r.s.status === st);
+              return (
+                <section
+                  key={st}
+                  aria-label={PROJECT_STATUS[st].label}
+                  onDragOver={(e) => {
+                    if (!e.dataTransfer.types.includes(DRAG)) return;
+                    e.preventDefault();
+                    if (over !== st) setOver(st);
+                  }}
+                  onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && setOver(null)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setOver(null);
+                    const slug = e.dataTransfer.getData(DRAG);
+                    const row = rows.find((r) => r.p.slug === slug);
+                    if (row && row.s.status !== st) save(row.p, { status: st });
+                  }}
+                  className={cn(
+                    "rounded-xl border p-2 transition-colors",
+                    over === st ? "border-accent/50 bg-accent/[0.05]" : "border-[var(--line)] bg-white/[0.012]",
+                  )}
+                >
+                  <header className="flex items-center gap-2 px-1.5 pt-1 pb-2.5">
+                    <span className={cn("h-2 w-2 rounded-full", PROJECT_STATUS[st].dot)} />
+                    <h2 className="text-[13px] font-medium">{PROJECT_STATUS[st].label}</h2>
+                    <span className="font-mono text-[11px] text-muted">{items.length}</span>
+                  </header>
+                  {items.length ? (
+                    <div className="-mx-0.5 flex gap-2 overflow-x-auto px-0.5 pb-1">
                       {items.map((r) => (
                         <BoardCard key={r.p.slug} row={r} today={today} draggable={editable} />
                       ))}
                     </div>
-                  </section>
-                );
-              },
-            )}
-          </div>
+                  ) : (
+                    /* La franja vacía sigue siendo zona de descarte: el
+                       onDragOver está en la sección, no en la lista. */
+                    <p className="rounded-lg border border-dashed border-[var(--line)] px-3 py-3.5 text-center text-[12px] text-muted">
+                      Soltá un proyecto acá para pasarlo a {PROJECT_STATUS[st].label.toLowerCase()}.
+                    </p>
+                  )}
+                </section>
+              );
+            },
+          )}
         </div>
       ) : view === "lista" ? (
         <ProjectTable rows={visible} today={today} onSave={save} editable={editable} />
@@ -257,7 +268,7 @@ const BoardCard = memo(function BoardCard({ row: { p, s }, today, draggable }: {
         e.dataTransfer.setData(DRAG, p.slug);
         e.dataTransfer.effectAllowed = "move";
       }}
-      className="focus-ring group block rounded-lg border border-[var(--line)] bg-[var(--panel)] p-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-colors hover:border-[var(--line-strong)]"
+      className="focus-ring group block w-[208px] shrink-0 rounded-lg border border-[var(--line)] bg-[var(--panel)] p-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-colors hover:border-[var(--line-strong)]"
     >
       <Thumb p={p} className="mb-2.5 block aspect-[16/9] w-full rounded-md border border-[var(--line)]" />
       <p className="flex items-center gap-1.5 text-[13px] font-medium">
