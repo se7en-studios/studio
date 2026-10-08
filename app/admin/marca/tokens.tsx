@@ -37,7 +37,7 @@ export function ColorToken({ name, label, note }: { name: string; label: string;
     <button
       type="button"
       onClick={() => value && copy(value)}
-      className="focus-ring group overflow-hidden rounded-2xl border border-border bg-surface text-left transition-colors hover:border-foreground/20"
+      className="focus-ring group overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)] text-left transition-colors hover:border-foreground/20"
     >
       <span className="block h-20 border-b border-border" style={{ background: `var(${name})` }} />
       <span className="block p-3">

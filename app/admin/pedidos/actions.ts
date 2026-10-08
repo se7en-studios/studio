@@ -2,7 +2,7 @@
 
 // Acciones del CRM de pedidos: alta manual, datos de contacto, monto acordado
 // e historial de contactos. Etapa, responsable y notas siguen en ../actions.ts.
-import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { getSession } from "@/lib/admin/auth";
 import {
   OWNERS,
@@ -23,6 +23,8 @@ import {
   type ActivityKind,
 } from "@/lib/admin/activity-shared";
 import { logEvent } from "@/lib/admin/panel";
+import { leadDiff } from "@/lib/admin/lead-changes";
+import { ACTIVITY_LABEL } from "@/lib/admin/activity-shared";
 
 const MAX_VALUE = 10_000_000;
 const CONTACT_TEXT: Record<ActivityKind, string> = {
@@ -114,12 +116,14 @@ export async function createLead(input: ManualLead): Promise<Lead> {
   if (value !== null) lead.value = value;
 
   const row = await createLeadRow(lead);
-  await logEvent({
-    actor: me.who,
-    kind: "pedido",
-    text: `cargó a mano el pedido de ${row.name}`,
-  });
-  revalidatePath("/admin", "layout");
+  after(() =>
+    logEvent({
+      actor: me.who,
+      kind: "pedido",
+      text: `cargó a mano el pedido de ${row.name}`,
+      lead_id: row.id,
+    }),
+  );
   return row;
 }
 
@@ -128,7 +132,7 @@ export type ContactFields = Partial<
 >;
 
 export async function setContact(id: string, fields: ContactFields) {
-  await guard();
+  const me = await guard();
   checkId(id);
   const patch: ContactFields = {};
   if (fields.name !== undefined) {
@@ -138,23 +142,39 @@ export async function setContact(id: string, fields: ContactFields) {
   if (fields.company !== undefined) patch.company = text(fields.company, 120);
   if (fields.email !== undefined) patch.email = cleanEmail(fields.email);
   if (fields.phone !== undefined) patch.phone = cleanPhone(fields.phone);
-  await patchLead(id, patch);
-  revalidatePath("/admin", "layout");
+  const { before, after: lead } = await patchLead(id, patch);
+  const changes = leadDiff(before, patch);
+  if (!changes.length) return;
+  after(() =>
+    logEvent({
+      actor: me.who,
+      kind: "pedido",
+      text: `actualizó ${changes.map((c) => c.label.toLowerCase()).join(", ")} del pedido de ${lead.name}`,
+      lead_id: id,
+      changes,
+    }),
+  );
 }
 
 export async function setValue(id: string, value: number | string | null) {
   const me = await guard();
   checkId(id);
   const clean = cleanValue(value);
-  const name = await patchLead(id, { value: clean });
-  if (clean !== null) {
-    await logEvent({
+  const { before, after: lead } = await patchLead(id, { value: clean });
+  const changes = leadDiff(before, { value: clean });
+  if (!changes.length) return;
+  after(() =>
+    logEvent({
       actor: me.who,
       kind: "pedido",
-      text: `fijó en USD ${clean.toLocaleString("es-AR")} el pedido de ${name}`,
-    });
-  }
-  revalidatePath("/admin", "layout");
+      text:
+        clean !== null
+          ? `fijó en USD ${clean.toLocaleString("es-AR")} el pedido de ${lead.name}`
+          : `sacó el monto acordado del pedido de ${lead.name}`,
+      lead_id: id,
+      changes,
+    }),
+  );
 }
 
 /**
@@ -210,21 +230,34 @@ export async function logActivity(
     await patchLead(leadId, { status: "contactado" });
     status = "contactado";
   }
-  if (lead && isContact(activity)) {
-    await logEvent({
-      actor: me.who,
-      kind: "pedido",
-      text: `registró ${CONTACT_TEXT[kind]} con ${lead.name}${status ? " (pasó a Contactado)" : ""}`,
-    });
+  if (lead) {
+    after(() =>
+      logEvent({
+        actor: me.who,
+        kind: "pedido",
+        text: isContact(activity)
+          ? `registró ${CONTACT_TEXT[kind]} con ${lead.name}${status ? " (pasó a Contactado)" : ""}`
+          : `anotó una nota en el pedido de ${lead.name}`,
+        lead_id: leadId,
+        changes: status ? [{ field: "status", label: "Etapa", before: "Nuevo", after: "Contactado" }] : [],
+      }),
+    );
   }
-  revalidatePath("/admin", "layout");
   return { activity, status };
 }
 
 export async function deleteActivity(id: string) {
-  await guard();
+  const me = await guard();
   checkId(id);
-  await removeActivity(id);
-  revalidatePath("/admin", "layout");
+  const gone = await removeActivity(id);
+  after(() =>
+    logEvent({
+      actor: me.who,
+      kind: "pedido",
+      text: `borró del historial ${CONTACT_TEXT[gone.kind]}`,
+      lead_id: gone.lead_id,
+      changes: gone.text ? [{ field: "activity", label: ACTIVITY_LABEL[gone.kind], before: gone.text.slice(0, 140), after: null }] : [],
+    }),
+  );
 }
 

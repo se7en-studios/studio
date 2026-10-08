@@ -449,3 +449,71 @@ body::after {
   33% { transform: translate3d(-60px, 40px, 0) scale(0.9); }
   66% { transform: translate3d(40px, -40px, 0) scale(1.1); }
 }
+
+/* ─── Panel (/admin) ─────────────────────────────────────────────────────────
+   El panel tiene su propio layout (app/admin/layout.tsx), sin auroras, sin
+   Lenis y sin el grano: es una herramienta de trabajo, tiene que responder
+   al instante. Las entradas son keyframes de CSS (en el compositor), no
+   framer-motion. */
+body:has(.admin-app)::after {
+  display: none;
+}
+
+.admin-app {
+  --panel: #0c0c0e;
+  --panel-2: #131316;
+  --line: rgba(245, 245, 244, 0.07);
+  --line-strong: rgba(245, 245, 244, 0.12);
+  background: #08080a;
+  font-size: 14px;
+}
+
+.admin-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+@keyframes admin-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes admin-drawer {
+  from {
+    opacity: 0;
+    transform: translate3d(28px, 0, 0);
+  }
+}
+@keyframes admin-pop {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0) scale(0.985);
+  }
+}
+@keyframes admin-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+.admin-overlay {
+  animation: admin-fade 0.18s ease-out both;
+}
+.admin-drawer {
+  animation: admin-drawer 0.26s var(--ease) both;
+}
+.admin-pop {
+  animation: admin-pop 0.2s var(--ease) both;
+}
+.admin-skeleton {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 25%, rgba(255, 255, 255, 0.07) 50%, rgba(255, 255, 255, 0.03) 75%);
+  background-size: 200% 100%;
+  animation: admin-shimmer 1.4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .admin-overlay,
+  .admin-drawer,
+  .admin-pop,
+  .admin-skeleton {
+    animation: none;
+  }
+}

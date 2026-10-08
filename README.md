@@ -53,11 +53,29 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 
 Both are optional in v1.
 
-### Panel de pedidos (`/admin`)
+### Panel del estudio (`/admin`)
 
-El panel de Franco y Federico muestra los pedidos de proyecto que llegan por los
-formularios del sitio, en un tablero por etapa (Nuevo → Contactado → Propuesta →
-Ganado / Perdido), con responsable, notas internas y respuesta rápida por mail.
+El panel de Franco y Federico: un CRM para llevar todos los pedidos y proyectos
+del estudio y hablar entre nosotros.
+
+- **Inicio**: lo que está para atender, proyectos en curso, tus tareas, los
+  últimos mensajes y la actividad del equipo.
+- **Mensajes**: un canal general y una conversación por cada proyecto o pedido
+  (también desde la ficha de cada uno). Menciones con `@franco` / `@federico`.
+- **Pedidos**: tablero por etapa (Nuevo → Contactado → Propuesta → Ganado /
+  Perdido) o lista, con responsable, monto, historial de contacto,
+  seguimientos, notas y la conversación del pedido.
+- **Proyectos**: tablero por etapa (Descubrimiento → Diseño → Desarrollo →
+  Revisión → Entregado / Mantenimiento / Pausado), lista editable o galería.
+  Cada proyecto tiene responsable, avance, fechas, cliente, monto, notas,
+  tareas, archivos y su conversación.
+- **Registro**: todo cambio queda anotado con quién, cuándo y el antes y el
+  después de cada campo. Se filtra por tipo, persona y texto.
+- **⌘K** en cualquier pantalla para buscar y saltar a un pedido, proyecto o tarea.
+
+El panel no usa el layout del sitio público (`app/(site)/layout.tsx`): no carga
+auroras, scroll suave ni el footer 3D. Las acciones no re-renderizan la página
+(los cambios son optimistas) y el registro se escribe después de responder.
 
 Variables en Vercel (Settings → Environment Variables), y después redeploy:
 
@@ -68,13 +86,16 @@ SUPABASE_SERVICE_ROLE_KEY=  # idem; sólo se usa en el servidor
 # ADMIN_SESSION_SECRET=     # opcional; por defecto se deriva de la contraseña
 ```
 
-La tabla se crea pegando `supabase/leads.sql` en el SQL editor de Supabase. Sin
-Supabase configurado el panel funciona, pero avisa que los pedidos todavía no se guardan.
+Las tablas se crean pegando en el SQL editor de Supabase, en este orden:
+`supabase/leads.sql`, `panel.sql`, `tasks.sql`, `crm.sql` y `panel-v2.sql`
+(estado de proyectos, mensajes y detalle del registro). Todos se pueden correr
+más de una vez. Lo que falte, el panel lo avisa en vez de romperse.
 
 ## Project structure
 
 ```
-app/                  routes (home, /work/[slug], sitemap, robots)
+app/(site)/           public site routes (home, /work/[slug]…) and their chrome
+app/admin/            the studio panel (own layout, no site chrome)
 components/ui/        design-system primitives (Container, RevealText, MagneticLink…)
 components/sections/  page sections (Hero, SelectedWork, Services, Process, About…)
 components/work/      case-study/work-grid components

@@ -38,7 +38,7 @@ export function FileCard({
   }
 
   return (
-    <li className={`group overflow-hidden rounded-xl border border-border bg-background/70 transition-opacity ${pending ? "opacity-50" : ""}`}>
+    <li className={`group overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--panel)] transition-opacity ${pending ? "opacity-50" : ""}`}>
       <a
         href={file.url ?? undefined}
         target="_blank"

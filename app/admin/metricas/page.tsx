@@ -7,7 +7,7 @@ import { PanelNotReady } from "@/lib/admin/panel";
 import { AdminGate, PageHeader } from "../ui";
 import { MetricsView } from "./view";
 
-export const metadata: Metadata = { title: "Métricas · Panel" };
+export const metadata: Metadata = { title: "Métricas" };
 
 export default async function MetricasPage() {
   if (!(await panelSession())) return <AdminGate />;
@@ -20,14 +20,15 @@ export default async function MetricasPage() {
     );
   }
 
-  const leads: Lead[] = await listLeads();
-  // El historial es opcional (crm.sql): sin él, «Primera respuesta» queda en blanco.
-  let activities: Activity[] | null = null;
-  try {
-    activities = await listActivity();
-  } catch (e) {
-    if (!(e instanceof PanelNotReady)) throw e;
-  }
+  // En paralelo. El historial es opcional (crm.sql): sin él, «Primera
+  // respuesta» queda en blanco.
+  const [leads, activities] = await Promise.all([
+    listLeads() as Promise<Lead[]>,
+    listActivity().catch((e): Activity[] | null => {
+      if (!(e instanceof PanelNotReady)) throw e;
+      return null;
+    }),
+  ]);
 
   return (
     <div className="space-y-8">

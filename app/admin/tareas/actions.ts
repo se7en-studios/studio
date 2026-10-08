@@ -1,12 +1,15 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+// Sin revalidatePath: las listas de tareas son optimistas (ver use-tasks.ts) y
+// las páginas del panel se leen de nuevo al navegar. El registro va con after().
+import { after } from "next/server";
 import { getSession } from "@/lib/admin/auth";
 import { OWNERS } from "@/lib/admin/db";
 import { logEvent } from "@/lib/admin/panel";
 import { PEOPLE } from "@/lib/admin/people";
+import { taskDiff } from "@/lib/admin/task-changes";
 import { cleanInput, type Task, type TaskInput } from "@/lib/admin/task-shared";
-import { insertTask, patchTask, removeTask } from "@/lib/admin/tasks";
+import { getTask, insertTask, patchTask, removeTask, taskLinks } from "@/lib/admin/tasks";
 
 async function guard() {
   const me = await getSession();
@@ -14,7 +17,11 @@ async function guard() {
   return me;
 }
 
-const quote = (t: Task) => `«${t.title}»`;
+const quote = (t: Pick<Task, "title">) => `«${t.title}»`;
+const UUID = /^[0-9a-f-]{36}$/i;
+function checkId(id: string) {
+  if (!UUID.test(id)) throw new Error("Tarea inválida.");
+}
 
 export async function createTask(input: TaskInput): Promise<Task> {
   const me = await guard();
@@ -32,61 +39,72 @@ export async function createTask(input: TaskInput): Promise<Task> {
     me.who,
   );
   const forOther = task.assignee && task.assignee !== me.who;
-  await logEvent({
-    actor: me.who,
-    kind: "tarea",
-    text: forOther
-      ? `le pasó a ${PEOPLE[task.assignee!].name} la tarea ${quote(task)}`
-      : `anotó la tarea ${quote(task)}`,
-    project_slug: task.project_slug,
-  });
-  revalidatePath("/admin", "layout");
+  after(() =>
+    logEvent({
+      actor: me.who,
+      kind: "tarea",
+      text: forOther ? `le pasó a ${PEOPLE[task.assignee!].name} la tarea ${quote(task)}` : `anotó la tarea ${quote(task)}`,
+      project_slug: task.project_slug,
+      lead_id: task.lead_id,
+    }),
+  );
   return task;
 }
 
-export async function updateTask(
-  id: string,
-  patch: Partial<TaskInput>,
-): Promise<Task> {
+export async function updateTask(id: string, patch: Partial<TaskInput>): Promise<Task> {
   const me = await guard();
+  checkId(id);
   const clean = cleanInput(patch, OWNERS);
+  const before = await getTask(id);
   const task = await patchTask(id, clean);
-  if ("assignee" in clean && task.assignee && task.assignee !== me.who) {
+  after(async () => {
+    const links = "lead_id" in clean || "project_slug" in clean ? await taskLinks().catch(() => undefined) : undefined;
+    const changes = taskDiff(before, clean, links);
+    if (!changes.length) return;
+    const handedOver = "assignee" in clean && task.assignee && task.assignee !== me.who && before.assignee !== task.assignee;
     await logEvent({
       actor: me.who,
       kind: "tarea",
-      text: `le pasó a ${PEOPLE[task.assignee].name} la tarea ${quote(task)}`,
+      text: handedOver
+        ? `le pasó a ${PEOPLE[task.assignee!].name} la tarea ${quote(task)}`
+        : `editó la tarea ${quote(task)}`,
       project_slug: task.project_slug,
+      lead_id: task.lead_id,
+      changes,
     });
-  }
-  revalidatePath("/admin", "layout");
+  });
   return task;
 }
 
 export async function setTaskDone(id: string, done: boolean): Promise<Task> {
   const me = await guard();
+  checkId(id);
   const task = await patchTask(id, {
     done_at: done ? new Date().toISOString() : null,
   });
-  if (done) {
-    await logEvent({
+  after(() =>
+    logEvent({
       actor: me.who,
       kind: "tarea",
-      text: `completó la tarea ${quote(task)}`,
+      text: done ? `completó la tarea ${quote(task)}` : `reabrió la tarea ${quote(task)}`,
       project_slug: task.project_slug,
-    });
-  }
-  revalidatePath("/admin", "layout");
+      lead_id: task.lead_id,
+    }),
+  );
   return task;
 }
 
 export async function deleteTask(id: string) {
   const me = await guard();
-  const title = await removeTask(id);
-  await logEvent({
-    actor: me.who,
-    kind: "tarea",
-    text: `borró la tarea «${title}»`,
-  });
-  revalidatePath("/admin", "layout");
+  checkId(id);
+  const task = await removeTask(id);
+  after(() =>
+    logEvent({
+      actor: me.who,
+      kind: "tarea",
+      text: `borró la tarea ${quote(task)}`,
+      project_slug: task.project_slug,
+      lead_id: task.lead_id,
+    }),
+  );
 }

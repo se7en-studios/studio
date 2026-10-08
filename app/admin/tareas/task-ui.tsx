@@ -3,9 +3,7 @@
 // Piezas de las tareas que se repiten en Tareas, Inicio y la ficha de un
 // pedido: la fila, el alta rápida y el panel lateral para editar.
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import {
   Calendar,
   Check,
@@ -14,8 +12,9 @@ import {
   Inbox,
   Plus,
   Trash2,
-  X,
 } from "lucide-react";
+import { Face, btnDanger, btnGhost, cn } from "../kit";
+import { Drawer } from "../overlay";
 import type { LeadOwner } from "@/lib/admin/db";
 import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
 import {
@@ -42,35 +41,7 @@ const PRIORITY_LABEL: Record<TaskPriority, string> = {
   baja: "Baja",
 };
 
-export function Face({
-  who,
-  size = 22,
-}: {
-  who: LeadOwner | null;
-  size?: number;
-}) {
-  const p = who ? PEOPLE[who] : null;
-  if (p?.image) {
-    return (
-      <Image
-        src={p.image}
-        alt={p.name}
-        title={p.name}
-        width={size}
-        height={size}
-        className="shrink-0 rounded-full object-cover"
-        style={{ width: size, height: size }}
-      />
-    );
-  }
-  return (
-    <span
-      title="Sin asignar"
-      className="shrink-0 rounded-full border border-dashed border-white/25"
-      style={{ width: size, height: size }}
-    />
-  );
-}
+export { Face };
 
 function linkName(t: Task, links: TaskLinks) {
   if (t.lead_id)
@@ -105,10 +76,7 @@ export function TaskRow({
   const b = bucket(task);
   const link = hideLink ? null : linkName(task, links);
   return (
-    <motion.li
-      layout="position"
-      className="group flex items-start gap-3 border-b border-border px-4 py-3 last:border-0"
-    >
+    <li className="group flex items-start gap-3 px-4 py-2.5 transition-colors hover:bg-white/[0.02]">
       <button
         onClick={() => onToggle(!done)}
         aria-label={done ? "Marcar como pendiente" : "Marcar como hecha"}
@@ -122,14 +90,14 @@ export function TaskRow({
       </button>
       <button onClick={onOpen} className="focus-ring min-w-0 flex-1 text-left">
         <span
-          className={`block text-sm leading-snug ${done ? "text-muted line-through" : "text-foreground"}`}
+          className={`block text-[13.5px] leading-snug ${done ? "text-muted line-through" : "text-foreground"}`}
         >
           {task.priority === "alta" && !done && (
             <span className="mr-1.5 inline-block h-1.5 w-1.5 -translate-y-px rounded-full bg-accent align-middle" />
           )}
           {task.title}
         </span>
-        <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10px] tracking-wide text-muted uppercase">
+        <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-muted">
           {task.due && !done && (
             <span
               className={`inline-flex items-center gap-1 ${b === "vencidas" ? "text-red-400" : b === "hoy" ? "text-accent" : ""}`}
@@ -151,7 +119,7 @@ export function TaskRow({
         </span>
       </button>
       <Face who={task.assignee} />
-    </motion.li>
+    </li>
   );
 }
 
@@ -169,10 +137,10 @@ function Chip({
       type="button"
       onClick={onClick}
       aria-pressed={on}
-      className={`focus-ring inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+      className={`focus-ring inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[12px] transition-colors ${
         on
-          ? "border-accent bg-accent/15 text-foreground"
-          : "border-border text-muted hover:text-foreground"
+          ? "border-accent/60 bg-accent/15 text-foreground"
+          : "border-[var(--line-strong)] text-muted hover:bg-white/[0.04] hover:text-foreground"
       }`}
     >
       {children}
@@ -233,7 +201,7 @@ export function DuePicker({
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value || null)}
         aria-label="Fecha límite"
-        className="focus-ring rounded-full border border-border bg-background px-2.5 py-1 text-xs text-foreground [color-scheme:dark]"
+        className="focus-ring rounded-md border border-[var(--line-strong)] bg-black/30 px-2 py-1 text-[12px] text-foreground [color-scheme:dark]"
       />
     </div>
   );
@@ -286,7 +254,7 @@ export function LinkPicker({
       value={linkValue(value)}
       onChange={(e) => onChange(parseLink(e.target.value))}
       aria-label="Vincular a"
-      className="focus-ring max-w-full rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground"
+      className="focus-ring max-w-full rounded-md border border-[var(--line-strong)] bg-black/30 px-2 py-1 text-[12px] text-foreground"
     >
       <option value="">Sin vincular</option>
       {links.leads.length > 0 && (
@@ -310,7 +278,7 @@ export function LinkPicker({
 }
 
 const Label = ({ children }: { children: React.ReactNode }) => (
-  <p className="mb-1.5 font-mono text-[10px] tracking-widest text-muted uppercase">
+  <p className="mb-1.5 text-[11px] font-medium tracking-wide text-muted uppercase">
     {children}
   </p>
 );
@@ -326,7 +294,9 @@ export function QuickAdd({
   fixed,
   defaultAssignee,
   placeholder = "Nueva tarea… (Enter para guardar)",
+  autoFocus = false,
 }: {
+  autoFocus?: boolean;
   me: LeadOwner;
   links: TaskLinks;
   onAdd: (input: TaskInput) => void;
@@ -344,7 +314,7 @@ export function QuickAdd({
     project_slug: fixed?.project_slug ?? null,
   });
   const [draft, setDraft] = useState<TaskInput>(blank);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(autoFocus);
   const set = (p: Partial<TaskInput>) => setDraft((d) => ({ ...d, ...p }));
 
   function submit(e: React.FormEvent) {
@@ -359,7 +329,7 @@ export function QuickAdd({
   return (
     <form
       onSubmit={submit}
-      className="rounded-2xl border border-border bg-surface p-2"
+      className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-2 transition-colors focus-within:border-[var(--line-strong)]"
     >
       <div className="flex items-center gap-2">
         <Plus size={16} className="ml-2 shrink-0 text-accent" />
@@ -367,6 +337,7 @@ export function QuickAdd({
           value={draft.title}
           onChange={(e) => set({ title: e.target.value })}
           onFocus={() => setOpen(true)}
+          autoFocus={autoFocus}
           maxLength={TITLE_MAX}
           placeholder={placeholder}
           aria-label="Nueva tarea"
@@ -376,14 +347,14 @@ export function QuickAdd({
           <button
             type="submit"
             disabled={!draft.title.trim()}
-            className="focus-ring shrink-0 rounded-full bg-accent px-3.5 py-1.5 text-xs font-medium text-background disabled:opacity-40"
+            className="focus-ring shrink-0 rounded-lg bg-accent px-3 py-1.5 text-[12px] font-medium text-background disabled:opacity-40"
           >
             Agregar
           </button>
         )}
       </div>
       {open && (
-        <div className="mt-2 grid gap-3 border-t border-border px-2 pt-3 pb-1 md:grid-cols-2">
+        <div className="mt-2 grid gap-3 border-t border-[var(--line)] px-2 pt-3 pb-1 md:grid-cols-2">
           <div>
             <Label>Para</Label>
             <AssigneePicker
@@ -437,46 +408,22 @@ export function TaskDrawer({
   const link = linkName(task, links);
 
   return (
-    <motion.div
-      className="fixed inset-0 z-[55] flex justify-end"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+    <Drawer
+      onClose={onClose}
+      label="Tarea"
+      header={
+        <button
+          onClick={() => onToggle(!done)}
+          className={cn(
+            "focus-ring inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-[13px] transition-colors",
+            done ? "border-accent/60 bg-accent/15 text-foreground" : "border-[var(--line-strong)] text-muted hover:text-foreground",
+          )}
+        >
+          <Check size={14} /> {done ? "Hecha" : "Marcar como hecha"}
+        </button>
+      }
     >
-      <button
-        aria-label="Cerrar"
-        onClick={onClose}
-        className="absolute inset-0 bg-black/60"
-      />
-      <motion.aside
-        role="dialog"
-        aria-label="Tarea"
-        initial={{ x: 40 }}
-        animate={{ x: 0 }}
-        exit={{ x: 40 }}
-        transition={{ type: "spring", stiffness: 380, damping: 36 }}
-        className="relative flex h-full w-full max-w-lg flex-col overflow-y-auto border-l border-border bg-surface p-6"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <button
-            onClick={() => onToggle(!done)}
-            className={`focus-ring inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
-              done
-                ? "border-accent bg-accent/15 text-foreground"
-                : "border-border text-muted hover:text-foreground"
-            }`}
-          >
-            <Check size={14} /> {done ? "Hecha" : "Marcar como hecha"}
-          </button>
-          <button
-            onClick={onClose}
-            aria-label="Cerrar"
-            className="focus-ring rounded-full border border-border p-2 text-muted hover:text-foreground"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
+      <div className="flex min-h-full flex-col p-5">
         <textarea
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -488,7 +435,7 @@ export function TaskDrawer({
           maxLength={TITLE_MAX}
           rows={2}
           aria-label="Título"
-          className="focus-ring mt-5 w-full resize-none rounded-xl bg-transparent text-2xl leading-snug text-foreground focus:bg-background/60"
+          className="focus-ring w-full resize-none rounded-lg bg-transparent text-[22px] leading-snug font-semibold tracking-[-0.01em] text-foreground focus:bg-black/30"
         />
 
         <div className="mt-5 space-y-5">
@@ -516,10 +463,10 @@ export function TaskDrawer({
               <LinkPicker value={task} links={links} onChange={onPatch} />
               {link?.kind === "pedido" && (
                 <Link
-                  href="/admin/pedidos"
+                  href={`/admin/pedidos?pedido=${task.lead_id}`}
                   className="focus-ring text-xs text-muted underline underline-offset-4 hover:text-foreground"
                 >
-                  Ver pedidos
+                  Abrir pedido
                 </Link>
               )}
               {link?.kind === "proyecto" && (
@@ -535,7 +482,7 @@ export function TaskDrawer({
           <div>
             <label
               htmlFor="task-notes"
-              className="mb-1.5 block font-mono text-[10px] tracking-widest text-muted uppercase"
+              className="mb-1.5 block text-[11px] font-medium tracking-wide text-muted uppercase"
             >
               Notas
             </label>
@@ -546,12 +493,12 @@ export function TaskDrawer({
               onBlur={() => notes !== task.notes && onPatch({ notes })}
               rows={5}
               placeholder="Detalles, links, lo que haga falta… (se guarda al salir del campo)"
-              className="focus-ring w-full rounded-xl border border-border bg-background px-3.5 py-3 text-sm text-foreground placeholder:text-muted/60 focus:border-accent"
+              className="focus-ring w-full rounded-lg border border-[var(--line-strong)] bg-black/30 px-3 py-2.5 text-[13px] text-foreground placeholder:text-muted/60 focus:border-accent/70"
             />
           </div>
         </div>
 
-        <p className="mt-6 font-mono text-[10px] tracking-wide text-muted uppercase">
+        <p className="mt-6 text-[11.5px] text-muted">
           {task.created_by
             ? `Anotada por ${PEOPLE[task.created_by].name}`
             : "Anotada"}{" "}
@@ -568,16 +515,10 @@ export function TaskDrawer({
           {confirm ? (
             <div className="flex items-center gap-2 text-sm">
               <span className="text-muted">¿Borrar esta tarea?</span>
-              <button
-                onClick={onDelete}
-                className="focus-ring rounded-full bg-red-500/90 px-3 py-1.5 text-white"
-              >
+              <button onClick={onDelete} className={btnDanger}>
                 Sí, borrar
               </button>
-              <button
-                onClick={() => setConfirm(false)}
-                className="focus-ring rounded-full border border-border px-3 py-1.5 text-muted"
-              >
+              <button onClick={() => setConfirm(false)} className={btnGhost}>
                 No
               </button>
             </div>
@@ -590,31 +531,7 @@ export function TaskDrawer({
             </button>
           )}
         </div>
-      </motion.aside>
-    </motion.div>
+      </div>
+    </Drawer>
   );
-}
-
-export function Toast({ msg }: { msg: string }) {
-  return (
-    <motion.p
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 12 }}
-      role="status"
-      className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-full border border-border bg-surface px-4 py-2 text-sm text-foreground shadow-xl"
-    >
-      {msg}
-    </motion.p>
-  );
-}
-
-/** Mensaje que se va solo. */
-export function useFlash() {
-  const [toast, setToast] = useState<string | null>(null);
-  function flash(msg: string) {
-    setToast(msg);
-    window.setTimeout(() => setToast(null), 2600);
-  }
-  return { toast, flash };
 }

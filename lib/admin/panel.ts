@@ -3,6 +3,7 @@
 // (los tipos sí, con `import type`).
 import { projects as cases } from "@/data/projects";
 import { db, type LeadOwner } from "./db";
+import type { Change } from "./changes";
 
 export const BUCKET = "panel";
 /** Máximo por archivo del plan Free de Supabase. panel.sql lo repite en el bucket. */
@@ -67,6 +68,9 @@ export type PanelEvent = {
   kind: EventKind;
   text: string;
   project_slug: string | null;
+  /** Desde panel-v2.sql; antes de correrlo llegan vacíos. */
+  lead_id: string | null;
+  changes: Change[];
   paths: string[];
   thumbs: string[];
 };
@@ -83,6 +87,14 @@ export function client() {
 export function fail(e: { code?: string; message: string }): never {
   if (e.code === "PGRST205" || e.code === "42P01") {
     throw new PanelNotReady("Faltan las tablas del panel en Supabase.");
+  }
+  throw new Error(e.message);
+}
+
+/** Para las tablas de panel-v2.sql: si faltan, el aviso dice qué archivo correr. */
+export function failV2(e: { code?: string; message: string }): never {
+  if (e.code === "PGRST205" || e.code === "42P01") {
+    throw new PanelNotReady("Falta correr supabase/panel-v2.sql en Supabase.");
   }
   throw new Error(e.message);
 }
@@ -127,7 +139,7 @@ function fromCase(p: (typeof cases)[number], stat?: Stat): PanelProject {
   };
 }
 
-type ProjectRow = { slug: string; created_at: string; name: string; category: string; url: string; accent: string };
+export type ProjectRow = { slug: string; created_at: string; name: string; category: string; url: string; accent: string };
 
 function fromRow(p: ProjectRow, stat: Stat | undefined, cover: string | null): PanelProject {
   return {
@@ -198,6 +210,35 @@ export async function getProject(slug: string): Promise<PanelProject | null> {
     .maybeSingle();
   if (error) fail(error);
   return data ? fromRow(data as ProjectRow, undefined, null) : null;
+}
+
+/** slug → nombre de todos los proyectos, sin firmar portadas (para el feed y los selectores). */
+export async function projectNames(): Promise<Record<string, string>> {
+  const names: Record<string, string> = Object.fromEntries(cases.map((p) => [p.slug, p.name]));
+  const c = db();
+  if (!c) return names;
+  const { data, error } = await c.from("panel_projects").select("slug, name");
+  if (error) return names;
+  for (const p of data as { slug: string; name: string }[]) names[p.slug] = p.name;
+  return names;
+}
+
+/** Edita un proyecto del panel (los casos de la web se editan en data/projects.ts). */
+export async function updateProjectRow(
+  slug: string,
+  patch: Partial<Pick<ProjectRow, "name" | "category" | "url" | "accent">>,
+): Promise<{ before: ProjectRow; after: ProjectRow }> {
+  const c = client();
+  const cur = await c.from("panel_projects").select("slug, created_at, name, category, url, accent").eq("slug", slug).single();
+  if (cur.error) fail(cur.error);
+  const { data, error } = await c
+    .from("panel_projects")
+    .update(patch)
+    .eq("slug", slug)
+    .select("slug, created_at, name, category, url, accent")
+    .single();
+  if (error) fail(error);
+  return { before: cur.data as ProjectRow, after: data as ProjectRow };
 }
 
 export function slugify(name: string) {
@@ -304,30 +345,69 @@ export async function countFilesSince(iso: string): Promise<number> {
 
 // --- Cambios ---------------------------------------------------------------
 
-/** Nunca rompe la acción que lo llama: si el feed falla, se pierde la línea y nada más. */
-export async function logEvent(e: {
+/** Columna que todavía no existe (falta correr panel-v2.sql). */
+const missingCol = (e: { code?: string; message: string }) => e.code === "42703" || e.code === "PGRST204" || /column .* does not exist|schema cache/i.test(e.message);
+
+export type NewEvent = {
   actor: LeadOwner;
   kind: EventKind;
   text: string;
   project_slug?: string | null;
+  lead_id?: string | null;
+  changes?: Change[];
   paths?: string[];
-}) {
+};
+
+/**
+ * Nunca rompe la acción que lo llama: si el feed falla, se pierde la línea y
+ * nada más. Sin panel-v2.sql guarda la línea sin el detalle de los cambios.
+ */
+export async function logEvent(e: NewEvent) {
   const c = db();
   if (!c) return;
-  const { error } = await c.from("panel_events").insert({ ...e, paths: e.paths ?? [] });
+  const { lead_id = null, changes = [], ...base } = e;
+  const row = { ...base, paths: e.paths ?? [] };
+  let { error } = await c.from("panel_events").insert({ ...row, lead_id, changes });
+  if (error && missingCol(error)) ({ error } = await c.from("panel_events").insert(row));
   if (error) console.error("[panel] feed:", error.message);
 }
 
-export async function listEvents({ limit = 50, kind }: { limit?: number; kind?: EventKind } = {}): Promise<PanelEvent[]> {
-  let q = client()
-    .from("panel_events")
-    .select("id, created_at, actor, kind, text, project_slug, paths")
-    .order("created_at", { ascending: false })
-    .limit(limit);
-  if (kind) q = q.eq("kind", kind);
-  const { data, error } = await q;
-  if (error) fail(error);
-  const rows = data as Omit<PanelEvent, "thumbs">[];
+const EVENT_COLUMNS = "id, created_at, actor, kind, text, project_slug, paths";
+
+export type EventFilter = {
+  limit?: number;
+  kind?: EventKind;
+  actor?: LeadOwner;
+  projectSlug?: string;
+  leadId?: string;
+  /** ISO: sólo lo anterior a esto (para «cargar más»). */
+  before?: string;
+  q?: string;
+};
+
+export async function listEvents({ limit = 50, kind, actor, projectSlug, leadId, before, q }: EventFilter = {}): Promise<PanelEvent[]> {
+  const run = (columns: string, withLead: boolean) => {
+    let query = client().from("panel_events").select(columns).order("created_at", { ascending: false }).limit(limit);
+    if (kind) query = query.eq("kind", kind);
+    if (actor) query = query.eq("actor", actor);
+    if (projectSlug) query = query.eq("project_slug", projectSlug);
+    if (leadId && withLead) query = query.eq("lead_id", leadId);
+    if (before) query = query.lt("created_at", before);
+    if (q) query = query.ilike("text", `%${q.replace(/[%_,()]/g, " ").slice(0, 80)}%`);
+    return query;
+  };
+  let res = await run(`${EVENT_COLUMNS}, lead_id, changes`, true);
+  if (res.error && missingCol(res.error)) {
+    // Sin panel-v2.sql no hay forma de filtrar por pedido.
+    if (leadId) return [];
+    res = await run(EVENT_COLUMNS, false);
+  }
+  if (res.error) fail(res.error);
+  const rows = (res.data as unknown as Omit<PanelEvent, "thumbs">[]).map((r) => ({
+    ...r,
+    lead_id: r.lead_id ?? null,
+    changes: Array.isArray(r.changes) ? r.changes : [],
+  }));
   const thumbPaths = (r: Omit<PanelEvent, "thumbs">) => r.paths.filter((p) => isImage(p)).slice(0, 4);
   const urls = await sign(rows.flatMap(thumbPaths));
   return rows.map((r) => ({

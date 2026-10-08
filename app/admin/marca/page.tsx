@@ -6,7 +6,7 @@ import { projects } from "@/data/projects";
 import { AdminGate, PageHeader } from "../ui";
 import { AccentChip, ColorToken, MotionToken } from "./tokens";
 
-export const metadata: Metadata = { title: "Marca · Panel" };
+export const metadata: Metadata = { title: "Marca" };
 
 // Brand book: lo necesario para hacer algo de Se7en sin preguntar. Los
 // colores y tiempos se leen en vivo de globals.css, así nunca quedan viejos.
@@ -45,14 +45,14 @@ export default async function MarcaPage() {
         <SectionTitle hint="Sólo hay PNG: falta el SVG y una versión del logo para fondo claro.">Logos</SectionTitle>
         <div className="grid gap-3 md:grid-cols-3">
           {LOGOS.map((l) => (
-            <div key={l.label} className="overflow-hidden rounded-2xl border border-border bg-surface">
+            <div key={l.label} className="overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)]">
               <div className={`flex aspect-[16/9] items-center justify-center ${l.bg}`}>
                 <Image src={l.src} alt={l.label} width={l.w} height={l.h} className={`h-auto ${l.fit}`} />
               </div>
               <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3">
                 <span>
                   <span className="block text-sm text-foreground">{l.label}</span>
-                  <span className="font-mono text-[10px] tracking-widest text-muted uppercase">PNG · {l.size}</span>
+                  <span className="text-[11px] font-medium tracking-wide text-muted uppercase">PNG · {l.size}</span>
                 </span>
                 <a
                   href={l.src}
@@ -79,12 +79,12 @@ export default async function MarcaPage() {
       <section>
         <SectionTitle>Tipografía</SectionTitle>
         <div className="grid gap-3 md:grid-cols-2">
-          <div className="rounded-2xl border border-border bg-surface p-6">
+          <div className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-6">
             <p className="font-sans text-6xl tracking-[-0.035em] text-foreground">Aa 7</p>
             <p className="mt-4 text-foreground">Archivo</p>
             <p className="text-sm text-muted">Títulos y texto. Títulos en 600 con tracking −3,5 %, secciones en mayúsculas.</p>
           </div>
-          <div className="rounded-2xl border border-border bg-surface p-6">
+          <div className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-6">
             <p className="font-mono text-5xl text-foreground">Aa 07</p>
             <p className="mt-6 text-foreground">Chivo Mono</p>
             <p className="text-sm text-muted">Etiquetas, datos y código. 11 a 12 px, mayúsculas con tracking amplio.</p>
@@ -95,7 +95,7 @@ export default async function MarcaPage() {
       <section className="grid gap-8 lg:grid-cols-2">
         <div>
           <SectionTitle hint="Para que todo lo que se mueve sea de la misma familia.">Movimiento</SectionTitle>
-          <ul className="rounded-2xl border border-border bg-surface px-4">
+          <ul className="rounded-xl border border-[var(--line)] bg-[var(--panel)] px-4">
             {MOTION.map((m) => (
               <MotionToken key={m.name} {...m} />
             ))}
@@ -143,7 +143,7 @@ function SectionTitle({ children, hint }: { children: React.ReactNode; hint?: st
 
 function VoiceCard({ title, tone, children }: { title: string; tone: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface p-6">
+    <div className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-6">
       <span className={`rounded-full px-2.5 py-1 font-mono text-[10px] tracking-widest uppercase ${tone}`}>{title}</span>
       <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-foreground/85">{children}</ul>
     </div>

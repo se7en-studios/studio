@@ -4,6 +4,7 @@
 // La contraseña es compartida; quién entró (Franco o Federico) viaja firmado
 // en la misma cookie para que el feed de cambios sepa quién hizo qué.
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { OWNERS, type LeadOwner } from "./db";
@@ -76,8 +77,12 @@ export async function endSession() {
   store.delete({ name: COOKIE, path: "/admin" });
 }
 
-/** null si no hay sesión válida. Las cookies viejas (sin quién) no valen: hay que volver a entrar. */
-export async function getSession(): Promise<Session | null> {
+/**
+ * null si no hay sesión válida. Las cookies viejas (sin quién) no valen: hay
+ * que volver a entrar. Con cache(): el layout, la página y las acciones de un
+ * mismo pedido la leen una sola vez.
+ */
+export const getSession = cache(async function getSession(): Promise<Session | null> {
   const key = secret();
   if (!key) return null;
   const raw = (await cookies()).get(COOKIE)?.value;
@@ -87,7 +92,7 @@ export async function getSession(): Promise<Session | null> {
   if (!safeEqual(mac, sign(`${exp}.${who}`, key))) return null;
   if (!(OWNERS as readonly string[]).includes(who)) return null;
   return { who: who as LeadOwner };
-}
+});
 
 /**
  * Para las páginas del panel: siempre por pedido (la sesión y los datos no

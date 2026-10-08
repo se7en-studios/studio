@@ -11,45 +11,52 @@ import { AdminGate } from "../ui";
 
 // Los pedidos que llegan por los formularios del sitio, en un tablero para
 // responderlos y darles seguimiento.
-export const metadata: Metadata = { title: "Pedidos · Panel" };
+export const metadata: Metadata = { title: "Pedidos" };
 
 export default async function PedidosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ pedido?: string; frios?: string }>;
+  searchParams: Promise<{ pedido?: string; frios?: string; nuevo?: string }>;
 }) {
   const me = await panelSession();
   if (!me) return <AdminGate />;
 
   const ready = db() !== null;
-  let leads: Lead[] = [];
-  let error: string | null = null;
-  if (ready) {
+  // Todo en paralelo. Tareas e historial son opcionales (tasks.sql, crm.sql):
+  // si faltan sus tablas, el tablero anda igual sin ellos.
+  const optional = async <T,>(p: () => Promise<T>): Promise<T | null> => {
     try {
-      leads = await listLeads();
+      return await p();
     } catch (e) {
-      error = e instanceof Error ? e.message : "Error leyendo los pedidos";
+      if (e instanceof PanelNotReady) return null;
+      throw e;
     }
-  }
-  // Seguimientos: si falta la tabla de tareas, el tablero anda igual sin ellos.
-  let tasks: { list: Task[]; links: TaskLinks } | null = null;
-  if (ready && !error) {
-    try {
+  };
+  const [leadsR, tasks, activities, { pedido, frios, nuevo }] = await Promise.all([
+    ready
+      ? listLeads().then(
+          (leads) => ({ leads, error: null as string | null }),
+          (e) => ({ leads: [] as Lead[], error: e instanceof Error ? e.message : "Error leyendo los pedidos" }),
+        )
+      : { leads: [] as Lead[], error: null },
+    ready ? optional(async () => {
       const [list, links] = await Promise.all([listTasks(), taskLinks()]);
-      tasks = { list, links };
-    } catch (e) {
-      if (!(e instanceof PanelNotReady)) throw e;
-    }
-  }
-  // Historial de contactos: igual, opcional hasta correr crm.sql.
-  let activities: Activity[] | null = null;
-  if (ready && !error) {
-    try {
-      activities = await listActivity();
-    } catch (e) {
-      if (!(e instanceof PanelNotReady)) throw e;
-    }
-  }
-  const { pedido, frios } = await searchParams;
-  return <Dashboard initialOpen={pedido ?? null} initialCold={frios === "1"} activities={activities} leads={leads} dbReady={ready} error={error} tasks={tasks} me={me.who} />;
+      return { list, links } as { list: Task[]; links: TaskLinks };
+    }) : null,
+    ready ? optional<Activity[]>(listActivity) : null,
+    searchParams,
+  ]);
+  return (
+    <Dashboard
+      initialOpen={pedido ?? null}
+      initialCold={frios === "1"}
+      initialNew={nuevo === "1"}
+      activities={activities}
+      leads={leadsR.leads}
+      dbReady={ready}
+      error={leadsR.error}
+      tasks={leadsR.error ? null : tasks}
+      me={me.who}
+    />
+  );
 }

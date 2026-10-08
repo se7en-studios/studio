@@ -7,12 +7,13 @@ import { AdminGate, PageHeader } from "../ui";
 import { TasksBoard } from "./board";
 import { TasksSetup } from "./setup";
 
-export const metadata: Metadata = { title: "Tareas · Panel" };
+export const metadata: Metadata = { title: "Tareas" };
 
-export default async function TareasPage() {
+export default async function TareasPage({ searchParams }: { searchParams: Promise<{ tarea?: string; nueva?: string }> }) {
   const me = await panelSession();
   if (!me) return <AdminGate />;
 
+  const { tarea, nueva } = await searchParams;
   let tasks: Task[] = [];
   let links: TaskLinks = { leads: [], projects: [] };
   let setup: string | null = null;
@@ -32,7 +33,7 @@ export default async function TareasPage() {
       {setup ? (
         <TasksSetup reason={setup} />
       ) : (
-        <TasksBoard tasks={tasks} links={links} me={me.who} />
+        <TasksBoard tasks={tasks} links={links} me={me.who} initialOpen={tarea ?? null} autoFocus={nueva === "1"} />
       )}
     </div>
   );

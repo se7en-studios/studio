@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { AnimatePresence } from "framer-motion";
 import type { LeadOwner } from "@/lib/admin/db";
 import {
   bucket,
@@ -10,7 +9,10 @@ import {
   type Task,
   type TaskLinks,
 } from "@/lib/admin/task-shared";
-import { TaskDrawer, TaskRow, Toast, useFlash } from "./task-ui";
+import { CheckSquare } from "lucide-react";
+import { Card, CardLink } from "../kit";
+import { useToast } from "../overlay";
+import { TaskDrawer, TaskRow } from "./task-ui";
 import { useTasks } from "./use-tasks";
 
 const MAX = 6;
@@ -25,7 +27,7 @@ export function MyTasks({
   links: TaskLinks;
   me: LeadOwner;
 }) {
-  const { toast, flash } = useFlash();
+  const flash = useToast();
   const api = useTasks(initial, flash);
   const [openId, setOpenId] = useState<string | null>(null);
   // Recién tildadas siguen a la vista hasta recargar: si no, el check desaparece en el acto.
@@ -44,25 +46,14 @@ export function MyTasks({
   const open = api.tasks.find((t) => t.id === openId) ?? null;
 
   return (
-    <section className="rounded-2xl border border-border bg-surface/50">
-      <header className="flex items-center justify-between border-b border-border px-4 py-3">
-        <h2 className="text-sm text-foreground">
-          Tus tareas{" "}
-          {overdue > 0 && (
-            <span className="ml-1 font-mono text-[11px] text-red-400">
-              {overdue} vencidas
-            </span>
-          )}
-        </h2>
-        <Link
-          href="/admin/tareas"
-          className="focus-ring font-mono text-[11px] tracking-widest text-muted uppercase hover:text-foreground"
-        >
-          Ver todas →
-        </Link>
-      </header>
+    <Card
+      title="Tus tareas"
+      icon={<CheckSquare size={14} />}
+      count={overdue ? <span className="text-red-400">{overdue} vencidas</span> : mine.length || undefined}
+      action={<CardLink href="/admin/tareas">Ver todas →</CardLink>}
+    >
       {mine.length ? (
-        <ul>
+        <ul className="divide-y divide-[var(--line)]">
           {mine.slice(0, MAX).map((t) => (
             <TaskRow
               key={t.id}
@@ -77,33 +68,27 @@ export function MyTasks({
           ))}
         </ul>
       ) : (
-        <p className="px-4 py-6 text-sm text-muted">Nada para esta semana.</p>
+        <p className="px-4 py-5 text-[13px] text-muted">Nada para esta semana.</p>
       )}
       {mine.length > MAX && (
-        <Link
-          href="/admin/tareas"
-          className="focus-ring block border-t border-border px-4 py-2.5 text-xs text-muted hover:text-foreground"
-        >
+        <Link href="/admin/tareas" className="focus-ring block border-t border-[var(--line)] px-4 py-2.5 text-[12px] text-muted hover:text-foreground">
           y {mine.length - MAX} más…
         </Link>
       )}
-      <AnimatePresence>
-        {open && (
-          <TaskDrawer
-            key={open.id}
-            task={open}
-            links={links}
-            onClose={() => setOpenId(null)}
-            onPatch={(p) => api.patch(open.id, p)}
-            onToggle={(d) => api.toggle(open.id, d)}
-            onDelete={() => {
-              api.remove(open.id);
-              setOpenId(null);
-            }}
-          />
-        )}
-      </AnimatePresence>
-      <AnimatePresence>{toast && <Toast msg={toast} />}</AnimatePresence>
-    </section>
+      {open && (
+        <TaskDrawer
+          key={open.id}
+          task={open}
+          links={links}
+          onClose={() => setOpenId(null)}
+          onPatch={(p) => api.patch(open.id, p)}
+          onToggle={(d) => api.toggle(open.id, d)}
+          onDelete={() => {
+            api.remove(open.id);
+            setOpenId(null);
+          }}
+        />
+      )}
+    </Card>
   );
 }
