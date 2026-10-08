@@ -4,6 +4,8 @@ import { db, listLeads, type Lead } from "@/lib/admin/db";
 import { PanelNotReady } from "@/lib/admin/panel";
 import type { Task, TaskLinks } from "@/lib/admin/task-shared";
 import { listTasks, taskLinks } from "@/lib/admin/tasks";
+import { listActivity } from "@/lib/admin/activity";
+import type { Activity } from "@/lib/admin/activity-shared";
 import { Dashboard } from "../dashboard";
 import { AdminGate } from "../ui";
 
@@ -35,5 +37,14 @@ export default async function PedidosPage() {
       if (!(e instanceof PanelNotReady)) throw e;
     }
   }
-  return <Dashboard leads={leads} dbReady={ready} error={error} tasks={tasks} me={me.who} />;
+  // Historial de contactos: igual, opcional hasta correr crm.sql.
+  let activities: Activity[] | null = null;
+  if (ready && !error) {
+    try {
+      activities = await listActivity();
+    } catch (e) {
+      if (!(e instanceof PanelNotReady)) throw e;
+    }
+  }
+  return <Dashboard activities={activities} leads={leads} dbReady={ready} error={error} tasks={tasks} me={me.who} />;
 }
