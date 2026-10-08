@@ -230,6 +230,52 @@ export async function insertProject(p: {
   return slug;
 }
 
+/**
+ * Borra un proyecto del panel: desvincula sus tareas, saca sus archivos de
+ * Storage y de la tabla, y borra la fila. Devuelve el nombre y cuántos
+ * archivos se fueron, para contarlo en el feed.
+ *
+ * Los casos de data/projects.ts NO se pueden borrar desde acá: viven en el
+ * repo, así que sacarlos es un cambio de código y un deploy. La acción lo
+ * rechaza y la UI directamente no muestra el botón.
+ *
+ * El orden importa. Primero lo reversible (desvincular tareas) y último lo
+ * destructivo, para que un error a mitad de camino no deje archivos huérfanos
+ * sin proyecto al que pertenecer.
+ */
+export async function removeProject(slug: string): Promise<{ name: string; files: number }> {
+  if (cases.some((c) => c.slug === slug)) {
+    throw new Error("Ese proyecto es un caso de la web: se saca del repo, no del panel.");
+  }
+  const c = client();
+
+  const found = await c.from("panel_projects").select("name").eq("slug", slug).maybeSingle();
+  if (found.error) fail(found.error);
+  if (!found.data) throw new Error("Ese proyecto ya no existe.");
+  const { name } = found.data as { name: string };
+
+  // Las tareas sobreviven: son trabajo anotado y perderlas por borrar un
+  // proyecto sería peor que dejarlas sueltas. Quedan sin vincular.
+  const unlink = await c.from("panel_tasks").update({ project_slug: null }).eq("project_slug", slug);
+  if (unlink.error) fail(unlink.error);
+
+  // panel_files no tiene FK al proyecto, así que no hay cascade que lo haga
+  // solo: los archivos se sacan a mano, primero de Storage y después la fila.
+  const rows = await c.from("panel_files").select("path").eq("project_slug", slug);
+  if (rows.error) fail(rows.error);
+  const paths = (rows.data as { path: string }[]).map((r) => r.path);
+  if (paths.length) {
+    const gone = await c.storage.from(BUCKET).remove(paths);
+    if (gone.error) throw new Error(gone.error.message);
+    const del = await c.from("panel_files").delete().eq("project_slug", slug);
+    if (del.error) fail(del.error);
+  }
+
+  const del = await c.from("panel_projects").delete().eq("slug", slug);
+  if (del.error) fail(del.error);
+  return { name, files: paths.length };
+}
+
 // --- Archivos --------------------------------------------------------------
 
 export async function listFiles(slug: string): Promise<PanelFile[]> {

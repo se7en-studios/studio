@@ -14,6 +14,7 @@ import {
   isFolder,
   logEvent,
   removeFile,
+  removeProject,
   uploadTargets,
 } from "@/lib/admin/panel";
 
@@ -99,6 +100,31 @@ export async function deleteFile(id: string): Promise<{ error?: string }> {
   } catch (e) {
     return { error: message(e) };
   }
+}
+
+/**
+ * Borra un proyecto creado desde el panel. Los casos de la web los rechaza
+ * removeProject: el botón no se muestra para ellos, pero la acción igual se
+ * defiende sola.
+ */
+export async function deleteProject(slug: string): Promise<{ error?: string }> {
+  try {
+    const me = await guard();
+    const { name, files } = await removeProject(slug);
+    // Sin project_slug a propósito: el proyecto ya no existe y el feed dejaría
+    // un link a una página que devuelve 404.
+    await logEvent({
+      actor: me.who,
+      kind: "proyecto",
+      text: files
+        ? `borró el proyecto «${name}» y sus ${files} archivo${files === 1 ? "" : "s"}`
+        : `borró el proyecto «${name}»`,
+    });
+  } catch (e) {
+    return { error: message(e) };
+  }
+  revalidatePath("/admin", "layout");
+  redirect("/admin/proyectos");
 }
 
 export type NewProjectState = { error?: string };

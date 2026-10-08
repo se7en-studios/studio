@@ -18,6 +18,7 @@ import {
 } from "@/lib/admin/panel";
 import { PEOPLE } from "@/lib/admin/people";
 import { AdminGate, SetupNotice, bytes } from "../../ui";
+import { DeleteProject } from "./delete-project";
 import { FileCard } from "./file-card";
 import { Uploader } from "./uploader";
 
@@ -186,6 +187,10 @@ export default async function ProjectPage({ params, searchParams }: Props) {
           </p>
         )
       )}
+
+      {/* Los casos de la web no llevan botón: viven en data/projects.ts y
+          sacarlos es un cambio de repo, no algo que el panel pueda hacer. */}
+      {!project.isCase && <DeleteProject slug={project.slug} name={project.name} files={files.length} />}
     </div>
   );
 }
