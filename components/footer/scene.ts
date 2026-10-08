@@ -190,8 +190,6 @@ export function buildSVG(): string {
     <radialGradient id="s7-light"><stop offset="0" stop-color="#fff1ea"/><stop offset=".25" stop-color="#ff8a6a" stop-opacity=".9"/><stop offset="1" stop-color="${ACC}" stop-opacity="0"/></radialGradient>
     <linearGradient id="s7-trail" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${ACC}" stop-opacity="0"/><stop offset="1" stop-color="${ACC}"/></linearGradient>
     <mask id="s7-win"><rect width="${W}" height="${H}" fill="#fff"/>${win.map((d) => `<path d="${d}" fill="#000"/>`).join("")}</mask>
-    <clipPath id="s7-cl"><polygon points="${P(CL)}"/></clipPath>
-    <clipPath id="s7-cr"><polygon points="${P(CR)}"/></clipPath>
   </defs>
   <rect width="${W}" height="${H}" fill="url(#s7-sky)"/>
   <g data-k="stars">${stars}</g>
@@ -231,11 +229,19 @@ export function buildSVG(): string {
       <circle cx="734" cy="278" r="4" fill="#3ddc97"/><text x="748" y="283" fill="#3ddc97">en vivo · 1 ms</text>
     </g>
   </g>
-
-  <g data-k="cl"><g clip-path="url(#s7-cl)">${lowPoly(7, CL)}</g></g>
-  <g data-k="cr"><g transform="translate(${W},0) scale(-1,1)"><g clip-path="url(#s7-cr)">${lowPoly(77, CR)}</g></g></g>
-</svg>`;
+</svg>${cliff("cl", lowPoly(7, CL), CL, "")}${cliff("cr", lowPoly(77, CR), CR, `transform="translate(${W},0) scale(-1,1)"`)}`;
 }
+
+// Las laderas (~600 polígonos) van en SVGs propios dentro de un div-capa: se
+// mueven con transform CSS (sólo composición) en vez de re-pintar todo el SVG
+// principal en cada frame de scroll.
+function cliff(k: string, polys: string, outline: number[][], flip: string) {
+  return `<div data-k="${k}" style="position:absolute;inset:0;will-change:transform"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><clipPath id="s7-${k}"><polygon points="${P(outline)}"/></clipPath></defs><g ${flip}><g clip-path="url(#s7-${k})">${polys}</g></g></svg></div>`;
+}
+
+// Unidades del viewBox → px con el escalado de "slice": requiere
+// container-type:size en [data-art].
+const vb = (v: number) => `calc(${v} * max(100cqw / ${W}, 100cqh / ${H}))`;
 
 // ---------- animation ----------
 const cl = (v: number) => Math.max(0, Math.min(1, v));
@@ -276,8 +282,11 @@ export function bindScene(root: HTMLElement, ampVh = 14): (p: number) => void {
     if (art)
       art.style.transform = `translate3d(0,${mix(ampVh, 0, eIO(seg(p, 0.55, 0.9)))}vh,0)`;
     const c = eOut(seg(p, 0, 0.55));
-    set(n.cl, "transform", `translate(${mix(-520, 0, c)},${mix(90, 0, c)})`);
-    set(n.cr, "transform", `translate(${mix(520, 0, c)},${mix(90, 0, c)})`);
+    const cy = vb(mix(90, 0, c));
+    if (n.cl instanceof HTMLElement)
+      n.cl.style.transform = `translate3d(${vb(mix(-520, 0, c))},${cy},0)`;
+    if (n.cr instanceof HTMLElement)
+      n.cr.style.transform = `translate3d(${vb(mix(520, 0, c))},${cy},0)`;
     set(
       n.far,
       "transform",
