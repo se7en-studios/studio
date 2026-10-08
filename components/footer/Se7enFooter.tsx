@@ -31,8 +31,6 @@ const RECURSOS = [
 ] as const;
 const LEGALES = [
   ["Tecnología", "/tech"],
-  ["Seguridad", "/security"],
-  ["Sistema de diseño", "/design-system"],
   ["Portal de inicio", "/kickoff"],
 ] as const;
 
@@ -286,9 +284,9 @@ function Footer() {
             </span>
             <nav aria-label="Más" className="flex flex-wrap gap-x-5 gap-y-2">
               {LEGALES.map(([label, href]) => (
-                <a key={href} href={href} className="transition-colors hover:text-[#f5f5f4]">
+                <Link key={href} href={href} className="transition-colors hover:text-[#f5f5f4]">
                   {label}
-                </a>
+                </Link>
               ))}
             </nav>
             <div className="flex items-center gap-5">

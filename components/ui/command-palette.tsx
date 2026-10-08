@@ -16,7 +16,6 @@ import {
   FolderGit2,
   TrendingUp,
   Terminal,
-  ShieldCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { projects } from "@/data/projects";
@@ -197,18 +196,6 @@ export function CommandPalette() {
         },
       },
       {
-        id: "nav-design-system",
-        title: "Design System & Tokens Atómicos",
-        subtitle: "Explorá colores OLED, escalas tipográficas y componentes",
-        category: "Navegación",
-        icon: Code2,
-        keywords: ["design system", "tokens", "colores", "tipografia", "componentes", "ui"],
-        action: () => {
-          setOpen(false);
-          router.push("/design-system");
-        },
-      },
-      {
         id: "nav-testimonials",
         title: "Casos de Éxito & Testimonios",
         subtitle: "Métricas de negocio verificadas y resultados de clientes",
@@ -230,30 +217,6 @@ export function CommandPalette() {
         action: () => {
           setOpen(false);
           router.push("/playground");
-        },
-      },
-      {
-        id: "nav-security",
-        title: "Seguridad, Propiedad & NDA",
-        subtitle: "Código 100% propio en GitHub y arquitectura Zero-Trust",
-        category: "Navegación",
-        icon: ShieldCheck,
-        keywords: ["seguridad", "nda", "privacidad", "github", "rls", "trust"],
-        action: () => {
-          setOpen(false);
-          router.push("/security");
-        },
-      },
-      {
-        id: "nav-portal",
-        title: "Demo del Portal de Cliente & Staging",
-        subtitle: "Mirá cómo gestionamos sprints y deploys en vivo",
-        category: "Navegación",
-        icon: Terminal,
-        keywords: ["portal", "staging", "demo", "cliente", "sprints", "commits"],
-        action: () => {
-          setOpen(false);
-          router.push("/portal");
         },
       },
       {
