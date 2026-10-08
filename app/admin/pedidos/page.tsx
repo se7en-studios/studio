@@ -13,7 +13,11 @@ import { AdminGate } from "../ui";
 // responderlos y darles seguimiento.
 export const metadata: Metadata = { title: "Pedidos · Panel" };
 
-export default async function PedidosPage() {
+export default async function PedidosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ pedido?: string; frios?: string }>;
+}) {
   const me = await panelSession();
   if (!me) return <AdminGate />;
 
@@ -46,5 +50,6 @@ export default async function PedidosPage() {
       if (!(e instanceof PanelNotReady)) throw e;
     }
   }
-  return <Dashboard activities={activities} leads={leads} dbReady={ready} error={error} tasks={tasks} me={me.who} />;
+  const { pedido, frios } = await searchParams;
+  return <Dashboard initialOpen={pedido ?? null} initialCold={frios === "1"} activities={activities} leads={leads} dbReady={ready} error={error} tasks={tasks} me={me.who} />;
 }
