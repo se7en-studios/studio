@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useSyncExternalStore, useState, useCallback } from "react";
 
 interface SoundContextType {
   soundEnabled: boolean;
@@ -20,16 +20,45 @@ const SoundContext = createContext<SoundContextType>({
   playSwitch: () => {},
 });
 
-export function SoundProvider({ children }: { children: React.ReactNode }) {
-  const [soundEnabled, setSoundEnabled] = useState(false);
-  const [audioCtx, setAudioCtx] = useState<AudioContext | null>(null);
+const KEY = "se7en-sound-fx";
 
-  useEffect(() => {
-    const saved = localStorage.getItem("se7en-sound-fx");
-    if (saved === "true") {
-      setSoundEnabled(true);
-    }
-  }, []);
+/* La preferencia vive en localStorage, que es estado de afuera de React.
+   useSyncExternalStore la lee sin el setState dentro de un efecto que hacía
+   renderizar dos veces en cada carga, y devuelve false en el servidor para que
+   servidor e hidratación coincidan por construcción — el mismo patrón que
+   lib/use-media-query.ts.
+   El registro de oyentes es propio porque el evento `storage` del navegador
+   sólo avisa a las OTRAS pestañas, nunca a la que acaba de escribir. */
+const listeners = new Set<() => void>();
+
+function subscribe(onStoreChange: () => void) {
+  listeners.add(onStoreChange);
+  window.addEventListener("storage", onStoreChange);
+  return () => {
+    listeners.delete(onStoreChange);
+    window.removeEventListener("storage", onStoreChange);
+  };
+}
+
+function readPreference() {
+  try {
+    return localStorage.getItem(KEY) === "true";
+  } catch {
+    // Ventana privada o almacenamiento bloqueado: queda sin sonido, no rota.
+    return false;
+  }
+}
+
+function writePreference(next: boolean) {
+  try {
+    localStorage.setItem(KEY, String(next));
+  } catch {}
+  for (const onStoreChange of listeners) onStoreChange();
+}
+
+export function SoundProvider({ children }: { children: React.ReactNode }) {
+  const soundEnabled = useSyncExternalStore(subscribe, readPreference, () => false);
+  const [audioCtx, setAudioCtx] = useState<AudioContext | null>(null);
 
   const getAudioContext = useCallback(() => {
     if (typeof window === "undefined") return null;
@@ -45,30 +74,28 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
   }, [audioCtx]);
 
   const toggleSound = useCallback(() => {
-    setSoundEnabled((prev) => {
-      const next = !prev;
-      localStorage.setItem("se7en-sound-fx", String(next));
-      if (next) {
-        // Reproducir pequeño feedback al activar
-        setTimeout(() => {
-          const ctx = getAudioContext();
-          if (ctx) {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = "sine";
-            osc.frequency.setValueAtTime(800, ctx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.08);
-            gain.gain.setValueAtTime(0.04, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start();
-            osc.stop(ctx.currentTime + 0.08);
-          }
-        }, 50);
-      }
-      return next;
-    });
+    // Guardar y agendar el pitido van fuera de un actualizador de estado: React
+    // puede llamar esa función más de una vez por render, y entonces escribiría
+    // dos veces y sonaría doble.
+    const next = !readPreference();
+    writePreference(next);
+    if (!next) return;
+    // Pequeño feedback al activar.
+    setTimeout(() => {
+      const ctx = getAudioContext();
+      if (!ctx) return;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(800, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.08);
+      gain.gain.setValueAtTime(0.04, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.08);
+    }, 50);
   }, [getAudioContext]);
 
   const playClick = useCallback(() => {

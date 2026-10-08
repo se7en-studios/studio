@@ -267,13 +267,13 @@ export function PortalClient() {
                     </div>
                   </div>
 
-                  <a
+                  <Link
                     href="/work/sentinel"
                     className="focus-ring inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-xs font-semibold text-background hover:bg-accent/90"
                   >
                     <span>Abrir Demo en Vivo</span>
                     <ExternalLink size={13} />
-                  </a>
+                  </Link>
                 </div>
 
                 {/* Commits */}

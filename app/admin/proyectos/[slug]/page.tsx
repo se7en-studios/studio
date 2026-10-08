@@ -87,11 +87,16 @@ export default async function ProjectPage({ params, searchParams }: Props) {
     tab === "resumen" || tab === "cambios"
       ? optional<PanelEvent[]>(listEvents({ projectSlug: slug, limit: tab === "cambios" ? 150 : 8 }), [])
       : null,
-    // Sólo cuando el botón de borrar va a existir. Es un count sin filas, no
-    // listFiles, que firmaría una URL por archivo para usar nada más que el largo.
-    tab === "resumen" && !project.isCase ? optional<number>(countFiles(slug), 0) : null,
+    // En Archivos el largo de filesR ya es la cuenta; en las otras pestañas hay
+    // que pedirla. Va un count sin filas y no listFiles, que firmaría una URL
+    // por archivo para terminar usando nada más que el largo.
+    tab !== "archivos" ? optional<number>(countFiles(slug), 0) : null,
   ]);
   const state = stateR.value;
+  // No sale de project.files: getProject arma la ficha sin estadísticas y ese
+  // campo queda siempre en 0, así que el contador de la pestaña nunca aparecía.
+  // En la lista sí funciona, porque ahí listProjects pasa las suyas.
+  const files = filesR?.value.length ?? countR?.value ?? 0;
   const base = `/admin/proyectos/${project.slug}`;
 
   return (
@@ -177,7 +182,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
         current={tab}
         tabs={[
           { id: "resumen", label: "Resumen", href: base },
-          { id: "archivos", label: "Archivos", href: `${base}?tab=archivos`, count: project.files || undefined },
+          { id: "archivos", label: "Archivos", href: `${base}?tab=archivos`, count: files || undefined },
           { id: "chat", label: "Conversación", href: `${base}?tab=chat` },
           { id: "cambios", label: "Cambios", href: `${base}?tab=cambios` },
         ]}
@@ -210,7 +215,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
               entrar a una pestaña que habla de otra cosa y bajar hasta el final.
               Los casos de la web no llevan botón — viven en data/projects.ts y
               sacarlos es un cambio de repo, no algo que el panel pueda hacer. */}
-          {!project.isCase && <DeleteProject slug={project.slug} name={project.name} files={countR?.value ?? 0} />}
+          {!project.isCase && <DeleteProject slug={project.slug} name={project.name} files={files} />}
         </>
       )}
 

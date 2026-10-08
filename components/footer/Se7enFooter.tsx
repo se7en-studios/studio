@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { buildSVG, bindScene } from "./scene";
 import { Lock } from "lucide-react";
@@ -267,12 +268,12 @@ function Footer() {
               <strong className="mb-4 block text-[22px] font-semibold leading-[1.15] tracking-[-.02em]">
                 Cruzá al otro lado. Tu proyecto, en vivo en 3 semanas.
               </strong>
-              <a
+              <Link
                 href="/start"
                 className="inline-flex items-center gap-2.5 rounded-full bg-[#ff4d2e] px-[22px] py-3.5 text-[15px] font-medium text-white transition hover:brightness-110"
               >
                 Iniciar un proyecto →
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -299,13 +300,13 @@ function Footer() {
                 Volver arriba ↑
               </button>
               {/* Lo último de todo: el acceso al panel del equipo. */}
-              <a
+              <Link
                 href="/admin"
                 rel="nofollow"
                 className="inline-flex items-center gap-1.5 rounded-full border border-white/[.08] px-3 py-1.5 transition-colors hover:border-white/20 hover:text-[#f5f5f4]"
               >
                 <Lock size={11} /> Panel del equipo
-              </a>
+              </Link>
             </div>
           </div>
         </div>
