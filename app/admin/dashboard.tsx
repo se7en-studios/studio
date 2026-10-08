@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
   CalendarClock,
+  Download,
   Snowflake,
   Copy,
   Database,
@@ -18,7 +19,7 @@ import {
 import { WhatsAppLogo } from "@/components/icons/whatsapp-logo";
 import { team } from "@/data/team";
 import { SITE } from "@/data/site";
-import { ago, budgetValue, headline, nextStep, priority, tags, type Priority } from "@/lib/admin/brief";
+import { ago, headline, nextStep, priority, tags, type Priority } from "@/lib/admin/brief";
 import type { Lead, LeadOwner, LeadStatus } from "@/lib/admin/db";
 import { bucket, compareTasks, dueLabel, type Task, type TaskLinks } from "@/lib/admin/task-shared";
 import { coldDays, isContact, lastContacts, type Activity, type ActivityKind } from "@/lib/admin/activity-shared";
@@ -27,6 +28,8 @@ import { ActivityLog } from "./pedidos/activity";
 import { deleteActivity, logActivity, setContact, setValue, type ContactFields } from "./pedidos/actions";
 import { DealFields } from "./pedidos/deal";
 import { NewLeadButton } from "./pedidos/new-lead";
+import { downloadCsv } from "./pedidos/csv";
+import { dealValue } from "@/lib/admin/metrics";
 import { QuickAdd, TaskDrawer, TaskRow } from "./tareas/task-ui";
 import { useTasks, type TasksApi } from "./tareas/use-tasks";
 
@@ -63,6 +66,8 @@ export function Dashboard({
   tasks: initialTasks,
   activities: initialActivities,
   me,
+  initialOpen = null,
+  initialCold = false,
 }: {
   leads: Lead[];
   dbReady: boolean;
@@ -72,16 +77,21 @@ export function Dashboard({
   /** null si falta la tabla del historial (crm.sql): la ficha lo oculta. */
   activities: Activity[] | null;
   me: LeadOwner;
+  /** Desde un link (?pedido=<id>): abre esa ficha. */
+  initialOpen?: string | null;
+  /** Desde un link (?frios=1): arranca filtrando los fríos. */
+  initialCold?: boolean;
 }) {
   const [leads, setLeads] = useState(initial);
   const [query, setQuery] = useState("");
   const [owner, setOwnerFilter] = useState<OwnerFilter>("todos");
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(initialOpen);
+  const [dragOver, setDragOver] = useState<LeadStatus | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const taskApi = useTasks(initialTasks?.list ?? [], flash);
   const [acts, setActs] = useState(initialActivities ?? []);
-  const [coldOnly, setColdOnly] = useState(false);
+  const [coldOnly, setColdOnly] = useState(initialCold);
   const [now] = useState(() => Date.now());
 
   const lastContact = useMemo(() => lastContacts(acts), [acts]);
@@ -207,7 +217,19 @@ export function Dashboard({
           <p className="font-mono text-[11px] tracking-widest text-accent uppercase">Panel · {SITE.name}</p>
           <h1 className="mt-2 text-3xl text-foreground md:text-4xl">Pedidos de proyecto</h1>
         </div>
-        {dbReady && <NewLeadButton me={me} onCreated={addLead} />}
+        {dbReady && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => downloadCsv(visible)}
+              disabled={!visible.length}
+              title="Descarga los pedidos que se ven ahora (con filtros y búsqueda)"
+              className="focus-ring inline-flex items-center gap-2 rounded-full border border-border px-4 py-2.5 text-sm text-muted hover:text-foreground disabled:opacity-40"
+            >
+              <Download size={15} /> Exportar CSV
+            </button>
+            <NewLeadButton me={me} onCreated={addLead} />
+          </div>
+        )}
       </div>
 
       {!dbReady && <SetupCard />}
@@ -266,7 +288,29 @@ export function Dashboard({
               .filter((l) => l.status === col.id)
               .sort((a, b) => rank(b) - rank(a));
             return (
-              <section key={col.id} className="flex min-h-[200px] flex-col rounded-2xl border border-border bg-surface/50 p-2.5">
+              <section
+                key={col.id}
+                aria-label={col.label}
+                onDragOver={(e) => {
+                  if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  if (dragOver !== col.id) setDragOver(col.id);
+                }}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(null);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(null);
+                  const id = e.dataTransfer.getData(DRAG_TYPE);
+                  const lead = leads.find((l) => l.id === id);
+                  if (lead && lead.status !== col.id) update(id, { status: col.id }, () => setStatus(id, col.id));
+                }}
+                className={`flex min-h-[200px] flex-col rounded-2xl border p-2.5 transition-colors ${
+                  dragOver === col.id ? "border-accent/60 bg-accent/[0.06]" : "border-border bg-surface/50"
+                }`}
+              >
                 <header className="flex items-baseline justify-between px-1.5 pt-1 pb-3">
                   <h2 className="text-sm text-foreground">
                     {col.label} <span className="ml-1 font-mono text-xs text-muted">{items.length}</span>
@@ -275,7 +319,18 @@ export function Dashboard({
                 </header>
                 <div className="flex flex-col gap-2.5">
                   {items.map((l) => (
+                    <div
+                      key={l.id}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData(DRAG_TYPE, l.id);
+                        e.dataTransfer.effectAllowed = "move";
+                      }}
+                      onDragEnd={() => setDragOver(null)}
+                      className="cursor-grab active:cursor-grabbing"
+                    >
                     <LeadCard key={l.id} lead={l} next={nextTask.get(l.id)} lastContact={lastContact.get(l.id)} cold={cold(l)} onOpen={() => setOpenId(l.id)} onMove={(s) => update(l.id, { status: s }, () => setStatus(l.id, s))} />
+                    </div>
                   ))}
                   {!items.length && (
                     <p className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border px-3 py-8 text-center text-xs text-muted">
@@ -341,9 +396,9 @@ function rank(l: Lead) {
 }
 
 const COLD_HINT = "7 días o más";
+/** Tipo propio del drag: así una columna sólo acepta tarjetas, no texto ni archivos. */
+const DRAG_TYPE = "application/x-se7en-lead";
 const usd = (n: number) => (n ? `USD ${Math.round(n).toLocaleString("es-AR")}` : "—");
-/** Monto acordado si se cargó; si no, lo que sugiere el rango del formulario. */
-const dealValue = (l: Lead) => l.value ?? budgetValue(l.budget);
 
 function Stat({ label, value, accent, warn }: { label: string; value: string | number; accent?: boolean; warn?: boolean }) {
   return (

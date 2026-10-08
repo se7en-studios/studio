@@ -3,7 +3,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Palette, Upload } from "lucide-react";
 import { panelSession } from "@/lib/admin/auth";
-import { countNewLeads } from "@/lib/admin/db";
+import { countNewLeads, db, listLeads, type Lead } from "@/lib/admin/db";
+import { listActivity } from "@/lib/admin/activity";
+import type { Activity } from "@/lib/admin/activity-shared";
+import { bucket } from "@/lib/admin/task-shared";
+import { Attention } from "./attention";
 import {
   PanelNotReady,
   caseProjects,
@@ -22,6 +26,30 @@ import type { Task, TaskLinks } from "@/lib/admin/task-shared";
 import { AdminGate, PageHeader, SetupNotice, Stat, dayLabel } from "./ui";
 
 export const metadata: Metadata = { title: "Panel" };
+
+/** Pedidos + historial para «Para atender». El historial es opcional (crm.sql). */
+async function loadAttention(): Promise<{
+  leads: Lead[];
+  activities: Activity[] | null;
+  now: number;
+} | null> {
+  if (!db()) return null;
+  let leads: Lead[];
+  try {
+    leads = await listLeads();
+  } catch (e) {
+    // Inicio no se cae por esto: sin pedidos, el bloque no se muestra.
+    console.error("[panel] Para atender:", e instanceof Error ? e.message : e);
+    return null;
+  }
+  let activities: Activity[] | null = null;
+  try {
+    activities = await listActivity();
+  } catch (e) {
+    if (!(e instanceof PanelNotReady)) throw e;
+  }
+  return { leads, activities, now: Date.now() };
+}
 
 // Lo primero que se ve al entrar: qué pasó, qué hay pendiente y atajos.
 export default async function AdminHome() {
@@ -44,6 +72,7 @@ export default async function AdminHome() {
     setup = e.message;
   }
   // Aparte: si falta la tabla de tareas, el resto de Inicio anda igual.
+  const attention = await loadAttention();
   let tasks: { list: Task[]; links: TaskLinks } | null = null;
   if (!setup) {
     try {
@@ -68,45 +97,91 @@ export default async function AdminHome() {
     <div className="space-y-8">
       <PageHeader title={`Buenas, ${PEOPLE[me.who].name}`}>
         {date.charAt(0).toUpperCase() + date.slice(1)}.{" "}
-        {!setup && (today ? `${today} ${today === 1 ? "cambio" : "cambios"} hoy en el panel.` : "Hoy todavía no hubo cambios en el panel.")}
+        {!setup &&
+          (today
+            ? `${today} ${today === 1 ? "cambio" : "cambios"} hoy en el panel.`
+            : "Hoy todavía no hubo cambios en el panel.")}
       </PageHeader>
 
       {setup && <SetupNotice reason={setup} />}
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label="Pedidos sin responder" value={newLeads ?? "—"} accent={(newLeads ?? 0) > 0} href="/admin/pedidos" />
-        <Stat label="Proyectos" value={projects.length} href="/admin/proyectos" />
+        <Stat
+          label="Pedidos sin responder"
+          value={newLeads ?? "—"}
+          accent={(newLeads ?? 0) > 0}
+          href="/admin/pedidos"
+        />
+        <Stat
+          label="Proyectos"
+          value={projects.length}
+          href="/admin/proyectos"
+        />
         <Stat label="Archivos esta semana" value={filesWeek ?? "—"} />
-        <Stat label="Cambios hoy" value={setup ? "—" : today} href="/admin/cambios" />
+        <Stat
+          label="Cambios hoy"
+          value={setup ? "—" : today}
+          href="/admin/cambios"
+        />
       </div>
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <section className="rounded-2xl border border-border bg-surface/50">
-          <header className="flex items-center justify-between border-b border-border px-4 py-3">
-            <h2 className="text-sm text-foreground">Últimos cambios</h2>
-            <Link href="/admin/cambios" className="focus-ring font-mono text-[11px] tracking-widest text-muted uppercase hover:text-foreground">
-              Ver todos →
-            </Link>
-          </header>
-          <EventList events={events.slice(0, 8)} names={names} />
-        </section>
+        <div className="space-y-4">
+          {attention && (
+            <Attention
+              leads={attention.leads}
+              activities={attention.activities}
+              now={attention.now}
+              overdueTasks={
+                tasks?.list.filter(
+                  (t) => t.assignee === me.who && bucket(t) === "vencidas",
+                ).length ?? 0
+              }
+            />
+          )}
+          <section className="rounded-2xl border border-border bg-surface/50">
+            <header className="flex items-center justify-between border-b border-border px-4 py-3">
+              <h2 className="text-sm text-foreground">Últimos cambios</h2>
+              <Link
+                href="/admin/cambios"
+                className="focus-ring font-mono text-[11px] tracking-widest text-muted uppercase hover:text-foreground"
+              >
+                Ver todos →
+              </Link>
+            </header>
+            <EventList events={events.slice(0, 8)} names={names} />
+          </section>
+        </div>
 
         <div className="space-y-4">
-          {tasks && <MyTasks tasks={tasks.list} links={tasks.links} me={me.who} />}
+          {tasks && (
+            <MyTasks tasks={tasks.list} links={tasks.links} me={me.who} />
+          )}
           <section className="rounded-2xl border border-border bg-surface/50">
             <header className="border-b border-border px-4 py-3">
-              <h2 className="text-sm text-foreground">Proyectos con movimiento</h2>
+              <h2 className="text-sm text-foreground">
+                Proyectos con movimiento
+              </h2>
             </header>
             {active.length ? (
               <ul>
                 {active.map((p) => (
-                  <li key={p.slug} className="border-b border-border last:border-0">
-                    <Link href={`/admin/proyectos/${p.slug}`} className="focus-ring flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.03]">
+                  <li
+                    key={p.slug}
+                    className="border-b border-border last:border-0"
+                  >
+                    <Link
+                      href={`/admin/proyectos/${p.slug}`}
+                      className="focus-ring flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.03]"
+                    >
                       <Cover project={p} />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm text-foreground">{p.name}</span>
+                        <span className="block truncate text-sm text-foreground">
+                          {p.name}
+                        </span>
                         <span className="font-mono text-[10px] tracking-widest text-muted uppercase">
-                          {p.files} archivos{p.updatedAt && ` · ${ago(p.updatedAt)}`}
+                          {p.files} archivos
+                          {p.updatedAt && ` · ${ago(p.updatedAt)}`}
                         </span>
                       </span>
                       <ArrowRight size={14} className="text-muted" />
@@ -115,13 +190,25 @@ export default async function AdminHome() {
                 ))}
               </ul>
             ) : (
-              <p className="px-4 py-6 text-sm text-muted">Cuando suban archivos a un proyecto, aparece acá.</p>
+              <p className="px-4 py-6 text-sm text-muted">
+                Cuando suban archivos a un proyecto, aparece acá.
+              </p>
             )}
           </section>
 
           <div className="grid grid-cols-2 gap-3">
-            <Shortcut href="/admin/proyectos" icon={<Upload size={16} />} label="Subir archivos" hint="Elegí el proyecto" />
-            <Shortcut href="/admin/marca" icon={<Palette size={16} />} label="Marca" hint="Logos, colores, fuentes" />
+            <Shortcut
+              href="/admin/proyectos"
+              icon={<Upload size={16} />}
+              label="Subir archivos"
+              hint="Elegí el proyecto"
+            />
+            <Shortcut
+              href="/admin/marca"
+              icon={<Palette size={16} />}
+              label="Marca"
+              hint="Logos, colores, fuentes"
+            />
           </div>
         </div>
       </div>
@@ -130,8 +217,10 @@ export default async function AdminHome() {
 }
 
 function Cover({ project }: { project: PanelProject }) {
-  const cls = "h-10 w-16 shrink-0 rounded-md border border-border object-cover object-top";
-  if (!project.cover) return <span className={cls} style={{ background: project.accent }} />;
+  const cls =
+    "h-10 w-16 shrink-0 rounded-md border border-border object-cover object-top";
+  if (!project.cover)
+    return <span className={cls} style={{ background: project.accent }} />;
   return project.isCase ? (
     <Image src={project.cover} alt="" width={128} height={80} className={cls} />
   ) : (
@@ -141,9 +230,22 @@ function Cover({ project }: { project: PanelProject }) {
   );
 }
 
-function Shortcut({ href, icon, label, hint }: { href: string; icon: React.ReactNode; label: string; hint: string }) {
+function Shortcut({
+  href,
+  icon,
+  label,
+  hint,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+  hint: string;
+}) {
   return (
-    <Link href={href} className="focus-ring rounded-2xl border border-border bg-surface p-4 transition-colors hover:border-foreground/20">
+    <Link
+      href={href}
+      className="focus-ring rounded-2xl border border-border bg-surface p-4 transition-colors hover:border-foreground/20"
+    >
       <span className="text-accent">{icon}</span>
       <span className="mt-3 block text-sm text-foreground">{label}</span>
       <span className="block text-xs text-muted">{hint}</span>
