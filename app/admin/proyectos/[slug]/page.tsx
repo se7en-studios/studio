@@ -11,6 +11,7 @@ import {
   MAX_FILES_PER_UPLOAD,
   MAX_FILE_BYTES,
   PanelNotReady,
+  countFiles,
   folderLabel,
   getProject,
   isFolder,
@@ -78,7 +79,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
   if (!project) return <SetupNotice reason={setup ?? ""} />;
 
   // Sólo lo que necesita la pestaña abierta, y en paralelo.
-  const [stateR, filesR, tasksR, linksR, eventsR] = await Promise.all([
+  const [stateR, filesR, tasksR, linksR, eventsR, countR] = await Promise.all([
     optional<ProjectState>(getState(slug, project.isCase), defaultState(slug, project.isCase)),
     tab === "archivos" ? optional<PanelFile[]>(listFiles(slug), []) : null,
     tab === "resumen" ? optional<Task[] | null>(listTasks({ projectSlug: slug }), null) : null,
@@ -86,6 +87,9 @@ export default async function ProjectPage({ params, searchParams }: Props) {
     tab === "resumen" || tab === "cambios"
       ? optional<PanelEvent[]>(listEvents({ projectSlug: slug, limit: tab === "cambios" ? 150 : 8 }), [])
       : null,
+    // Sólo cuando el botón de borrar va a existir. Es un count sin filas, no
+    // listFiles, que firmaría una URL por archivo para usar nada más que el largo.
+    tab === "resumen" && !project.isCase ? optional<number>(countFiles(slug), 0) : null,
   ]);
   const state = stateR.value;
   const base = `/admin/proyectos/${project.slug}`;
@@ -182,23 +186,32 @@ export default async function ProjectPage({ params, searchParams }: Props) {
       {stateR.missing && tab === "resumen" && <SetupNotice reason={stateR.missing} />}
 
       {tab === "resumen" && (
-        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-          <StatePanel
-            slug={project.slug}
-            initial={state}
-            accent={project.accent}
-            leads={linksR?.value.leads ?? []}
-            editable={!stateR.missing}
-          />
-          <div className="min-w-0 space-y-4">
-            {tasksR?.value ? (
-              <ProjectTasks slug={project.slug} tasks={tasksR.value} links={linksR?.value ?? { leads: [], projects: [] }} me={me.who} owner={state.owner} />
-            ) : null}
-            <Card title="Últimos cambios" action={<CardLink href={`${base}?tab=cambios`}>Ver todo →</CardLink>}>
-              <EventList events={eventsR?.value ?? []} names={{}} hideProject />
-            </Card>
+        <>
+          <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+            <StatePanel
+              slug={project.slug}
+              initial={state}
+              accent={project.accent}
+              leads={linksR?.value.leads ?? []}
+              editable={!stateR.missing}
+            />
+            <div className="min-w-0 space-y-4">
+              {tasksR?.value ? (
+                <ProjectTasks slug={project.slug} tasks={tasksR.value} links={linksR?.value ?? { leads: [], projects: [] }} me={me.who} owner={state.owner} />
+              ) : null}
+              <Card title="Últimos cambios" action={<CardLink href={`${base}?tab=cambios`}>Ver todo →</CardLink>}>
+                <EventList events={eventsR?.value ?? []} names={{}} hideProject />
+              </Card>
+            </div>
           </div>
-        </div>
+
+          {/* Al pie del Resumen, que es la pestaña que se abre por defecto.
+              Antes vivía dentro de Archivos: para borrar un proyecto había que
+              entrar a una pestaña que habla de otra cosa y bajar hasta el final.
+              Los casos de la web no llevan botón — viven en data/projects.ts y
+              sacarlos es un cambio de repo, no algo que el panel pueda hacer. */}
+          {!project.isCase && <DeleteProject slug={project.slug} name={project.name} files={countR?.value ?? 0} />}
+        </>
       )}
 
       {tab === "chat" && (
@@ -308,10 +321,6 @@ function Files({
           </p>
         )
       )}
-
-      {/* Los casos de la web no llevan botón: viven en data/projects.ts y
-          sacarlos es un cambio de repo, no algo que el panel pueda hacer. */}
-      {!project.isCase && <DeleteProject slug={project.slug} name={project.name} files={files.length} />}
     </div>
   );
 }

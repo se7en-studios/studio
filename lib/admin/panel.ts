@@ -347,6 +347,21 @@ export async function listFiles(slug: string): Promise<PanelFile[]> {
   return rows.map((r) => ({ ...r, url: urls.get(r.path) ?? null }));
 }
 
+/**
+ * Cuantos archivos tiene el proyecto, sin traerlos. Lo necesita el boton de
+ * borrar para avisar que se lleva puesto antes de que confirmes: getProject no
+ * completa `files` (queda en 0 siempre) y listFiles traeria hasta 500 filas, y
+ * firmaria una URL por cada una, para usar nada mas que el largo.
+ */
+export async function countFiles(slug: string): Promise<number> {
+  const { count, error } = await client()
+    .from("panel_files")
+    .select("id", { count: "exact", head: true })
+    .eq("project_slug", slug);
+  if (error) fail(error);
+  return count ?? 0;
+}
+
 function safeName(name: string) {
   const clean = name
     .normalize("NFD")
