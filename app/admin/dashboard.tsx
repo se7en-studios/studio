@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
   CalendarClock,
+  Snowflake,
   Copy,
   Database,
   Inbox,
@@ -20,7 +21,12 @@ import { SITE } from "@/data/site";
 import { ago, budgetValue, headline, nextStep, priority, tags, type Priority } from "@/lib/admin/brief";
 import type { Lead, LeadOwner, LeadStatus } from "@/lib/admin/db";
 import { bucket, compareTasks, dueLabel, type Task, type TaskLinks } from "@/lib/admin/task-shared";
+import { coldDays, isContact, lastContacts, type Activity, type ActivityKind } from "@/lib/admin/activity-shared";
 import { deleteLead, setNotes, setOwner, setStatus } from "./actions";
+import { ActivityLog } from "./pedidos/activity";
+import { deleteActivity, logActivity, setContact, setValue, type ContactFields } from "./pedidos/actions";
+import { DealFields } from "./pedidos/deal";
+import { NewLeadButton } from "./pedidos/new-lead";
 import { QuickAdd, TaskDrawer, TaskRow } from "./tareas/task-ui";
 import { useTasks, type TasksApi } from "./tareas/use-tasks";
 
@@ -55,6 +61,7 @@ export function Dashboard({
   dbReady,
   error,
   tasks: initialTasks,
+  activities: initialActivities,
   me,
 }: {
   leads: Lead[];
@@ -62,6 +69,8 @@ export function Dashboard({
   error: string | null;
   /** null si falta la tabla de tareas: el tablero anda igual sin seguimientos. */
   tasks: { list: Task[]; links: TaskLinks } | null;
+  /** null si falta la tabla del historial (crm.sql): la ficha lo oculta. */
+  activities: Activity[] | null;
   me: LeadOwner;
 }) {
   const [leads, setLeads] = useState(initial);
@@ -71,6 +80,12 @@ export function Dashboard({
   const [toast, setToast] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const taskApi = useTasks(initialTasks?.list ?? [], flash);
+  const [acts, setActs] = useState(initialActivities ?? []);
+  const [coldOnly, setColdOnly] = useState(false);
+  const [now] = useState(() => Date.now());
+
+  const lastContact = useMemo(() => lastContacts(acts), [acts]);
+  const cold = (l: Lead) => coldDays(l, lastContact.get(l.id), now);
 
   /** Próximo seguimiento abierto de cada pedido, para la tarjeta. */
   const nextTask = useMemo(() => {
@@ -85,10 +100,12 @@ export function Dashboard({
     const q = query.trim().toLowerCase();
     return leads.filter((l) => {
       if (owner === "sin" ? l.owner : owner !== "todos" && l.owner !== owner) return false;
+      if (coldOnly && cold(l) === null) return false;
       if (!q) return true;
-      return [l.name, l.company, l.email, l.idea, l.project_type].some((v) => v.toLowerCase().includes(q));
+      return [l.name, l.company, l.email, l.idea, l.project_type, l.phone ?? ""].some((v) => v.toLowerCase().includes(q));
     });
-  }, [leads, query, owner]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leads, query, owner, coldOnly, lastContact]);
 
   const stats = useMemo(() => {
     const active = leads.filter((l) => l.status === "contactado" || l.status === "propuesta");
@@ -97,10 +114,13 @@ export function Dashboard({
     return {
       fresh: leads.filter((l) => l.status === "nuevo").length,
       active: active.length,
-      pipeline: active.reduce((sum, l) => sum + budgetValue(l.budget), 0),
+      pipeline: active.reduce((sum, l) => sum + dealValue(l), 0),
+      won: leads.filter((l) => l.status === "ganado").reduce((sum, l) => sum + dealValue(l), 0),
+      cold: leads.filter((l) => cold(l) !== null).length,
       winRate: closed ? Math.round((won / closed) * 100) : null,
     };
-  }, [leads]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leads, lastContact]);
 
   /** Cambio optimista: se ve ya, se guarda después, se deshace si falla. */
   function update(id: string, patch: Partial<Lead>, save: () => Promise<void>) {
@@ -131,6 +151,47 @@ export function Dashboard({
     });
   }
 
+  function addLead(lead: Lead) {
+    setLeads((ls) => [lead, ...ls]);
+    setOpenId(lead.id);
+    flash("Pedido cargado");
+  }
+
+  /** Registrar un contacto: optimista, y si el pedido era «Nuevo» pasa a «Contactado». */
+  function logContact(lead: Lead, kind: ActivityKind, text: string, day: string) {
+    const nowIso = new Date().toISOString();
+    const temp: Activity = { id: `tmp-${nowIso}`, created_at: nowIso, lead_id: lead.id, kind, text, at: nowIso, actor: me };
+    const before = { acts, leads };
+    setActs((a) => [temp, ...a]);
+    if (lead.status === "nuevo" && isContact(temp)) {
+      setLeads((ls) => ls.map((l) => (l.id === lead.id ? { ...l, status: "contactado" } : l)));
+    }
+    startTransition(async () => {
+      try {
+        const { activity } = await logActivity(lead.id, kind, text, day);
+        setActs((a) => a.map((x) => (x.id === temp.id ? activity : x)));
+      } catch (e) {
+        setActs(before.acts);
+        setLeads(before.leads);
+        flash(e instanceof Error ? e.message : "No se pudo registrar");
+      }
+    });
+  }
+
+  function dropActivity(id: string) {
+    if (id.startsWith("tmp-")) return;
+    const before = acts;
+    setActs((a) => a.filter((x) => x.id !== id));
+    startTransition(async () => {
+      try {
+        await deleteActivity(id);
+      } catch (e) {
+        setActs(before);
+        flash(e instanceof Error ? e.message : "No se pudo borrar");
+      }
+    });
+  }
+
   function flash(msg: string) {
     setToast(msg);
     window.setTimeout(() => setToast(null), 2600);
@@ -141,9 +202,12 @@ export function Dashboard({
   return (
     <div>
       {/* Encabezado. Contenedor y botón de salir los pone el layout del panel. */}
-      <div>
-        <p className="font-mono text-[11px] tracking-widest text-accent uppercase">Panel · {SITE.name}</p>
-        <h1 className="mt-2 text-3xl text-foreground md:text-4xl">Pedidos de proyecto</h1>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="font-mono text-[11px] tracking-widest text-accent uppercase">Panel · {SITE.name}</p>
+          <h1 className="mt-2 text-3xl text-foreground md:text-4xl">Pedidos de proyecto</h1>
+        </div>
+        {dbReady && <NewLeadButton me={me} onCreated={addLead} />}
       </div>
 
       {!dbReady && <SetupCard />}
@@ -154,10 +218,19 @@ export function Dashboard({
       )}
 
       {/* Números */}
-      <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <Stat label="Sin responder" value={stats.fresh} accent={stats.fresh > 0} />
         <Stat label="En curso" value={stats.active} />
-        <Stat label="Valor en juego" value={stats.pipeline ? `USD ${Math.round(stats.pipeline).toLocaleString("es-AR")}` : "—"} />
+        <button
+          onClick={() => setColdOnly((v) => !v)}
+          aria-pressed={coldOnly}
+          title={`En curso y sin contacto hace ${COLD_HINT}. Tocá para filtrarlos.`}
+          className={`focus-ring rounded-2xl text-left ${coldOnly ? "ring-1 ring-amber-400/60" : ""}`}
+        >
+          <Stat label={coldOnly ? "Fríos · filtrando" : "Fríos"} value={stats.cold} warn={stats.cold > 0} />
+        </button>
+        <Stat label="Valor en juego" value={usd(stats.pipeline)} />
+        <Stat label="Ganado" value={usd(stats.won)} />
         <Stat label="Tasa de cierre" value={stats.winRate == null ? "—" : `${stats.winRate}%`} />
       </div>
 
@@ -202,7 +275,7 @@ export function Dashboard({
                 </header>
                 <div className="flex flex-col gap-2.5">
                   {items.map((l) => (
-                    <LeadCard key={l.id} lead={l} next={nextTask.get(l.id)} onOpen={() => setOpenId(l.id)} onMove={(s) => update(l.id, { status: s }, () => setStatus(l.id, s))} />
+                    <LeadCard key={l.id} lead={l} next={nextTask.get(l.id)} lastContact={lastContact.get(l.id)} cold={cold(l)} onOpen={() => setOpenId(l.id)} onMove={(s) => update(l.id, { status: s }, () => setStatus(l.id, s))} />
                   ))}
                   {!items.length && (
                     <p className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border px-3 py-8 text-center text-xs text-muted">
@@ -228,6 +301,19 @@ export function Dashboard({
             onDelete={() => remove(open.id)}
             onCopied={() => flash("Copiado")}
             followUp={initialTasks ? { api: taskApi, links: initialTasks.links, me } : null}
+            deal={{
+              onContact: (f) => update(open.id, f, () => setContact(open.id, f)),
+              onValue: (v) => update(open.id, { value: v }, () => setValue(open.id, v)),
+            }}
+            history={
+              initialActivities
+                ? {
+                    items: acts.filter((a) => a.lead_id === open.id).sort((a, b) => b.at.localeCompare(a.at)),
+                    onLog: (kind, text, day) => logContact(open, kind, text, day),
+                    onDelete: dropActivity,
+                  }
+                : null
+            }
           />
         )}
       </AnimatePresence>
@@ -254,11 +340,16 @@ function rank(l: Lead) {
   return p * 1e13 + new Date(l.created_at).getTime();
 }
 
-function Stat({ label, value, accent }: { label: string; value: string | number; accent?: boolean }) {
+const COLD_HINT = "7 días o más";
+const usd = (n: number) => (n ? `USD ${Math.round(n).toLocaleString("es-AR")}` : "—");
+/** Monto acordado si se cargó; si no, lo que sugiere el rango del formulario. */
+const dealValue = (l: Lead) => l.value ?? budgetValue(l.budget);
+
+function Stat({ label, value, accent, warn }: { label: string; value: string | number; accent?: boolean; warn?: boolean }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface p-4">
+    <div className="h-full rounded-2xl border border-border bg-surface p-4">
       <p className="font-mono text-[10px] tracking-widest text-muted uppercase">{label}</p>
-      <p className={`mt-2 text-2xl tabular-nums ${accent ? "text-accent" : "text-foreground"}`}>{value}</p>
+      <p className={`mt-2 text-2xl tabular-nums ${accent ? "text-accent" : warn ? "text-amber-300" : "text-foreground"}`}>{value}</p>
     </div>
   );
 }
@@ -278,7 +369,21 @@ function OwnerBadge({ owner }: { owner: LeadOwner | null }) {
   );
 }
 
-function LeadCard({ lead, next: task, onOpen, onMove }: { lead: Lead; next?: Task; onOpen: () => void; onMove: (s: LeadStatus) => void }) {
+function LeadCard({
+  lead,
+  next: task,
+  lastContact,
+  cold,
+  onOpen,
+  onMove,
+}: {
+  lead: Lead;
+  next?: Task;
+  lastContact?: string;
+  cold: number | null;
+  onOpen: () => void;
+  onMove: (s: LeadStatus) => void;
+}) {
   const p = priority(lead);
   const idx = COLUMNS.findIndex((c) => c.id === lead.status);
   const next = lead.status === "perdido" || lead.status === "ganado" ? null : COLUMNS[idx + 1];
@@ -307,6 +412,16 @@ function LeadCard({ lead, next: task, onOpen, onMove }: { lead: Lead; next?: Tas
           <ArrowRight size={12} className="mt-px shrink-0" /> {nextStep(lead)}
         </p>
         {task && <FollowUpBadge task={task} />}
+        {cold !== null ? (
+          <span className="mt-2 flex items-center gap-1.5 rounded-lg border border-amber-400/30 px-2 py-1 text-[11px] text-amber-300">
+            <Snowflake size={12} className="shrink-0" /> Frío: {lastContact ? `${cold} días sin contacto` : `sin contacto en ${cold} días`}
+          </span>
+        ) : (
+          lastContact && <span className="mt-2 block font-mono text-[10px] text-muted">Último contacto {ago(lastContact)}</span>
+        )}
+        {lead.value != null && (
+          <span className="mt-2 block font-mono text-[10px] text-foreground/80">USD {Math.round(lead.value).toLocaleString("es-AR")} acordados</span>
+        )}
       </button>
       <div className="mt-3 flex items-center justify-between border-t border-border pt-2.5">
         <OwnerBadge owner={lead.owner} />
@@ -342,8 +457,16 @@ function Detail({
   onDelete,
   onCopied,
   followUp,
+  deal,
+  history,
 }: {
   followUp: { api: TasksApi; links: TaskLinks; me: LeadOwner } | null;
+  deal: { onContact: (f: ContactFields) => void; onValue: (v: number | null) => void };
+  history: {
+    items: Activity[];
+    onLog: (kind: ActivityKind, text: string, day: string) => void;
+    onDelete: (id: string) => void;
+  } | null;
   lead: Lead;
   onClose: () => void;
   onStatus: (s: LeadStatus) => void;
@@ -359,6 +482,7 @@ function Detail({
     const text = [
       `${lead.name}${lead.company ? ` (${lead.company})` : ""}`,
       lead.email && `Email: ${lead.email}`,
+      lead.phone && `Teléfono: ${lead.phone}`,
       lead.project_type && `Proyecto: ${lead.project_type}`,
       lead.budget && `Presupuesto: ${lead.budget}`,
       lead.timeline && `Plazo: ${lead.timeline}`,
@@ -375,6 +499,7 @@ function Detail({
     ["Plazo", lead.timeline],
     ["Empresa", lead.company],
     ["Email", lead.email],
+    ["Teléfono", lead.phone ?? ""],
     ["Llegó por", [lead.source, lead.channel].filter(Boolean).join(" · ")],
     ["Fecha", new Date(lead.created_at).toLocaleString("es-AR", { dateStyle: "medium", timeStyle: "short" })],
   ];
@@ -474,7 +599,11 @@ function Detail({
             ))}
         </dl>
 
+        <DealFields lead={lead} onContact={deal.onContact} onValue={deal.onValue} />
+
         {followUp && <FollowUps lead={lead} {...followUp} />}
+
+        {history && <ActivityLog items={history.items} onLog={history.onLog} onDelete={history.onDelete} />}
 
         {/* Notas internas */}
         <label htmlFor="notes" className="mt-6 mb-2 block font-mono text-[10px] tracking-widest text-muted uppercase">

@@ -23,10 +23,14 @@ export type Lead = {
   status: LeadStatus;
   owner: LeadOwner | null;
   notes: string;
+  /** Opcionales hasta correr supabase/crm.sql. */
+  phone?: string;
+  /** Monto acordado en USD. */
+  value?: number | null;
 };
 
 export type NewLead = Pick<Lead, "source" | "name"> &
-  Partial<Pick<Lead, "channel" | "email" | "company" | "project_type" | "budget" | "timeline" | "idea">>;
+  Partial<Pick<Lead, "channel" | "email" | "company" | "project_type" | "budget" | "timeline" | "idea" | "owner" | "phone" | "value">>;
 
 let client: SupabaseClient | null | undefined;
 
@@ -47,6 +51,22 @@ export async function insertLead(lead: NewLead): Promise<boolean> {
   return !error;
 }
 
+/** Como insertLead pero devuelve la fila (para el alta manual desde el panel). */
+export async function createLeadRow(lead: NewLead): Promise<Lead> {
+  const c = db();
+  if (!c) throw new Error("Base de datos no configurada");
+  const { data, error } = await c.from("leads").insert(lead).select("*").single();
+  if (error) throw new Error(missingColumn(error.message) ?? error.message);
+  return data as Lead;
+}
+
+/** Columna nueva de crm.sql que todavía no existe: un mensaje que diga qué hacer. */
+export function missingColumn(message: string): string | null {
+  return /column .*(phone|value)|(phone|value).* column/i.test(message)
+    ? "Falta correr supabase/crm.sql en Supabase para guardar teléfono y monto."
+    : null;
+}
+
 export async function listLeads(): Promise<Lead[]> {
   const c = db();
   if (!c) return [];
@@ -62,7 +82,7 @@ export async function listLeads(): Promise<Lead[]> {
 /** Devuelve el nombre del pedido, para contarlo en el feed de cambios. */
 export async function patchLead(
   id: string,
-  patch: Partial<Pick<Lead, "status" | "owner" | "notes">>,
+  patch: Partial<Pick<Lead, "status" | "owner" | "notes" | "name" | "company" | "email" | "phone" | "value">>,
 ): Promise<string> {
   const c = db();
   if (!c) throw new Error("Base de datos no configurada");
@@ -72,7 +92,7 @@ export async function patchLead(
     .eq("id", id)
     .select("name")
     .single();
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(missingColumn(error.message) ?? error.message);
   return (data as { name: string }).name;
 }
 
