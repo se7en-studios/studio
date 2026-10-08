@@ -16,6 +16,9 @@ import {
 import { PEOPLE } from "@/lib/admin/people";
 import { ago } from "@/lib/admin/brief";
 import { EventList } from "./feed";
+import { MyTasks } from "./tareas/my-tasks";
+import { listTasks, taskLinks } from "@/lib/admin/tasks";
+import type { Task, TaskLinks } from "@/lib/admin/task-shared";
 import { AdminGate, PageHeader, SetupNotice, Stat, dayLabel } from "./ui";
 
 export const metadata: Metadata = { title: "Panel" };
@@ -39,6 +42,16 @@ export default async function AdminHome() {
   } catch (e) {
     if (!(e instanceof PanelNotReady)) throw e;
     setup = e.message;
+  }
+  // Aparte: si falta la tabla de tareas, el resto de Inicio anda igual.
+  let tasks: { list: Task[]; links: TaskLinks } | null = null;
+  if (!setup) {
+    try {
+      const [list, links] = await Promise.all([listTasks(), taskLinks()]);
+      tasks = { list, links };
+    } catch (e) {
+      if (!(e instanceof PanelNotReady)) throw e;
+    }
   }
 
   const names = Object.fromEntries(projects.map((p) => [p.slug, p.name]));
@@ -79,6 +92,7 @@ export default async function AdminHome() {
         </section>
 
         <div className="space-y-4">
+          {tasks && <MyTasks tasks={tasks.list} links={tasks.links} me={me.who} />}
           <section className="rounded-2xl border border-border bg-surface/50">
             <header className="border-b border-border px-4 py-3">
               <h2 className="text-sm text-foreground">Proyectos con movimiento</h2>

@@ -35,7 +35,7 @@ create table if not exists panel_events (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
   actor text check (actor in ('franco', 'federico')),
-  kind text not null check (kind in ('archivos', 'proyecto', 'pedido')),
+  kind text not null check (kind in ('archivos', 'proyecto', 'pedido', 'tarea')),
   text text not null,
   project_slug text,
   -- Rutas de Storage para mostrar miniaturas en el feed.

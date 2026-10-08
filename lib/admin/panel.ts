@@ -58,7 +58,7 @@ export type PanelFile = {
   url: string | null;
 };
 
-export type EventKind = "archivos" | "proyecto" | "pedido";
+export type EventKind = "archivos" | "proyecto" | "pedido" | "tarea";
 
 export type PanelEvent = {
   id: string;
@@ -74,13 +74,13 @@ export type PanelEvent = {
 /** Falta la base o faltan las tablas: la página muestra cómo activarlo en vez de romperse. */
 export class PanelNotReady extends Error {}
 
-function client() {
+export function client() {
   const c = db();
   if (!c) throw new PanelNotReady("Falta conectar la base de datos.");
   return c;
 }
 
-function fail(e: { code?: string; message: string }): never {
+export function fail(e: { code?: string; message: string }): never {
   if (e.code === "PGRST205" || e.code === "42P01") {
     throw new PanelNotReady("Faltan las tablas del panel en Supabase.");
   }
