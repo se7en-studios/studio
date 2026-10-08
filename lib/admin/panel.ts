@@ -260,20 +260,29 @@ export async function removeProject(slug: string): Promise<{ name: string; files
   if (unlink.error) fail(unlink.error);
 
   // panel_files no tiene FK al proyecto, así que no hay cascade que lo haga
-  // solo: los archivos se sacan a mano, primero de Storage y después la fila.
-  const rows = await c.from("panel_files").select("path").eq("project_slug", slug);
-  if (rows.error) fail(rows.error);
-  const paths = (rows.data as { path: string }[]).map((r) => r.path);
-  if (paths.length) {
-    const gone = await c.storage.from(BUCKET).remove(paths);
+  // solo. Va en lotes a propósito: una consulta de PostgREST devuelve 1000
+  // filas como máximo, y vaciar la tabla de una sin haber sacado todos los
+  // objetos de Storage los dejaría huérfanos para siempre. Cada vuelta borra
+  // de Storage y después exactamente esas filas, así que no queda nada suelto.
+  let files = 0;
+  for (;;) {
+    const rows = await c.from("panel_files").select("id, path").eq("project_slug", slug).limit(100);
+    if (rows.error) fail(rows.error);
+    const batch = rows.data as { id: string; path: string }[];
+    if (!batch.length) break;
+    const gone = await c.storage.from(BUCKET).remove(batch.map((r) => r.path));
     if (gone.error) throw new Error(gone.error.message);
-    const del = await c.from("panel_files").delete().eq("project_slug", slug);
+    const del = await c.from("panel_files").delete().in(
+      "id",
+      batch.map((r) => r.id),
+    );
     if (del.error) fail(del.error);
+    files += batch.length;
   }
 
   const del = await c.from("panel_projects").delete().eq("slug", slug);
   if (del.error) fail(del.error);
-  return { name, files: paths.length };
+  return { name, files };
 }
 
 // --- Archivos --------------------------------------------------------------
