@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { buildSVG, bindScene } from "./scene";
 import { Lock } from "lucide-react";
 import { SITE } from "@/data/site";
@@ -68,7 +69,13 @@ function StatusTag() {
   );
 }
 
+// El panel del equipo tiene su propia UI: sin footer. Se monta aparte para que
+// el efecto de la escena corra de cero al volver al sitio público.
 export default function Se7enFooter() {
+  return usePathname()?.startsWith("/admin") ? null : <Footer />;
+}
+
+function Footer() {
   const root = useRef<HTMLElement>(null);
   const svg = useMemo(() => buildSVG(), []);
 
@@ -148,7 +155,7 @@ export default function Se7enFooter() {
         {/* escena */}
         <div
           data-art
-          className="relative -mt-[5vh] h-[60vh] will-change-transform md:absolute md:inset-x-0 md:mt-0 [&>svg]:absolute [&>svg]:inset-0 [&>svg]:h-full [&>svg]:w-full md:-top-[14vh] md:h-[114vh]"
+          className="relative -mt-[5vh] h-[60vh] will-change-transform [container-type:size] md:absolute md:inset-x-0 md:mt-0 [&_svg]:absolute [&_svg]:inset-0 [&_svg]:h-full [&_svg]:w-full md:-top-[14vh] md:h-[114vh]"
           dangerouslySetInnerHTML={{ __html: svg }}
         />
 

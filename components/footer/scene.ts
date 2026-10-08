@@ -190,18 +190,9 @@ export function buildSVG(): string {
     <radialGradient id="s7-light"><stop offset="0" stop-color="#fff1ea"/><stop offset=".25" stop-color="#ff8a6a" stop-opacity=".9"/><stop offset="1" stop-color="${ACC}" stop-opacity="0"/></radialGradient>
     <linearGradient id="s7-trail" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${ACC}" stop-opacity="0"/><stop offset="1" stop-color="${ACC}"/></linearGradient>
     <mask id="s7-win"><rect width="${W}" height="${H}" fill="#fff"/>${win.map((d) => `<path d="${d}" fill="#000"/>`).join("")}</mask>
-    <clipPath id="s7-cl"><polygon points="${P(CL)}"/></clipPath>
-    <clipPath id="s7-cr"><polygon points="${P(CR)}"/></clipPath>
   </defs>
   <rect width="${W}" height="${H}" fill="url(#s7-sky)"/>
-  <g data-k="stars">${stars}</g>
-  <ellipse data-k="glow" cx="800" cy="600" rx="700" ry="380" fill="url(#s7-glow)"/>
-  <g data-k="word"><text x="800" y="352" text-anchor="middle" style="font-family:var(--font-archivo,'Archivo'),system-ui,sans-serif" font-weight="800" font-size="250" letter-spacing="-12" fill="url(#s7-word)" stroke="#f5f5f4" stroke-opacity=".12" stroke-width="1.2">SE<tspan fill="#ff4d2e" fill-opacity=".38" stroke="#ff4d2e" stroke-opacity=".7">7</tspan>EN</text></g>
-  <g data-k="far"><path d="${FAR}" fill="#131316"/><path d="${FAR}" fill="none" stroke="${ACC}" stroke-opacity=".35" stroke-width="1.5"/></g>
-  <g data-k="mid"><path d="${MID}" fill="#0e0e10"/><path d="${MID}" fill="none" stroke="${ACC}" stroke-opacity=".18" stroke-width="1.2"/><rect y="560" width="${W}" height="340" fill="url(#s7-fog)"/></g>
-  <g data-k="grid" stroke="${ACC}" stroke-opacity=".07" stroke-width="1" opacity="0">${grid}</g>
-
-  <g data-k="bridge">
+</svg>${layer("stars", stars)}${layer("glow", `<ellipse cx="800" cy="600" rx="700" ry="380" fill="url(#s7-glow)"/>`)}${layer("word", `<text x="800" y="352" text-anchor="middle" style="font-family:var(--font-archivo,'Archivo'),system-ui,sans-serif" font-weight="800" font-size="250" letter-spacing="-12" fill="url(#s7-word)" stroke="#f5f5f4" stroke-opacity=".12" stroke-width="1.2">SE<tspan fill="#ff4d2e" fill-opacity=".38" stroke="#ff4d2e" stroke-opacity=".7">7</tspan>EN</text>`)}${layer("far", `<path d="${FAR}" fill="#131316"/><path d="${FAR}" fill="none" stroke="${ACC}" stroke-opacity=".35" stroke-width="1.5"/>`)}${layer("mid", `<path d="${MID}" fill="#0e0e10"/><path d="${MID}" fill="none" stroke="${ACC}" stroke-opacity=".18" stroke-width="1.2"/><rect y="560" width="${W}" height="340" fill="url(#s7-fog)"/>`)}${layer("grid", `<g stroke="${ACC}" stroke-opacity=".07" stroke-width="1">${grid}</g>`, "opacity:0")}${layer("bridge", `
     <g data-k="solid" opacity="0">
       <path mask="url(#s7-win)" fill="url(#s7-body)" d="${spandrel}"/>
       <path d="${ARCH}" fill="none" stroke="#26262c" stroke-width="48"/>
@@ -230,12 +221,27 @@ export function buildSVG(): string {
       <rect x="712" y="262" width="176" height="32" rx="16" fill="#0a0a0b" stroke="#3ddc97" stroke-opacity=".55"/>
       <circle cx="734" cy="278" r="4" fill="#3ddc97"/><text x="748" y="283" fill="#3ddc97">en vivo · 1 ms</text>
     </g>
-  </g>
-
-  <g data-k="cl"><g clip-path="url(#s7-cl)">${lowPoly(7, CL)}</g></g>
-  <g data-k="cr"><g transform="translate(${W},0) scale(-1,1)"><g clip-path="url(#s7-cr)">${lowPoly(77, CR)}</g></g></g>
-</svg>`;
+`)}${cliff("cl", lowPoly(7, CL), CL, "")}${cliff("cr", lowPoly(77, CR), CR, `transform="translate(${W},0) scale(-1,1)"`)}`;
 }
+
+// Cada plano que se mueve o se desvanece entero va en su propio SVG dentro de
+// un div-capa: transform/opacity CSS sólo recomponen, en vez de re-pintar toda
+// la escena (las laderas solas son ~600 polígonos) en cada frame de scroll.
+// Los gradientes/máscaras viven en el <defs> del primer SVG (url(#…) resuelve
+// en todo el documento).
+function layer(k: string, inner: string, style = "") {
+  return `<div data-k="${k}" style="position:absolute;inset:0;will-change:transform,opacity;${style}"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${inner}</svg></div>`;
+}
+function cliff(k: string, polys: string, outline: number[][], flip: string) {
+  return layer(
+    k,
+    `<defs><clipPath id="s7-${k}"><polygon points="${P(outline)}"/></clipPath></defs><g ${flip}><g clip-path="url(#s7-${k})">${polys}</g></g>`,
+  );
+}
+
+// Unidades del viewBox → px con el escalado de "slice": requiere
+// container-type:size en [data-art].
+const vb = (v: number) => `calc(${v} * max(100cqw / ${W}, 100cqh / ${H}))`;
 
 // ---------- animation ----------
 const cl = (v: number) => Math.max(0, Math.min(1, v));
@@ -269,34 +275,45 @@ export function bindScene(root: HTMLElement, ampVh = 14): (p: number) => void {
   ) as Record<string, Element | null>;
   const bps = Array.from(root.querySelectorAll<SVGPathElement>(".bp"));
   const ui = Array.from(root.querySelectorAll<HTMLElement>("[data-reveal]"));
-  const set = (el: Element | null, a: string, v: string | number) =>
-    el && el.setAttribute(a, String(v));
+  // Escribir sólo lo que cambió: fuera del tramo activo de cada pieza los
+  // valores quedan fijos y no hace falta invalidar nada.
+  const last = new Map<string, string>();
+  const changed = (key: string, v: string) =>
+    last.get(key) !== v && (last.set(key, v), true);
+  const set = (el: Element | null, a: string, v: string | number) => {
+    const s = String(v);
+    if (el && changed(`${el.getAttribute("data-k")}@${a}`, s))
+      el.setAttribute(a, s);
+  };
+  // Capas (divs): transform en unidades del viewBox y opacity, vía CSS.
+  const layer = (k: string, x: number, y: number, o = 1) => {
+    const el = n[k];
+    if (!(el instanceof HTMLElement)) return;
+    const t = `translate3d(${vb(x)},${vb(y)},0)`;
+    if (changed(`${k}.t`, t)) el.style.transform = t;
+    if (changed(`${k}.o`, String(o))) el.style.opacity = String(o);
+  };
   const art = root.querySelector<HTMLElement>("[data-art]");
   return (p: number) => {
-    if (art)
-      art.style.transform = `translate3d(0,${mix(ampVh, 0, eIO(seg(p, 0.55, 0.9)))}vh,0)`;
+    const pan = `translate3d(0,${mix(ampVh, 0, eIO(seg(p, 0.55, 0.9)))}vh,0)`;
+    if (art && changed("art", pan)) art.style.transform = pan;
     const c = eOut(seg(p, 0, 0.55));
-    set(n.cl, "transform", `translate(${mix(-520, 0, c)},${mix(90, 0, c)})`);
-    set(n.cr, "transform", `translate(${mix(520, 0, c)},${mix(90, 0, c)})`);
-    set(
-      n.far,
-      "transform",
-      `translate(0,${mix(140, 0, eOut(seg(p, 0, 0.7)))})`,
-    );
-    set(n.mid, "transform", `translate(0,${mix(110, 0, c)})`);
+    layer("cl", mix(-520, 0, c), mix(90, 0, c));
+    layer("cr", mix(520, 0, c), mix(90, 0, c));
+    layer("far", 0, mix(140, 0, eOut(seg(p, 0, 0.7))));
+    layer("mid", 0, mix(110, 0, c));
     {
       const w = eOut(seg(p, 0.5, 0.95));
-      set(n.word, "transform", `translate(0,${mix(230, 0, w)})`);
-      set(n.word, "opacity", w);
+      layer("word", 0, mix(230, 0, w), w);
     }
-    set(n.glow, "opacity", mix(0.35, 1, seg(p, 0, 0.8)));
-    set(n.stars, "opacity", seg(p, 0.1, 0.6));
+    layer("glow", 0, 0, mix(0.35, 1, seg(p, 0, 0.8)));
+    layer("stars", 0, 0, seg(p, 0.1, 0.6));
     // blueprint
-    const g = seg(p, 0.22, 0.4) * (1 - seg(p, 0.62, 0.8));
-    set(n.grid, "opacity", g);
+    layer("grid", 0, 0, seg(p, 0.22, 0.4) * (1 - seg(p, 0.62, 0.8)));
     const draw = eIO(seg(p, 0.28, 0.58));
     bps.forEach((el, i) => {
       const d = cl(draw * 1.25 - (i / bps.length) * 0.25);
+      if (!changed(`bp${i}`, String(d))) return;
       el.style.strokeDasharray = el.getAttribute("stroke-dasharray")
         ? ""
         : "1 1";
@@ -307,11 +324,7 @@ export function bindScene(root: HTMLElement, ampVh = 14): (p: number) => void {
     set(n.blue, "opacity", 1 - 0.8 * seg(p, 0.6, 0.72));
     set(n.notes, "opacity", seg(p, 0.42, 0.52) * (1 - seg(p, 0.66, 0.74)));
     set(n.solid, "opacity", eIO(seg(p, 0.55, 0.7)));
-    set(
-      n.bridge,
-      "transform",
-      `translate(0,${mix(24, 0, eOut(seg(p, 0.25, 0.7)))})`,
-    );
+    layer("bridge", 0, mix(24, 0, eOut(seg(p, 0.25, 0.7))));
     // deploy
     const d = eIO(seg(p, 0.7, 0.86));
     set(n.deploy, "opacity", seg(p, 0.69, 0.71) * (1 - 0.6 * seg(p, 0.9, 1)));
@@ -325,9 +338,10 @@ export function bindScene(root: HTMLElement, ampVh = 14): (p: number) => void {
       `translate(0,${mix(8, 0, eOut(seg(p, 0.86, 0.92)))})`,
     );
     // html ui
-    ui.forEach((el) => {
+    ui.forEach((el, i) => {
       const s = parseFloat(el.dataset.reveal || "0");
       const t = eOut(seg(p, s, s + 0.08));
+      if (!changed(`ui${i}`, String(t))) return;
       el.style.opacity = String(t);
       el.style.transform = `translateY(${mix(16, 0, t)}px)`;
     });
