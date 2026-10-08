@@ -10,6 +10,7 @@ import { logout } from "./actions";
 
 const TABS = [
   { href: "/admin", label: "Inicio" },
+  { href: "/admin/tareas", label: "Tareas" },
   { href: "/admin/pedidos", label: "Pedidos" },
   { href: "/admin/proyectos", label: "Proyectos" },
   { href: "/admin/marca", label: "Marca" },

@@ -30,7 +30,7 @@ export default async function CambiosPage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Cambios">Todo lo que pasa en el panel: archivos que se suben o se borran, proyectos nuevos y pedidos que cambian de etapa.</PageHeader>
+      <PageHeader title="Cambios">Todo lo que pasa en el panel: archivos que se suben o se borran, proyectos nuevos, pedidos que cambian de etapa y tareas.</PageHeader>
 
       {setup ? (
         <SetupNotice reason={setup} />

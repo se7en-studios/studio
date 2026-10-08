@@ -5,6 +5,7 @@ import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
+  CalendarClock,
   Copy,
   Database,
   Inbox,
@@ -18,7 +19,10 @@ import { team } from "@/data/team";
 import { SITE } from "@/data/site";
 import { ago, budgetValue, headline, nextStep, priority, tags, type Priority } from "@/lib/admin/brief";
 import type { Lead, LeadOwner, LeadStatus } from "@/lib/admin/db";
+import { bucket, compareTasks, dueLabel, type Task, type TaskLinks } from "@/lib/admin/task-shared";
 import { deleteLead, setNotes, setOwner, setStatus } from "./actions";
+import { QuickAdd, TaskDrawer, TaskRow } from "./tareas/task-ui";
+import { useTasks, type TasksApi } from "./tareas/use-tasks";
 
 // Tablero de pedidos: una columna por etapa (Nuevo → Ganado/Perdido). Cada
 // tarjeta resume el pedido para decidir rápido: qué quiere, cuánto vale,
@@ -46,13 +50,36 @@ const PRIORITY_STYLE: Record<Priority, string> = {
 
 type OwnerFilter = "todos" | LeadOwner | "sin";
 
-export function Dashboard({ leads: initial, dbReady, error }: { leads: Lead[]; dbReady: boolean; error: string | null }) {
+export function Dashboard({
+  leads: initial,
+  dbReady,
+  error,
+  tasks: initialTasks,
+  me,
+}: {
+  leads: Lead[];
+  dbReady: boolean;
+  error: string | null;
+  /** null si falta la tabla de tareas: el tablero anda igual sin seguimientos. */
+  tasks: { list: Task[]; links: TaskLinks } | null;
+  me: LeadOwner;
+}) {
   const [leads, setLeads] = useState(initial);
   const [query, setQuery] = useState("");
   const [owner, setOwnerFilter] = useState<OwnerFilter>("todos");
   const [openId, setOpenId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const taskApi = useTasks(initialTasks?.list ?? [], flash);
+
+  /** Próximo seguimiento abierto de cada pedido, para la tarjeta. */
+  const nextTask = useMemo(() => {
+    const out = new Map<string, Task>();
+    for (const t of [...taskApi.tasks].sort(compareTasks)) {
+      if (t.lead_id && !t.done_at && !out.has(t.lead_id)) out.set(t.lead_id, t);
+    }
+    return out;
+  }, [taskApi.tasks]);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -175,7 +202,7 @@ export function Dashboard({ leads: initial, dbReady, error }: { leads: Lead[]; d
                 </header>
                 <div className="flex flex-col gap-2.5">
                   {items.map((l) => (
-                    <LeadCard key={l.id} lead={l} onOpen={() => setOpenId(l.id)} onMove={(s) => update(l.id, { status: s }, () => setStatus(l.id, s))} />
+                    <LeadCard key={l.id} lead={l} next={nextTask.get(l.id)} onOpen={() => setOpenId(l.id)} onMove={(s) => update(l.id, { status: s }, () => setStatus(l.id, s))} />
                   ))}
                   {!items.length && (
                     <p className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border px-3 py-8 text-center text-xs text-muted">
@@ -200,6 +227,7 @@ export function Dashboard({ leads: initial, dbReady, error }: { leads: Lead[]; d
             onNotes={(n) => update(open.id, { notes: n }, () => setNotes(open.id, n))}
             onDelete={() => remove(open.id)}
             onCopied={() => flash("Copiado")}
+            followUp={initialTasks ? { api: taskApi, links: initialTasks.links, me } : null}
           />
         )}
       </AnimatePresence>
@@ -250,7 +278,7 @@ function OwnerBadge({ owner }: { owner: LeadOwner | null }) {
   );
 }
 
-function LeadCard({ lead, onOpen, onMove }: { lead: Lead; onOpen: () => void; onMove: (s: LeadStatus) => void }) {
+function LeadCard({ lead, next: task, onOpen, onMove }: { lead: Lead; next?: Task; onOpen: () => void; onMove: (s: LeadStatus) => void }) {
   const p = priority(lead);
   const idx = COLUMNS.findIndex((c) => c.id === lead.status);
   const next = lead.status === "perdido" || lead.status === "ganado" ? null : COLUMNS[idx + 1];
@@ -278,6 +306,7 @@ function LeadCard({ lead, onOpen, onMove }: { lead: Lead; onOpen: () => void; on
         <p className="mt-2.5 flex items-start gap-1.5 text-[11px] leading-snug text-accent/90">
           <ArrowRight size={12} className="mt-px shrink-0" /> {nextStep(lead)}
         </p>
+        {task && <FollowUpBadge task={task} />}
       </button>
       <div className="mt-3 flex items-center justify-between border-t border-border pt-2.5">
         <OwnerBadge owner={lead.owner} />
@@ -312,7 +341,9 @@ function Detail({
   onNotes,
   onDelete,
   onCopied,
+  followUp,
 }: {
+  followUp: { api: TasksApi; links: TaskLinks; me: LeadOwner } | null;
   lead: Lead;
   onClose: () => void;
   onStatus: (s: LeadStatus) => void;
@@ -443,6 +474,8 @@ function Detail({
             ))}
         </dl>
 
+        {followUp && <FollowUps lead={lead} {...followUp} />}
+
         {/* Notas internas */}
         <label htmlFor="notes" className="mt-6 mb-2 block font-mono text-[10px] tracking-widest text-muted uppercase">
           Notas internas
@@ -497,5 +530,61 @@ function SetupCard() {
         <li>Volver a deployar. Desde ahí, cada pedido de los formularios aparece acá.</li>
       </ol>
     </div>
+  );
+}
+
+/** En la tarjeta: el próximo seguimiento y para cuándo. */
+function FollowUpBadge({ task }: { task: Task }) {
+  const b = bucket(task);
+  const tone = b === "vencidas" ? "border-red-400/30 text-red-300" : b === "hoy" ? "border-accent/40 text-accent" : "border-border text-muted";
+  return (
+    <span className={`mt-2 flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] ${tone}`}>
+      <CalendarClock size={12} className="shrink-0" />
+      <span className="truncate">{task.title}</span>
+      {task.due && <span className="ml-auto shrink-0 font-mono text-[10px]">{dueLabel(task.due)}</span>}
+    </span>
+  );
+}
+
+/** En la ficha: las tareas de este pedido y el alta de la próxima. */
+function FollowUps({ lead, api, links, me }: { lead: Lead; api: TasksApi; links: TaskLinks; me: LeadOwner }) {
+  const [openId, setOpenId] = useState<string | null>(null);
+  const mine = api.tasks.filter((t) => t.lead_id === lead.id).sort(compareTasks);
+  const open = mine.find((t) => t.id === openId) ?? null;
+  return (
+    <>
+      <p className="mt-6 mb-2 font-mono text-[10px] tracking-widest text-muted uppercase">Seguimiento</p>
+      <QuickAdd
+        me={me}
+        links={links}
+        fixed={{ lead_id: lead.id, project_slug: null }}
+        defaultAssignee={lead.owner ?? me}
+        onAdd={(input) => api.add(input, me)}
+        placeholder="Próximo paso… (ej: mandar propuesta)"
+      />
+      {mine.length > 0 && (
+        <ul className="mt-2 rounded-xl border border-border bg-background/60">
+          {mine.map((t) => (
+            <TaskRow key={t.id} task={t} links={links} hideLink onToggle={(d) => api.toggle(t.id, d)} onOpen={() => setOpenId(t.id)} />
+          ))}
+        </ul>
+      )}
+      <AnimatePresence>
+        {open && (
+          <TaskDrawer
+            key={open.id}
+            task={open}
+            links={links}
+            onClose={() => setOpenId(null)}
+            onPatch={(p) => api.patch(open.id, p)}
+            onToggle={(d) => api.toggle(open.id, d)}
+            onDelete={() => {
+              api.remove(open.id);
+              setOpenId(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
+    </>
   );
 }

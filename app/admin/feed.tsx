@@ -9,6 +9,7 @@ export const KIND_LABEL: Record<EventKind, string> = {
   archivos: "Archivos",
   proyecto: "Proyectos",
   pedido: "Pedidos",
+  tarea: "Tareas",
 };
 
 export function EventList({
