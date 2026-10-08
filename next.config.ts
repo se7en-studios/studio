@@ -17,6 +17,8 @@ const nextConfig: NextConfig = {
       { source: "/portal", destination: "/work", permanent: true },
       { source: "/security", destination: "/tech", permanent: true },
       { source: "/design-system", destination: "/tech", permanent: true },
+      { source: "/playground", destination: "/tech", permanent: true },
+      { source: "/roi", destination: "/pricing", permanent: true },
     ];
   },
 };

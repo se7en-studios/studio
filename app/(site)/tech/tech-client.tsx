@@ -271,10 +271,10 @@ export function TechRadarClient() {
                 <ArrowRight size={15} />
               </Link>
               <Link
-                href="/roi"
+                href="/pricing"
                 className="focus-ring inline-flex items-center gap-2 rounded-full border border-border bg-background px-6 py-3 text-sm font-medium text-muted hover:text-foreground"
               >
-                <span>Calculadora de ROI</span>
+                <span>Ver precios</span>
               </Link>
             </div>
           </div>

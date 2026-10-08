@@ -14,8 +14,6 @@ import {
   Zap,
   Code2,
   FolderGit2,
-  TrendingUp,
-  Terminal,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { projects } from "@/data/projects";
@@ -134,18 +132,6 @@ export function CommandPalette() {
         },
       },
       {
-        id: "action-roi",
-        title: "Calculadora de Ahorro & Retorno (ROI)",
-        subtitle: "Proyectá cuánto dinero ahorrás en comisiones de Shopify/apps",
-        category: "Acciones Rápidas",
-        icon: TrendingUp,
-        keywords: ["roi", "ahorro", "comisiones", "retorno", "shopify", "pedidosya", "inversion"],
-        action: () => {
-          setOpen(false);
-          router.push("/roi");
-        },
-      },
-      {
         id: "action-whatsapp",
         title: "Escribirnos directamente por WhatsApp",
         subtitle: "+54 9 299 424-7985 (Respuesta en < 24 h)",
@@ -205,18 +191,6 @@ export function CommandPalette() {
         action: () => {
           setOpen(false);
           router.push("/testimonials");
-        },
-      },
-      {
-        id: "nav-playground",
-        title: "Playground Técnico & Server Actions",
-        subtitle: "Probá en vivo consultas Supabase, Zod y streaming IA",
-        category: "Navegación",
-        icon: Terminal,
-        keywords: ["playground", "consola", "server actions", "api", "zod", "supabase"],
-        action: () => {
-          setOpen(false);
-          router.push("/playground");
         },
       },
       {

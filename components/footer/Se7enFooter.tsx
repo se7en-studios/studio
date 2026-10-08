@@ -25,8 +25,6 @@ const ESTUDIO = [
 ] as const;
 const RECURSOS = [
   ["Diagnóstico gratuito", "/audit"],
-  ["Calculadora de retorno", "/roi"],
-  ["Demos interactivas", "/playground"],
   ["Testimonios", "/testimonials"],
 ] as const;
 const LEGALES = [
