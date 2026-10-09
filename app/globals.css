@@ -459,13 +459,29 @@ body:has(.admin-app)::after {
   display: none;
 }
 
+/* Superficies del panel, de abajo hacia arriba: fondo → sidebar → tarjeta →
+   hover/realce → lo que flota (toasts, menús). `--well` es lo hundido
+   (campos, citas). Todo color de fondo del panel sale de acá. */
 .admin-app {
+  --bg: #08080a;
+  --panel-0: #0a0a0c;
   --panel: #0c0c0e;
   --panel-2: #131316;
+  --panel-3: #18181b;
+  --well: rgba(0, 0, 0, 0.3);
+  --well-soft: rgba(0, 0, 0, 0.2);
   --line: rgba(245, 245, 244, 0.07);
   --line-strong: rgba(245, 245, 244, 0.12);
-  background: #08080a;
+  --accent-hover: #ff6347;
+  background: var(--bg);
   font-size: 14px;
+}
+
+/* El foco sigue la forma del control (una pill no se vuelve cuadrada) y queda
+   pegado a él, así no lo corta el overflow-hidden de las tarjetas. */
+.admin-app .focus-ring:focus-visible {
+  border-radius: inherit;
+  outline-offset: 2px;
 }
 
 .admin-scroll {

@@ -144,7 +144,7 @@ function SectionTitle({ children, hint }: { children: React.ReactNode; hint?: st
 function VoiceCard({ title, tone, children }: { title: string; tone: string; children: React.ReactNode }) {
   return (
     <div className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-6">
-      <span className={`rounded-full px-2.5 py-1 font-mono text-[10px] tracking-widest uppercase ${tone}`}>{title}</span>
+      <span className={`rounded-full px-2.5 py-1 font-mono text-[11px] tracking-widest uppercase ${tone}`}>{title}</span>
       <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-foreground/85">{children}</ul>
     </div>
   );

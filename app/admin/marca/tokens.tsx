@@ -51,7 +51,7 @@ export function ColorToken({ name, label, note }: { name: string; label: string;
             value || "…"
           )}
         </span>
-        <span className="mt-1 block font-mono text-[10px] text-muted/70">{name}</span>
+        <span className="mt-1 block font-mono text-[11px] text-muted/70">{name}</span>
         <span className="mt-2 block text-xs leading-snug text-muted">{note}</span>
       </span>
     </button>

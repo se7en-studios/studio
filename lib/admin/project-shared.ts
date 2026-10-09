@@ -16,7 +16,8 @@ export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
 export const PROJECT_STATUS: Record<ProjectStatus, { label: string; tone: string; dot: string }> = {
   descubrimiento: { label: "Descubrimiento", tone: "text-sky-300 bg-sky-400/10 ring-sky-400/20", dot: "bg-sky-400" },
   diseno: { label: "Diseño", tone: "text-violet-300 bg-violet-400/10 ring-violet-400/20", dot: "bg-violet-400" },
-  desarrollo: { label: "Desarrollo", tone: "text-accent bg-accent/10 ring-accent/25", dot: "bg-accent" },
+  // No usa el acento: ése queda para la acción principal y lo nuevo.
+  desarrollo: { label: "Desarrollo", tone: "text-indigo-300 bg-indigo-400/10 ring-indigo-400/20", dot: "bg-indigo-400" },
   revision: { label: "Revisión", tone: "text-amber-300 bg-amber-400/10 ring-amber-400/20", dot: "bg-amber-400" },
   entregado: { label: "Entregado", tone: "text-emerald-300 bg-emerald-400/10 ring-emerald-400/20", dot: "bg-emerald-400" },
   mantenimiento: { label: "Mantenimiento", tone: "text-teal-300 bg-teal-400/10 ring-teal-400/20", dot: "bg-teal-400" },

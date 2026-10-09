@@ -159,13 +159,13 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                 onMouseMove={() => setActive(i)}
                 onClick={() => go(item)}
                 className={cn(
-                  "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13.5px] transition-colors",
+                  "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[14px] transition-colors",
                   i === active ? "bg-white/[0.07] text-foreground" : "text-foreground/85",
                 )}
               >
                 <span className={i === active ? "text-accent" : "text-muted"}>{item.icon}</span>
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                {item.hint && <span className="shrink-0 text-[11.5px] text-muted">{item.hint}</span>}
+                {item.hint && <span className="shrink-0 text-[12px] text-muted">{item.hint}</span>}
                 {i === active && <CornerDownLeft size={13} className="shrink-0 text-muted" />}
               </button>
             </li>

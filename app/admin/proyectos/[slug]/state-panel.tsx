@@ -59,7 +59,7 @@ export function StatePanel({
     );
 
   return (
-    <Card title="Gestión del proyecto" action={s.updated_by && s.updated_at && <span className="text-[11.5px] text-muted">Último cambio: {PEOPLE[s.updated_by].name}</span>}>
+    <Card title="Gestión del proyecto" action={s.updated_by && s.updated_at && <span className="text-[12px] text-muted">Último cambio: {PEOPLE[s.updated_by].name}</span>}>
       <div className="space-y-5 p-4">
         <div>
           <p className={label}>Etapa</p>
@@ -244,7 +244,7 @@ export function EditInfo({
         type="color"
         value={form.accent}
         onChange={(e) => setForm({ ...form, accent: e.target.value })}
-        className="h-[34px] w-12 cursor-pointer rounded-lg border border-[var(--line-strong)] bg-black/30 p-1"
+        className="h-[34px] w-12 cursor-pointer rounded-lg border border-[var(--line-strong)] bg-[var(--well)] p-1"
       />
       <span className="flex gap-1">
         <button type="button" onClick={() => setOpen(false)} className={btnGhost}>

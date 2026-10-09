@@ -225,7 +225,7 @@ function Stat({
       <p className="text-[11px] text-muted">{label}</p>
       <p
         className={cn(
-          "mt-1 truncate text-[15px] font-semibold tabular-nums",
+          "mt-1 truncate text-[14px] font-semibold tabular-nums",
           tone,
         )}
       >

@@ -6,6 +6,7 @@ import { useState } from "react";
 import { MessageCircle, Phone } from "lucide-react";
 import type { Lead } from "@/lib/admin/db";
 import type { ContactFields } from "./actions";
+import { label as sectionLabel } from "../kit";
 
 /** Link de WhatsApp: sólo dígitos; sin código de país se asume Argentina. */
 export function waLink(phone: string) {
@@ -35,7 +36,7 @@ function Field({
       <span className="text-[11px] font-medium tracking-wide text-muted uppercase">
         {label}
       </span>
-      <span className="mt-1 flex items-center rounded-lg border border-[var(--line-strong)] bg-black/30 focus-within:border-accent">
+      <span className="mt-1 flex items-center rounded-lg border border-[var(--line-strong)] bg-[var(--well)] focus-within:border-accent">
         {prefix && (
           <span className="pl-3 font-mono text-xs text-muted">{prefix}</span>
         )}
@@ -69,10 +70,10 @@ export function DealFields({
   const wa = lead.phone ? waLink(lead.phone) : null;
   return (
     <>
-      <p className="mt-6 mb-2 text-[11px] font-medium tracking-wide text-muted uppercase">
+      <p className={`mt-6 ${sectionLabel}`}>
         Negocio y contacto
       </p>
-      <div className="grid grid-cols-2 gap-3 rounded-lg border border-[var(--line)] bg-black/20 p-3">
+      <div className="grid grid-cols-2 gap-3 rounded-lg border border-[var(--line)] bg-[var(--well-soft)] p-3">
         <div className="col-span-2">
           <Field
             label="Monto acordado"

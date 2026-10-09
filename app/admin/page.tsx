@@ -115,7 +115,7 @@ export default async function AdminHome() {
           <>
             <Link href="/admin/mensajes" className={btnSecondary}>
               <MessagesSquare size={14} /> Mensajes
-              {unread > 0 && <span className="rounded-full bg-accent px-1.5 font-mono text-[10px] text-background">{unread}</span>}
+              {unread > 0 && <span className="rounded-full bg-accent px-1.5 font-mono text-[11px] text-background">{unread}</span>}
             </Link>
             <Link href="/admin/tareas?nueva=1" className={btnSecondary}>
               <Plus size={14} /> Tarea
@@ -181,7 +181,7 @@ export default async function AdminHome() {
                     >
                       <Cover project={p} />
                       <span className="min-w-0">
-                        <span className="block truncate text-[13.5px] font-medium">{p.name}</span>
+                        <span className="block truncate text-[14px] font-medium">{p.name}</span>
                         <span className="mt-0.5 block truncate text-[12px] text-muted">{s.client || p.category || "Sin cliente"}</span>
                       </span>
                       <span className="hidden md:block">
@@ -195,7 +195,7 @@ export default async function AdminHome() {
                       </span>
                       <span className="flex items-center gap-2">
                         {s.due && (
-                          <span className={cn("hidden text-[11.5px] sm:inline", s.due < today ? "text-red-400" : "text-muted")}>
+                          <span className={cn("hidden text-[12px] sm:inline", s.due < today ? "text-red-400" : "text-muted")}>
                             <CalendarClock size={12} className="mr-1 inline -translate-y-px" />
                             {dueLabel(s.due, today)}
                           </span>
@@ -245,7 +245,7 @@ export default async function AdminHome() {
                             <span className={cn("truncate text-[13px]", c.unread ? "font-semibold" : "font-medium")}>{title}</span>
                             {c.last && <span className="ml-auto shrink-0 text-[11px] text-muted">{ago(c.last.created_at)}</span>}
                           </span>
-                          <span className="mt-0.5 line-clamp-2 text-[12.5px] text-muted">{c.last?.body}</span>
+                          <span className="mt-0.5 line-clamp-2 text-[13px] text-muted">{c.last?.body}</span>
                         </span>
                         {c.unread > 0 && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-accent" />}
                       </Link>

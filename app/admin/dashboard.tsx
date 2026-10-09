@@ -29,7 +29,7 @@ import { coldDays, isContact, lastContacts, type Activity, type ActivityKind } f
 import { dealValue } from "@/lib/admin/metrics";
 import { deleteLead, setNotes, setOwner, setStatus } from "./actions";
 import { EventList } from "./feed";
-import { Face, Kpi, PageHeader, btnDanger, btnGhost, btnPrimary, btnSecondary, cn, usd } from "./kit";
+import { Chip, Face, Kpi, PageHeader, Segmented, btnDanger, btnGhost, btnPrimary, btnSecondary, cn, input, label as sectionLabel, searchInput, usd } from "./kit";
 import { Chat } from "./mensajes/chat";
 import { Drawer, useStoredChoice, useToast } from "./overlay";
 import { ActivityLog } from "./pedidos/activity";
@@ -288,7 +288,7 @@ export function Dashboard({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar por nombre, empresa, idea o teléfono…"
-            className="focus-ring w-full rounded-lg border border-[var(--line)] bg-[var(--panel)] py-2 pr-3 pl-9 text-[13px] text-foreground placeholder:text-muted/70 focus:border-accent/60"
+            className={searchInput}
           />
         </label>
         <Segmented
@@ -407,33 +407,6 @@ export function Dashboard({
   );
 }
 
-function Segmented<T extends string>({
-  value,
-  onChange,
-  options,
-}: {
-  value: T;
-  onChange: (v: T) => void;
-  options: { id: T; label: React.ReactNode }[];
-}) {
-  return (
-    <div className="flex rounded-lg border border-[var(--line)] bg-[var(--panel)] p-0.5 text-[13px]" role="group">
-      {options.map((o) => (
-        <button
-          key={o.id}
-          onClick={() => onChange(o.id)}
-          aria-pressed={value === o.id}
-          className={cn(
-            "focus-ring flex items-center rounded-md px-2.5 py-1.5 whitespace-nowrap transition-colors",
-            value === o.id ? "bg-white/[0.08] text-foreground" : "text-muted hover:text-foreground",
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 /** Orden dentro de cada columna: prioridad primero, después lo más reciente. */
 function rank(l: Lead) {
@@ -483,13 +456,13 @@ const LeadCard = memo(function LeadCard({
             {lead.name}
             {lead.company && <span className="font-normal text-muted"> · {lead.company}</span>}
           </p>
-          <span className={cn("shrink-0 rounded px-1.5 py-px text-[10px] font-medium uppercase ring-1 ring-inset", PRIORITY_STYLE[p])}>{p}</span>
+          <span className={cn("shrink-0 rounded px-1.5 py-px text-[11px] font-medium uppercase ring-1 ring-inset", PRIORITY_STYLE[p])}>{p}</span>
         </div>
-        <p className="mt-1.5 line-clamp-3 text-[12.5px] leading-snug text-foreground/75">{headline(lead.idea)}</p>
+        <p className="mt-1.5 line-clamp-3 text-[13px] leading-snug text-foreground/75">{headline(lead.idea)}</p>
         {tags(lead).length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
             {tags(lead).map((t) => (
-              <span key={t} className="rounded bg-white/[0.05] px-1.5 py-px text-[10.5px] text-muted">
+              <span key={t} className="rounded bg-white/[0.05] px-1.5 py-px text-[11px] text-muted">
                 {t}
               </span>
             ))}
@@ -505,7 +478,7 @@ const LeadCard = memo(function LeadCard({
         )}
       </button>
       <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-[var(--line)] pt-2.5">
-        <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-muted">
+        <span className="flex min-w-0 items-center gap-1.5 text-[12px] text-muted">
           <Face who={lead.owner} size={18} />
           {lead.value != null ? <span className="truncate text-foreground/85">{usd(lead.value)}</span> : <span>{ago(lead.created_at)}</span>}
         </span>
@@ -539,7 +512,7 @@ function LeadTable({
   return (
     <div className="overflow-x-auto rounded-xl border border-[var(--line)] bg-[var(--panel)]">
       <table className="w-full min-w-[860px] text-left text-[13px]">
-        <thead className="border-b border-[var(--line)] text-[11.5px] text-muted">
+        <thead className="border-b border-[var(--line)] text-[12px] text-muted">
           <tr>
             <th className="px-4 py-2.5 font-medium">Pedido</th>
             <th className="px-3 py-2.5 font-medium">Etapa</th>
@@ -565,20 +538,20 @@ function LeadTable({
                   </button>
                 </td>
                 <td className="px-3 py-2.5">
-                  <span className="inline-flex items-center gap-1.5 text-[12.5px]">
+                  <span className="inline-flex items-center gap-1.5 text-[13px]">
                     <span className={cn("h-1.5 w-1.5 rounded-full", STAGE[l.status].dot)} /> {STAGE[l.status].label}
                   </span>
                 </td>
                 <td className="px-3 py-2.5">
-                  <span className="flex items-center gap-1.5 text-[12.5px] text-muted">
+                  <span className="flex items-center gap-1.5 text-[13px] text-muted">
                     <Face who={l.owner} size={18} /> {l.owner ? PEOPLE[l.owner].name : "—"}
                   </span>
                 </td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{dealValue(l) ? usd(dealValue(l)) : "—"}</td>
-                <td className={cn("px-3 py-2.5 text-[12.5px]", cold !== null ? "text-amber-300" : "text-muted")}>
+                <td className={cn("px-3 py-2.5 text-[13px]", cold !== null ? "text-amber-300" : "text-muted")}>
                   {cold !== null ? `Frío · ${cold} días` : last ? ago(last) : "—"}
                 </td>
-                <td className="px-4 py-2.5 text-[12.5px] text-muted">{ago(l.created_at)}</td>
+                <td className="px-4 py-2.5 text-[13px] text-muted">{ago(l.created_at)}</td>
               </tr>
             );
           })}
@@ -596,7 +569,6 @@ function replyMail(l: Lead) {
 
 type Tab = "ficha" | "chat" | "cambios";
 
-const sectionLabel = "mb-2 text-[11px] font-medium tracking-wide text-muted uppercase";
 
 function Detail({
   lead,
@@ -670,7 +642,7 @@ function Detail({
       width="max-w-2xl"
       header={
         <div>
-          <p className="flex items-center gap-2 text-[11.5px] text-muted">
+          <p className="flex items-center gap-2 text-[12px] text-muted">
             <span className={cn("h-1.5 w-1.5 rounded-full", STAGE[lead.status].dot)} />
             {STAGE[lead.status].label} · prioridad {priority(lead)}
           </p>
@@ -705,7 +677,7 @@ function Detail({
         <div className="flex min-h-full flex-col p-5">
           <div className="rounded-lg border border-accent/20 bg-accent/[0.05] px-3.5 py-3">
             <p className="text-[11px] font-medium tracking-wide text-accent uppercase">Próximo paso</p>
-            <p className="mt-1 text-[13.5px]">{nextStep(lead)}</p>
+            <p className="mt-1 text-[14px]">{nextStep(lead)}</p>
           </div>
 
           {lead.status === "ganado" && projectSlug !== undefined && <WonProject leadId={lead.id} slug={projectSlug} />}
@@ -732,17 +704,9 @@ function Detail({
               <p className={sectionLabel}>Etapa</p>
               <div className="flex flex-wrap gap-1.5">
                 {COLUMNS.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => onStatus(c.id)}
-                    aria-pressed={lead.status === c.id}
-                    className={cn(
-                      "focus-ring inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[12px] transition-colors",
-                      lead.status === c.id ? "border-accent/60 bg-accent/15 text-foreground" : "border-[var(--line-strong)] text-muted hover:text-foreground",
-                    )}
-                  >
+                  <Chip key={c.id} on={lead.status === c.id} onClick={() => onStatus(c.id)}>
                     <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} /> {c.label}
-                  </button>
+                  </Chip>
                 ))}
               </div>
             </div>
@@ -755,7 +719,7 @@ function Detail({
                     onClick={() => onOwner(lead.owner === o ? null : o)}
                     aria-pressed={lead.owner === o}
                     className={cn(
-                      "focus-ring flex items-center gap-1.5 rounded-md border py-0.5 pr-2.5 pl-0.5 text-[12.5px] transition-colors",
+                      "focus-ring flex items-center gap-1.5 rounded-md border py-0.5 pr-2.5 pl-0.5 text-[13px] transition-colors",
                       lead.owner === o ? "border-accent/60 bg-accent/15 text-foreground" : "border-[var(--line-strong)] text-muted hover:text-foreground",
                     )}
                   >
@@ -768,7 +732,7 @@ function Detail({
 
           {/* La idea completa */}
           <p className={cn(sectionLabel, "mt-6")}>La idea</p>
-          <p className="rounded-lg border border-[var(--line)] bg-black/20 p-3.5 text-[13.5px] leading-relaxed whitespace-pre-wrap text-foreground/90">
+          <p className="rounded-lg border border-[var(--line)] bg-[var(--well-soft)] p-3.5 text-[14px] leading-relaxed whitespace-pre-wrap text-foreground/90">
             {lead.idea || "Sin descripción."}
           </p>
 
@@ -800,7 +764,7 @@ function Detail({
             onBlur={() => notes !== lead.notes && onNotes(notes)}
             rows={4}
             placeholder="Qué hablamos, precio que pasamos, próximos pasos… (se guarda al salir del campo)"
-            className="focus-ring w-full rounded-lg border border-[var(--line-strong)] bg-black/30 px-3 py-2.5 text-[13px] text-foreground placeholder:text-muted/60 focus:border-accent/70"
+            className={`${input} py-2.5 leading-relaxed`}
           />
 
           <div className="mt-auto pt-8">
@@ -909,7 +873,7 @@ function FollowUps({ lead, api, links, me }: { lead: Lead; api: TasksApi; links:
         placeholder="Próximo paso… (ej: mandar propuesta)"
       />
       {mine.length > 0 && (
-        <ul className="mt-2 divide-y divide-[var(--line)] overflow-hidden rounded-lg border border-[var(--line)] bg-black/20">
+        <ul className="mt-2 divide-y divide-[var(--line)] overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--well-soft)]">
           {mine.map((t) => (
             <TaskRow key={t.id} task={t} links={links} hideLink onToggle={(d) => api.toggle(t.id, d)} onOpen={() => setOpenId(t.id)} />
           ))}
