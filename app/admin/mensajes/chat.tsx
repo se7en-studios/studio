@@ -121,7 +121,7 @@ export function Chat({
       } catch (e) {
         setMessages((m) => (m ?? []).filter((x) => x.id !== temp.id));
         setDraft(body);
-        flash(e instanceof Error ? e.message : "No se pudo mandar");
+        flash(e instanceof Error ? e.message : "No se pudo mandar", "error");
       } finally {
         pendingSends.current--;
       }
@@ -138,7 +138,7 @@ export function Chat({
         setMessages((m) => (m ?? []).map((x) => (x.id === id ? saved : x)));
       } catch (e) {
         setMessages(before);
-        flash(e instanceof Error ? e.message : "No se pudo editar");
+        flash(e instanceof Error ? e.message : "No se pudo editar", "error");
       }
     });
   }
@@ -151,7 +151,7 @@ export function Chat({
         await deleteMessage(id);
       } catch (e) {
         setMessages(before);
-        flash(e instanceof Error ? e.message : "No se pudo borrar");
+        flash(e instanceof Error ? e.message : "No se pudo borrar", "error");
       }
     });
   }
@@ -367,10 +367,10 @@ function Bubble({
           ) : (
             <>
               <button onClick={onEdit} aria-label="Editar" className="focus-ring rounded-md p-1 text-muted hover:bg-white/[0.06] hover:text-foreground">
-                <Pencil size={13} />
+                <Pencil size={14} />
               </button>
               <button onClick={() => setConfirm(true)} aria-label="Borrar" className="focus-ring rounded-md p-1 text-muted hover:bg-white/[0.06] hover:text-red-400">
-                <Trash2 size={13} />
+                <Trash2 size={14} />
               </button>
             </>
           )}

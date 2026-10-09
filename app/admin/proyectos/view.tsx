@@ -74,7 +74,7 @@ export function ProjectsView({
 
   const save = useCallback(
     (p: PanelProject, patch: ProjectStateInput) => {
-      if (!editable) return flash("Falta correr supabase/panel-v2.sql para guardar esto.");
+      if (!editable) return flash("Falta correr supabase/panel-v2.sql para guardar esto.", "error");
       const before = statesRef.current;
       const cur = before[p.slug] ?? defaultState(p.slug, p.isCase);
       const next = { ...cur, ...patch };
@@ -86,7 +86,7 @@ export function ProjectsView({
           setStates((ss) => ({ ...ss, [p.slug]: saved }));
         } catch (e) {
           setStates(before);
-          flash(e instanceof Error ? e.message : "No se pudo guardar");
+          flash(e instanceof Error ? e.message : "No se pudo guardar", "error");
         }
       });
     },
@@ -248,7 +248,9 @@ const BoardCard = memo(function BoardCard({ row: { p, s }, today, draggable }: {
       onDragStart={(e) => {
         e.dataTransfer.setData(DRAG, p.slug);
         e.dataTransfer.effectAllowed = "move";
+        e.currentTarget.dataset.dragging = "";
       }}
+      onDragEnd={(e) => delete e.currentTarget.dataset.dragging}
       className="focus-ring group block w-[208px] shrink-0 rounded-lg border border-[var(--line)] bg-[var(--panel)] p-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-colors hover:border-[var(--line-strong)]"
     >
       <Thumb p={p} className="mb-2.5 block aspect-[16/9] w-full rounded-md border border-[var(--line)]" />
@@ -318,15 +320,15 @@ function ProjectTable({
   const cell = "focus-ring rounded-md border border-transparent bg-transparent px-1.5 py-1 text-[13px] transition-colors hover:border-[var(--line-strong)] focus:border-accent/60 disabled:hover:border-transparent";
   return (
     <div className="overflow-x-auto rounded-xl border border-[var(--line)] bg-[var(--panel)]">
-      <table className="w-full min-w-[980px] text-left text-[13px]">
+      <table className="w-full text-left text-[13px] md:min-w-[980px]">
         <thead className="border-b border-[var(--line)] text-[12px] text-muted">
           <tr>
             <th className="px-4 py-2.5 font-medium">Proyecto</th>
             <th className="px-2 py-2.5 font-medium">Etapa</th>
-            <th className="px-2 py-2.5 font-medium">Responsable</th>
-            <th className="w-[170px] px-2 py-2.5 font-medium">Avance</th>
+            <th className="max-md:hidden px-2 py-2.5 font-medium">Responsable</th>
+            <th className="max-md:hidden w-[170px] px-2 py-2.5 font-medium">Avance</th>
             <th className="px-2 py-2.5 font-medium">Entrega</th>
-            <th className="px-4 py-2.5 text-right font-medium">Archivos</th>
+            <th className="max-md:hidden px-4 py-2.5 text-right font-medium">Archivos</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--line)]">
@@ -356,7 +358,7 @@ function ProjectTable({
                   ))}
                 </select>
               </td>
-              <td className="px-2 py-2">
+              <td className="max-md:hidden px-2 py-2">
                 <span className="flex items-center gap-1">
                   <Face who={s.owner} size={20} />
                   <select
@@ -375,7 +377,7 @@ function ProjectTable({
                   </select>
                 </span>
               </td>
-              <td className="px-2 py-2">
+              <td className="max-md:hidden px-2 py-2">
                 <ProgressInput value={s.progress} accent={p.accent} disabled={!editable} onSave={(v) => onSave(p, { progress: v })} />
               </td>
               <td className="px-2 py-2">
@@ -390,7 +392,7 @@ function ProjectTable({
                   />
                 </span>
               </td>
-              <td className="px-4 py-2 text-right text-[13px] text-muted tabular-nums">{p.files || "—"}</td>
+              <td className="max-md:hidden px-4 py-2 text-right text-[13px] text-muted tabular-nums">{p.files || "—"}</td>
             </tr>
           ))}
         </tbody>

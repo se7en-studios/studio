@@ -165,6 +165,14 @@ const TONE: Record<NonNullable<Tone>, string> = {
   green: "text-emerald-300",
 };
 
+/**
+ * Fila de Kpi. En el celular es una tira que se desliza de costado (no una
+ * grilla de 2×3 que empuja todo para abajo); desde md, grilla. Se le suman las
+ * columnas de md/xl.
+ */
+export const kpiRow =
+  "-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] *:w-[44%] *:shrink-0 *:snap-start md:mx-0 md:grid md:overflow-visible md:px-0 md:pb-0 md:*:w-auto";
+
 /** Número grande con etiqueta. Con `href` es un link. */
 export function Kpi({
   label,

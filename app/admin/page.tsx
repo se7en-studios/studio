@@ -20,7 +20,7 @@ import { bucket, dayKey, dueLabel, type Task, type TaskLinks } from "@/lib/admin
 import { listTasks, taskLinks } from "@/lib/admin/tasks";
 import { Attention } from "./attention";
 import { EventList } from "./feed";
-import { Card, CardLink, Empty, Face, Kpi, PageHeader, Progress, StatusPill, btnPrimary, btnSecondary, cn, usdShort } from "./kit";
+import { Card, CardLink, Empty, Face, Kpi, PageHeader, Progress, StatusPill, btnPrimary, btnSecondary, cn, kpiRow, usdShort } from "./kit";
 import { MyTasks } from "./tareas/my-tasks";
 import { AdminGate, SetupNotice } from "./ui";
 
@@ -138,7 +138,7 @@ export default async function AdminHome() {
 
       {setup && <SetupNotice reason={setup} />}
 
-      <div className={cn("grid grid-cols-2 gap-3 md:grid-cols-3", unpaid ? "xl:grid-cols-6" : "xl:grid-cols-5")}>
+      <div className={cn(kpiRow, "md:grid-cols-3", unpaid ? "xl:grid-cols-6" : "xl:grid-cols-5")}>
         <Kpi label="Sin responder" value={hasDb ? fresh : "—"} tone={fresh ? "accent" : undefined} href="/admin/pedidos" hint="Pedidos nuevos" />
         <Kpi label="Valor en juego" value={usdShort(pipeline)} href="/admin/metricas" hint="Contactados + propuesta" />
         <Kpi label="Ganado este mes" value={usdShort(wonMonth)} tone={wonMonth ? "green" : undefined} href="/admin/metricas" />

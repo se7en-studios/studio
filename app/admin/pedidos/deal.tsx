@@ -116,14 +116,14 @@ export function DealFields({
                 rel="noopener noreferrer"
                 className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-[#25D366]/40 px-2.5 py-1 text-[12px] text-[#25D366] hover:bg-[#25D366]/10"
               >
-                <MessageCircle size={13} /> Abrir WhatsApp
+                <MessageCircle size={14} /> Abrir WhatsApp
               </a>
             )}
             <a
               href={`tel:${lead.phone.replace(/[^\d+]/g, "")}`}
               className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-[var(--line-strong)] px-2.5 py-1 text-[12px] text-muted hover:text-foreground"
             >
-              <Phone size={13} /> Llamar
+              <Phone size={14} /> Llamar
             </a>
           </div>
         )}

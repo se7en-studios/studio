@@ -51,7 +51,7 @@ export function Payments({
   function add(e: React.FormEvent) {
     e.preventDefault();
     const n = Number(amount);
-    if (!(n > 0)) return flash("Poné un monto.");
+    if (!(n > 0)) return flash("Poné un monto.", "error");
     const temp: Payment = {
       id: `tmp-${Date.now()}`,
       created_at: new Date().toISOString(),
@@ -78,6 +78,7 @@ export function Payments({
         setItems((xs) => xs.filter((x) => x.id !== temp.id));
         flash(
           err instanceof Error ? err.message : "No se pudo guardar el cobro.",
+          "error",
         );
       }
     });
@@ -95,6 +96,7 @@ export function Payments({
         );
         flash(
           err instanceof Error ? err.message : "No se pudo borrar el cobro.",
+          "error",
         );
       }
     });
@@ -201,7 +203,7 @@ export function Payments({
                 aria-label={`Borrar cobro de ${usd(p.amount)}`}
                 className="focus-ring rounded p-1 text-muted opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-400 focus-visible:opacity-100 max-md:opacity-100"
               >
-                <Trash2 size={13} />
+                <Trash2 size={14} />
               </button>
             </li>
           ))}

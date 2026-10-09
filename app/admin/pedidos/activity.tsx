@@ -24,11 +24,11 @@ import { dayKey } from "@/lib/admin/task-shared";
 import { Chip, Face, label } from "../kit";
 
 export const ACTIVITY_ICON: Record<ActivityKind, React.ReactNode> = {
-  llamada: <Phone size={13} />,
-  mail: <Mail size={13} />,
-  whatsapp: <MessageCircle size={13} />,
-  reunion: <Users size={13} />,
-  nota: <StickyNote size={13} />,
+  llamada: <Phone size={14} />,
+  mail: <Mail size={14} />,
+  whatsapp: <MessageCircle size={14} />,
+  reunion: <Users size={14} />,
+  nota: <StickyNote size={14} />,
 };
 
 const PLACEHOLDER: Record<ActivityKind, string> = {
