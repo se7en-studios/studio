@@ -36,6 +36,7 @@ import { ActivityLog } from "./pedidos/activity";
 import { deleteActivity, logActivity, setContact, setValue, type ContactFields } from "./pedidos/actions";
 import { DealFields } from "./pedidos/deal";
 import { NewLeadButton } from "./pedidos/new-lead";
+import { WonProject } from "./pedidos/won-project";
 import { downloadCsv } from "./pedidos/csv";
 import { QuickAdd, TaskDrawer, TaskRow } from "./tareas/task-ui";
 import { useTasks, type TasksApi } from "./tareas/use-tasks";
@@ -70,6 +71,7 @@ export function Dashboard({
   error,
   tasks: initialTasks,
   activities: initialActivities,
+  projectOf,
   me,
   initialOpen = null,
   initialCold = false,
@@ -82,6 +84,8 @@ export function Dashboard({
   tasks: { list: Task[]; links: TaskLinks } | null;
   /** null si falta la tabla del historial (crm.sql): la ficha lo oculta. */
   activities: Activity[] | null;
+  /** pedido → slug de su proyecto. null si falta panel-v2.sql: la ficha no ofrece crear proyecto. */
+  projectOf: Record<string, string> | null;
   me: LeadOwner;
   /** Desde un link (?pedido=<id>): abre esa ficha. */
   initialOpen?: string | null;
@@ -382,6 +386,7 @@ export function Dashboard({
           onNotes={(n) => update(open.id, { notes: n }, () => setNotes(open.id, n))}
           onDelete={() => remove(open.id)}
           onCopied={() => flash("Copiado")}
+          projectSlug={projectOf ? projectOf[open.id] ?? null : undefined}
           followUp={initialTasks ? { api: taskApi, links: initialTasks.links, me } : null}
           deal={{
             onContact: (f) => update(open.id, f, () => setContact(open.id, f)),
@@ -602,10 +607,13 @@ function Detail({
   onNotes,
   onDelete,
   onCopied,
+  projectSlug,
   followUp,
   deal,
   history,
 }: {
+  /** undefined: no se puede crear proyecto (falta panel-v2.sql). */
+  projectSlug?: string | null;
   followUp: { api: TasksApi; links: TaskLinks; me: LeadOwner } | null;
   deal: { onContact: (f: ContactFields) => void; onValue: (v: number | null) => void };
   history: {
@@ -699,6 +707,8 @@ function Detail({
             <p className="text-[11px] font-medium tracking-wide text-accent uppercase">Próximo paso</p>
             <p className="mt-1 text-[13.5px]">{nextStep(lead)}</p>
           </div>
+
+          {lead.status === "ganado" && projectSlug !== undefined && <WonProject leadId={lead.id} slug={projectSlug} />}
 
           {/* Responder */}
           <div className="mt-4 flex flex-wrap gap-2">

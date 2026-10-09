@@ -1,8 +1,8 @@
 // «Para atender» en Inicio: lo que se está enfriando, en un solo lugar.
 // Componente de servidor; cada fila lleva directo a la ficha o al filtro.
 import Link from "next/link";
-import { AlertCircle, BellRing, Inbox, Snowflake } from "lucide-react";
-import { Card, CardLink } from "./kit";
+import { AlertCircle, BellRing, Inbox, Snowflake, Wallet } from "lucide-react";
+import { Card, CardLink, usd } from "./kit";
 import { ago } from "@/lib/admin/brief";
 import type { Lead } from "@/lib/admin/db";
 import {
@@ -27,7 +27,10 @@ export function Attention({
   activities,
   overdueTasks,
   now,
+  unpaid = [],
 }: {
+  /** Proyectos entregados (o en mantenimiento) con saldo sin cobrar. */
+  unpaid?: { slug: string; name: string; left: number }[];
   leads: Lead[];
   activities: Activity[] | null;
   overdueTasks: number;
@@ -43,6 +46,14 @@ export function Attention({
     .sort((a, b) => b.days - a.days);
 
   const rows: Row[] = [
+    ...unpaid.map((x) => ({
+      id: `u-${x.slug}`,
+      href: `/admin/proyectos/${x.slug}`,
+      icon: <Wallet size={14} />,
+      title: x.name,
+      detail: `Entregado · falta cobrar ${usd(x.left)}`,
+      tone: "text-amber-300",
+    })),
     ...fresh.map((l) => ({
       id: `n-${l.id}`,
       href: `/admin/pedidos?pedido=${l.id}`,
@@ -70,7 +81,7 @@ export function Attention({
       action={cold.length > 0 && <CardLink href="/admin/pedidos?frios=1">Ver fríos →</CardLink>}
     >
       {total === 0 ? (
-        <p className="px-4 py-5 text-[13px] text-muted">Todo al día: nada sin responder ni enfriándose.</p>
+        <p className="px-4 py-5 text-[13px] text-muted">Todo al día: nada sin responder, enfriándose ni sin cobrar.</p>
       ) : (
         <ul className="divide-y divide-[var(--line)]">
           {overdueTasks > 0 && (

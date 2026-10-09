@@ -326,6 +326,9 @@ export async function removeProject(slug: string): Promise<{ name: string; files
   // Si panel-v2.sql todavía no corrió no hay nada que limpiar.
   const state = await c.from("panel_project_state").delete().eq("slug", slug);
   if (state.error && state.error.code !== "PGRST205" && state.error.code !== "42P01") fail(state.error);
+  // Lo mismo con los cobros (payments.sql): sin FK, quedarían colgados del slug.
+  const paid = await c.from("panel_payments").delete().eq("project_slug", slug);
+  if (paid.error && paid.error.code !== "PGRST205" && paid.error.code !== "42P01") fail(paid.error);
 
   const del = await c.from("panel_projects").delete().eq("slug", slug);
   if (del.error) fail(del.error);

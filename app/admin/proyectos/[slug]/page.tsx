@@ -23,6 +23,8 @@ import {
 import { PEOPLE } from "@/lib/admin/people";
 import { defaultState, type ProjectState } from "@/lib/admin/project-shared";
 import { getState } from "@/lib/admin/projects";
+import { listPayments } from "@/lib/admin/payments";
+import type { Payment } from "@/lib/admin/payment-shared";
 import type { Task, TaskLinks } from "@/lib/admin/task-shared";
 import { listTasks, taskLinks } from "@/lib/admin/tasks";
 import { EventList } from "../../feed";
@@ -31,6 +33,7 @@ import { Chat } from "../../mensajes/chat";
 import { AdminGate, SetupNotice, bytes } from "../../ui";
 import { DeleteProject } from "./delete-project";
 import { FileCard } from "./file-card";
+import { Payments } from "./payments";
 import { ProjectTasks } from "./project-tasks";
 import { EditInfo, StatePanel } from "./state-panel";
 import { Uploader } from "./uploader";
@@ -79,7 +82,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
   if (!project) return <SetupNotice reason={setup ?? ""} />;
 
   // Sólo lo que necesita la pestaña abierta, y en paralelo.
-  const [stateR, filesR, tasksR, linksR, eventsR, countR] = await Promise.all([
+  const [stateR, filesR, tasksR, linksR, eventsR, countR, paymentsR] = await Promise.all([
     optional<ProjectState>(getState(slug, project.isCase), defaultState(slug, project.isCase)),
     tab === "archivos" ? optional<PanelFile[]>(listFiles(slug), []) : null,
     tab === "resumen" ? optional<Task[] | null>(listTasks({ projectSlug: slug }), null) : null,
@@ -91,6 +94,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
     // que pedirla. Va un count sin filas y no listFiles, que firmaría una URL
     // por archivo para terminar usando nada más que el largo.
     tab !== "archivos" ? optional<number>(countFiles(slug), 0) : null,
+    tab === "resumen" ? optional<Payment[]>(listPayments(slug), []) : null,
   ]);
   const state = stateR.value;
   // No sale de project.files: getProject arma la ficha sin estadísticas y ese
@@ -201,6 +205,11 @@ export default async function ProjectPage({ params, searchParams }: Props) {
               editable={!stateR.missing}
             />
             <div className="min-w-0 space-y-4">
+              {paymentsR?.missing ? (
+                <SetupNotice reason={paymentsR.missing} />
+              ) : (
+                <Payments slug={project.slug} budget={state.budget} initial={paymentsR?.value ?? []} me={me.who} accent={project.accent} />
+              )}
               {tasksR?.value ? (
                 <ProjectTasks slug={project.slug} tasks={tasksR.value} links={linksR?.value ?? { leads: [], projects: [] }} me={me.who} owner={state.owner} />
               ) : null}
