@@ -21,7 +21,7 @@ const CHANNEL_LABEL: Record<(typeof MANUAL_CHANNELS)[number], string> = {
 };
 
 const input =
-  "focus-ring mt-1 w-full rounded-lg border border-[var(--line-strong)] bg-black/30 px-3 py-2 text-[13px] text-foreground placeholder:text-muted/50 focus:border-accent/70";
+  "focus-ring mt-1 w-full rounded-lg border border-[var(--line-strong)] bg-[var(--well)] px-3 py-2 text-[13px] text-foreground placeholder:text-muted/50 focus:border-accent/70";
 const label = "text-[11px] font-medium tracking-wide text-muted uppercase";
 
 export function NewLeadButton({

@@ -71,8 +71,8 @@ export function EventList({
     <div className="space-y-6">
       {days.map((d) => (
         <section key={d.label}>
-          <h2 className="sticky top-14 z-10 mb-2 bg-[#08080a]/90 px-1 py-1 text-[12px] font-medium text-muted backdrop-blur first-letter:uppercase lg:top-0">
-            {d.label} <span className="ml-1 font-mono text-[10.5px] text-muted/60">{d.items.length}</span>
+          <h2 className="sticky top-14 z-10 mb-2 bg-[var(--bg)]/90 px-1 py-1 text-[12px] font-medium text-muted backdrop-blur first-letter:uppercase lg:top-0">
+            {d.label} <span className="ml-1 font-mono text-[11px] text-muted/60">{d.items.length}</span>
           </h2>
           <ul className="divide-y divide-[var(--line)] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)]">
             {d.items.map(row)}
@@ -132,7 +132,7 @@ function Row({
             )}
           </div>
         )}
-        <p className="mt-1 flex items-center gap-2 text-[11.5px] text-muted">
+        <p className="mt-1 flex items-center gap-2 text-[12px] text-muted">
           <span>{KIND_LABEL[e.kind]}</span>
           <span className="text-muted/40">·</span>
           <time dateTime={e.created_at} title={new Date(e.created_at).toLocaleString("es-AR", { timeZone: TZ })}>
@@ -154,7 +154,7 @@ function Row({
 
 export function Changes({ changes }: { changes: Change[] }) {
   return (
-    <ul className="mt-2 space-y-1 rounded-lg border border-[var(--line)] bg-black/20 px-3 py-2">
+    <ul className="mt-2 space-y-1 rounded-lg border border-[var(--line)] bg-[var(--well-soft)] px-3 py-2">
       {changes.map((c, i) => (
         <li key={`${c.field}-${i}`} className="grid grid-cols-[minmax(0,110px)_minmax(0,1fr)] items-baseline gap-3 text-[12px]">
           <span className="truncate text-muted">{c.label}</span>

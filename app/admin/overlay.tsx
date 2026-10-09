@@ -160,7 +160,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         <p
           key={toast.id}
           role="status"
-          className="admin-pop fixed bottom-5 left-1/2 z-[90] -translate-x-1/2 rounded-lg border border-[var(--line-strong)] bg-[#18181b] px-3.5 py-2 text-[13px] text-foreground shadow-[0_20px_50px_-10px_rgba(0,0,0,0.7)]"
+          className="admin-pop fixed bottom-5 left-1/2 z-[90] -translate-x-1/2 rounded-lg border border-[var(--line-strong)] bg-[var(--panel-3)] px-3.5 py-2 text-[13px] text-foreground shadow-[0_20px_50px_-10px_rgba(0,0,0,0.7)]"
         >
           {toast.msg}
         </p>

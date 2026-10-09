@@ -108,7 +108,7 @@ export function AdminShell({ who, children }: { who: LeadOwner; children: React.
     <PulseCtx.Provider value={{ pulse, refresh }}>
       <ToastProvider>
         <div className="admin-app min-h-dvh text-foreground">
-          <aside className="fixed inset-y-0 left-0 z-40 hidden w-[244px] border-r border-[var(--line)] bg-[#0a0a0c] lg:block">
+          <aside className="fixed inset-y-0 left-0 z-40 hidden w-[244px] border-r border-[var(--line)] bg-[var(--panel-0)] lg:block">
             {sidebar}
           </aside>
 
@@ -117,7 +117,7 @@ export function AdminShell({ who, children }: { who: LeadOwner; children: React.
               <button aria-label="Cerrar menú" onClick={() => setMenu(false)} className="admin-overlay absolute inset-0 bg-black/60" />
               <aside
                 onClickCapture={(e) => (e.target as HTMLElement).closest("a") && setMenu(false)}
-                className="admin-drawer absolute inset-y-0 left-0 w-[272px] border-r border-[var(--line)] bg-[#0a0a0c] [animation-name:admin-fade]"
+                className="admin-drawer absolute inset-y-0 left-0 w-[272px] border-r border-[var(--line)] bg-[var(--panel-0)] [animation-name:admin-fade]"
               >
                 {sidebar}
               </aside>
@@ -125,7 +125,7 @@ export function AdminShell({ who, children }: { who: LeadOwner; children: React.
           )}
 
           <div className="lg:pl-[244px]">
-            <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-[var(--line)] bg-[#08080a]/90 px-3 backdrop-blur lg:hidden">
+            <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-[var(--line)] bg-[var(--bg)]/90 px-3 backdrop-blur lg:hidden">
               <button onClick={() => setMenu(true)} aria-label="Abrir menú" className="focus-ring relative rounded-lg p-2 text-muted hover:text-foreground">
                 <Menu size={18} />
                 {total > 0 && <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-accent" />}
@@ -201,7 +201,7 @@ function Sidebar({
                       href={item.href}
                       aria-current={on ? "page" : undefined}
                       className={cn(
-                        "focus-ring group flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13.5px] transition-colors",
+                        "focus-ring group flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[14px] transition-colors",
                         on ? "bg-white/[0.07] text-foreground" : "text-muted hover:bg-white/[0.04] hover:text-foreground",
                       )}
                     >
@@ -211,7 +211,7 @@ function Sidebar({
                       {n > 0 && (
                         <span
                           className={cn(
-                            "ml-auto min-w-[20px] rounded-full px-1.5 py-px text-center font-mono text-[10.5px] font-medium",
+                            "ml-auto min-w-[20px] rounded-full px-1.5 py-px text-center font-mono text-[11px] font-medium",
                             item.tone === "red" ? "bg-red-500/15 text-red-300" : "bg-accent text-background",
                           )}
                         >
@@ -237,7 +237,7 @@ function Sidebar({
         <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
           <span className="relative">
             <Face who={who} size={28} />
-            <span className="absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#0a0a0c] bg-emerald-400" />
+            <span className="absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--panel-0)] bg-emerald-400" />
           </span>
           <span className="min-w-0 flex-1 leading-tight">
             <span className="block truncate text-[13px] font-medium">{PEOPLE[who].name}</span>

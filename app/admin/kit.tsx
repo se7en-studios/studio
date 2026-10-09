@@ -9,17 +9,83 @@ import { PROJECT_STATUS, type ProjectStatus } from "@/lib/admin/project-shared";
 
 export const cn = (...xs: (string | false | null | undefined)[]) => xs.filter(Boolean).join(" ");
 
+/*
+ * Reglas del sistema (que cada pantalla nueva no reinvente):
+ * - Texto: 11 (etiquetas, meta chica) · 12 (meta) · 13 (cuerpo) · 14 (cuerpo
+ *   destacado) · 20 (títulos de sección) · 24/28 (título de página). Nada de
+ *   medios píxeles.
+ * - Radios: `rounded-md` chips y controles adentro de otro control ·
+ *   `rounded-lg` botones, inputs y tarjetas chicas · `rounded-xl` tarjetas y
+ *   paneles · `rounded-2xl` sólo diálogos.
+ * - Fondos: los tokens de .admin-app en globals.css (--bg, --panel-0…3,
+ *   --well). Nada de hex sueltos.
+ * - El acento es para la acción principal, lo nuevo y lo no leído.
+ */
+
 /** Botones. `btn` + una variante. */
 export const btn =
   "focus-ring inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-40";
-export const btnPrimary = `${btn} bg-accent text-background shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_1px_2px_rgba(0,0,0,0.4)] hover:bg-[#ff6347]`;
+export const btnPrimary = `${btn} bg-accent text-background shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_1px_2px_rgba(0,0,0,0.4)] hover:bg-[var(--accent-hover)]`;
 export const btnSecondary = `${btn} border border-[var(--line-strong)] bg-white/[0.03] text-foreground hover:bg-white/[0.07]`;
 export const btnGhost = `${btn} text-muted hover:bg-white/[0.05] hover:text-foreground`;
 export const btnDanger = `${btn} bg-red-500/90 text-white hover:bg-red-500`;
 
 export const input =
-  "focus-ring w-full rounded-lg border border-[var(--line-strong)] bg-black/30 px-3 py-2 text-[13px] text-foreground placeholder:text-muted/60 transition-colors focus:border-accent/70 focus:bg-black/40";
+  "focus-ring w-full rounded-lg border border-[var(--line-strong)] bg-[var(--well)] px-3 py-2 text-[13px] text-foreground placeholder:text-muted/60 transition-colors focus:border-accent/70 focus:bg-black/40";
 export const label = "mb-1.5 block text-[11px] font-medium tracking-wide text-muted uppercase";
+/** El input de búsqueda: va adentro de un <label className="relative …"> con el ícono de lupa en left-3. */
+export const searchInput =
+  "focus-ring w-full rounded-lg border border-[var(--line)] bg-[var(--panel)] py-2 pr-3 pl-9 text-[13px] text-foreground placeholder:text-muted/70 focus:border-accent/60";
+
+/** Elegir una opción entre pocas (vista, período, filtro). */
+export function Segmented<T extends string>({
+  value,
+  onChange,
+  options,
+  label: aria,
+}: {
+  value: T;
+  onChange: (v: T) => void;
+  options: readonly { id: T; label: React.ReactNode }[];
+  label?: string;
+}) {
+  return (
+    <div className="flex rounded-lg border border-[var(--line)] bg-[var(--panel)] p-0.5 text-[13px]" role="group" aria-label={aria}>
+      {options.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          onClick={() => onChange(o.id)}
+          aria-pressed={value === o.id}
+          className={cn(
+            "focus-ring flex items-center rounded-md px-2.5 py-1.5 whitespace-nowrap transition-colors",
+            value === o.id ? "bg-white/[0.08] text-foreground" : "text-muted hover:text-foreground",
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Botón-pastilla que se prende (etapa, responsable, tipo de contacto). */
+export function Chip({ on, onClick, children, className }: { on: boolean; onClick: () => void; children: React.ReactNode; className?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      className={cn(
+        "focus-ring inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[12px] transition-colors",
+        on ? "border-accent/60 bg-accent/15 text-foreground" : "border-[var(--line-strong)] text-muted hover:bg-white/[0.04] hover:text-foreground",
+        className,
+      )}
+    >
+      {children}
+    </button>
+  );
+}
 
 export function PageHeader({
   title,
@@ -36,8 +102,8 @@ export function PageHeader({
     <header className="flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
         {eyebrow && <p className="mb-1.5 text-[12px] text-muted">{eyebrow}</p>}
-        <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em] text-foreground md:text-[30px]">{title}</h1>
-        {children && <p className="mt-1.5 max-w-2xl text-[13.5px] leading-relaxed text-muted">{children}</p>}
+        <h1 className="text-[24px] leading-tight font-semibold tracking-[-0.02em] text-foreground md:text-[28px]">{title}</h1>
+        {children && <p className="mt-1.5 max-w-2xl text-[14px] leading-relaxed text-muted">{children}</p>}
       </div>
       {right && <div className="flex flex-wrap items-center gap-2">{right}</div>}
     </header>
@@ -72,7 +138,7 @@ export function Card({
             {icon && <span className="text-muted">{icon}</span>}
             <span className="truncate">{title}</span>
             {count !== undefined && count !== null && (
-              <span className="rounded-md bg-white/[0.06] px-1.5 py-px font-mono text-[10.5px] text-muted">{count}</span>
+              <span className="rounded-md bg-white/[0.06] px-1.5 py-px font-mono text-[11px] text-muted">{count}</span>
             )}
           </h2>
           {action}
@@ -124,7 +190,7 @@ export function Kpi({
       <p className={cn("mt-2 text-[24px] leading-none font-semibold tracking-[-0.02em] tabular-nums", tone ? TONE[tone] : "text-foreground")}>
         {value}
       </p>
-      {hint && <p className="mt-2 truncate text-[11.5px] text-muted">{hint}</p>}
+      {hint && <p className="mt-2 truncate text-[12px] text-muted">{hint}</p>}
     </>
   );
   const cls =
@@ -157,7 +223,7 @@ export function Face({ who, size = 22, ring }: { who: LeadOwner | null; size?: n
     return (
       <span
         title={p.name}
-        className="flex shrink-0 items-center justify-center rounded-full bg-white/10 text-[10px] text-foreground"
+        className="flex shrink-0 items-center justify-center rounded-full bg-white/10 text-[11px] text-foreground"
         style={{ width: size, height: size }}
       >
         {p.name[0]}
@@ -203,14 +269,14 @@ export function Empty({ icon, title, children }: { icon?: React.ReactNode; title
         </span>
       )}
       <p className="text-[13px] font-medium text-foreground">{title}</p>
-      {children && <p className="mt-1 max-w-sm text-[12.5px] text-muted">{children}</p>}
+      {children && <p className="mt-1 max-w-sm text-[13px] text-muted">{children}</p>}
     </div>
   );
 }
 
 export function Kbd({ children }: { children: React.ReactNode }) {
   return (
-    <kbd className="rounded border border-[var(--line-strong)] bg-white/[0.04] px-1 py-px font-mono text-[10px] text-muted">{children}</kbd>
+    <kbd className="rounded border border-[var(--line-strong)] bg-white/[0.04] px-1 py-px font-mono text-[11px] text-muted">{children}</kbd>
   );
 }
 
@@ -239,7 +305,7 @@ export function TabLinks({
               )}
             >
               {t.label}
-              {t.count !== undefined && t.count > 0 && <span className="font-mono text-[10.5px] text-muted">{t.count}</span>}
+              {t.count !== undefined && t.count > 0 && <span className="font-mono text-[11px] text-muted">{t.count}</span>}
               {on && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-accent" />}
             </Link>
           );

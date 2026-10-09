@@ -5,6 +5,7 @@ import type { Lead, LeadStatus } from "@/lib/admin/db";
 import type { Activity } from "@/lib/admin/activity-shared";
 import { PEOPLE } from "@/lib/admin/people";
 import { computeMetrics, type Group } from "@/lib/admin/metrics";
+import { Segmented } from "../kit";
 
 // Métricas del CRM: cuántos pedidos llegan, cuántos se cierran, cuánto vale y
 // qué canal rinde. Una sola serie por gráfico, en el naranja de la marca, con
@@ -68,26 +69,7 @@ export function MetricsView({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
-        <div
-          className="flex rounded-lg border border-[var(--line)] bg-[var(--panel)] p-0.5 text-[13px]"
-          role="group"
-          aria-label="Período"
-        >
-          {RANGES.map((r) => (
-            <button
-              key={r.id}
-              onClick={() => setRange(r.id)}
-              aria-pressed={range === r.id}
-              className={`focus-ring rounded-md px-3 py-1.5 whitespace-nowrap transition-colors ${
-                range === r.id
-                  ? "bg-white/[0.08] text-foreground"
-                  : "text-muted hover:text-foreground"
-              }`}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
+        <Segmented value={range} onChange={setRange} label="Período" options={RANGES} />
         <p className="text-xs text-muted">
           Según la fecha en que llegó cada pedido.
         </p>
@@ -219,7 +201,7 @@ function MonthBars({
             title={label}
             className="group flex h-full min-w-0 flex-1 flex-col items-center justify-end"
           >
-            <span className="mb-1 font-mono text-[10px] text-muted tabular-nums group-hover:text-foreground">
+            <span className="mb-1 font-mono text-[11px] text-muted tabular-nums group-hover:text-foreground">
               {d.leads || ""}
             </span>
             <span
@@ -230,7 +212,7 @@ function MonthBars({
               }}
             />
             <span className="mt-1.5 h-px w-full bg-border" aria-hidden />
-            <span className="mt-1.5 font-mono text-[10px] text-muted uppercase">
+            <span className="mt-1.5 font-mono text-[11px] text-muted uppercase">
               {monthLabel(d.month)}
             </span>
           </div>

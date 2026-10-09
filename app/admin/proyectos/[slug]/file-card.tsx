@@ -55,7 +55,7 @@ export function FileCard({
         ) : (
           <span className="flex h-full flex-col items-center justify-center gap-2 text-muted">
             <FileText size={28} strokeWidth={1.3} />
-            <span className="font-mono text-[10px] tracking-widest">{ext}</span>
+            <span className="font-mono text-[11px] tracking-widest">{ext}</span>
           </span>
         )}
         <span className="absolute top-2 right-2 rounded-full bg-background/80 p-1.5 text-foreground opacity-0 transition-opacity group-hover:opacity-100">
@@ -66,7 +66,7 @@ export function FileCard({
         <p className="truncate text-[13px] text-foreground" title={file.name}>
           {file.name}
         </p>
-        <p className="mt-0.5 truncate font-mono text-[10px] text-muted">
+        <p className="mt-0.5 truncate font-mono text-[11px] text-muted">
           {folder && `${folder} · `}
           {meta}
         </p>

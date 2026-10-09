@@ -105,7 +105,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
 
   return (
     <div className="space-y-6">
-      <nav aria-label="Ruta" className="flex items-center gap-1.5 text-[12.5px] text-muted">
+      <nav aria-label="Ruta" className="flex items-center gap-1.5 text-[13px] text-muted">
         <Link href="/admin/proyectos" className="focus-ring hover:text-foreground">
           Proyectos
         </Link>
@@ -119,7 +119,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
           {project.isCase && project.cover ? (
             <Image src={project.cover} alt="" fill sizes="280px" className="object-cover object-top" priority />
           ) : (
-            <span className="block h-full" style={{ background: `radial-gradient(120% 90% at 85% 0%, ${project.accent}77, transparent 60%), #101012` }} />
+            <span className="block h-full" style={{ background: `radial-gradient(120% 90% at 85% 0%, ${project.accent}77, transparent 60%), var(--panel-2)` }} />
           )}
         </div>
         <div className="min-w-0">
@@ -130,11 +130,11 @@ export default async function ProjectPage({ params, searchParams }: Props) {
               <span className="rounded-md bg-emerald-400/10 px-1.5 py-0.5 text-[11px] text-emerald-300 ring-1 ring-emerald-400/20 ring-inset">En la web</span>
             )}
           </div>
-          <h1 className="mt-2 flex items-center gap-3 text-[28px] leading-tight font-semibold tracking-[-0.02em] md:text-[34px]">
+          <h1 className="mt-2 flex items-center gap-3 text-[24px] leading-tight font-semibold tracking-[-0.02em] md:text-[28px]">
             <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: project.accent }} />
             {project.name}
           </h1>
-          {project.tagline && <p className="mt-1.5 max-w-xl text-[13.5px] text-muted">«{project.tagline}»</p>}
+          {project.tagline && <p className="mt-1.5 max-w-xl text-[14px] text-muted">«{project.tagline}»</p>}
 
           <dl className="mt-4 grid max-w-2xl grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
             <div>
@@ -293,7 +293,7 @@ function Files({
                 }`}
               >
                 {t.label}
-                <span className="font-mono text-[10.5px] opacity-60">{t.n}</span>
+                <span className="font-mono text-[11px] opacity-60">{t.n}</span>
               </Link>
             );
           })}
@@ -307,13 +307,13 @@ function Files({
               <span className="relative block aspect-[16/10]">
                 <Image src={project.cover} alt="" fill sizes="(min-width: 1024px) 33vw, 50vw" className="object-cover object-top" />
               </span>
-              <p className="p-3 text-[11.5px] text-muted">{project.cover.split("/").pop()} · captura del caso</p>
+              <p className="p-3 text-[12px] text-muted">{project.cover.split("/").pop()} · captura del caso</p>
             </li>
           )}
           {project.video && (
             <li className="overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--panel)]">
               <video src={project.video} muted loop playsInline autoPlay preload="metadata" className="aspect-[16/10] w-full object-cover" />
-              <p className="p-3 text-[11.5px] text-muted">{project.video.split("/").pop()} · clip de hover</p>
+              <p className="p-3 text-[12px] text-muted">{project.video.split("/").pop()} · clip de hover</p>
             </li>
           )}
         </ul>

@@ -6,7 +6,7 @@ import { OWNERS, type LeadOwner } from "@/lib/admin/db";
 import { PanelNotReady, listEvents, projectNames, type EventKind, type PanelEvent } from "@/lib/admin/panel";
 import { PEOPLE } from "@/lib/admin/people";
 import { EventList, KIND_LABEL } from "../feed";
-import { Face, PageHeader, btnSecondary, cn } from "../kit";
+import { Face, PageHeader, btnSecondary, cn, searchInput } from "../kit";
 import { AdminGate, SetupNotice } from "../ui";
 
 export const metadata: Metadata = { title: "Registro de cambios" };
@@ -66,7 +66,7 @@ export default async function CambiosPage({ searchParams }: { searchParams: Prom
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
           <div className="min-w-0 space-y-4 lg:order-1">
             {before && (
-              <p className="text-[12.5px] text-muted">
+              <p className="text-[13px] text-muted">
                 Mostrando lo anterior al {new Date(before).toLocaleString("es-AR", { dateStyle: "medium", timeStyle: "short" })}.{" "}
                 <Link href={href({ antes: undefined })} className="text-foreground underline underline-offset-4">
                   Volver a lo último
@@ -92,7 +92,7 @@ export default async function CambiosPage({ searchParams }: { searchParams: Prom
                 name="q"
                 defaultValue={q}
                 placeholder="Buscar en el registro…"
-                className="focus-ring w-full rounded-lg border border-[var(--line)] bg-[var(--panel)] py-2 pr-3 pl-9 text-[13px] placeholder:text-muted/70 focus:border-accent/60"
+                className={searchInput}
               />
             </form>
             <div>
