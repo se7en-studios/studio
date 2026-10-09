@@ -34,9 +34,22 @@ export function Avatar({ who, size = 26 }: { who: LeadOwner | null; size?: numbe
   return <Face who={who} size={size} />;
 }
 
+/** Qué crea cada migración, para decirlo en el aviso. */
+const SQL_WHAT: Record<string, React.ReactNode> = {
+  "panel.sql": (
+    <>
+      Crea las tablas y el bucket privado <code>panel</code>.
+    </>
+  ),
+  "panel-v2.sql": "Crea el estado de los proyectos, los mensajes y el detalle del registro de cambios.",
+  "payments.sql": "Crea la tabla de cobros de los proyectos.",
+};
+
 /** Falta la base o faltan las tablas del panel: cómo activarlo, sin romper la página. */
 export function SetupNotice({ reason }: { reason: string }) {
-  const v2 = /panel-v2/.test(reason);
+  // El mensaje nombra la migración que falta («Falta correr supabase/x.sql…»);
+  // si no nombra ninguna, es la base: panel.sql.
+  const file = /supabase\/([\w-]+\.sql)/.exec(reason)?.[1] ?? "panel.sql";
   return (
     <div className="rounded-xl border border-amber-400/25 bg-amber-400/[0.04] p-5">
       <p className="flex items-center gap-2 text-[13px] font-medium text-amber-300">
@@ -44,17 +57,7 @@ export function SetupNotice({ reason }: { reason: string }) {
       </p>
       <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-[13px] text-muted [&_code]:rounded [&_code]:bg-white/[0.06] [&_code]:px-1 [&_code]:text-foreground">
         <li>
-          {v2 ? (
-            <>
-              En Supabase → SQL Editor, pegar y correr <code>supabase/panel-v2.sql</code> del repo. Crea el estado de
-              los proyectos, los mensajes y el detalle del registro de cambios.
-            </>
-          ) : (
-            <>
-              En Supabase → SQL Editor, pegar y correr <code>supabase/panel.sql</code> del repo. Crea las tablas y el
-              bucket privado <code>panel</code>.
-            </>
-          )}
+          En Supabase → SQL Editor, pegar y correr <code>supabase/{file}</code> del repo. {SQL_WHAT[file]}
         </li>
         <li>
           Usa las mismas variables que los pedidos: <code>SUPABASE_URL</code> y <code>SUPABASE_SERVICE_ROLE_KEY</code> en
