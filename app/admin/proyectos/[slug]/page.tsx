@@ -109,7 +109,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
         <Link href="/admin/proyectos" className="focus-ring hover:text-foreground">
           Proyectos
         </Link>
-        <ChevronRight size={13} />
+        <ChevronRight size={14} />
         <span className="truncate text-foreground">{project.name}</span>
       </nav>
 
@@ -167,12 +167,12 @@ export default async function ProjectPage({ params, searchParams }: Props) {
           <div className="mt-4 flex flex-wrap items-center gap-2">
             {project.url && (
               <a href={project.url} target="_blank" rel="noopener" className={btnPrimary}>
-                Ver sitio <ArrowUpRight size={13} />
+                Ver sitio <ArrowUpRight size={14} />
               </a>
             )}
             {project.isCase && (
               <Link href={`/work/${project.slug}`} className={btnSecondary}>
-                Caso en la web <ArrowUpRight size={13} />
+                Caso en la web <ArrowUpRight size={14} />
               </Link>
             )}
             {!project.isCase && (

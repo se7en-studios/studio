@@ -13,7 +13,7 @@ import {
   type Task,
   type TaskLinks,
 } from "@/lib/admin/task-shared";
-import { Kpi, cn, searchInput } from "../kit";
+import { Kpi, cn, kpiRow, searchInput } from "../kit";
 import { useToast } from "../overlay";
 import { QuickAdd, TaskDrawer, TaskRow } from "./task-ui";
 import { useTasks } from "./use-tasks";
@@ -103,7 +103,7 @@ export function TasksBoard({
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className={cn(kpiRow, "md:grid-cols-4")}>
         <Kpi label="Vencidas" value={stats.overdue} tone={stats.overdue ? "red" : undefined} />
         <Kpi label="Para hoy" value={stats.today} tone={stats.today ? "accent" : undefined} />
         <Kpi label="Abiertas" value={stats.open} />

@@ -40,7 +40,7 @@ export function SetupNotice({ reason }: { reason: string }) {
   return (
     <div className="rounded-xl border border-amber-400/25 bg-amber-400/[0.04] p-5">
       <p className="flex items-center gap-2 text-[13px] font-medium text-amber-300">
-        <Database size={15} /> {reason}
+        <Database size={16} /> {reason}
       </p>
       <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-[13px] text-muted [&_code]:rounded [&_code]:bg-white/[0.06] [&_code]:px-1 [&_code]:text-foreground">
         <li>

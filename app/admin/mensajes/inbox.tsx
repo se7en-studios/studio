@@ -79,7 +79,7 @@ export function Inbox({
             aria-expanded={picking}
             className="focus-ring inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[12px] text-muted hover:bg-white/[0.05] hover:text-foreground"
           >
-            <Plus size={13} /> Nueva
+            <Plus size={14} /> Nueva
           </button>
         </div>
         {picking && <Picker projects={projects} leads={leads} onPick={open} />}
@@ -136,7 +136,7 @@ export function Inbox({
             ))}
           </select>
           <p className="hidden min-w-0 items-center gap-2 text-[14px] font-medium md:flex">
-            {parsed.kind === "general" ? <Hash size={15} className="text-muted" /> : null}
+            {parsed.kind === "general" ? <Hash size={16} className="text-muted" /> : null}
             <span className="truncate">{title(channel)}</span>
           </p>
           <span className="hidden text-[12px] text-muted lg:inline">
@@ -144,7 +144,7 @@ export function Inbox({
           </span>
           {link && (
             <Link href={link} className="focus-ring ml-auto inline-flex items-center gap-1 text-[12px] text-muted hover:text-foreground">
-              Abrir {parsed.kind} <ArrowUpRight size={13} />
+              Abrir {parsed.kind} <ArrowUpRight size={14} />
             </Link>
           )}
         </header>

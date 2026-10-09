@@ -29,7 +29,7 @@ import { coldDays, isContact, lastContacts, type Activity, type ActivityKind } f
 import { dealValue } from "@/lib/admin/metrics";
 import { deleteLead, setNotes, setOwner, setStatus } from "./actions";
 import { EventList } from "./feed";
-import { Chip, Face, Kpi, PageHeader, Segmented, btnDanger, btnGhost, btnPrimary, btnSecondary, cn, input, label as sectionLabel, searchInput, usd, usdShort } from "./kit";
+import { Chip, Face, Kpi, PageHeader, Segmented, btnDanger, btnGhost, btnPrimary, btnSecondary, cn, input, label as sectionLabel, kpiRow, searchInput, usd, usdShort } from "./kit";
 import { Chat } from "./mensajes/chat";
 import { Drawer, useStoredChoice, useToast } from "./overlay";
 import { ActivityLog } from "./pedidos/activity";
@@ -165,7 +165,7 @@ export function Dashboard({
           await save();
         } catch (e) {
           setLeads(before);
-          flash(e instanceof Error ? e.message : "No se pudo guardar");
+          flash(e instanceof Error ? e.message : "No se pudo guardar", "error");
         }
       });
     },
@@ -181,10 +181,10 @@ export function Dashboard({
     startTransition(async () => {
       try {
         await deleteLead(id);
-        flash("Pedido borrado");
+        flash("Pedido borrado", "ok");
       } catch {
         setLeads(before);
-        flash("No se pudo borrar");
+        flash("No se pudo borrar", "error");
       }
     });
   }
@@ -192,7 +192,7 @@ export function Dashboard({
   function addLead(lead: Lead) {
     setLeads((ls) => [lead, ...ls]);
     setOpenId(lead.id);
-    flash("Pedido cargado");
+    flash("Pedido cargado", "ok");
   }
 
   /** Registrar un contacto: optimista, y si el pedido era «Nuevo» pasa a «Contactado». */
@@ -211,7 +211,7 @@ export function Dashboard({
       } catch (e) {
         setActs(before.acts);
         setLeads(before.leads);
-        flash(e instanceof Error ? e.message : "No se pudo registrar");
+        flash(e instanceof Error ? e.message : "No se pudo registrar", "error");
       }
     });
   }
@@ -225,7 +225,7 @@ export function Dashboard({
         await deleteActivity(id);
       } catch (e) {
         setActs(before);
-        flash(e instanceof Error ? e.message : "No se pudo borrar");
+        flash(e instanceof Error ? e.message : "No se pudo borrar", "error");
       }
     });
   }
@@ -264,7 +264,7 @@ export function Dashboard({
       )}
 
       {/* Números */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <div className={cn(kpiRow, "md:grid-cols-3 xl:grid-cols-6")}>
         <Kpi label="Sin responder" value={stats.fresh} tone={stats.fresh > 0 ? "accent" : undefined} />
         <Kpi label="En curso" value={stats.active} />
         <button
@@ -273,7 +273,7 @@ export function Dashboard({
           title={`En curso y sin contacto hace ${COLD_HINT}. Tocá para filtrarlos.`}
           className={cn("focus-ring rounded-xl text-left", coldOnly && "ring-1 ring-amber-400/60")}
         >
-          <Kpi label={coldOnly ? "Fríos · filtrando" : "Fríos"} value={stats.cold} tone={stats.cold > 0 ? "amber" : undefined} icon={<Snowflake size={13} />} />
+          <Kpi label={coldOnly ? "Fríos · filtrando" : "Fríos"} value={stats.cold} tone={stats.cold > 0 ? "amber" : undefined} icon={<Snowflake size={14} />} />
         </button>
         <Kpi label="Valor en juego" value={usd(stats.pipeline)} />
         <Kpi label="Ganado" value={usd(stats.won)} tone={stats.won ? "green" : undefined} />
@@ -388,7 +388,7 @@ export function Dashboard({
           onOwner={(o) => update(open.id, { owner: o }, () => setOwner(open.id, o))}
           onNotes={(n) => update(open.id, { notes: n }, () => setNotes(open.id, n))}
           onDelete={() => remove(open.id)}
-          onCopied={() => flash("Copiado")}
+          onCopied={() => flash("Copiado", "ok")}
           projectSlug={projectOf ? projectOf[open.id] ?? null : undefined}
           followUp={initialTasks ? { api: taskApi, links: initialTasks.links, me } : null}
           deal={{
@@ -449,8 +449,12 @@ const LeadCard = memo(function LeadCard({
       onDragStart={(e) => {
         e.dataTransfer.setData(DRAG_TYPE, lead.id);
         e.dataTransfer.effectAllowed = "move";
+        e.currentTarget.dataset.dragging = "";
       }}
-      onDragEnd={onDragEnd}
+      onDragEnd={(e) => {
+        delete e.currentTarget.dataset.dragging;
+        onDragEnd();
+      }}
       className="group w-[268px] shrink-0 cursor-grab rounded-lg border border-[var(--line)] bg-[var(--panel)] p-3 shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_170px] hover:border-[var(--line-strong)] active:cursor-grabbing"
     >
       <button onClick={() => onOpen(lead.id)} className="focus-ring block w-full text-left">
@@ -516,15 +520,15 @@ function LeadTable({
   if (!sorted.length) return <p className="rounded-xl border border-dashed border-[var(--line)] px-4 py-12 text-center text-[13px] text-muted">Nada coincide.</p>;
   return (
     <div className="overflow-x-auto rounded-xl border border-[var(--line)] bg-[var(--panel)]">
-      <table className="w-full min-w-[860px] text-left text-[13px]">
+      <table className="w-full text-left text-[13px] md:min-w-[860px]">
         <thead className="border-b border-[var(--line)] text-[12px] text-muted">
           <tr>
             <th className="px-4 py-2.5 font-medium">Pedido</th>
             <th className="px-3 py-2.5 font-medium">Etapa</th>
-            <th className="px-3 py-2.5 font-medium">Responsable</th>
+            <th className="max-md:hidden px-3 py-2.5 font-medium">Responsable</th>
             <th className="px-3 py-2.5 text-right font-medium">Valor</th>
-            <th className="px-3 py-2.5 font-medium">Último contacto</th>
-            <th className="px-4 py-2.5 font-medium">Llegó</th>
+            <th className="max-md:hidden px-3 py-2.5 font-medium">Último contacto</th>
+            <th className="max-md:hidden px-4 py-2.5 font-medium">Llegó</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--line)]">
@@ -533,7 +537,7 @@ function LeadTable({
             const last = lastContact.get(l.id);
             return (
               <tr key={l.id} onClick={() => onOpen(l.id)} className="cursor-pointer transition-colors hover:bg-white/[0.025]">
-                <td className="max-w-[360px] px-4 py-2.5">
+                <td className="max-w-[360px] px-4 py-2.5 max-md:max-w-[180px]">
                   <button onClick={() => onOpen(l.id)} className="focus-ring block max-w-full text-left">
                     <span className="block truncate font-medium">
                       {l.name}
@@ -547,16 +551,16 @@ function LeadTable({
                     <span className={cn("h-1.5 w-1.5 rounded-full", STAGE[l.status].dot)} /> {STAGE[l.status].label}
                   </span>
                 </td>
-                <td className="px-3 py-2.5">
+                <td className="max-md:hidden px-3 py-2.5">
                   <span className="flex items-center gap-1.5 text-[13px] text-muted">
                     <Face who={l.owner} size={18} /> {l.owner ? PEOPLE[l.owner].name : "—"}
                   </span>
                 </td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{dealValue(l) ? usd(dealValue(l)) : "—"}</td>
-                <td className={cn("px-3 py-2.5 text-[13px]", cold !== null ? "text-amber-300" : "text-muted")}>
+                <td className={cn("max-md:hidden px-3 py-2.5 text-[13px]", cold !== null ? "text-amber-300" : "text-muted")}>
                   {cold !== null ? `Frío · ${cold} días` : last ? ago(last) : "—"}
                 </td>
-                <td className="px-4 py-2.5 text-[13px] text-muted">{ago(l.created_at)}</td>
+                <td className="max-md:hidden px-4 py-2.5 text-[13px] text-muted">{ago(l.created_at)}</td>
               </tr>
             );
           })}
@@ -635,9 +639,9 @@ function Detail({
   ];
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: "ficha", label: "Ficha", icon: <Inbox size={13} /> },
-    { id: "chat", label: "Conversación", icon: <MessagesSquare size={13} /> },
-    { id: "cambios", label: "Cambios", icon: <History size={13} /> },
+    { id: "ficha", label: "Ficha", icon: <Inbox size={14} /> },
+    { id: "chat", label: "Conversación", icon: <MessagesSquare size={14} /> },
+    { id: "cambios", label: "Cambios", icon: <History size={14} /> },
   ];
 
   return (
@@ -785,7 +789,7 @@ function Detail({
               </div>
             ) : (
               <button onClick={() => setConfirm(true)} className="focus-ring inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-red-400">
-                <Trash2 size={13} /> Borrar pedido
+                <Trash2 size={14} /> Borrar pedido
               </button>
             )}
           </div>
@@ -829,7 +833,7 @@ function SetupCard() {
   return (
     <div className="rounded-xl border border-amber-400/25 bg-amber-400/[0.04] p-5">
       <p className="flex items-center gap-2 text-[13px] font-medium text-amber-300">
-        <Database size={15} /> Falta conectar la base de datos: por ahora los pedidos no se guardan.
+        <Database size={16} /> Falta conectar la base de datos: por ahora los pedidos no se guardan.
       </p>
       <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-[13px] text-muted">
         <li>Crear un proyecto gratis en supabase.com.</li>

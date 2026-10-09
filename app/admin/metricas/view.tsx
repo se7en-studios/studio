@@ -5,7 +5,7 @@ import type { Lead, LeadStatus } from "@/lib/admin/db";
 import type { Activity } from "@/lib/admin/activity-shared";
 import { PEOPLE } from "@/lib/admin/people";
 import { computeMetrics, type Group } from "@/lib/admin/metrics";
-import { Card, Kpi, Segmented } from "../kit";
+import { Card, Kpi, Segmented, cn, kpiRow } from "../kit";
 
 // Métricas del CRM: cuántos pedidos llegan, cuántos se cierran, cuánto vale y
 // qué canal rinde. Una sola serie por gráfico, en el naranja de la marca, con
@@ -75,7 +75,7 @@ export function MetricsView({
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <div className={cn(kpiRow, "md:grid-cols-3 xl:grid-cols-6")}>
         <Kpi label="Pedidos" value={m.total} />
         <Kpi
           label="Tasa de cierre"

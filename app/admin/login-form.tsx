@@ -60,7 +60,7 @@ export function LoginForm() {
         className="focus-ring mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-medium text-background shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] transition-opacity disabled:opacity-60"
       >
         {pending ? "Entrando…" : "Entrar"}
-        <ArrowRight size={15} />
+        <ArrowRight size={16} />
       </button>
     </form>
   );

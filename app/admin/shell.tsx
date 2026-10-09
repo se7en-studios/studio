@@ -232,7 +232,7 @@ function Sidebar({
           href="/"
           className="focus-ring mb-1 flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground"
         >
-          <ArrowUpRight size={15} /> Ver el sitio
+          <ArrowUpRight size={16} /> Ver el sitio
         </Link>
         <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
           <span className="relative">
@@ -245,7 +245,7 @@ function Sidebar({
           </span>
           <form action={logout}>
             <button aria-label="Salir" title="Salir" className="focus-ring rounded-lg p-1.5 text-muted transition-colors hover:bg-white/[0.06] hover:text-foreground">
-              <LogOut size={15} />
+              <LogOut size={16} />
             </button>
           </form>
         </div>

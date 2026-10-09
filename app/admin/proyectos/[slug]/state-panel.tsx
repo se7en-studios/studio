@@ -34,7 +34,7 @@ export function StatePanel({
   const [, start] = useTransition();
 
   function save(patch: ProjectStateInput) {
-    if (!editable) return flash("Falta correr supabase/panel-v2.sql para guardar esto.");
+    if (!editable) return flash("Falta correr supabase/panel-v2.sql para guardar esto.", "error");
     const before = s;
     const next = { ...s, ...patch };
     if (patch.status === "entregado" && s.progress < 100 && patch.progress === undefined) {
@@ -47,7 +47,7 @@ export function StatePanel({
         setS(await updateProjectState(slug, patch));
       } catch (e) {
         setS(before);
-        flash(e instanceof Error ? e.message : "No se pudo guardar");
+        flash(e instanceof Error ? e.message : "No se pudo guardar", "error");
       }
     });
   }
@@ -130,7 +130,7 @@ export function StatePanel({
             </select>
             {s.lead_id && (
               <Link href={`/admin/pedidos?pedido=${s.lead_id}`} className={btnGhost}>
-                Abrir <ArrowUpRight size={13} />
+                Abrir <ArrowUpRight size={14} />
               </Link>
             )}
           </div>
@@ -216,7 +216,7 @@ export function EditInfo({
   if (!open) {
     return (
       <button onClick={() => setOpen(true)} className={btnGhost}>
-        <Pencil size={13} /> Editar datos
+        <Pencil size={14} /> Editar datos
       </button>
     );
   }
@@ -226,9 +226,9 @@ export function EditInfo({
         e.preventDefault();
         start(async () => {
           const r = await updateProjectInfo(slug, form);
-          if (r.error) flash(r.error);
+          if (r.error) flash(r.error, "error");
           else {
-            flash("Proyecto actualizado");
+            flash("Proyecto actualizado", "ok");
             setOpen(false);
             router.refresh();
           }

@@ -520,6 +520,13 @@ body:has(.admin-app)::after {
 .admin-pop {
   animation: admin-pop 0.2s var(--ease) both;
 }
+/* La tarjeta que se está arrastrando queda como hueco: se ve de dónde salió.
+   La franja destino ya se resalta sola (onDragOver). */
+.admin-app [data-dragging] {
+  opacity: 0.35;
+  outline: 1px dashed var(--line-strong);
+  outline-offset: -1px;
+}
 .admin-skeleton {
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 25%, rgba(255, 255, 255, 0.07) 50%, rgba(255, 255, 255, 0.03) 75%);
   background-size: 200% 100%;

@@ -503,7 +503,7 @@ export function TaskDrawer({
               onClick={() => setConfirm(true)}
               className="focus-ring inline-flex items-center gap-1.5 text-xs text-muted hover:text-red-400"
             >
-              <Trash2 size={13} /> Borrar tarea
+              <Trash2 size={14} /> Borrar tarea
             </button>
           )}
         </div>
