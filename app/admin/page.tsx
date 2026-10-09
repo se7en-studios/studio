@@ -14,11 +14,13 @@ import { PanelNotReady, caseProjects, listEvents, listProjects, type PanelEvent,
 import { PEOPLE } from "@/lib/admin/people";
 import { ACTIVE_STATUSES, defaultState, type ProjectState } from "@/lib/admin/project-shared";
 import { listStates } from "@/lib/admin/projects";
+import { paidBySlug } from "@/lib/admin/payments";
+import { balance } from "@/lib/admin/payment-shared";
 import { bucket, dayKey, dueLabel, type Task, type TaskLinks } from "@/lib/admin/task-shared";
 import { listTasks, taskLinks } from "@/lib/admin/tasks";
 import { Attention } from "./attention";
 import { EventList } from "./feed";
-import { Card, CardLink, Empty, Face, Kpi, PageHeader, Progress, StatusPill, btnPrimary, btnSecondary, cn, usdShort } from "./kit";
+import { Card, CardLink, Empty, Face, Kpi, PageHeader, Progress, StatusPill, btnPrimary, btnSecondary, cn, kpiRow, usdShort } from "./kit";
 import { MyTasks } from "./tareas/my-tasks";
 import { AdminGate, SetupNotice } from "./ui";
 
@@ -43,7 +45,7 @@ const TZ = "America/Argentina/Buenos_Aires";
  */
 async function loadHome(who: LeadOwner) {
   const hasDb = db() !== null;
-  const [leadsR, actsR, projectsR, statesR, eventsR, tasksR, linksR, chatsR] = await Promise.all([
+  const [leadsR, actsR, projectsR, statesR, eventsR, tasksR, linksR, chatsR, paidR] = await Promise.all([
     safe<Lead[]>(hasDb ? listLeads() : Promise.resolve([]), []),
     safe<Activity[] | null>(listActivity(), null),
     safe<PanelProject[]>(listProjects(), caseProjects()),
@@ -52,6 +54,7 @@ async function loadHome(who: LeadOwner) {
     safe<Task[] | null>(listTasks(), null),
     safe<TaskLinks>(taskLinks(), { leads: [], projects: [] }),
     safe<ChannelSummary[]>(channelSummaries(who), []),
+    safe<Map<string, number> | null>(paidBySlug(), null),
   ]);
 
   const leads = leadsR.value;
@@ -71,6 +74,15 @@ async function loadHome(who: LeadOwner) {
   const active = projects
     .filter(({ s }) => ACTIVE_STATUSES.includes(s.status))
     .sort((a, b) => (a.s.due ?? "9999").localeCompare(b.s.due ?? "9999"));
+  // Saldo de cada proyecto con monto acordado. null si falta payments.sql.
+  const paid = paidR.value;
+  const unpaid = paid
+    ? projects
+        .filter(({ s }) => s.status !== "pausado")
+        .map(({ p, s }) => ({ slug: p.slug, name: p.name, done: s.status === "entregado" || s.status === "mantenimiento", left: balance(s.budget, paid.get(p.slug) ?? 0) ?? 0 }))
+        .filter((x) => x.left > 0)
+        .sort((a, b) => b.left - a.left)
+    : null;
   const names = Object.fromEntries(projectsR.value.map((p) => [p.slug, p.name]));
   const leadNames = Object.fromEntries(leads.map((l) => [l.id, l.name]));
   const chats = [...chatsR.value].sort((a, b) => (b.last?.created_at ?? "").localeCompare(a.last?.created_at ?? "")).slice(0, 5);
@@ -81,7 +93,7 @@ async function loadHome(who: LeadOwner) {
   const hour = Number(new Date().toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit" }));
   const hello = hour < 13 ? "Buen día" : hour < 20 ? "Buenas tardes" : "Buenas noches";
 
-  return { hasDb, fresh, active, projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now, actsR, eventsR, linksR };
+  return { unpaid, hasDb, fresh, active, projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now, actsR, eventsR, linksR };
 }
 
 // Lo primero que se ve al entrar: qué está pendiente, cómo vienen los
@@ -92,7 +104,7 @@ export default async function AdminHome() {
 
   const d = await loadHome(me.who);
   const { hasDb, fresh, active, projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now } = d;
-  const { actsR, eventsR, linksR } = d;
+  const { actsR, eventsR, linksR, unpaid } = d;
 
   return (
     <div className="space-y-6">
@@ -103,7 +115,7 @@ export default async function AdminHome() {
           <>
             <Link href="/admin/mensajes" className={btnSecondary}>
               <MessagesSquare size={14} /> Mensajes
-              {unread > 0 && <span className="rounded-full bg-accent px-1.5 font-mono text-[10px] text-background">{unread}</span>}
+              {unread > 0 && <span className="rounded-full bg-accent px-1.5 font-mono text-[11px] text-background">{unread}</span>}
             </Link>
             <Link href="/admin/tareas?nueva=1" className={btnSecondary}>
               <Plus size={14} /> Tarea
@@ -126,10 +138,19 @@ export default async function AdminHome() {
 
       {setup && <SetupNotice reason={setup} />}
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <div className={cn(kpiRow, "md:grid-cols-3", unpaid ? "xl:grid-cols-6" : "xl:grid-cols-5")}>
         <Kpi label="Sin responder" value={hasDb ? fresh : "—"} tone={fresh ? "accent" : undefined} href="/admin/pedidos" hint="Pedidos nuevos" />
         <Kpi label="Valor en juego" value={usdShort(pipeline)} href="/admin/metricas" hint="Contactados + propuesta" />
         <Kpi label="Ganado este mes" value={usdShort(wonMonth)} tone={wonMonth ? "green" : undefined} href="/admin/metricas" />
+        {unpaid && (
+          <Kpi
+            label="Por cobrar"
+            value={usdShort(unpaid.reduce((n, x) => n + x.left, 0))}
+            tone={unpaid.some((x) => x.done) ? "amber" : undefined}
+            href="/admin/proyectos"
+            hint={unpaid.length ? `${unpaid.length} ${unpaid.length === 1 ? "proyecto" : "proyectos"} con saldo` : "Todo cobrado"}
+          />
+        )}
         <Kpi label="Proyectos en curso" value={active.length} href="/admin/proyectos" hint={`${projects.length} en total`} />
         <Kpi
           label="Tus tareas vencidas"
@@ -142,7 +163,7 @@ export default async function AdminHome() {
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-4">
-          {hasDb && <Attention leads={leads} activities={actsR.value} now={now} overdueTasks={overdue} />}
+          {hasDb && <Attention leads={leads} activities={actsR.value} now={now} overdueTasks={overdue} unpaid={unpaid?.filter((x) => x.done) ?? []} />}
 
           <Card
             title="Proyectos en curso"
@@ -160,7 +181,7 @@ export default async function AdminHome() {
                     >
                       <Cover project={p} />
                       <span className="min-w-0">
-                        <span className="block truncate text-[13.5px] font-medium">{p.name}</span>
+                        <span className="block truncate text-[14px] font-medium">{p.name}</span>
                         <span className="mt-0.5 block truncate text-[12px] text-muted">{s.client || p.category || "Sin cliente"}</span>
                       </span>
                       <span className="hidden md:block">
@@ -174,7 +195,7 @@ export default async function AdminHome() {
                       </span>
                       <span className="flex items-center gap-2">
                         {s.due && (
-                          <span className={cn("hidden text-[11.5px] sm:inline", s.due < today ? "text-red-400" : "text-muted")}>
+                          <span className={cn("hidden text-[12px] sm:inline", s.due < today ? "text-red-400" : "text-muted")}>
                             <CalendarClock size={12} className="mr-1 inline -translate-y-px" />
                             {dueLabel(s.due, today)}
                           </span>
@@ -224,7 +245,7 @@ export default async function AdminHome() {
                             <span className={cn("truncate text-[13px]", c.unread ? "font-semibold" : "font-medium")}>{title}</span>
                             {c.last && <span className="ml-auto shrink-0 text-[11px] text-muted">{ago(c.last.created_at)}</span>}
                           </span>
-                          <span className="mt-0.5 line-clamp-2 text-[12.5px] text-muted">{c.last?.body}</span>
+                          <span className="mt-0.5 line-clamp-2 text-[13px] text-muted">{c.last?.body}</span>
                         </span>
                         {c.unread > 0 && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-accent" />}
                       </Link>

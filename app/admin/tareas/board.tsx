@@ -13,7 +13,7 @@ import {
   type Task,
   type TaskLinks,
 } from "@/lib/admin/task-shared";
-import { Kpi, cn } from "../kit";
+import { Kpi, cn, kpiRow, searchInput } from "../kit";
 import { useToast } from "../overlay";
 import { QuickAdd, TaskDrawer, TaskRow } from "./task-ui";
 import { useTasks } from "./use-tasks";
@@ -103,7 +103,7 @@ export function TasksBoard({
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className={cn(kpiRow, "md:grid-cols-4")}>
         <Kpi label="Vencidas" value={stats.overdue} tone={stats.overdue ? "red" : undefined} />
         <Kpi label="Para hoy" value={stats.today} tone={stats.today ? "accent" : undefined} />
         <Kpi label="Abiertas" value={stats.open} />
@@ -135,7 +135,7 @@ export function TasksBoard({
               }`}
             >
               {c.label}
-              <span className="font-mono text-[10px] text-muted">
+              <span className="font-mono text-[11px] text-muted">
                 {openCount(c.id)}
               </span>
             </button>
@@ -143,14 +143,14 @@ export function TasksBoard({
         </div>
         <label className="relative flex min-w-[200px] flex-1 items-center">
           <Search
-            size={15}
-            className="pointer-events-none absolute left-3.5 text-muted"
+            size={14}
+            className="pointer-events-none absolute left-3 text-muted"
           />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar tareas…"
-            className="focus-ring w-full rounded-lg border border-[var(--line)] bg-[var(--panel)] py-2 pr-4 pl-10 text-[13px] text-foreground placeholder:text-muted/70 focus:border-accent/60"
+            className={searchInput}
           />
         </label>
         <button

@@ -79,7 +79,7 @@ export function Inbox({
             aria-expanded={picking}
             className="focus-ring inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[12px] text-muted hover:bg-white/[0.05] hover:text-foreground"
           >
-            <Plus size={13} /> Nueva
+            <Plus size={14} /> Nueva
           </button>
         </div>
         {picking && <Picker projects={projects} leads={leads} onPick={open} />}
@@ -102,14 +102,14 @@ export function Inbox({
                   <span className="min-w-0 flex-1">
                     <span className="flex items-baseline gap-2">
                       <span className={cn("truncate text-[13px]", s.unread ? "font-semibold text-foreground" : "text-foreground/90")}>{title(s.channel)}</span>
-                      {s.last && <span className="ml-auto shrink-0 text-[10.5px] text-muted">{ago(s.last.created_at).replace("hace ", "")}</span>}
+                      {s.last && <span className="ml-auto shrink-0 text-[11px] text-muted">{ago(s.last.created_at).replace("hace ", "")}</span>}
                     </span>
                     <span className="mt-0.5 flex items-center gap-2">
                       <span className={cn("truncate text-[12px]", s.unread ? "text-foreground/80" : "text-muted")}>
                         {s.last ? `${s.last.author === me ? "Vos" : PEOPLE[s.last.author].name}: ${s.last.body}` : "Sin mensajes"}
                       </span>
                       {s.unread > 0 && (
-                        <span className="ml-auto shrink-0 rounded-full bg-accent px-1.5 py-px font-mono text-[10px] font-medium text-background">{s.unread}</span>
+                        <span className="ml-auto shrink-0 rounded-full bg-accent px-1.5 py-px font-mono text-[11px] font-medium text-background">{s.unread}</span>
                       )}
                     </span>
                   </span>
@@ -126,7 +126,7 @@ export function Inbox({
             value={channel}
             onChange={(e) => open(e.target.value)}
             aria-label="Conversación"
-            className="focus-ring rounded-md border border-[var(--line-strong)] bg-black/30 px-2 py-1 text-[13px] md:hidden"
+            className="focus-ring rounded-md border border-[var(--line-strong)] bg-[var(--well)] px-2 py-1 text-[13px] md:hidden"
           >
             {list.map((s) => (
               <option key={s.channel} value={s.channel}>
@@ -136,7 +136,7 @@ export function Inbox({
             ))}
           </select>
           <p className="hidden min-w-0 items-center gap-2 text-[14px] font-medium md:flex">
-            {parsed.kind === "general" ? <Hash size={15} className="text-muted" /> : null}
+            {parsed.kind === "general" ? <Hash size={16} className="text-muted" /> : null}
             <span className="truncate">{title(channel)}</span>
           </p>
           <span className="hidden text-[12px] text-muted lg:inline">
@@ -144,7 +144,7 @@ export function Inbox({
           </span>
           {link && (
             <Link href={link} className="focus-ring ml-auto inline-flex items-center gap-1 text-[12px] text-muted hover:text-foreground">
-              Abrir {parsed.kind} <ArrowUpRight size={13} />
+              Abrir {parsed.kind} <ArrowUpRight size={14} />
             </Link>
           )}
         </header>
@@ -183,12 +183,12 @@ function Picker({
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Proyecto o pedido…"
-        className="focus-ring w-full rounded-md border border-[var(--line-strong)] bg-black/30 px-2.5 py-1.5 text-[13px] placeholder:text-muted/60"
+        className="focus-ring w-full rounded-md border border-[var(--line-strong)] bg-[var(--well)] px-2.5 py-1.5 text-[13px] placeholder:text-muted/60"
       />
       <ul className="admin-scroll mt-1 max-h-56 overflow-y-auto">
         {items.slice(0, 50).map((i) => (
           <li key={i.c}>
-            <button onClick={() => onPick(i.c)} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] hover:bg-white/[0.05]">
+            <button onClick={() => onPick(i.c)} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-white/[0.05]">
               <span className="truncate">{i.name}</span>
               <span className="ml-auto shrink-0 text-[11px] text-muted">{i.kind}</span>
             </button>

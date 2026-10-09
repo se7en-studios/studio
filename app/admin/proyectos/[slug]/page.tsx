@@ -23,6 +23,8 @@ import {
 import { PEOPLE } from "@/lib/admin/people";
 import { defaultState, type ProjectState } from "@/lib/admin/project-shared";
 import { getState } from "@/lib/admin/projects";
+import { listPayments } from "@/lib/admin/payments";
+import type { Payment } from "@/lib/admin/payment-shared";
 import type { Task, TaskLinks } from "@/lib/admin/task-shared";
 import { listTasks, taskLinks } from "@/lib/admin/tasks";
 import { EventList } from "../../feed";
@@ -31,6 +33,7 @@ import { Chat } from "../../mensajes/chat";
 import { AdminGate, SetupNotice, bytes } from "../../ui";
 import { DeleteProject } from "./delete-project";
 import { FileCard } from "./file-card";
+import { Payments } from "./payments";
 import { ProjectTasks } from "./project-tasks";
 import { EditInfo, StatePanel } from "./state-panel";
 import { Uploader } from "./uploader";
@@ -79,7 +82,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
   if (!project) return <SetupNotice reason={setup ?? ""} />;
 
   // Sólo lo que necesita la pestaña abierta, y en paralelo.
-  const [stateR, filesR, tasksR, linksR, eventsR, countR] = await Promise.all([
+  const [stateR, filesR, tasksR, linksR, eventsR, countR, paymentsR] = await Promise.all([
     optional<ProjectState>(getState(slug, project.isCase), defaultState(slug, project.isCase)),
     tab === "archivos" ? optional<PanelFile[]>(listFiles(slug), []) : null,
     tab === "resumen" ? optional<Task[] | null>(listTasks({ projectSlug: slug }), null) : null,
@@ -91,6 +94,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
     // que pedirla. Va un count sin filas y no listFiles, que firmaría una URL
     // por archivo para terminar usando nada más que el largo.
     tab !== "archivos" ? optional<number>(countFiles(slug), 0) : null,
+    tab === "resumen" ? optional<Payment[]>(listPayments(slug), []) : null,
   ]);
   const state = stateR.value;
   // No sale de project.files: getProject arma la ficha sin estadísticas y ese
@@ -101,11 +105,11 @@ export default async function ProjectPage({ params, searchParams }: Props) {
 
   return (
     <div className="space-y-6">
-      <nav aria-label="Ruta" className="flex items-center gap-1.5 text-[12.5px] text-muted">
+      <nav aria-label="Ruta" className="flex items-center gap-1.5 text-[13px] text-muted">
         <Link href="/admin/proyectos" className="focus-ring hover:text-foreground">
           Proyectos
         </Link>
-        <ChevronRight size={13} />
+        <ChevronRight size={14} />
         <span className="truncate text-foreground">{project.name}</span>
       </nav>
 
@@ -115,7 +119,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
           {project.isCase && project.cover ? (
             <Image src={project.cover} alt="" fill sizes="280px" className="object-cover object-top" priority />
           ) : (
-            <span className="block h-full" style={{ background: `radial-gradient(120% 90% at 85% 0%, ${project.accent}77, transparent 60%), #101012` }} />
+            <span className="block h-full" style={{ background: `radial-gradient(120% 90% at 85% 0%, ${project.accent}77, transparent 60%), var(--panel-2)` }} />
           )}
         </div>
         <div className="min-w-0">
@@ -126,11 +130,11 @@ export default async function ProjectPage({ params, searchParams }: Props) {
               <span className="rounded-md bg-emerald-400/10 px-1.5 py-0.5 text-[11px] text-emerald-300 ring-1 ring-emerald-400/20 ring-inset">En la web</span>
             )}
           </div>
-          <h1 className="mt-2 flex items-center gap-3 text-[28px] leading-tight font-semibold tracking-[-0.02em] md:text-[34px]">
+          <h1 className="mt-2 flex items-center gap-3 text-[24px] leading-tight font-semibold tracking-[-0.02em] md:text-[28px]">
             <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: project.accent }} />
             {project.name}
           </h1>
-          {project.tagline && <p className="mt-1.5 max-w-xl text-[13.5px] text-muted">«{project.tagline}»</p>}
+          {project.tagline && <p className="mt-1.5 max-w-xl text-[14px] text-muted">«{project.tagline}»</p>}
 
           <dl className="mt-4 grid max-w-2xl grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
             <div>
@@ -163,12 +167,12 @@ export default async function ProjectPage({ params, searchParams }: Props) {
           <div className="mt-4 flex flex-wrap items-center gap-2">
             {project.url && (
               <a href={project.url} target="_blank" rel="noopener" className={btnPrimary}>
-                Ver sitio <ArrowUpRight size={13} />
+                Ver sitio <ArrowUpRight size={14} />
               </a>
             )}
             {project.isCase && (
               <Link href={`/work/${project.slug}`} className={btnSecondary}>
-                Caso en la web <ArrowUpRight size={13} />
+                Caso en la web <ArrowUpRight size={14} />
               </Link>
             )}
             {!project.isCase && (
@@ -201,6 +205,11 @@ export default async function ProjectPage({ params, searchParams }: Props) {
               editable={!stateR.missing}
             />
             <div className="min-w-0 space-y-4">
+              {paymentsR?.missing ? (
+                <SetupNotice reason={paymentsR.missing} />
+              ) : (
+                <Payments slug={project.slug} budget={state.budget} initial={paymentsR?.value ?? []} me={me.who} accent={project.accent} />
+              )}
               {tasksR?.value ? (
                 <ProjectTasks slug={project.slug} tasks={tasksR.value} links={linksR?.value ?? { leads: [], projects: [] }} me={me.who} owner={state.owner} />
               ) : null}
@@ -284,7 +293,7 @@ function Files({
                 }`}
               >
                 {t.label}
-                <span className="font-mono text-[10.5px] opacity-60">{t.n}</span>
+                <span className="font-mono text-[11px] opacity-60">{t.n}</span>
               </Link>
             );
           })}
@@ -298,13 +307,13 @@ function Files({
               <span className="relative block aspect-[16/10]">
                 <Image src={project.cover} alt="" fill sizes="(min-width: 1024px) 33vw, 50vw" className="object-cover object-top" />
               </span>
-              <p className="p-3 text-[11.5px] text-muted">{project.cover.split("/").pop()} · captura del caso</p>
+              <p className="p-3 text-[12px] text-muted">{project.cover.split("/").pop()} · captura del caso</p>
             </li>
           )}
           {project.video && (
             <li className="overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--panel)]">
               <video src={project.video} muted loop playsInline autoPlay preload="metadata" className="aspect-[16/10] w-full object-cover" />
-              <p className="p-3 text-[11.5px] text-muted">{project.video.split("/").pop()} · clip de hover</p>
+              <p className="p-3 text-[12px] text-muted">{project.video.split("/").pop()} · clip de hover</p>
             </li>
           )}
         </ul>

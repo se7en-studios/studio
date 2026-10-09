@@ -13,7 +13,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { Face, btnDanger, btnGhost, cn } from "../kit";
+import { Chip, Face, btnDanger, btnGhost, cn, input, label } from "../kit";
 import { Drawer } from "../overlay";
 import type { LeadOwner } from "@/lib/admin/db";
 import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
@@ -90,14 +90,14 @@ export function TaskRow({
       </button>
       <button onClick={onOpen} className="focus-ring min-w-0 flex-1 text-left">
         <span
-          className={`block text-[13.5px] leading-snug ${done ? "text-muted line-through" : "text-foreground"}`}
+          className={`block text-[14px] leading-snug ${done ? "text-muted line-through" : "text-foreground"}`}
         >
           {task.priority === "alta" && !done && (
             <span className="mr-1.5 inline-block h-1.5 w-1.5 -translate-y-px rounded-full bg-accent align-middle" />
           )}
           {task.title}
         </span>
-        <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-muted">
+        <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
           {task.due && !done && (
             <span
               className={`inline-flex items-center gap-1 ${b === "vencidas" ? "text-red-400" : b === "hoy" ? "text-accent" : ""}`}
@@ -123,30 +123,6 @@ export function TaskRow({
   );
 }
 
-function Chip({
-  on,
-  onClick,
-  children,
-}: {
-  on: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={on}
-      className={`focus-ring inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[12px] transition-colors ${
-        on
-          ? "border-accent/60 bg-accent/15 text-foreground"
-          : "border-[var(--line-strong)] text-muted hover:bg-white/[0.04] hover:text-foreground"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
 
 export function AssigneePicker({
   value,
@@ -201,7 +177,7 @@ export function DuePicker({
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value || null)}
         aria-label="Fecha límite"
-        className="focus-ring rounded-md border border-[var(--line-strong)] bg-black/30 px-2 py-1 text-[12px] text-foreground [color-scheme:dark]"
+        className="focus-ring rounded-md border border-[var(--line-strong)] bg-[var(--well)] px-2 py-1 text-[12px] text-foreground [color-scheme:dark]"
       />
     </div>
   );
@@ -254,7 +230,7 @@ export function LinkPicker({
       value={linkValue(value)}
       onChange={(e) => onChange(parseLink(e.target.value))}
       aria-label="Vincular a"
-      className="focus-ring max-w-full rounded-md border border-[var(--line-strong)] bg-black/30 px-2 py-1 text-[12px] text-foreground"
+      className="focus-ring max-w-full rounded-md border border-[var(--line-strong)] bg-[var(--well)] px-2 py-1 text-[12px] text-foreground"
     >
       <option value="">Sin vincular</option>
       {links.leads.length > 0 && (
@@ -435,7 +411,7 @@ export function TaskDrawer({
           maxLength={TITLE_MAX}
           rows={2}
           aria-label="Título"
-          className="focus-ring w-full resize-none rounded-lg bg-transparent text-[22px] leading-snug font-semibold tracking-[-0.01em] text-foreground focus:bg-black/30"
+          className="focus-ring w-full resize-none rounded-lg bg-transparent text-[20px] leading-snug font-semibold tracking-[-0.01em] text-foreground focus:bg-[var(--well)]"
         />
 
         <div className="mt-5 space-y-5">
@@ -482,7 +458,7 @@ export function TaskDrawer({
           <div>
             <label
               htmlFor="task-notes"
-              className="mb-1.5 block text-[11px] font-medium tracking-wide text-muted uppercase"
+              className={label}
             >
               Notas
             </label>
@@ -493,12 +469,12 @@ export function TaskDrawer({
               onBlur={() => notes !== task.notes && onPatch({ notes })}
               rows={5}
               placeholder="Detalles, links, lo que haga falta… (se guarda al salir del campo)"
-              className="focus-ring w-full rounded-lg border border-[var(--line-strong)] bg-black/30 px-3 py-2.5 text-[13px] text-foreground placeholder:text-muted/60 focus:border-accent/70"
+              className={`${input} py-2.5 leading-relaxed`}
             />
           </div>
         </div>
 
-        <p className="mt-6 text-[11.5px] text-muted">
+        <p className="mt-6 text-[12px] text-muted">
           {task.created_by
             ? `Anotada por ${PEOPLE[task.created_by].name}`
             : "Anotada"}{" "}
@@ -527,7 +503,7 @@ export function TaskDrawer({
               onClick={() => setConfirm(true)}
               className="focus-ring inline-flex items-center gap-1.5 text-xs text-muted hover:text-red-400"
             >
-              <Trash2 size={13} /> Borrar tarea
+              <Trash2 size={14} /> Borrar tarea
             </button>
           )}
         </div>

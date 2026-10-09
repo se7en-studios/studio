@@ -61,7 +61,7 @@ function NewProjectDialog({ onClose }: { onClose: () => void }) {
               name="accent"
               type="color"
               defaultValue="#ff4d2e"
-              className="focus-ring h-10 w-full cursor-pointer rounded-lg border border-[var(--line-strong)] bg-black/30 p-1"
+              className="focus-ring h-10 w-full cursor-pointer rounded-lg border border-[var(--line-strong)] bg-[var(--well)] p-1"
             />
           </div>
         </div>

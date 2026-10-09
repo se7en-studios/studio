@@ -68,7 +68,9 @@ del estudio y hablar entre nosotros.
 - **Proyectos**: tablero por etapa (Descubrimiento → Diseño → Desarrollo →
   Revisión → Entregado / Mantenimiento / Pausado), lista editable o galería.
   Cada proyecto tiene responsable, avance, fechas, cliente, monto, notas,
-  tareas, archivos y su conversación.
+  tareas, archivos, cobros (seña, saldo, cuotas: cuánto falta cobrar) y su
+  conversación. Un pedido Ganado se pasa a proyecto con un click y queda
+  vinculado.
 - **Registro**: todo cambio queda anotado con quién, cuándo y el antes y el
   después de cada campo. Se filtra por tipo, persona y texto.
 - **⌘K** en cualquier pantalla para buscar y saltar a un pedido, proyecto o tarea.
@@ -87,7 +89,7 @@ SUPABASE_SERVICE_ROLE_KEY=  # idem; sólo se usa en el servidor
 ```
 
 Las tablas se crean pegando en el SQL editor de Supabase, en este orden:
-`supabase/leads.sql`, `panel.sql`, `tasks.sql`, `crm.sql` y `panel-v2.sql`
+`supabase/leads.sql`, `panel.sql`, `tasks.sql`, `crm.sql`, `panel-v2.sql` y `payments.sql`
 (estado de proyectos, mensajes y detalle del registro). Todos se pueden correr
 más de una vez. Lo que falte, el panel lo avisa en vez de romperse.
 

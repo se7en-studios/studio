@@ -3,12 +3,13 @@
 import { useState, useTransition } from "react";
 import type { Task, TaskInput } from "@/lib/admin/task-shared";
 import { createTask, deleteTask, setTaskDone, updateTask } from "./actions";
+import type { Flash } from "../overlay";
 
 /**
  * Estado de una lista de tareas con cambios optimistas: se ven ya, se guardan
  * en segundo plano y, si el servidor falla, se deshacen y se avisa.
  */
-export function useTasks(initial: Task[], flash: (msg: string) => void) {
+export function useTasks(initial: Task[], flash: Flash) {
   const [tasks, setTasks] = useState(initial);
   const [, startTransition] = useTransition();
 
@@ -31,7 +32,7 @@ export function useTasks(initial: Task[], flash: (msg: string) => void) {
           );
       } catch (e) {
         setTasks(before);
-        flash(e instanceof Error ? e.message : "No se pudo guardar");
+        flash(e instanceof Error ? e.message : "No se pudo guardar", "error");
       }
     });
   }
@@ -78,7 +79,7 @@ export function useTasks(initial: Task[], flash: (msg: string) => void) {
         (ts) => ts.filter((t) => t.id !== id),
         async () => {
           await deleteTask(id);
-          flash("Tarea borrada");
+          flash("Tarea borrada", "ok");
         },
       );
     },

@@ -3,7 +3,7 @@
 // Panel lateral, diálogo y aviso del panel. Entran con keyframes de CSS (ver
 // .admin-drawer en globals.css): sin framer-motion, sin layout por cuadro.
 import { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { X } from "lucide-react";
+import { AlertCircle, Check, X } from "lucide-react";
 import { cn } from "./kit";
 
 // Pila de capas abiertas: Escape cierra sólo la de arriba (una tarea abierta
@@ -143,25 +143,36 @@ function subscribePrefs(cb: () => void) {
   return () => window.removeEventListener("storage", cb);
 }
 
-/** Avisos que se van solos, para todo el panel. */
-const ToastCtx = createContext<(msg: string) => void>(() => {});
+/** Avisos que se van solos, para todo el panel. Un error se distingue y dura más. */
+export type ToastTone = "info" | "ok" | "error";
+export type Flash = (msg: string, tone?: ToastTone) => void;
+const ToastCtx = createContext<Flash>(() => {});
+
+const TOAST_MS: Record<ToastTone, number> = { info: 2800, ok: 2400, error: 6000 };
+const TOAST_STYLE: Record<ToastTone, { box: string; icon: React.ReactNode }> = {
+  info: { box: "border-[var(--line-strong)]", icon: null },
+  ok: { box: "border-emerald-400/30", icon: <Check size={14} className="text-emerald-400" /> },
+  error: { box: "border-red-500/40", icon: <AlertCircle size={14} className="text-red-400" /> },
+};
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [toast, setToast] = useState<{ msg: string; id: number } | null>(null);
-  const flash = useCallback((msg: string) => {
+  const [toast, setToast] = useState<{ msg: string; tone: ToastTone; id: number } | null>(null);
+  const flash = useCallback<Flash>((msg, tone = "info") => {
     const id = Date.now();
-    setToast({ msg, id });
-    window.setTimeout(() => setToast((t) => (t?.id === id ? null : t)), 2800);
+    setToast({ msg, tone, id });
+    window.setTimeout(() => setToast((t) => (t?.id === id ? null : t)), TOAST_MS[tone]);
   }, []);
+  const style = toast ? TOAST_STYLE[toast.tone] : null;
   return (
     <ToastCtx.Provider value={flash}>
       {children}
-      {toast && (
+      {toast && style && (
         <p
           key={toast.id}
-          role="status"
-          className="admin-pop fixed bottom-5 left-1/2 z-[90] -translate-x-1/2 rounded-lg border border-[var(--line-strong)] bg-[#18181b] px-3.5 py-2 text-[13px] text-foreground shadow-[0_20px_50px_-10px_rgba(0,0,0,0.7)]"
+          role={toast.tone === "error" ? "alert" : "status"}
+          className={`admin-pop fixed bottom-5 left-1/2 z-[90] flex max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-2 rounded-lg border bg-[var(--panel-3)] px-3.5 py-2 text-[13px] text-foreground shadow-[0_20px_50px_-10px_rgba(0,0,0,0.7)] ${style.box}`}
         >
+          {style.icon}
           {toast.msg}
         </p>
       )}

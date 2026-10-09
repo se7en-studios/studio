@@ -5,6 +5,7 @@ import { PanelNotReady } from "@/lib/admin/panel";
 import type { Task, TaskLinks } from "@/lib/admin/task-shared";
 import { listTasks, taskLinks } from "@/lib/admin/tasks";
 import { listActivity } from "@/lib/admin/activity";
+import { listStates } from "@/lib/admin/projects";
 import type { Activity } from "@/lib/admin/activity-shared";
 import { Dashboard } from "../dashboard";
 import { AdminGate } from "../ui";
@@ -32,7 +33,7 @@ export default async function PedidosPage({
       throw e;
     }
   };
-  const [leadsR, tasks, activities, { pedido, frios, nuevo }] = await Promise.all([
+  const [leadsR, tasks, activities, projectOf, { pedido, frios, nuevo }] = await Promise.all([
     ready
       ? listLeads().then(
           (leads) => ({ leads, error: null as string | null }),
@@ -44,6 +45,14 @@ export default async function PedidosPage({
       return { list, links } as { list: Task[]; links: TaskLinks };
     }) : null,
     ready ? optional<Activity[]>(listActivity) : null,
+    // pedido → proyecto, para que la ficha de un ganado lleve a su proyecto.
+    ready
+      ? optional(async () => {
+          const out: Record<string, string> = {};
+          for (const s of (await listStates()).values()) if (s.lead_id) out[s.lead_id] = s.slug;
+          return out;
+        })
+      : null,
     searchParams,
   ]);
   return (
@@ -52,6 +61,7 @@ export default async function PedidosPage({
       initialCold={frios === "1"}
       initialNew={nuevo === "1"}
       activities={activities}
+      projectOf={projectOf}
       leads={leadsR.leads}
       dbReady={ready}
       error={leadsR.error}

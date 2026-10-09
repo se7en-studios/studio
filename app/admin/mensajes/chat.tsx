@@ -121,7 +121,7 @@ export function Chat({
       } catch (e) {
         setMessages((m) => (m ?? []).filter((x) => x.id !== temp.id));
         setDraft(body);
-        flash(e instanceof Error ? e.message : "No se pudo mandar");
+        flash(e instanceof Error ? e.message : "No se pudo mandar", "error");
       } finally {
         pendingSends.current--;
       }
@@ -138,7 +138,7 @@ export function Chat({
         setMessages((m) => (m ?? []).map((x) => (x.id === id ? saved : x)));
       } catch (e) {
         setMessages(before);
-        flash(e instanceof Error ? e.message : "No se pudo editar");
+        flash(e instanceof Error ? e.message : "No se pudo editar", "error");
       }
     });
   }
@@ -151,7 +151,7 @@ export function Chat({
         await deleteMessage(id);
       } catch (e) {
         setMessages(before);
-        flash(e instanceof Error ? e.message : "No se pudo borrar");
+        flash(e instanceof Error ? e.message : "No se pudo borrar", "error");
       }
     });
   }
@@ -231,7 +231,7 @@ export function Chat({
         }}
         className="border-t border-[var(--line)] p-3"
       >
-        <div className="flex items-end gap-2 rounded-xl border border-[var(--line-strong)] bg-black/30 p-1.5 pl-3 transition-colors focus-within:border-accent/60">
+        <div className="flex items-end gap-2 rounded-xl border border-[var(--line-strong)] bg-[var(--well)] p-1.5 pl-3 transition-colors focus-within:border-accent/60">
           <AutoTextarea
             value={draft}
             onChange={setDraft}
@@ -292,7 +292,7 @@ function AutoTextarea({
       }}
       placeholder={placeholder}
       aria-label={ariaLabel}
-      className="admin-scroll min-w-0 flex-1 resize-none bg-transparent py-1.5 text-[13.5px] leading-relaxed text-foreground placeholder:text-muted/60 focus:outline-none"
+      className="admin-scroll min-w-0 flex-1 resize-none bg-transparent py-1.5 text-[14px] leading-relaxed text-foreground placeholder:text-muted/60 focus:outline-none"
     />
   );
 }
@@ -334,7 +334,7 @@ function Bubble({
           </p>
         )}
         {editing ? (
-          <div className="mt-1 rounded-lg border border-accent/50 bg-black/30 p-1.5 pl-2.5">
+          <div className="mt-1 rounded-lg border border-accent/50 bg-[var(--well)] p-1.5 pl-2.5">
             <div className="flex items-end gap-1">
               <AutoTextarea value={draft} onChange={setDraft} onEnter={() => draft.trim() && onSave(draft.trim())} ariaLabel="Editar mensaje" autoFocus />
               <button type="button" onClick={onCancel} aria-label="Cancelar" className="focus-ring rounded-md p-1.5 text-muted hover:text-foreground">
@@ -346,31 +346,31 @@ function Bubble({
             </div>
           </div>
         ) : (
-          <p className={cn("text-[13.5px] leading-relaxed break-words whitespace-pre-wrap text-foreground/90", temp && "opacity-60")}>
+          <p className={cn("text-[14px] leading-relaxed break-words whitespace-pre-wrap text-foreground/90", temp && "opacity-60")}>
             <Rich text={m.body} me={me} />
             {m.edited_at && <span className="ml-1.5 text-[11px] text-muted">(editado)</span>}
           </p>
         )}
       </div>
       {mine && !temp && !editing && (
-        <div className="absolute top-0 right-1 hidden items-center gap-0.5 rounded-lg border border-[var(--line-strong)] bg-[#141417] p-0.5 shadow-lg group-hover:flex group-focus-within:flex">
+        <div className="absolute top-0 right-1 hidden items-center gap-0.5 rounded-lg border border-[var(--line-strong)] bg-[var(--panel-3)] p-0.5 shadow-lg group-hover:flex group-focus-within:flex">
           {confirm ? (
             <>
-              <span className="px-1.5 text-[11.5px] text-muted">¿Borrar?</span>
-              <button onClick={onDelete} className="focus-ring rounded-md px-1.5 py-0.5 text-[11.5px] text-red-400 hover:bg-white/[0.06]">
+              <span className="px-1.5 text-[12px] text-muted">¿Borrar?</span>
+              <button onClick={onDelete} className="focus-ring rounded-md px-1.5 py-0.5 text-[12px] text-red-400 hover:bg-white/[0.06]">
                 Sí
               </button>
-              <button onClick={() => setConfirm(false)} className="focus-ring rounded-md px-1.5 py-0.5 text-[11.5px] text-muted hover:bg-white/[0.06]">
+              <button onClick={() => setConfirm(false)} className="focus-ring rounded-md px-1.5 py-0.5 text-[12px] text-muted hover:bg-white/[0.06]">
                 No
               </button>
             </>
           ) : (
             <>
               <button onClick={onEdit} aria-label="Editar" className="focus-ring rounded-md p-1 text-muted hover:bg-white/[0.06] hover:text-foreground">
-                <Pencil size={13} />
+                <Pencil size={14} />
               </button>
               <button onClick={() => setConfirm(true)} aria-label="Borrar" className="focus-ring rounded-md p-1 text-muted hover:bg-white/[0.06] hover:text-red-400">
-                <Trash2 size={13} />
+                <Trash2 size={14} />
               </button>
             </>
           )}

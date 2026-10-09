@@ -20,7 +20,7 @@ import {
   type ProjectStatus,
 } from "@/lib/admin/project-shared";
 import { dayKey, dueLabel } from "@/lib/admin/task-shared";
-import { Empty, Face, Progress, StatusPill, cn } from "../kit";
+import { Empty, Face, Progress, Segmented, StatusPill, cn, searchInput } from "../kit";
 import { useStoredChoice, useToast } from "../overlay";
 import { updateProjectState } from "./actions";
 
@@ -74,7 +74,7 @@ export function ProjectsView({
 
   const save = useCallback(
     (p: PanelProject, patch: ProjectStateInput) => {
-      if (!editable) return flash("Falta correr supabase/panel-v2.sql para guardar esto.");
+      if (!editable) return flash("Falta correr supabase/panel-v2.sql para guardar esto.", "error");
       const before = statesRef.current;
       const cur = before[p.slug] ?? defaultState(p.slug, p.isCase);
       const next = { ...cur, ...patch };
@@ -86,7 +86,7 @@ export function ProjectsView({
           setStates((ss) => ({ ...ss, [p.slug]: saved }));
         } catch (e) {
           setStates(before);
-          flash(e instanceof Error ? e.message : "No se pudo guardar");
+          flash(e instanceof Error ? e.message : "No se pudo guardar", "error");
         }
       });
     },
@@ -109,7 +109,7 @@ export function ProjectsView({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar proyecto o cliente…"
-            className="focus-ring w-full rounded-lg border border-[var(--line)] bg-[var(--panel)] py-2 pr-3 pl-9 text-[13px] placeholder:text-muted/70 focus:border-accent/60"
+            className={searchInput}
           />
         </label>
         <select
@@ -126,12 +126,12 @@ export function ProjectsView({
             </option>
           ))}
         </select>
-        <Seg
+        <Segmented
           value={owner}
           onChange={setOwner}
           options={[{ id: "todos", label: "Todos" }, ...PEOPLE_IDS.map((o) => ({ id: o, label: PEOPLE[o].name }))]}
         />
-        <Seg
+        <Segmented
           value={view}
           onChange={pickView}
           options={[
@@ -218,25 +218,6 @@ export function ProjectsView({
   );
 }
 
-function Seg<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: { id: T; label: React.ReactNode }[] }) {
-  return (
-    <div className="flex rounded-lg border border-[var(--line)] bg-[var(--panel)] p-0.5 text-[13px]" role="group">
-      {options.map((o) => (
-        <button
-          key={o.id}
-          onClick={() => onChange(o.id)}
-          aria-pressed={value === o.id}
-          className={cn(
-            "focus-ring flex items-center rounded-md px-2.5 py-1.5 whitespace-nowrap transition-colors",
-            value === o.id ? "bg-white/[0.08] text-foreground" : "text-muted hover:text-foreground",
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 function Due({ due, today, status }: { due: string | null; today: string; status: ProjectStatus }) {
   if (!due) return <span className="text-muted/60">Sin fecha</span>;
@@ -267,7 +248,9 @@ const BoardCard = memo(function BoardCard({ row: { p, s }, today, draggable }: {
       onDragStart={(e) => {
         e.dataTransfer.setData(DRAG, p.slug);
         e.dataTransfer.effectAllowed = "move";
+        e.currentTarget.dataset.dragging = "";
       }}
+      onDragEnd={(e) => delete e.currentTarget.dataset.dragging}
       className="focus-ring group block w-[208px] shrink-0 rounded-lg border border-[var(--line)] bg-[var(--panel)] p-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-colors hover:border-[var(--line-strong)]"
     >
       <Thumb p={p} className="mb-2.5 block aspect-[16/9] w-full rounded-md border border-[var(--line)]" />
@@ -275,7 +258,7 @@ const BoardCard = memo(function BoardCard({ row: { p, s }, today, draggable }: {
         <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: p.accent }} />
         <span className="truncate">{p.name}</span>
       </p>
-      <p className="mt-0.5 truncate text-[11.5px] text-muted">{s.client || p.category || "—"}</p>
+      <p className="mt-0.5 truncate text-[12px] text-muted">{s.client || p.category || "—"}</p>
       <div className="mt-2.5">
         <Progress value={s.progress} accent={p.accent} />
       </div>
@@ -304,7 +287,7 @@ function GalleryCard({ row: { p, s }, today }: { row: Row; today: string }) {
       </span>
       <span className="block p-3.5">
         <span className="flex items-center justify-between gap-2">
-          <span className="flex min-w-0 items-center gap-2 text-[13.5px] font-medium">
+          <span className="flex min-w-0 items-center gap-2 text-[14px] font-medium">
             <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: p.accent }} />
             <span className="truncate">{p.name}</span>
           </span>
@@ -314,7 +297,7 @@ function GalleryCard({ row: { p, s }, today }: { row: Row; today: string }) {
         <span className="mt-3 block">
           <Progress value={s.progress} accent={p.accent} />
         </span>
-        <span className="mt-2 flex justify-between text-[11.5px]">
+        <span className="mt-2 flex justify-between text-[12px]">
           <Due due={s.due} today={today} status={s.status} />
           <span className="text-muted">{p.files ? `${p.files} archivos` : "Sin archivos"}</span>
         </span>
@@ -334,18 +317,18 @@ function ProjectTable({
   onSave: (p: PanelProject, patch: ProjectStateInput) => void;
   editable: boolean;
 }) {
-  const cell = "focus-ring rounded-md border border-transparent bg-transparent px-1.5 py-1 text-[12.5px] transition-colors hover:border-[var(--line-strong)] focus:border-accent/60 disabled:hover:border-transparent";
+  const cell = "focus-ring rounded-md border border-transparent bg-transparent px-1.5 py-1 text-[13px] transition-colors hover:border-[var(--line-strong)] focus:border-accent/60 disabled:hover:border-transparent";
   return (
     <div className="overflow-x-auto rounded-xl border border-[var(--line)] bg-[var(--panel)]">
-      <table className="w-full min-w-[980px] text-left text-[13px]">
-        <thead className="border-b border-[var(--line)] text-[11.5px] text-muted">
+      <table className="w-full text-left text-[13px] md:min-w-[980px]">
+        <thead className="border-b border-[var(--line)] text-[12px] text-muted">
           <tr>
             <th className="px-4 py-2.5 font-medium">Proyecto</th>
             <th className="px-2 py-2.5 font-medium">Etapa</th>
-            <th className="px-2 py-2.5 font-medium">Responsable</th>
-            <th className="w-[170px] px-2 py-2.5 font-medium">Avance</th>
+            <th className="max-md:hidden px-2 py-2.5 font-medium">Responsable</th>
+            <th className="max-md:hidden w-[170px] px-2 py-2.5 font-medium">Avance</th>
             <th className="px-2 py-2.5 font-medium">Entrega</th>
-            <th className="px-4 py-2.5 text-right font-medium">Archivos</th>
+            <th className="max-md:hidden px-4 py-2.5 text-right font-medium">Archivos</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--line)]">
@@ -356,7 +339,7 @@ function ProjectTable({
                   <Thumb p={p} className="h-8 w-12 shrink-0 rounded border border-[var(--line)]" />
                   <span className="min-w-0">
                     <span className="block truncate font-medium hover:underline">{p.name}</span>
-                    <span className="block truncate text-[11.5px] text-muted">{s.client || p.category || "—"}</span>
+                    <span className="block truncate text-[12px] text-muted">{s.client || p.category || "—"}</span>
                   </span>
                 </Link>
               </td>
@@ -375,7 +358,7 @@ function ProjectTable({
                   ))}
                 </select>
               </td>
-              <td className="px-2 py-2">
+              <td className="max-md:hidden px-2 py-2">
                 <span className="flex items-center gap-1">
                   <Face who={s.owner} size={20} />
                   <select
@@ -394,7 +377,7 @@ function ProjectTable({
                   </select>
                 </span>
               </td>
-              <td className="px-2 py-2">
+              <td className="max-md:hidden px-2 py-2">
                 <ProgressInput value={s.progress} accent={p.accent} disabled={!editable} onSave={(v) => onSave(p, { progress: v })} />
               </td>
               <td className="px-2 py-2">
@@ -409,7 +392,7 @@ function ProjectTable({
                   />
                 </span>
               </td>
-              <td className="px-4 py-2 text-right text-[12.5px] text-muted tabular-nums">{p.files || "—"}</td>
+              <td className="max-md:hidden px-4 py-2 text-right text-[13px] text-muted tabular-nums">{p.files || "—"}</td>
             </tr>
           ))}
         </tbody>

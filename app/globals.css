@@ -459,13 +459,29 @@ body:has(.admin-app)::after {
   display: none;
 }
 
+/* Superficies del panel, de abajo hacia arriba: fondo → sidebar → tarjeta →
+   hover/realce → lo que flota (toasts, menús). `--well` es lo hundido
+   (campos, citas). Todo color de fondo del panel sale de acá. */
 .admin-app {
+  --bg: #08080a;
+  --panel-0: #0a0a0c;
   --panel: #0c0c0e;
   --panel-2: #131316;
+  --panel-3: #18181b;
+  --well: rgba(0, 0, 0, 0.3);
+  --well-soft: rgba(0, 0, 0, 0.2);
   --line: rgba(245, 245, 244, 0.07);
   --line-strong: rgba(245, 245, 244, 0.12);
-  background: #08080a;
+  --accent-hover: #ff6347;
+  background: var(--bg);
   font-size: 14px;
+}
+
+/* El foco sigue la forma del control (una pill no se vuelve cuadrada) y queda
+   pegado a él, así no lo corta el overflow-hidden de las tarjetas. */
+.admin-app .focus-ring:focus-visible {
+  border-radius: inherit;
+  outline-offset: 2px;
 }
 
 .admin-scroll {
@@ -503,6 +519,13 @@ body:has(.admin-app)::after {
 }
 .admin-pop {
   animation: admin-pop 0.2s var(--ease) both;
+}
+/* La tarjeta que se está arrastrando queda como hueco: se ve de dónde salió.
+   La franja destino ya se resalta sola (onDragOver). */
+.admin-app [data-dragging] {
+  opacity: 0.35;
+  outline: 1px dashed var(--line-strong);
+  outline-offset: -1px;
 }
 .admin-skeleton {
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 25%, rgba(255, 255, 255, 0.07) 50%, rgba(255, 255, 255, 0.03) 75%);

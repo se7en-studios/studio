@@ -38,6 +38,13 @@ export async function upsertState(
   return { before, after: normalize(data as ProjectState) };
 }
 
+/** El proyecto vinculado a un pedido, si hay. */
+export async function stateForLead(leadId: string): Promise<string | null> {
+  const { data, error } = await client().from("panel_project_state").select("slug").eq("lead_id", leadId).limit(1);
+  if (error) failV2(error);
+  return (data as { slug: string }[])[0]?.slug ?? null;
+}
+
 /** numeric llega como string desde PostgREST. */
 function normalize(s: ProjectState): ProjectState {
   return { ...s, budget: s.budget == null ? null : Number(s.budget), progress: Number(s.progress ?? 0) };

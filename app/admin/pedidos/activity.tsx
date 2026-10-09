@@ -21,14 +21,14 @@ import {
   type ActivityKind,
 } from "@/lib/admin/activity-shared";
 import { dayKey } from "@/lib/admin/task-shared";
-import { Face } from "../kit";
+import { Chip, Face, label } from "../kit";
 
 export const ACTIVITY_ICON: Record<ActivityKind, React.ReactNode> = {
-  llamada: <Phone size={13} />,
-  mail: <Mail size={13} />,
-  whatsapp: <MessageCircle size={13} />,
-  reunion: <Users size={13} />,
-  nota: <StickyNote size={13} />,
+  llamada: <Phone size={14} />,
+  mail: <Mail size={14} />,
+  whatsapp: <MessageCircle size={14} />,
+  reunion: <Users size={14} />,
+  nota: <StickyNote size={14} />,
 };
 
 const PLACEHOLDER: Record<ActivityKind, string> = {
@@ -63,12 +63,12 @@ export function ActivityLog({
 
   return (
     <>
-      <p className="mt-6 mb-2 text-[11px] font-medium tracking-wide text-muted uppercase">
+      <p className={`mt-6 ${label}`}>
         Historial de contacto
       </p>
       <form
         onSubmit={submit}
-        className="rounded-lg border border-[var(--line)] bg-black/20 p-3"
+        className="rounded-lg border border-[var(--line)] bg-[var(--well-soft)] p-3"
       >
         <div
           className="flex flex-wrap gap-1.5"
@@ -76,19 +76,9 @@ export function ActivityLog({
           aria-label="Tipo de contacto"
         >
           {ACTIVITY_KINDS.map((k) => (
-            <button
-              key={k}
-              type="button"
-              onClick={() => setKind(k)}
-              aria-pressed={kind === k}
-              className={`focus-ring inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[12px] transition-colors ${
-                kind === k
-                  ? "border-accent/60 bg-accent/15 text-foreground"
-                  : "border-[var(--line-strong)] text-muted hover:text-foreground"
-              }`}
-            >
+            <Chip key={k} on={kind === k} onClick={() => setKind(k)}>
               {ACTIVITY_ICON[k]} {ACTIVITY_LABEL[k]}
-            </button>
+            </Chip>
           ))}
         </div>
         <textarea
@@ -101,7 +91,7 @@ export function ActivityLog({
           rows={2}
           placeholder={PLACEHOLDER[kind]}
           aria-label="Detalle del contacto"
-          className="focus-ring mt-2.5 w-full rounded-lg border border-[var(--line-strong)] bg-black/30 px-3 py-2 text-sm text-foreground placeholder:text-muted/60 focus:border-accent"
+          className="focus-ring mt-2.5 w-full rounded-lg border border-[var(--line-strong)] bg-[var(--well)] px-3 py-2 text-sm text-foreground placeholder:text-muted/60 focus:border-accent"
         />
         <div className="mt-2 flex items-center justify-between gap-2">
           <label className="flex items-center gap-2 text-xs text-muted">
@@ -111,7 +101,7 @@ export function ActivityLog({
               value={day}
               max={dayKey()}
               onChange={(e) => setDay(e.target.value || dayKey())}
-              className="focus-ring rounded-md border border-[var(--line-strong)] bg-black/30 px-2 py-1 text-[12px] text-foreground [color-scheme:dark]"
+              className="focus-ring rounded-md border border-[var(--line-strong)] bg-[var(--well)] px-2 py-1 text-[12px] text-foreground [color-scheme:dark]"
             />
           </label>
           <button
@@ -137,7 +127,7 @@ export function ActivityLog({
                   {a.actor ? PEOPLE[a.actor].name : "Alguien"} ·{" "}
                   {ACTIVITY_LABEL[a.kind]}
                 </span>
-                <span className="font-mono text-[10px] text-muted">
+                <span className="font-mono text-[11px] text-muted">
                   {ago(a.at)}
                 </span>
                 <button

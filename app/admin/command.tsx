@@ -25,18 +25,18 @@ import { Dialog } from "./overlay";
 type Item = { id: string; group: string; label: string; hint?: string; icon: React.ReactNode; href: string };
 
 const BASE: Item[] = [
-  { id: "n-inicio", group: "Ir a", label: "Inicio", icon: <Home size={15} />, href: "/admin" },
-  { id: "n-mensajes", group: "Ir a", label: "Mensajes", icon: <MessagesSquare size={15} />, href: "/admin/mensajes" },
-  { id: "n-pedidos", group: "Ir a", label: "Pedidos", icon: <Inbox size={15} />, href: "/admin/pedidos" },
-  { id: "n-proyectos", group: "Ir a", label: "Proyectos", icon: <FolderKanban size={15} />, href: "/admin/proyectos" },
-  { id: "n-tareas", group: "Ir a", label: "Tareas", icon: <CheckSquare size={15} />, href: "/admin/tareas" },
-  { id: "n-metricas", group: "Ir a", label: "Métricas", icon: <BarChart3 size={15} />, href: "/admin/metricas" },
-  { id: "n-registro", group: "Ir a", label: "Registro de cambios", icon: <History size={15} />, href: "/admin/cambios" },
-  { id: "n-marca", group: "Ir a", label: "Marca", icon: <Palette size={15} />, href: "/admin/marca" },
-  { id: "a-pedido", group: "Crear", label: "Nuevo pedido", icon: <Plus size={15} />, href: "/admin/pedidos?nuevo=1" },
-  { id: "a-proyecto", group: "Crear", label: "Nuevo proyecto", icon: <Plus size={15} />, href: "/admin/proyectos?nuevo=1" },
-  { id: "a-tarea", group: "Crear", label: "Nueva tarea", icon: <Plus size={15} />, href: "/admin/tareas?nueva=1" },
-  { id: "a-mensaje", group: "Crear", label: "Mensaje al equipo", icon: <Plus size={15} />, href: "/admin/mensajes" },
+  { id: "n-inicio", group: "Ir a", label: "Inicio", icon: <Home size={16} />, href: "/admin" },
+  { id: "n-mensajes", group: "Ir a", label: "Mensajes", icon: <MessagesSquare size={16} />, href: "/admin/mensajes" },
+  { id: "n-pedidos", group: "Ir a", label: "Pedidos", icon: <Inbox size={16} />, href: "/admin/pedidos" },
+  { id: "n-proyectos", group: "Ir a", label: "Proyectos", icon: <FolderKanban size={16} />, href: "/admin/proyectos" },
+  { id: "n-tareas", group: "Ir a", label: "Tareas", icon: <CheckSquare size={16} />, href: "/admin/tareas" },
+  { id: "n-metricas", group: "Ir a", label: "Métricas", icon: <BarChart3 size={16} />, href: "/admin/metricas" },
+  { id: "n-registro", group: "Ir a", label: "Registro de cambios", icon: <History size={16} />, href: "/admin/cambios" },
+  { id: "n-marca", group: "Ir a", label: "Marca", icon: <Palette size={16} />, href: "/admin/marca" },
+  { id: "a-pedido", group: "Crear", label: "Nuevo pedido", icon: <Plus size={16} />, href: "/admin/pedidos?nuevo=1" },
+  { id: "a-proyecto", group: "Crear", label: "Nuevo proyecto", icon: <Plus size={16} />, href: "/admin/proyectos?nuevo=1" },
+  { id: "a-tarea", group: "Crear", label: "Nueva tarea", icon: <Plus size={16} />, href: "/admin/tareas?nueva=1" },
+  { id: "a-mensaje", group: "Crear", label: "Mensaje al equipo", icon: <Plus size={16} />, href: "/admin/mensajes" },
 ];
 
 const STATUS: Record<string, string> = {
@@ -75,14 +75,14 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         group: "Pedidos",
         label: l.company ? `${l.name} · ${l.company}` : l.name,
         hint: STATUS[l.status] ?? l.status,
-        icon: <Inbox size={15} />,
+        icon: <Inbox size={16} />,
         href: `/admin/pedidos?pedido=${l.id}`,
       })),
       ...(index?.projects ?? []).map((p) => ({
         id: `p-${p.slug}`,
         group: "Proyectos",
         label: p.name,
-        icon: <FolderKanban size={15} />,
+        icon: <FolderKanban size={16} />,
         href: `/admin/proyectos/${p.slug}`,
       })),
       ...(index?.tasks ?? []).map((t) => ({
@@ -90,7 +90,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         group: "Tareas",
         label: t.title,
         hint: t.done ? "Hecha" : undefined,
-        icon: <CheckSquare size={15} />,
+        icon: <CheckSquare size={16} />,
         href: `/admin/tareas?tarea=${t.id}`,
       })),
     ];
@@ -159,14 +159,14 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                 onMouseMove={() => setActive(i)}
                 onClick={() => go(item)}
                 className={cn(
-                  "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13.5px] transition-colors",
+                  "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[14px] transition-colors",
                   i === active ? "bg-white/[0.07] text-foreground" : "text-foreground/85",
                 )}
               >
                 <span className={i === active ? "text-accent" : "text-muted"}>{item.icon}</span>
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                {item.hint && <span className="shrink-0 text-[11.5px] text-muted">{item.hint}</span>}
-                {i === active && <CornerDownLeft size={13} className="shrink-0 text-muted" />}
+                {item.hint && <span className="shrink-0 text-[12px] text-muted">{item.hint}</span>}
+                {i === active && <CornerDownLeft size={14} className="shrink-0 text-muted" />}
               </button>
             </li>
           );

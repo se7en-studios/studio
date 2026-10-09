@@ -3,10 +3,12 @@
 import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/admin/auth";
-import { OWNERS } from "@/lib/admin/db";
+import { OWNERS, db, type Lead } from "@/lib/admin/db";
 import { dateLabel, diff, usd } from "@/lib/admin/changes";
 import { PEOPLE } from "@/lib/admin/people";
-import { upsertState } from "@/lib/admin/projects";
+import { insertPayment, removePayment } from "@/lib/admin/payments";
+import type { Payment } from "@/lib/admin/payment-shared";
+import { stateForLead, upsertState } from "@/lib/admin/projects";
 import {
   PROJECT_STATUS,
   cleanStateInput,
@@ -252,6 +254,113 @@ export async function updateProjectInfo(
       );
     }
     return {};
+  } catch (e) {
+    return { error: message(e) };
+  }
+}
+
+// --- Cobros ----------------------------------------------------------------
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const UUID = /^[0-9a-f-]{36}$/i;
+const MAX_AMOUNT = 10_000_000;
+
+/** Registra un cobro (seña, saldo, cuota) y lo cuenta en el feed del proyecto. */
+export async function addPayment(
+  slug: string,
+  input: { amount: number | string; paid_on: string; note?: string },
+): Promise<Payment> {
+  const me = await guard();
+  const amount = Math.round(Number(input.amount) * 100) / 100;
+  if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_AMOUNT) throw new Error("Monto inválido.");
+  if (!DAY.test(input.paid_on) || Number.isNaN(new Date(`${input.paid_on}T12:00:00`).getTime())) {
+    throw new Error("Fecha inválida.");
+  }
+  if (!(await getProject(slug))) throw new Error("Ese proyecto no existe.");
+  const note = String(input.note ?? "").trim().slice(0, 200);
+  const row = await insertPayment({ project_slug: slug, paid_on: input.paid_on, amount, note }, me.who);
+  after(() =>
+    logEvent({
+      actor: me.who,
+      kind: "proyecto",
+      text: `registró un cobro de ${usd(amount)}${note ? ` (${note})` : ""}`,
+      project_slug: slug,
+    }),
+  );
+  return row;
+}
+
+export async function deletePayment(id: string): Promise<void> {
+  const me = await guard();
+  if (!UUID.test(id)) throw new Error("Cobro inválido.");
+  const gone = await removePayment(id);
+  after(() =>
+    logEvent({
+      actor: me.who,
+      kind: "proyecto",
+      text: `borró un cobro de ${usd(gone.amount)} del ${dateLabel(gone.paid_on)}`,
+      project_slug: gone.project_slug,
+    }),
+  );
+}
+
+// --- Pedido ganado → proyecto ------------------------------------------------
+
+/**
+ * Crea el proyecto de un pedido ganado y lo deja vinculado: cliente, monto,
+ * responsable y el pedido pasan solos. Si el pedido ya tiene proyecto,
+ * devuelve ese (dos clicks no crean dos proyectos).
+ */
+export async function projectFromLead(leadId: string): Promise<{ slug?: string; error?: string }> {
+  try {
+    const me = await guard();
+    if (!UUID.test(leadId)) return { error: "Pedido inválido." };
+    const existing = await stateForLead(leadId);
+    if (existing) return { slug: existing };
+
+    const c = db();
+    if (!c) return { error: "Base de datos no configurada." };
+    const { data, error } = await c.from("leads").select("*").eq("id", leadId).maybeSingle();
+    if (error) return { error: error.message };
+    if (!data) return { error: "Ese pedido ya no existe." };
+    const lead = data as Lead;
+    if (lead.status !== "ganado") return { error: "Primero pasá el pedido a Ganado." };
+
+    const name = (lead.company || lead.name).trim().slice(0, 80) || "Proyecto";
+    const slug = await insertProject({
+      name,
+      category: (lead.project_type ?? "").trim().slice(0, 80),
+      url: "",
+      accent: "#ff4d2e",
+      created_by: me.who,
+    });
+    await upsertState(
+      slug,
+      false,
+      cleanStateInput(
+        {
+          status: "descubrimiento",
+          owner: lead.owner ?? me.who,
+          client: lead.company ? `${lead.name} · ${lead.company}` : lead.name,
+          lead_id: lead.id,
+          budget: lead.value ?? null,
+          start_date: new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }),
+          notes: lead.idea ?? "",
+        },
+        OWNERS,
+      ),
+      me.who,
+    );
+    after(() =>
+      logEvent({
+        actor: me.who,
+        kind: "proyecto",
+        text: `creó el proyecto desde el pedido de ${lead.name}`,
+        project_slug: slug,
+        lead_id: lead.id,
+      }),
+    );
+    return { slug };
   } catch (e) {
     return { error: message(e) };
   }
