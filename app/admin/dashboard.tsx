@@ -29,7 +29,7 @@ import { coldDays, isContact, lastContacts, type Activity, type ActivityKind } f
 import { dealValue } from "@/lib/admin/metrics";
 import { deleteLead, setNotes, setOwner, setStatus } from "./actions";
 import { EventList } from "./feed";
-import { Chip, Face, Kpi, PageHeader, Segmented, btnDanger, btnGhost, btnPrimary, btnSecondary, cn, input, label as sectionLabel, searchInput, usd } from "./kit";
+import { Chip, Face, Kpi, PageHeader, Segmented, btnDanger, btnGhost, btnPrimary, btnSecondary, cn, input, label as sectionLabel, searchInput, usd, usdShort } from "./kit";
 import { Chat } from "./mensajes/chat";
 import { Drawer, useStoredChoice, useToast } from "./overlay";
 import { ActivityLog } from "./pedidos/activity";
@@ -55,10 +55,10 @@ const COLUMNS: { id: LeadStatus; label: string; hint: string; dot: string }[] = 
 ];
 const STAGE = Object.fromEntries(COLUMNS.map((c) => [c.id, c])) as Record<LeadStatus, (typeof COLUMNS)[number]>;
 
-const PRIORITY_STYLE: Record<Priority, string> = {
-  alta: "bg-accent/15 text-accent ring-accent/25",
-  media: "bg-amber-400/10 text-amber-300 ring-amber-400/20",
-  baja: "bg-white/[0.04] text-muted ring-white/10",
+const PRIORITY_DOT: Record<Priority, string> = {
+  alta: "bg-accent",
+  media: "bg-amber-400",
+  baja: "bg-white/20",
 };
 
 type OwnerFilter = "todos" | LeadOwner | "sin";
@@ -311,8 +311,11 @@ export function Dashboard({
       </div>
 
       {view === "tablero" ? (
-        <div className="-mx-4 overflow-x-auto px-4 pb-4 md:mx-0 md:px-0">
-          <div className="grid min-w-[1150px] grid-cols-5 gap-3">
+        /* Etapas como franjas apiladas, igual que el tablero de Proyectos: sin
+           scroll al costado para llegar a una columna, y una etapa vacía mide
+           dos renglones. Las tarjetas corren a lo ancho dentro de su franja. */
+        <div>
+          <div className="flex flex-col gap-3">
             {COLUMNS.map((col) => {
               const items = byStage[col.id];
               const value = items.reduce((s, l) => s + dealValue(l), 0);
@@ -337,7 +340,7 @@ export function Dashboard({
                     if (lead && lead.status !== col.id) move(id, col.id);
                   }}
                   className={cn(
-                    "flex min-h-[220px] flex-col rounded-xl border p-2 transition-colors",
+                    "rounded-xl border p-2 transition-colors",
                     dragOver === col.id ? "border-accent/50 bg-accent/[0.05]" : "border-[var(--line)] bg-white/[0.012]",
                   )}
                 >
@@ -345,9 +348,9 @@ export function Dashboard({
                     <span className={cn("h-2 w-2 rounded-full", col.dot)} />
                     <h2 className="text-[13px] font-medium">{col.label}</h2>
                     <span className="font-mono text-[11px] text-muted">{items.length}</span>
-                    <span className="ml-auto text-[11px] text-muted">{value ? usd(value) : col.hint}</span>
+                    <span className="ml-auto text-[11px] text-muted">{value ? usdShort(value) : col.hint}</span>
                   </header>
-                  <div className="flex flex-col gap-2">
+                  <div className="-mx-0.5 flex gap-2 overflow-x-auto px-0.5 pb-1 empty:hidden">
                     {items.map((l) => (
                       <LeadCard
                         key={l.id}
@@ -360,12 +363,12 @@ export function Dashboard({
                         onDragEnd={() => setDragOver(null)}
                       />
                     ))}
-                    {!items.length && (
-                      <p className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-[var(--line)] px-3 py-8 text-center text-[12px] text-muted">
-                        <Inbox size={15} /> Nada acá
-                      </p>
-                    )}
                   </div>
+                  {!items.length && (
+                    <p className="rounded-lg border border-dashed border-[var(--line)] px-3 py-3.5 text-center text-[12px] text-muted">
+                      Soltá un pedido acá para pasarlo a {col.label.toLowerCase()}.
+                    </p>
+                  )}
                 </section>
               );
             })}
@@ -448,7 +451,7 @@ const LeadCard = memo(function LeadCard({
         e.dataTransfer.effectAllowed = "move";
       }}
       onDragEnd={onDragEnd}
-      className="group cursor-grab rounded-lg border border-[var(--line)] bg-[var(--panel)] p-3 shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_170px] hover:border-[var(--line-strong)] active:cursor-grabbing"
+      className="group w-[268px] shrink-0 cursor-grab rounded-lg border border-[var(--line)] bg-[var(--panel)] p-3 shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_170px] hover:border-[var(--line-strong)] active:cursor-grabbing"
     >
       <button onClick={() => onOpen(lead.id)} className="focus-ring block w-full text-left">
         <div className="flex items-start justify-between gap-2">
@@ -456,7 +459,9 @@ const LeadCard = memo(function LeadCard({
             {lead.name}
             {lead.company && <span className="font-normal text-muted"> · {lead.company}</span>}
           </p>
-          <span className={cn("shrink-0 rounded px-1.5 py-px text-[11px] font-medium uppercase ring-1 ring-inset", PRIORITY_STYLE[p])}>{p}</span>
+          <span title={`Prioridad ${p}`} className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", PRIORITY_DOT[p])}>
+            <span className="sr-only">Prioridad {p}</span>
+          </span>
         </div>
         <p className="mt-1.5 line-clamp-3 text-[13px] leading-snug text-foreground/75">{headline(lead.idea)}</p>
         {tags(lead).length > 0 && (

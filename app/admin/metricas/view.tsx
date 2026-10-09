@@ -5,7 +5,7 @@ import type { Lead, LeadStatus } from "@/lib/admin/db";
 import type { Activity } from "@/lib/admin/activity-shared";
 import { PEOPLE } from "@/lib/admin/people";
 import { computeMetrics, type Group } from "@/lib/admin/metrics";
-import { Segmented } from "../kit";
+import { Card, Kpi, Segmented } from "../kit";
 
 // Métricas del CRM: cuántos pedidos llegan, cuántos se cierran, cuánto vale y
 // qué canal rinde. Una sola serie por gráfico, en el naranja de la marca, con
@@ -131,49 +131,13 @@ export function MetricsView({
   );
 }
 
-function Kpi({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string | number;
-  hint?: string;
-}) {
-  return (
-    <div className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-4">
-      <p className="text-[11px] font-medium tracking-wide text-muted uppercase">
-        {label}
-      </p>
-      <p className="mt-2 text-2xl text-foreground tabular-nums">{value}</p>
-      {hint && (
-        <p className="mt-1 text-[11px] leading-snug text-muted">{hint}</p>
-      )}
-    </div>
-  );
-}
 
-function Panel({
-  title,
-  note,
-  children,
-}: {
-  title: string;
-  note?: string;
-  children: React.ReactNode;
-}) {
+/** Un gráfico: la Card del panel con la nota a la derecha del título. */
+function Panel({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
   return (
-    <section className="min-w-0 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-4">
-      <header className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-sm text-foreground">{title}</h2>
-        {note && (
-          <span className="text-[11px] text-muted">
-            {note}
-          </span>
-        )}
-      </header>
-      {children}
-    </section>
+    <Card title={title} action={note && <span className="text-[11px] text-muted">{note}</span>} className="min-w-0">
+      <div className="p-4">{children}</div>
+    </Card>
   );
 }
 
