@@ -74,7 +74,7 @@ export function EventList({
           <h2 className="sticky top-14 z-10 mb-2 bg-[var(--bg)]/90 px-1 py-1 text-[12px] font-medium text-muted backdrop-blur first-letter:uppercase lg:top-0">
             {d.label} <span className="ml-1 font-mono text-[11px] text-muted">{d.items.length}</span>
           </h2>
-          <ul className="divide-y divide-[var(--line)] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)]">
+          <ul className="divide-y divide-[var(--line)] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)] shadow-[var(--shadow-card)]">
             {d.items.map(row)}
           </ul>
         </section>
@@ -98,7 +98,7 @@ function Row({
 }) {
   const project = !hideProject && e.project_slug ? names[e.project_slug] ?? e.project_slug : null;
   return (
-    <li className="flex gap-3 px-4 py-3">
+    <li className="flex gap-3 px-4 py-3 transition-colors hover:bg-white/[0.02]">
       <span className="relative mt-0.5 h-fit">
         <Face who={e.actor} size={26} />
         <span className={cn("absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--panel)]", KIND_DOT[e.kind])} />

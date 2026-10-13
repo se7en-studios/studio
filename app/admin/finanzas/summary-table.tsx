@@ -38,7 +38,7 @@ export function SummaryTable({
 }) {
   const lines: Line[] = [...series].reverse().map((s) => ({
     key: s.month,
-    label: <span className="capitalize">{monthLabel(s.month)}</span>,
+    label: <span className="inline-block first-letter:uppercase">{monthLabel(s.month)}</span>,
     ...pick(s, currency),
   }));
   return (

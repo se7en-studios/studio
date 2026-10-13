@@ -182,8 +182,8 @@ export function ProjectsView({
                 >
                   <header className="flex items-center gap-2 px-1.5 pt-1 pb-2.5">
                     <span className={cn("h-2 w-2 rounded-full", PROJECT_STATUS[st].dot)} />
-                    <h2 className="text-[13px] font-medium">{PROJECT_STATUS[st].label}</h2>
-                    <span className="font-mono text-[11px] text-muted">{items.length}</span>
+                    <h2 className="text-[13px] font-semibold">{PROJECT_STATUS[st].label}</h2>
+                    <span className="rounded-full bg-white/[0.06] px-1.5 py-px font-mono text-[11px] text-muted">{items.length}</span>
                   </header>
                   {items.length ? (
                     <div className="-mx-0.5 flex gap-2 overflow-x-auto px-0.5 pb-1">
@@ -251,7 +251,7 @@ const BoardCard = memo(function BoardCard({ row: { p, s }, today, draggable }: {
         e.currentTarget.dataset.dragging = "";
       }}
       onDragEnd={(e) => delete e.currentTarget.dataset.dragging}
-      className="focus-ring group block w-[208px] shrink-0 rounded-lg border border-[var(--line)] bg-[var(--panel)] p-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-colors hover:border-[var(--line-strong)]"
+      className="focus-ring group block w-[208px] shrink-0 rounded-lg border border-[var(--line)] bg-[var(--panel)] p-2.5 shadow-[var(--shadow-card)] transition-[border-color,transform] hover:-translate-y-px hover:border-[var(--line-strong)]"
     >
       <Thumb p={p} className="mb-2.5 block aspect-[16/9] w-full rounded-md border border-[var(--line)]" />
       <p className="flex items-center gap-1.5 text-[13px] font-medium">
@@ -277,7 +277,7 @@ function GalleryCard({ row: { p, s }, today }: { row: Row; today: string }) {
   return (
     <Link
       href={`/admin/proyectos/${p.slug}`}
-      className="focus-ring group block overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)] transition-colors hover:border-[var(--line-strong)]"
+      className="focus-ring group block overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)] shadow-[var(--shadow-card)] transition-colors hover:border-[var(--line-strong)]"
     >
       <span className="relative block aspect-[16/10] overflow-hidden bg-[var(--panel-2)]">
         <Thumb p={p} className="block h-full w-full transition-transform duration-500 group-hover:scale-[1.03]" />
@@ -319,7 +319,7 @@ function ProjectTable({
 }) {
   const cell = "focus-ring rounded-md border border-transparent bg-transparent px-1.5 py-1 text-[13px] transition-colors hover:border-[var(--line-strong)] focus:border-accent/60 disabled:hover:border-transparent";
   return (
-    <div className="overflow-x-auto rounded-xl border border-[var(--line)] bg-[var(--panel)]">
+    <div className="overflow-x-auto rounded-xl border border-[var(--line)] bg-[var(--panel)] shadow-[var(--shadow-card)]">
       <table className="w-full text-left text-[13px] md:min-w-[980px]">
         <thead className="border-b border-[var(--line)] text-[12px] text-muted">
           <tr>

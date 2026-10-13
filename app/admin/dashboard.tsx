@@ -438,8 +438,8 @@ export function Dashboard({
                 >
                   <header className="flex items-center gap-2 px-1.5 pt-1 pb-2.5">
                     <span className={cn("h-2 w-2 rounded-full", col.dot)} />
-                    <h2 className="text-[13px] font-medium">{col.label}</h2>
-                    <span className="font-mono text-[11px] text-muted">{items.length}</span>
+                    <h2 className="text-[13px] font-semibold">{col.label}</h2>
+                    <span className="rounded-full bg-white/[0.06] px-1.5 py-px font-mono text-[11px] text-muted">{items.length}</span>
                     <span className="ml-auto text-[11px] text-muted">{value ? usdShort(value) : col.hint}</span>
                   </header>
                   <div className="-mx-0.5 flex gap-2 overflow-x-auto px-0.5 pb-1 empty:hidden">
@@ -563,7 +563,7 @@ const LeadCard = memo(function LeadCard({
         delete e.currentTarget.dataset.dragging;
         onDragEnd();
       }}
-      className="group w-[268px] shrink-0 cursor-grab rounded-lg border border-[var(--line)] bg-[var(--panel)] p-3 shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_170px] hover:border-[var(--line-strong)] active:cursor-grabbing"
+      className="group w-[268px] shrink-0 cursor-grab rounded-lg border border-[var(--line)] bg-[var(--panel)] p-3 shadow-[var(--shadow-card)] transition-[border-color,transform] hover:-translate-y-px [content-visibility:auto] [contain-intrinsic-size:auto_170px] hover:border-[var(--line-strong)] active:cursor-grabbing"
     >
       <button onClick={() => onOpen(lead.id)} className="focus-ring block w-full text-left">
         <div className="flex items-start justify-between gap-2">
@@ -638,7 +638,7 @@ function LeadTable({
   const sorted = useMemo(() => [...leads].sort((a, b) => b.created_at.localeCompare(a.created_at)), [leads]);
   if (!sorted.length) return <p className="rounded-xl border border-dashed border-[var(--line)] px-4 py-12 text-center text-[13px] text-muted">Nada coincide.</p>;
   return (
-    <div className="overflow-x-auto rounded-xl border border-[var(--line)] bg-[var(--panel)]">
+    <div className="overflow-x-auto rounded-xl border border-[var(--line)] bg-[var(--panel)] shadow-[var(--shadow-card)]">
       <table className="w-full text-left text-[13px] md:min-w-[860px]">
         <thead className="border-b border-[var(--line)] text-[12px] text-muted">
           <tr>

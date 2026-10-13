@@ -147,7 +147,7 @@ function PostCard({
           <div className="flex flex-wrap items-start gap-3">
             <div className="min-w-0 flex-1">
               <p className="flex flex-wrap items-center gap-2 text-[12px] text-muted">
-                <span className="capitalize">{dateLabel(post.post_date)}</span>
+                <span className="inline-block first-letter:uppercase">{dateLabel(post.post_date)}</span>
                 <span>· 19 h</span>
                 {isToday && (
                   <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[11px] text-accent">
@@ -170,7 +170,7 @@ function PostCard({
               </p>
               <h2
                 className={cn(
-                  "mt-1 text-[17px] font-semibold text-foreground",
+                  "mt-1 text-[18px] font-semibold tracking-[-0.015em] text-foreground",
                   published && "line-through",
                 )}
               >

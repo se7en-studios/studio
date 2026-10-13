@@ -70,7 +70,7 @@ export function Inbox({
     parsed.kind === "proyecto" ? `/admin/proyectos/${parsed.slug}` : parsed.kind === "pedido" ? `/admin/pedidos?pedido=${parsed.id}` : null;
 
   return (
-    <div className="grid h-[calc(100dvh-210px)] min-h-[480px] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)] md:grid-cols-[300px_minmax(0,1fr)]">
+    <div className="grid h-[calc(100dvh-210px)] min-h-[480px] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)] shadow-[var(--shadow-card)] md:grid-cols-[300px_minmax(0,1fr)]">
       <aside className={cn("flex min-h-0 flex-col border-[var(--line)] md:border-r", "max-md:hidden")}>
         <div className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3">
           <p className="text-[13px] font-medium">Conversaciones</p>

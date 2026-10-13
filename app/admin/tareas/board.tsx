@@ -190,7 +190,7 @@ export function TasksBoard({
                 >
                   {b.label} <span className="text-muted">{items.length}</span>
                 </h2>
-                <ul className="divide-y divide-[var(--line)] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)]">
+                <ul className="divide-y divide-[var(--line)] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)] shadow-[var(--shadow-card)]">
                   {items.map((t) => (
                     <TaskRow
                       key={t.id}

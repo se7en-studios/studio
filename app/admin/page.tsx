@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { CalendarClock, FolderKanban, History, MessagesSquare, Plus } from "lucide-react";
+import { CalendarClock, CheckSquare, FolderKanban, History, Inbox, MessagesSquare, Plus, TrendingUp, Trophy, Wallet } from "lucide-react";
 import { panelSession } from "@/lib/admin/auth";
 import { db, listLeads, type Lead, type LeadOwner } from "@/lib/admin/db";
 import { listActivity } from "@/lib/admin/activity";
@@ -158,24 +158,26 @@ export default async function AdminHome() {
       {setup && <SetupNotice reason={setup} />}
 
       <div className={cn(kpiRow, "md:grid-cols-3", unpaid ? "xl:grid-cols-6" : "xl:grid-cols-5")}>
-        <Kpi label="Sin responder" value={hasDb ? fresh : "—"} tone={fresh ? "accent" : undefined} href="/admin/pedidos" hint="Pedidos nuevos" />
-        <Kpi label="Valor en juego" value={usdShort(pipeline)} href="/admin/metricas" hint="Contactados + propuesta" />
-        <Kpi label="Ganado este mes" value={usdShort(wonMonth)} tone={wonMonth ? "green" : undefined} href="/admin/metricas" />
+        <Kpi label="Sin responder" value={hasDb ? fresh : "—"} tone={fresh ? "accent" : undefined} href="/admin/pedidos" hint="Pedidos nuevos" icon={<Inbox size={14} />} />
+        <Kpi label="Valor en juego" value={usdShort(pipeline)} href="/admin/metricas" hint="Contactados + propuesta" icon={<TrendingUp size={14} />} />
+        <Kpi label="Ganado este mes" value={usdShort(wonMonth)} tone={wonMonth ? "green" : undefined} href="/admin/metricas" icon={<Trophy size={14} />} />
         {unpaid && (
           <Kpi
             label="Por cobrar"
             value={usdShort(unpaid.reduce((n, x) => n + x.left, 0))}
             tone={unpaid.some((x) => x.done) ? "amber" : undefined}
             href="/admin/proyectos"
+            icon={<Wallet size={14} />}
             hint={unpaid.length ? `${unpaid.length} ${unpaid.length === 1 ? "proyecto" : "proyectos"} con saldo` : "Todo cobrado"}
           />
         )}
-        <Kpi label="Proyectos en curso" value={active.length} href="/admin/proyectos" hint={`${projects.length} en total`} />
+        <Kpi label="Proyectos en curso" value={active.length} href="/admin/proyectos" hint={`${projects.length} en total`} icon={<FolderKanban size={14} />} />
         <Kpi
           label="Tus tareas vencidas"
           value={tasks ? overdue : "—"}
           tone={overdue ? "red" : undefined}
           href="/admin/tareas"
+          icon={<CheckSquare size={14} />}
           hint={tasks ? openLabel(tasks.filter((t) => t.assignee === me.who && !t.done_at).length) : undefined}
         />
       </div>

@@ -448,7 +448,7 @@ function Agenda({
       {days.map((d) => (
         <li
           key={d}
-          className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3"
+          className="rounded-xl border border-[var(--line)] bg-[var(--panel)] shadow-[var(--shadow-card)] p-3"
         >
           <button
             type="button"

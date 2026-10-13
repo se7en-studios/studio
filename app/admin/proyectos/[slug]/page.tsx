@@ -229,7 +229,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
       )}
 
       {tab === "chat" && (
-        <div className="h-[calc(100dvh-260px)] min-h-[440px] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)]">
+        <div className="h-[calc(100dvh-260px)] min-h-[440px] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)] shadow-[var(--shadow-card)]">
           <Chat channel={projectChannel(project.slug)} me={me.who} className="h-full" placeholder={`Escribí sobre ${project.name}…`} />
         </div>
       )}
