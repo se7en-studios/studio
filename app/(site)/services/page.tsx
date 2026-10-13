@@ -4,8 +4,6 @@ import {
   CheckCircle2,
   Clock,
   Code2,
-  Cpu,
-  Layers,
   Rocket,
   ShieldCheck,
   Sparkles,
@@ -17,7 +15,7 @@ import {
 } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { Reveal } from "@/components/ui/reveal";
-import { services, process } from "@/data/services";
+import { process } from "@/data/services";
 import { SITE } from "@/data/site";
 
 export const metadata: Metadata = {

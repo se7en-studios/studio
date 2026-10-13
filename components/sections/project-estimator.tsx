@@ -10,12 +10,10 @@ import {
   Layers,
   Copy,
   Calendar,
-  DollarSign,
 } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Magnetic } from "@/components/ui/magnetic";
-import Link from "next/link";
 import { WhatsAppLogo } from "@/components/icons/whatsapp-logo";
 import { SITE } from "@/data/site";
 

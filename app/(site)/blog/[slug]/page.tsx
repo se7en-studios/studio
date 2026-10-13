@@ -1,17 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Clock,
-  Calendar,
-  User,
-  Share2,
-  Sparkles,
-  BookOpen,
-  CheckCircle2,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { blogPosts, getPostBySlug } from "@/data/blog";
 import { SITE } from "@/data/site";

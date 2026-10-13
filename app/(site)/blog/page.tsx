@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { BookOpen, Clock, ArrowRight, Sparkles, User, Tag } from "lucide-react";
+import { BookOpen, Clock, ArrowRight } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { Reveal } from "@/components/ui/reveal";
 import { blogPosts } from "@/data/blog";
@@ -41,7 +41,7 @@ export default function BlogPage() {
 
         {/* Grilla de Artículos */}
         <div className="mt-16 space-y-8">
-          {blogPosts.map((post, idx) => (
+          {blogPosts.map((post) => (
             <article
               key={post.slug}
               className="group relative overflow-hidden rounded-2xl border border-border bg-surface p-8 transition-all duration-300 hover:border-accent/40 hover:bg-surface-2"
