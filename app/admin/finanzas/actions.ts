@@ -6,6 +6,7 @@ import {
   insertEntry,
   removeEntry,
   settleEntry as settleEntryRow,
+  updateEntry,
 } from "@/lib/admin/finance";
 import {
   categoryLabel,
@@ -13,15 +14,21 @@ import {
   type Entry,
   type EntryInput,
 } from "@/lib/admin/finance-shared";
-import { logEvent } from "@/lib/admin/panel";
+import { PanelNotReady, logEvent } from "@/lib/admin/panel";
+import { cleanPayment, type Payment, type PaymentInput } from "@/lib/admin/payment-shared";
+import { removePayment, updatePayment } from "@/lib/admin/payments";
 import { dayKey } from "@/lib/admin/task-shared";
 import { cleanTool, type Tool, type ToolInput } from "@/lib/admin/tool-shared";
 import { insertTool, removeTool, updateTool } from "@/lib/admin/tools";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
-const message = (e: unknown) =>
-  e instanceof Error ? e.message : "Algo falló. Probá de nuevo.";
+/** Lo que falta configurar se dice tal cual; el resto se registra y al usuario le llega un texto genérico. */
+function message(e: unknown) {
+  if (e instanceof PanelNotReady) return e.message;
+  console.error("[panel] Finanzas:", e instanceof Error ? e.message : e);
+  return "Algo falló. Probá de nuevo.";
+}
 
 /** El texto del registro no lleva montos: lo ven los dos socios, pero el registro es del equipo. */
 export async function createEntry(
@@ -39,6 +46,34 @@ export async function createEntry(
         actor: me.who,
         kind: "proyecto",
         text: `cargó ${entry.kind === "costo" ? "un costo" : "un ingreso"}: ${what}`,
+        project_slug: entry.project_slug,
+      }),
+    );
+    return { entry };
+  } catch (e) {
+    return { error: message(e) };
+  }
+}
+
+/** Corrige un movimiento cargado a mano (monto, socio, fecha…). */
+export async function editEntry(
+  id: string,
+  input: EntryInput,
+): Promise<{ entry?: Entry; error?: string }> {
+  const me = await getSession();
+  if (!me) return { error: "Sesión vencida: volvé a entrar." };
+  if (!UUID.test(id)) return { error: "Movimiento inválido." };
+  const cleaned = cleanEntry(input);
+  if (!cleaned.ok) return { error: cleaned.error };
+  try {
+    const entry = await updateEntry(id, cleaned.value);
+    if (!entry) return { error: "Ese movimiento ya no existe." };
+    const what = entry.description || categoryLabel(entry.kind, entry.category);
+    after(() =>
+      logEvent({
+        actor: me.who,
+        kind: "proyecto",
+        text: `editó ${entry.kind === "costo" ? "un costo" : "un ingreso"}: ${what}`,
         project_slug: entry.project_slug,
       }),
     );
@@ -133,6 +168,53 @@ export async function deleteTool(id: string): Promise<{ error?: string }> {
         actor: me.who,
         kind: "proyecto",
         text: `quitó la herramienta ${name}`,
+      }),
+    );
+    return {};
+  } catch (e) {
+    return { error: message(e) };
+  }
+}
+
+/** Corrige un cobro de proyecto (monto, fecha, nota, proyecto o quién lo cobró) desde Finanzas. */
+export async function editPayment(
+  id: string,
+  input: PaymentInput,
+): Promise<{ payment?: Payment; error?: string }> {
+  const me = await getSession();
+  if (!me) return { error: "Sesión vencida: volvé a entrar." };
+  if (!UUID.test(id)) return { error: "Cobro inválido." };
+  const cleaned = cleanPayment(input);
+  if (!cleaned.ok) return { error: cleaned.error };
+  try {
+    const payment = await updatePayment(id, cleaned.value);
+    if (!payment) return { error: "Ese cobro ya no existe." };
+    after(() =>
+      logEvent({
+        actor: me.who,
+        kind: "proyecto",
+        text: "editó un cobro",
+        project_slug: payment.project_slug,
+      }),
+    );
+    return { payment };
+  } catch (e) {
+    return { error: message(e) };
+  }
+}
+
+export async function deleteCobro(id: string): Promise<{ error?: string }> {
+  const me = await getSession();
+  if (!me) return { error: "Sesión vencida: volvé a entrar." };
+  if (!UUID.test(id)) return { error: "Cobro inválido." };
+  try {
+    const gone = await removePayment(id);
+    after(() =>
+      logEvent({
+        actor: me.who,
+        kind: "proyecto",
+        text: "borró un cobro",
+        project_slug: gone.project_slug,
       }),
     );
     return {};

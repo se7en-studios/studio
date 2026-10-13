@@ -21,6 +21,7 @@ import {
   LogOut,
   Menu,
   MessagesSquare,
+  Phone,
   Moon,
   Palette,
   Search,
@@ -32,6 +33,7 @@ import { otherTheme, themeCookie, type Theme } from "@/lib/admin/theme";
 import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
 import type { Pulse } from "./api/pulse/route";
 import { logout } from "./actions";
+import { CallListener } from "./call-listener";
 import { CommandPalette } from "./command";
 import { Face, Kbd, cn } from "./kit";
 import { ToastProvider } from "./overlay";
@@ -43,6 +45,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
     title: "Trabajo",
     items: [
       { href: "/admin", label: "Inicio", icon: <Home size={16} /> },
+      { href: "/admin/llamadas", label: "Llamadas", icon: <Phone size={16} /> },
       { href: "/admin/mensajes", label: "Mensajes", icon: <MessagesSquare size={16} />, badge: "unread", tone: "accent" },
       { href: "/admin/pedidos", label: "Pedidos", icon: <Inbox size={16} />, badge: "newLeads", tone: "accent" },
       { href: "/admin/proyectos", label: "Proyectos", icon: <FolderKanban size={16} /> },
@@ -66,7 +69,18 @@ const NAV: { title: string; items: NavItem[] }[] = [
 const PulseCtx = createContext<{ pulse: Pulse | null; refresh: () => void }>({ pulse: null, refresh: () => {} });
 export const usePulse = () => useContext(PulseCtx);
 
-export function AdminShell({ who, theme: initialTheme, children }: { who: LeadOwner; theme: Theme; children: React.ReactNode }) {
+export function AdminShell({
+  who,
+  theme: initialTheme,
+  callFeed,
+  children,
+}: {
+  who: LeadOwner;
+  theme: Theme;
+  /** De dónde recibe las llamadas: null si los avisos no están configurados. */
+  callFeed: { topic: string; server: string } | null;
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const [theme, setTheme] = useState(initialTheme);
   const [pulse, setPulse] = useState<Pulse | null>(null);
@@ -158,6 +172,7 @@ export function AdminShell({ who, theme: initialTheme, children }: { who: LeadOw
           </div>
 
           {palette && <CommandPalette onClose={() => setPalette(false)} />}
+          {callFeed && <CallListener who={who} topic={callFeed.topic} server={callFeed.server} />}
         </div>
       </ToastProvider>
     </PulseCtx.Provider>
@@ -186,7 +201,7 @@ function Sidebar({
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--line-strong)] bg-gradient-to-b from-white/[0.08] to-transparent">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--line-strong)] bg-gradient-to-b from-white/[0.08] to-transparent shadow-[0_0_18px_-4px_var(--accent)]">
           <Image src="/logo-simbolo.png" alt="" width={20} height={20} className="h-5 w-5" />
         </span>
         <span className="min-w-0 leading-tight">
@@ -198,7 +213,7 @@ function Sidebar({
       <div className="px-3">
         <button
           onClick={onSearch}
-          className="focus-ring flex w-full items-center gap-2 rounded-lg border border-[var(--line)] bg-white/[0.02] px-2.5 py-1.5 text-[13px] text-muted transition-colors hover:border-[var(--line-strong)] hover:text-foreground"
+          className="focus-ring flex w-full items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--well-soft)] px-2.5 py-2 text-[13px] text-muted transition-colors hover:border-[var(--line-strong)] hover:text-foreground"
         >
           <Search size={14} />
           Buscar o saltar a…
@@ -212,7 +227,7 @@ function Sidebar({
       <nav aria-label="Secciones del panel" className="admin-scroll mt-4 flex-1 overflow-y-auto px-3">
         {NAV.map((group) => (
           <div key={group.title} className="mb-5">
-            <p className="mb-1 px-2.5 text-[11px] font-medium text-muted">{group.title}</p>
+            <p className="mb-1.5 px-2.5 text-[11px] font-medium tracking-[0.12em] text-muted uppercase">{group.title}</p>
             <ul className="space-y-px">
               {group.items.map((item) => {
                 const on = isActive(item.href);
@@ -223,10 +238,11 @@ function Sidebar({
                       href={item.href}
                       aria-current={on ? "page" : undefined}
                       className={cn(
-                        "focus-ring group flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[14px] transition-colors",
-                        on ? "bg-white/[0.07] text-foreground" : "text-muted hover:bg-white/[0.04] hover:text-foreground",
+                        "focus-ring group relative flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[14px] transition-colors",
+                        on ? "bg-white/[0.07] font-medium text-foreground" : "text-muted hover:bg-white/[0.04] hover:text-foreground",
                       )}
                     >
+                      {on && <span aria-hidden className="absolute top-1.5 bottom-1.5 -left-3 w-[3px] rounded-r-full bg-accent shadow-[0_0_10px_var(--accent)]" />}
                       <span className={cn("transition-colors", on ? "text-accent" : "text-muted group-hover:text-foreground")}>{item.icon}</span>
                       {item.label}
                       <Pending />
@@ -256,7 +272,7 @@ function Sidebar({
         >
           <ArrowUpRight size={16} /> Ver el sitio
         </Link>
-        <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
+        <div className="flex items-center gap-2.5 rounded-lg border border-[var(--line)] bg-white/[0.02] px-2 py-1.5">
           <span className="relative">
             <Face who={who} size={28} />
             <span className="absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--panel-0)] bg-emerald-400" />

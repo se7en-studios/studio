@@ -95,6 +95,7 @@ export default async function FinanzasPage({
           owed={owed}
           tools={tools}
           today={dayKey()}
+          me={me.who}
           initialAdd={nuevo === "1"}
         />
       )}

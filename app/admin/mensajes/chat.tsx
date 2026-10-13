@@ -231,7 +231,7 @@ export function Chat({
         }}
         className="border-t border-[var(--line)] p-3"
       >
-        <div className="flex items-end gap-2 rounded-xl border border-[var(--line-strong)] bg-[var(--well)] p-1.5 pl-3 transition-colors focus-within:border-accent/60">
+        <div className="flex items-end gap-2 rounded-xl border border-[var(--line-strong)] bg-[var(--well)] p-1.5 pl-3 transition-[border-color,box-shadow] focus-within:border-accent/60 focus-within:shadow-[0_0_0_3px_var(--accent-soft)]">
           <AutoTextarea
             value={draft}
             onChange={setDraft}
@@ -243,7 +243,7 @@ export function Chat({
             type="submit"
             disabled={!draft.trim()}
             aria-label="Mandar"
-            className="focus-ring flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-background transition-opacity disabled:opacity-30"
+            className="focus-ring flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-background shadow-[var(--shadow-btn)] transition-opacity disabled:opacity-30"
           >
             <ArrowUp size={16} />
           </button>
@@ -327,7 +327,7 @@ function Bubble({
       <div className="min-w-0 flex-1">
         {!grouped && (
           <p className="flex items-baseline gap-2">
-            <span className="text-[13px] font-medium text-foreground">{PEOPLE[m.author].name}</span>
+            <span className="text-[13px] font-semibold text-foreground">{PEOPLE[m.author].name}</span>
             <time className="text-[11px] text-muted" dateTime={m.created_at}>
               {time(m.created_at)}
             </time>

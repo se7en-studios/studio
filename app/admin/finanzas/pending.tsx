@@ -4,14 +4,14 @@
 // en los totales hasta que se marcan como cobrados. Debajo, el saldo de los
 // proyectos con monto acordado, que se cobra desde la ficha de cada proyecto.
 import Link from "next/link";
-import { Check, Clock, Plus } from "lucide-react";
+import { Check, Clock, Pencil, Plus } from "lucide-react";
 import {
   categoryLabel,
   fmt,
   otherCurrency,
   type Entry,
 } from "@/lib/admin/finance-shared";
-import { Card, btnSecondary, cn } from "../kit";
+import { Card, btnGhost, btnSecondary, cn } from "../kit";
 import { OwnerFaces } from "./owner";
 
 export type OwedProject = { slug: string; name: string; balance: number };
@@ -30,6 +30,7 @@ export function Pending({
   today,
   projectName,
   onSettle,
+  onEdit,
   onAdd,
 }: {
   entries: Entry[];
@@ -37,6 +38,7 @@ export function Pending({
   today: string;
   projectName: (slug: string | null) => string | null;
   onSettle: (id: string) => void;
+  onEdit: (entry: Entry) => void;
   onAdd: () => void;
 }) {
   const sorted = [...entries].sort((a, b) =>
@@ -90,6 +92,14 @@ export function Pending({
                     ≈ {fmt(other.amount, other.currency)}
                   </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => onEdit(e)}
+                  aria-label={`Editar ${e.description || categoryLabel(e.kind, e.category)}`}
+                  className={cn(btnGhost, "shrink-0 p-1.5")}
+                >
+                  <Pencil size={14} />
+                </button>
                 <button
                   type="button"
                   onClick={() => onSettle(e.id)}

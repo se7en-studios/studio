@@ -8,6 +8,7 @@ import { dateLabel, diff, usd } from "@/lib/admin/changes";
 import { PEOPLE } from "@/lib/admin/people";
 import { insertPayment, removePayment } from "@/lib/admin/payments";
 import type { Payment } from "@/lib/admin/payment-shared";
+import { OWNERS as PAYMENT_OWNERS, type Owner } from "@/lib/admin/finance-shared";
 import { stateForLead, upsertState } from "@/lib/admin/projects";
 import {
   PROJECT_STATUS,
@@ -268,7 +269,7 @@ const MAX_AMOUNT = 10_000_000;
 /** Registra un cobro (seña, saldo, cuota) y lo cuenta en el feed del proyecto. */
 export async function addPayment(
   slug: string,
-  input: { amount: number | string; paid_on: string; note?: string },
+  input: { amount: number | string; paid_on: string; note?: string; owner?: Owner },
 ): Promise<Payment> {
   const me = await guard();
   const amount = Math.round(Number(input.amount) * 100) / 100;
@@ -278,7 +279,9 @@ export async function addPayment(
   }
   if (!(await getProject(slug))) throw new Error("Ese proyecto no existe.");
   const note = String(input.note ?? "").trim().slice(0, 200);
-  const row = await insertPayment({ project_slug: slug, paid_on: input.paid_on, amount, note }, me.who);
+  // Quién cobró la plata: de ahí sale quién le debe a quién (todo se divide 50/50).
+  const owner = PAYMENT_OWNERS.find((o) => o === input.owner) ?? "ambos";
+  const row = await insertPayment({ project_slug: slug, paid_on: input.paid_on, amount, note, owner }, me.who);
   after(() =>
     logEvent({
       actor: me.who,

@@ -17,6 +17,7 @@ import {
   Home,
   Inbox,
   MessagesSquare,
+  Phone,
   Palette,
   Plus,
   Search,
@@ -30,6 +31,7 @@ type Item = { id: string; group: string; label: string; hint?: string; icon: Rea
 
 const BASE: Item[] = [
   { id: "n-inicio", group: "Ir a", label: "Inicio", icon: <Home size={16} />, href: "/admin" },
+  { id: "n-llamadas", group: "Ir a", label: "Llamadas por Meet", icon: <Phone size={16} />, href: "/admin/llamadas" },
   { id: "n-mensajes", group: "Ir a", label: "Mensajes", icon: <MessagesSquare size={16} />, href: "/admin/mensajes" },
   { id: "n-pedidos", group: "Ir a", label: "Pedidos", icon: <Inbox size={16} />, href: "/admin/pedidos" },
   { id: "n-proyectos", group: "Ir a", label: "Proyectos", icon: <FolderKanban size={16} />, href: "/admin/proyectos" },

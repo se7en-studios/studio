@@ -234,7 +234,7 @@ export function EditInfo({
           }
         });
       }}
-      className="mt-3 grid w-full gap-2 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3 sm:grid-cols-[1fr_1fr_1fr_auto_auto]"
+      className="mt-3 grid w-full gap-2 rounded-xl border border-[var(--line)] bg-[var(--panel)] shadow-[var(--shadow-card)] p-3 sm:grid-cols-[1fr_1fr_1fr_auto_auto]"
     >
       <input aria-label="Nombre" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={input} required maxLength={80} />
       <input aria-label="Tipo" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={input} placeholder="Tipo" maxLength={80} />

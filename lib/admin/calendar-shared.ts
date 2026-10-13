@@ -4,13 +4,14 @@ import type { ContentKind } from "./content-shared";
 import type { LeadOwner } from "./db";
 import type { TaskPriority } from "./task-shared";
 
-export type EventType = "post" | "task" | "seguimiento" | "entrega";
+export type EventType = "post" | "task" | "seguimiento" | "entrega" | "renovacion";
 
 export const EVENT_TYPES: { id: EventType; label: string }[] = [
   { id: "post", label: "Posts" },
   { id: "task", label: "Tareas" },
   { id: "seguimiento", label: "Seguimientos" },
   { id: "entrega", label: "Entregas" },
+  { id: "renovacion", label: "Renovaciones" },
 ];
 
 /** Valor del filtro de proyecto para lo que no pertenece a ninguno. */
@@ -29,6 +30,8 @@ export type CalEvent = {
   kind?: ContentKind;
   priority?: TaskPriority;
   accent?: string;
+  /** Texto de apoyo de la fila (de una renovación: lo que cuesta). */
+  detail?: string;
   /** Pedido al que pertenece un seguimiento. */
   lead?: { id: string; name: string } | null;
 };

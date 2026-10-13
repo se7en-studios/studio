@@ -11,7 +11,7 @@ export function LoginForm() {
   return (
     <form
       action={action}
-      className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-[var(--panel)]/90 p-8 shadow-[0_40px_120px_-30px_rgba(255,77,46,0.35),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur"
+      className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-[var(--panel)]/90 p-8 shadow-[0_40px_120px_-30px_rgba(255,77,46,0.4),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl"
     >
       <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-b from-white/[0.08] to-transparent">
         <Image src="/logo-simbolo.png" alt="" width={24} height={24} className="h-6 w-6" />
@@ -57,7 +57,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={pending}
-        className="focus-ring mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-medium text-background shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] transition-opacity disabled:opacity-60"
+        className="focus-ring mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-medium text-background shadow-[var(--shadow-btn)] transition-[opacity,background-color] hover:bg-[var(--accent-hover)] disabled:opacity-60"
       >
         {pending ? "Entrando…" : "Entrar"}
         <ArrowRight size={16} />

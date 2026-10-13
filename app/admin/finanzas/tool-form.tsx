@@ -25,11 +25,13 @@ import { ToolLogo } from "./tool-logo";
 
 export function ToolForm({
   tool,
+  defaultOwner,
   today,
   onClose,
   onSaved,
 }: {
   tool: Tool | null;
+  defaultOwner: Owner;
   today: string;
   onClose: () => void;
   onSaved: (tool: Tool) => void;
@@ -41,7 +43,7 @@ export function ToolForm({
   const [currency, setCurrency] = useState<Currency>(tool?.currency ?? "USD");
   const [cycle, setCycle] = useState<Cycle>(tool?.cycle ?? "mensual");
   const [renewsOn, setRenewsOn] = useState(tool?.renews_on ?? today);
-  const [owner, setOwner] = useState<Owner>(tool?.owner ?? "ambos");
+  const [owner, setOwner] = useState<Owner>(tool?.owner ?? defaultOwner);
   const [notes, setNotes] = useState(tool?.notes ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();

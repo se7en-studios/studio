@@ -18,6 +18,8 @@ import { defaultState } from "@/lib/admin/project-shared";
 import { listStates } from "@/lib/admin/projects";
 import { dayKey, type Task, type TaskLinks } from "@/lib/admin/task-shared";
 import { listTasks, taskLinks } from "@/lib/admin/tasks";
+import type { Tool } from "@/lib/admin/tool-shared";
+import { listTools } from "@/lib/admin/tools";
 import { AdminGate, PageHeader, SetupNotice } from "../ui";
 import { CalendarView } from "./view";
 
@@ -46,12 +48,14 @@ export default async function CalendarioPage() {
   if (!me) return <AdminGate />;
 
   const missing: string[] = [];
-  const [tasks, links, projects, states, posts] = await Promise.all([
+  const [tasks, links, projects, states, posts, tools] = await Promise.all([
     safe<Task[]>(listTasks(), [], missing),
     safe<TaskLinks>(taskLinks(), { leads: [], projects: [] }, missing),
     safe<PanelProject[]>(listProjects(), caseProjects(), missing),
     safe<Map<string, ProjectState>>(listStates(), new Map(), missing),
     safe(listPostsLite(), [], missing),
+    // Sin la tabla de herramientas el calendario sigue sin renovaciones, sin avisar de más.
+    safe<Tool[]>(listTools(), [], []),
   ]);
 
   const deliveries: Delivery[] = projects.flatMap((p) => {
@@ -78,7 +82,7 @@ export default async function CalendarioPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Calendario">
-        Posts de Instagram, tareas y entregas de proyectos en un mismo lugar.
+        Posts de Instagram, tareas, entregas de proyectos y renovaciones de herramientas en un mismo lugar.
         Filtrá por proyecto o persona, creá tareas en cualquier día y
         arrastralas para cambiarles la fecha.
       </PageHeader>
@@ -91,6 +95,7 @@ export default async function CalendarioPage() {
         links={links}
         posts={calPosts}
         deliveries={deliveries}
+        tools={tools}
         projects={projects.map((p) => ({
           slug: p.slug,
           name: p.name,

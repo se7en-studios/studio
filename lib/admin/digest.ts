@@ -7,10 +7,17 @@ export type Notice = {
   message: string;
   /** Ruta del panel que abre al tocar el aviso. */
   path: string;
+  /** Dirección completa que abre en lugar de la ruta (por ejemplo, una sala de Meet). */
+  url?: string;
+  /** Etiquetas del aviso (ntfy): las llamadas llevan quién llama y a quién. */
+  tags?: string[];
 };
 
 /** `date` es YYYY-MM-DD. */
 export type PostDue = { title: string; date: string };
+
+/** Una herramienta que renueva en `days` días (0 = hoy). Sin montos: el aviso sale por un servicio externo. */
+export type Renewal = { name: string; days: number };
 
 export type DigestInput = {
   posts: PostDue[];
@@ -18,6 +25,7 @@ export type DigestInput = {
   overdueTasks: number;
   dueTodayTasks: number;
   newLeads: number;
+  renewals?: Renewal[];
 };
 
 const plural = (n: number, one: string, many: string) =>
@@ -30,6 +38,18 @@ function taskLine(overdue: number, today: number): string | null {
   if (overdue) return plural(overdue, "tarea vencida", "tareas vencidas");
   if (today) return `${plural(today, "tarea", "tareas")} para hoy`;
   return null;
+}
+
+const when = (days: number) =>
+  days === 0 ? "hoy" : days === 1 ? "mañana" : `en ${days} días`;
+
+/** Una línea por fecha: «Renueva mañana: Vercel, Claude». */
+function renewalLines(renewals: Renewal[]): string[] {
+  const byDays = new Map<number, string[]>();
+  for (const r of renewals) byDays.set(r.days, [...(byDays.get(r.days) ?? []), r.name]);
+  return [...byDays]
+    .sort(([a], [b]) => a - b)
+    .map(([days, names]) => `Renueva ${when(days)}: ${names.join(", ")}`);
 }
 
 /** Lo que hay para hoy, a la mañana. null si no hay nada: un aviso vacío es ruido. */
@@ -46,6 +66,7 @@ export function morningDigest(i: DigestInput): Notice | null {
     i.newLeads
       ? `${plural(i.newLeads, "pedido", "pedidos")} sin responder`
       : null,
+    ...renewalLines(i.renewals ?? []),
   ].filter((l): l is string => l !== null);
   return lines.length
     ? {

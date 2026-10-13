@@ -5,6 +5,7 @@ import type { Lead, LeadStatus } from "@/lib/admin/db";
 import type { Activity } from "@/lib/admin/activity-shared";
 import { PEOPLE } from "@/lib/admin/people";
 import { computeMetrics, type Group } from "@/lib/admin/metrics";
+import { BarChart3 } from "lucide-react";
 import { Card, Kpi, Segmented, cn, kpiRow } from "../kit";
 
 // Métricas del CRM: cuántos pedidos llegan, cuántos se cierran, cuánto vale y
@@ -282,8 +283,11 @@ function GroupTable({
 
 function Empty() {
   return (
-    <p className="py-8 text-center text-sm text-muted">
-      Sin pedidos en este período.
-    </p>
+    <div className="flex flex-col items-center gap-2.5 py-10 text-center">
+      <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--line-strong)] bg-white/[0.03] text-muted">
+        <BarChart3 size={16} />
+      </span>
+      <p className="text-[13px] text-muted">Sin pedidos en este período.</p>
+    </div>
   );
 }

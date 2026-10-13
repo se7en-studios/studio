@@ -2,6 +2,7 @@
 // como ingresos. Usa la service role key: NUNCA importar desde un componente de cliente.
 import type { LeadOwner } from "./db";
 import type { Entry, EntryInput } from "./finance-shared";
+import { paymentToEntry, type Payment } from "./payment-shared";
 import { PanelNotReady, client } from "./panel";
 
 const LEGACY_COLUMNS =
@@ -60,39 +61,19 @@ export async function listEntries(): Promise<Entry[]> {
 export async function listCobros(fx: number): Promise<Entry[]> {
   const { data, error } = await client()
     .from("panel_payments")
-    .select("id, project_slug, paid_on, amount, note, created_by")
+    .select("id, created_at, project_slug, paid_on, amount, note, created_by, owner")
     .order("paid_on", { ascending: false })
     .limit(LIMIT);
   if (error) {
     if (error.code === "PGRST205" || error.code === "42P01") return [];
+    // Falta finance-v3.sql: se avisa (la página muestra el paso) en vez de perder los ingresos en silencio.
+    if (error.code === "42703")
+      throw new PanelNotReady("Falta correr supabase/finance-v3.sql en Supabase.");
     throw new Error(error.message);
   }
-  return (
-    data as {
-      id: string;
-      project_slug: string;
-      paid_on: string;
-      amount: string | number;
-      note: string;
-      created_by: LeadOwner | null;
-    }[]
-  ).map((p): Entry => ({
-    id: `cobro-${p.id}`,
-    kind: "ingreso",
-    occurred_on: p.paid_on,
-    currency: "USD",
-    amount: Number(p.amount),
-    fx,
-    category: "proyecto",
-    description: p.note,
-    project_slug: p.project_slug,
-    recurring: false,
-    until: null,
-    owner: "ambos",
-    status: "pagado",
-    created_by: p.created_by,
-    source: "cobro",
-  }));
+  return (data as (Omit<Payment, "amount"> & { amount: string | number })[]).map((p) =>
+    paymentToEntry({ ...p, amount: Number(p.amount) }, fx),
+  );
 }
 
 export async function insertEntry(
@@ -106,6 +87,17 @@ export async function insertEntry(
     .single();
   if (error) fail(error);
   return toEntry(data as Row);
+}
+
+export async function updateEntry(id: string, input: EntryInput): Promise<Entry | null> {
+  const { data, error } = await client()
+    .from("panel_finance")
+    .update(input)
+    .eq("id", id)
+    .select(COLUMNS)
+    .maybeSingle();
+  if (error) fail(error);
+  return data ? toEntry(data as Row) : null;
 }
 
 /** Marca un pendiente como pagado, con la fecha en que realmente se pagó. */

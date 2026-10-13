@@ -58,12 +58,13 @@ export type Entry = {
   recurring: boolean;
   /** YYYY-MM-DD: último mes en que se repite. null = sin fin. */
   until: string | null;
+  /** Quién puso o cobró la plata: de ahí sale quién le debe a quién (todo se divide 50/50). */
   owner: Owner;
   /** «pendiente»: todavía no se cobró o pagó, no cuenta en los totales. */
   status: EntryStatus;
   created_by: LeadOwner | null;
-  /** «cobro» viene de los cobros de proyectos: no se edita acá y su cotización es la de hoy. */
-  source: "manual" | "cobro";
+  /** «cobro» viene de los cobros de proyectos y «herramienta» de las suscripciones: no se editan acá y su cotización es la de hoy. */
+  source: "manual" | "cobro" | "herramienta";
 };
 
 export type EntryInput = Pick<
@@ -103,6 +104,9 @@ export function fmt(n: number, currency: Currency) {
 // --- Validación (cliente y servidor) ----------------------------------------
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
+/** Una fecha YYYY-MM-DD que existe (2026-02-31 no). */
+export const isRealDay = (d: string) =>
+  DAY.test(d) && !Number.isNaN(Date.parse(d)) && new Date(d).toISOString().slice(0, 10) === d;
 const SLUG = /^[a-z0-9-]{1,64}$/;
 export const MAX_AMOUNT = 1_000_000_000;
 export const MAX_FX = 100_000;
@@ -125,7 +129,7 @@ export function cleanEntry(
   if (!Number.isFinite(fx) || fx <= 0 || fx > MAX_FX)
     return { ok: false, error: "Poné la cotización (pesos por dólar)." };
   const day = String(input.occurred_on ?? "");
-  if (!DAY.test(day) || Number.isNaN(Date.parse(day)))
+  if (!isRealDay(day))
     return { ok: false, error: "La fecha no es válida." };
   const category = categoriesOf(kind).some((c) => c.id === input.category)
     ? String(input.category)
@@ -138,7 +142,7 @@ export function cleanEntry(
   // Un pago pendiente es uno solo: no se repite.
   const recurring = Boolean(input.recurring) && status === "pagado";
   const until = recurring && input.until ? String(input.until) : null;
-  if (until && (!DAY.test(until) || until < day))
+  if (until && (!isRealDay(until) || until < day))
     return { ok: false, error: "«Hasta» no puede ser anterior a la fecha." };
   return {
     ok: true,
@@ -284,16 +288,43 @@ export function fixedCosts(
   return { usd: t.costoUsd, ars: t.costoArs };
 }
 
-/** La parte de un movimiento que le toca a un socio: lo de «ambos» se parte en dos. */
-export const shareOf = (owner: Owner, who: LeadOwner) =>
-  owner === "ambos" ? 0.5 : owner === who ? 1 : 0;
+export type Partner = { in: number; out: number };
 
-/** Los movimientos de un socio, con el monto que le toca (la cotización no cambia). */
-export function forPerson(entries: Entry[], who: LeadOwner): Entry[] {
-  return entries.flatMap((e) => {
-    const share = shareOf(e.owner, who);
-    return share ? [{ ...e, amount: round2(e.amount * share) }] : [];
-  });
+export type Settlement = {
+  franco: Partner;
+  federico: Partner;
+  /** Quién le debe a quién para quedar 50/50; null si están a mano. */
+  owes: { from: LeadOwner; to: LeadOwner; amount: number } | null;
+};
+
+/**
+ * Todo se divide 50/50. Cada movimiento dice quién puso o cobró la plata
+ * (el «owner»): el que cobró más o pagó menos le debe la diferencia al otro, a
+ * la mitad. Lo de la «cuenta del estudio» (owner «ambos») se reparte mitad y
+ * mitad entre los dos: cada uno lo ve en lo suyo y no genera deuda.
+ */
+export function settle(occ: Occurrence[], currency: Currency): Settlement {
+  const out: Settlement = {
+    franco: { in: 0, out: 0 },
+    federico: { in: 0, out: 0 },
+    owes: null,
+  };
+  for (const { entry: e } of occ) {
+    const value = currency === "USD" ? usdOf(e) : arsOf(e);
+    const side = e.kind === "ingreso" ? "in" : "out";
+    if (e.owner === "ambos") {
+      out.franco[side] += value / 2;
+      out.federico[side] += value / 2;
+    } else out[e.owner][side] += value;
+  }
+  const net = (p: Partner) => p.in - p.out;
+  const half = round2((net(out.franco) - net(out.federico)) / 2);
+  if (Math.abs(half) >= 1)
+    out.owes =
+      half > 0
+        ? { from: "franco", to: "federico", amount: half }
+        : { from: "federico", to: "franco", amount: -half };
+  return out;
 }
 
 /** Margen sobre ingresos en %, o null si no hubo ingresos. */

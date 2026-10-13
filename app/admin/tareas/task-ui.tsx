@@ -308,7 +308,7 @@ export function QuickAdd({
   return (
     <form
       onSubmit={submit}
-      className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-2 transition-colors focus-within:border-[var(--line-strong)]"
+      className="rounded-xl border border-[var(--line)] bg-[var(--panel)] shadow-[var(--shadow-card)] p-2 transition-colors focus-within:border-[var(--line-strong)]"
     >
       <div className="flex items-center gap-2">
         <Plus size={16} className="ml-2 shrink-0 text-accent" />

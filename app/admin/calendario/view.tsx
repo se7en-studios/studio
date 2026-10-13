@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   EVENT_TYPES,
   NO_PROJECT,
+  addDays,
   addMonths,
   dayTitle,
   groupByDay,
@@ -20,8 +21,10 @@ import {
   type EventType,
 } from "@/lib/admin/calendar-shared";
 import type { LeadOwner } from "@/lib/admin/db";
+import { fmt } from "@/lib/admin/finance-shared";
 import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
 import type { Task, TaskLinks } from "@/lib/admin/task-shared";
+import { nextRenewal, type Tool } from "@/lib/admin/tool-shared";
 import { markPublished } from "../contenido/actions";
 import {
   Card,
@@ -52,6 +55,7 @@ type Props = {
   links: TaskLinks;
   posts: CalPost[];
   deliveries: Delivery[];
+  tools: Tool[];
   projects: Project[];
 };
 
@@ -59,6 +63,8 @@ function buildEvents(
   tasks: Task[],
   posts: CalPost[],
   deliveries: Delivery[],
+  tools: Tool[],
+  today: string,
   leadNames: Map<string, string>,
 ): CalEvent[] {
   return [
@@ -102,7 +108,30 @@ function buildEvents(
       done: d.done,
       accent: d.accent,
     })),
+    ...tools.flatMap((t) => renewalDays(t, today).map((date): CalEvent => ({
+      key: `r-${t.id}-${date}`,
+      id: t.id,
+      type: "renovacion",
+      date,
+      title: `Renueva: ${t.name}`,
+      project: null,
+      owner: null,
+      done: false,
+      detail: `${fmt(t.amount, t.currency)} / ${t.cycle === "anual" ? "año" : "mes"}`,
+    }))),
   ];
+}
+
+const RENEWAL_MONTHS_BACK = 12;
+const RENEWAL_MONTHS_AHEAD = 24;
+
+/** Las renovaciones de una herramienta en la ventana que se puede recorrer: un año atrás y dos adelante. */
+function renewalDays(t: Tool, today: string): string[] {
+  const from = `${addMonths(monthOf(today), -RENEWAL_MONTHS_BACK)}-01`;
+  const to = `${addMonths(monthOf(today), RENEWAL_MONTHS_AHEAD)}-01`;
+  const out: string[] = [];
+  for (let d = nextRenewal(t.renews_on, t.cycle, from); d < to; d = nextRenewal(t.renews_on, t.cycle, addDays(d, 1))) out.push(d);
+  return out;
 }
 
 export function CalendarView({
@@ -113,6 +142,7 @@ export function CalendarView({
   links,
   posts: initialPosts,
   deliveries,
+  tools,
   projects,
 }: Props) {
   const flash = useToast();
@@ -136,12 +166,12 @@ export function CalendarView({
     [links.leads],
   );
   const events = useMemo(
-    () => buildEvents(api.tasks, posts, deliveries, leadNames),
-    [api.tasks, posts, deliveries, leadNames],
+    () => buildEvents(api.tasks, posts, deliveries, tools, today, leadNames),
+    [api.tasks, posts, deliveries, tools, today, leadNames],
   );
   const matches = (e: Pick<CalEvent, "project" | "owner" | "type">) =>
     (project === "todos" || (e.project ?? NO_PROJECT) === project) &&
-    (who === "todos" || e.type === "post" || e.owner === who);
+    (who === "todos" || e.type === "post" || e.type === "renovacion" || e.owner === who);
   const visible = events.filter((e) => types.includes(e.type) && matches(e));
   const byDay = groupByDay(visible);
   const unscheduled = api.tasks.filter(
@@ -418,7 +448,7 @@ function Agenda({
       {days.map((d) => (
         <li
           key={d}
-          className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3"
+          className="rounded-xl border border-[var(--line)] bg-[var(--panel)] shadow-[var(--shadow-card)] p-3"
         >
           <button
             type="button"

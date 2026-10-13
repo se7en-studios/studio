@@ -473,8 +473,38 @@ body:has(.admin-app)::after {
   --line: rgba(245, 245, 244, 0.07);
   --line-strong: rgba(245, 245, 244, 0.12);
   --accent-hover: #ff6347;
-  background: var(--bg);
+  /* Profundidad: filo de luz arriba de cada superficie, sombra al apoyar, y un
+     resplandor de marca muy bajo en la esquina del fondo. */
+  --hi: rgba(255, 255, 255, 0.045);
+  --shadow-card: inset 0 1px 0 var(--hi), 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+  --shadow-btn: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 1px 2px rgba(0, 0, 0, 0.45), 0 4px 14px -4px rgba(255, 77, 46, 0.45);
+  --shadow-pop: 0 0 0 1px var(--line-strong), 0 24px 60px -16px rgba(0, 0, 0, 0.7);
+  --glow: rgba(255, 77, 46, 0.075);
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(900px 420px at 92% -8%, var(--glow), transparent 70%),
+    radial-gradient(700px 360px at -5% 0%, rgba(255, 255, 255, 0.02), transparent 70%);
+  background-attachment: fixed;
   font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.admin-app ::selection {
+  background: var(--accent-soft);
+  color: var(--foreground);
+}
+.admin-app :where(button:not(:disabled), [role="button"]):active {
+  transform: translateY(0.5px);
+}
+/* Selectores nativos: misma flecha en todos (la del navegador desentona). */
+.admin-app select {
+  appearance: none;
+  cursor: pointer;
+  padding-right: 2rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a8a8e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem center;
+  background-size: 12px;
 }
 
 /* El foco sigue la forma del control (una pill no se vuelve cuadrada) y queda
@@ -564,6 +594,14 @@ body:has(.admin-app)::after {
   --well-soft: rgba(15, 18, 30, 0.03);
   --line: rgba(15, 18, 30, 0.09);
   --line-strong: rgba(15, 18, 30, 0.17);
+  --hi: rgba(255, 255, 255, 0.9);
+  --shadow-card: inset 0 1px 0 var(--hi), 0 1px 2px rgba(15, 18, 30, 0.06), 0 8px 24px -14px rgba(15, 18, 30, 0.18);
+  --shadow-btn: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 1px 2px rgba(15, 18, 30, 0.25), 0 4px 14px -4px rgba(209, 55, 26, 0.4);
+  --shadow-pop: 0 0 0 1px var(--line-strong), 0 24px 60px -16px rgba(15, 18, 30, 0.3);
+  --glow: rgba(209, 55, 26, 0.05);
+  background-image:
+    radial-gradient(900px 420px at 92% -8%, var(--glow), transparent 70%),
+    radial-gradient(700px 360px at -5% 0%, rgba(255, 255, 255, 0.6), transparent 70%);
 }
 :root:has(.admin-app[data-theme="light"]) {
   color-scheme: light;
