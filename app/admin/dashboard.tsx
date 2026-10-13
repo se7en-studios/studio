@@ -33,6 +33,7 @@ import { Chip, Face, Kpi, PageHeader, Segmented, btnDanger, btnGhost, btnPrimary
 import { Chat } from "./mensajes/chat";
 import { Drawer, useStoredChoice, useToast } from "./overlay";
 import { ActivityLog } from "./pedidos/activity";
+import { BulkBar } from "./pedidos/bulk-bar";
 import { deleteActivity, logActivity, setContact, setValue, type ContactFields } from "./pedidos/actions";
 import { DealFields } from "./pedidos/deal";
 import { NewLeadButton } from "./pedidos/new-lead";
@@ -113,6 +114,7 @@ export function Dashboard({
   const [acts, setActs] = useState(initialActivities ?? []);
   const [coldOnly, setColdOnly] = useState(initialCold);
   const [noStepOnly, setNoStepOnly] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
   const [now] = useState(() => Date.now());
 
   const lastContact = useMemo(() => lastContacts(acts), [acts]);
@@ -245,6 +247,35 @@ export function Dashboard({
       }
     });
   }
+
+  // Lo que se ve y está tildado: así lo que cambia es lo que el usuario tiene delante.
+  const picked = visible.filter((l) => selected.includes(l.id));
+  const toggleSelected = (id: string) => setSelected((xs) => (xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id]));
+
+  /** Cambio en varios pedidos: se ve ya y, si alguno falla en el servidor, sólo ese vuelve atrás. */
+  function bulk(apply: (l: Lead) => Lead | null, run: (id: string) => Promise<unknown>, done: string) {
+    const ids = picked.map((l) => l.id);
+    const before = leadsRef.current;
+    setLeads((ls) => ls.flatMap((l) => (ids.includes(l.id) ? apply(l) ?? [] : [l])));
+    setSelected([]);
+    startTransition(async () => {
+      const results = await Promise.allSettled(ids.map(run));
+      const failed = ids.filter((_, i) => results[i].status === "rejected");
+      if (!failed.length) return flash(done, "ok");
+      setLeads((ls) => {
+        const back = (id: string) => before.find((b) => b.id === id);
+        const kept = ls.map((l) => (failed.includes(l.id) ? back(l.id) ?? l : l));
+        const deleted = failed.filter((id) => !ls.some((l) => l.id === id)).flatMap((id) => back(id) ?? []);
+        return [...kept, ...deleted];
+      });
+      flash(`${ids.length - failed.length} de ${ids.length} listos; ${failed.length} no se pudieron guardar`, "error");
+    });
+  }
+
+  const n = picked.length;
+  const bulkStage = (s: LeadStatus) => bulk((l) => ({ ...l, status: s }), (id) => setStatus(id, s), `${n} pasados a ${STAGE[s].label.toLowerCase()}`);
+  const bulkOwner = (o: LeadOwner | null) => bulk((l) => ({ ...l, owner: o }), (id) => setOwner(id, o), o ? `${n} asignados a ${PEOPLE[o].name}` : `${n} sin responsable`);
+  const bulkDelete = () => bulk(() => null, (id) => deleteLead(id), `${n} ${n === 1 ? "pedido borrado" : "pedidos borrados"}`);
 
   const openLead = useCallback((id: string) => setOpenId(id), []);
   const open = leads.find((l) => l.id === openId) ?? null;
@@ -407,7 +438,19 @@ export function Dashboard({
           </div>
         </div>
       ) : (
-        <LeadTable leads={visible} lastContact={lastContact} coldOf={coldOf} onOpen={openLead} />
+        <LeadTable leads={visible} lastContact={lastContact} coldOf={coldOf} onOpen={openLead} selected={selected} onToggle={toggleSelected} onSetSelected={setSelected} />
+      )}
+
+      {view === "lista" && picked.length > 0 && (
+        <BulkBar
+          count={picked.length}
+          stages={COLUMNS.map((c) => ({ id: c.id, label: c.label }))}
+          onStage={bulkStage}
+          onOwner={bulkOwner}
+          onExport={() => downloadCsv(picked)}
+          onDelete={bulkDelete}
+          onClear={() => setSelected([])}
+        />
       )}
 
       {open && (
@@ -550,11 +593,17 @@ function LeadTable({
   lastContact,
   coldOf,
   onOpen,
+  selected,
+  onToggle,
+  onSetSelected,
 }: {
   leads: Lead[];
   lastContact: Map<string, string>;
   coldOf: (l: Lead) => number | null;
   onOpen: (id: string) => void;
+  selected: string[];
+  onToggle: (id: string) => void;
+  onSetSelected: (ids: string[]) => void;
 }) {
   const sorted = useMemo(() => [...leads].sort((a, b) => b.created_at.localeCompare(a.created_at)), [leads]);
   if (!sorted.length) return <p className="rounded-xl border border-dashed border-[var(--line)] px-4 py-12 text-center text-[13px] text-muted">Nada coincide.</p>;
@@ -563,7 +612,16 @@ function LeadTable({
       <table className="w-full text-left text-[13px] md:min-w-[860px]">
         <thead className="border-b border-[var(--line)] text-[12px] text-muted">
           <tr>
-            <th className="px-4 py-2.5 font-medium">Pedido</th>
+            <th className="w-10 py-2.5 pr-0 pl-4">
+              <input
+                type="checkbox"
+                checked={sorted.length > 0 && sorted.every((l) => selected.includes(l.id))}
+                onChange={(e) => onSetSelected(e.target.checked ? sorted.map((l) => l.id) : [])}
+                aria-label="Elegir todos los pedidos que se ven"
+                className="h-4 w-4 accent-[var(--accent)]"
+              />
+            </th>
+            <th className="px-2 py-2.5 font-medium">Pedido</th>
             <th className="px-3 py-2.5 font-medium">Etapa</th>
             <th className="max-md:hidden px-3 py-2.5 font-medium">Responsable</th>
             <th className="px-3 py-2.5 text-right font-medium">Valor</th>
@@ -576,8 +634,17 @@ function LeadTable({
             const cold = coldOf(l);
             const last = lastContact.get(l.id);
             return (
-              <tr key={l.id} onClick={() => onOpen(l.id)} className="cursor-pointer transition-colors hover:bg-white/[0.025]">
-                <td className="max-w-[360px] px-4 py-2.5 max-md:max-w-[180px]">
+              <tr key={l.id} onClick={() => onOpen(l.id)} className={cn("cursor-pointer transition-colors hover:bg-white/[0.025]", selected.includes(l.id) && "bg-accent/[0.06]")}>
+                <td className="w-10 py-2.5 pr-0 pl-4" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(l.id)}
+                    onChange={() => onToggle(l.id)}
+                    aria-label={`Elegir ${l.name}`}
+                    className="h-4 w-4 accent-[var(--accent)]"
+                  />
+                </td>
+                <td className="max-w-[360px] px-2 py-2.5 max-md:max-w-[180px]">
                   <button onClick={() => onOpen(l.id)} className="focus-ring block max-w-full text-left">
                     <span className="block truncate font-medium">
                       {l.name}
