@@ -105,7 +105,7 @@ export function isImage(mimeOrPath: string) {
   return mimeOrPath.startsWith("image/") || IMAGE_EXT.test(mimeOrPath);
 }
 
-async function sign(paths: string[]): Promise<Map<string, string>> {
+export async function sign(paths: string[]): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   const unique = [...new Set(paths)];
   if (!unique.length) return out;
