@@ -5,6 +5,7 @@
 import {
   WEEKDAYS,
   dayNumber,
+  isTaskLike,
   monthGrid,
   monthOf,
   type CalEvent,
@@ -17,7 +18,7 @@ export const TASK_MIME = "text/task-id";
 
 /** Una tarea recién creada todavía no tiene id real: no se puede arrastrar hasta que se guarde. */
 export const canDrag = (e: CalEvent) =>
-  e.type === "task" && !e.id.startsWith("tmp-");
+  isTaskLike(e) && !e.id.startsWith("tmp-");
 
 export function EventChip({
   e,
@@ -45,7 +46,7 @@ export function EventChip({
       )}
       style={style}
     >
-      {e.type === "task" && e.priority && (
+      {isTaskLike(e) && e.priority && (
         <span
           className={cn(
             "h-1.5 w-1.5 shrink-0 rounded-full",

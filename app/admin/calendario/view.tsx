@@ -11,6 +11,7 @@ import {
   addMonths,
   dayTitle,
   groupByDay,
+  isTaskLike,
   monthLabel,
   monthOf,
   type CalEvent,
@@ -58,6 +59,7 @@ function buildEvents(
   tasks: Task[],
   posts: CalPost[],
   deliveries: Delivery[],
+  leadNames: Map<string, string>,
 ): CalEvent[] {
   return [
     ...posts.map((p): CalEvent => ({
@@ -77,13 +79,14 @@ function buildEvents(
             {
               key: `t-${t.id}`,
               id: t.id,
-              type: "task",
+              type: t.lead_id ? "seguimiento" : "task",
               date: t.due,
               title: t.title,
               project: t.project_slug,
               owner: t.assignee,
               done: Boolean(t.done_at),
               priority: t.priority,
+              lead: t.lead_id ? { id: t.lead_id, name: leadNames.get(t.lead_id) ?? "Pedido" } : null,
             },
           ]
         : [],
@@ -128,9 +131,13 @@ export function CalendarView({
     () => new Map(projects.map((p) => [p.slug, p.name])),
     [projects],
   );
+  const leadNames = useMemo(
+    () => new Map(links.leads.map((l) => [l.id, l.name])),
+    [links.leads],
+  );
   const events = useMemo(
-    () => buildEvents(api.tasks, posts, deliveries),
-    [api.tasks, posts, deliveries],
+    () => buildEvents(api.tasks, posts, deliveries, leadNames),
+    [api.tasks, posts, deliveries, leadNames],
   );
   const matches = (e: Pick<CalEvent, "project" | "owner" | "type">) =>
     (project === "todos" || (e.project ?? NO_PROJECT) === project) &&
@@ -148,7 +155,7 @@ export function CalendarView({
   const inMonth = visible.filter((e) => monthOf(e.date) === ym);
   const monthPosts = inMonth.filter((e) => e.type === "post");
   const overdue = visible.filter(
-    (e) => e.type === "task" && !e.done && e.date < today,
+    (e) => isTaskLike(e) && !e.done && e.date < today,
   ).length;
 
   function togglePost(id: string, done: boolean) {
@@ -198,7 +205,7 @@ export function CalendarView({
         />
         <Kpi
           label="Tareas del mes"
-          value={inMonth.filter((e) => e.type === "task" && !e.done).length}
+          value={inMonth.filter((e) => isTaskLike(e) && !e.done).length}
           hint="Abiertas con fecha"
         />
         <Kpi

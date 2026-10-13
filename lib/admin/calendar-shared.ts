@@ -4,11 +4,12 @@ import type { ContentKind } from "./content-shared";
 import type { LeadOwner } from "./db";
 import type { TaskPriority } from "./task-shared";
 
-export type EventType = "post" | "task" | "entrega";
+export type EventType = "post" | "task" | "seguimiento" | "entrega";
 
 export const EVENT_TYPES: { id: EventType; label: string }[] = [
   { id: "post", label: "Posts" },
   { id: "task", label: "Tareas" },
+  { id: "seguimiento", label: "Seguimientos" },
   { id: "entrega", label: "Entregas" },
 ];
 
@@ -28,6 +29,8 @@ export type CalEvent = {
   kind?: ContentKind;
   priority?: TaskPriority;
   accent?: string;
+  /** Pedido al que pertenece un seguimiento. */
+  lead?: { id: string; name: string } | null;
 };
 
 export type CalPost = {
@@ -127,3 +130,6 @@ export function groupByDay(events: CalEvent[]): Map<string, CalEvent[]> {
   for (const e of events) out.set(e.date, [...(out.get(e.date) ?? []), e]);
   return out;
 }
+
+/** Las tareas y los seguimientos de pedidos se tildan, se editan y se arrastran igual. */
+export const isTaskLike = (e: Pick<CalEvent, "type">) => e.type === "task" || e.type === "seguimiento";

@@ -4,7 +4,7 @@
 // alta rápida de tareas con esa fecha. Lo comparten el panel lateral y la agenda.
 import Link from "next/link";
 import { Check } from "lucide-react";
-import type { CalEvent } from "@/lib/admin/calendar-shared";
+import { isTaskLike, type CalEvent } from "@/lib/admin/calendar-shared";
 import { KIND_LABEL, type ContentKind } from "@/lib/admin/content-shared";
 import type { LeadOwner } from "@/lib/admin/db";
 import type { TaskPriority } from "@/lib/admin/task-shared";
@@ -29,6 +29,7 @@ export function eventStyle(e: CalEvent): {
   style?: React.CSSProperties;
 } {
   if (e.type === "post" && e.kind) return { className: KIND_STYLE[e.kind] };
+  if (e.type === "seguimiento") return { className: "bg-sky-400/15 text-sky-300" };
   if (e.type === "entrega" && e.accent)
     return {
       className: "",
@@ -47,6 +48,7 @@ export type DayActions = {
 const SECTIONS = [
   { type: "post", label: "Posts de Instagram" },
   { type: "task", label: "Tareas" },
+  { type: "seguimiento", label: "Seguimientos de pedidos" },
   { type: "entrega", label: "Entregas de proyectos" },
 ] as const;
 
@@ -123,7 +125,7 @@ function EventRow({ e, actions }: { e: CalEvent; actions: DayActions }) {
 
   return (
     <div className="flex items-center gap-3 px-3 py-2.5">
-      {e.type === "task" && (
+      {isTaskLike(e) && (
         <ToggleButton
           done={e.done}
           label={`Marcar «${e.title}» como hecha`}
@@ -145,7 +147,7 @@ function EventRow({ e, actions }: { e: CalEvent; actions: DayActions }) {
       )}
 
       <div className="min-w-0 flex-1">
-        {e.type === "task" ? (
+        {isTaskLike(e) ? (
           <button
             type="button"
             onClick={() => actions.onOpenTask(e.id)}
@@ -166,7 +168,7 @@ function EventRow({ e, actions }: { e: CalEvent; actions: DayActions }) {
           </Link>
         )}
         <p className="mt-0.5 flex items-center gap-1.5 truncate text-[12px] text-muted">
-          {e.type === "task" && e.priority && (
+          {isTaskLike(e) && e.priority && (
             <span
               className={cn(
                 "h-1.5 w-1.5 shrink-0 rounded-full",
@@ -188,11 +190,16 @@ function EventRow({ e, actions }: { e: CalEvent; actions: DayActions }) {
           {e.type === "entrega" && (
             <span>{e.done ? "Entregado" : "Fecha de entrega"}</span>
           )}
+          {e.lead && (
+            <Link href={`/admin/pedidos?pedido=${e.lead.id}`} className="focus-ring truncate text-sky-300 hover:underline">
+              {e.lead.name}
+            </Link>
+          )}
           {project && <span className="truncate">{project}</span>}
         </p>
       </div>
 
-      {(e.type === "task" || e.type === "entrega") && (
+      {(isTaskLike(e) || e.type === "entrega") && (
         <OwnerFace who={e.owner} />
       )}
     </div>
