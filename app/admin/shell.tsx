@@ -265,6 +265,7 @@ function Sidebar({
             </ul>
           </div>
         ))}
+        <LiveLink on={isActive("/admin/oficinas")} />
       </nav>
 
       <div className="border-t border-[var(--line)] p-3">
@@ -300,6 +301,28 @@ function Sidebar({
         </div>
       </div>
     </div>
+  );
+}
+
+/** «En vivo»: el mapa del estudio. Va aparte y en naranja, con el punto de «al aire». */
+function LiveLink({ on }: { on: boolean }) {
+  return (
+    <Link
+      href="/admin/oficinas"
+      aria-current={on ? "page" : undefined}
+      className={cn(
+        "focus-ring relative mb-5 flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[14px] font-medium text-accent transition-colors hover:bg-accent-soft",
+        on && "bg-accent-soft",
+      )}
+    >
+      {on && <span aria-hidden className="absolute top-1.5 bottom-1.5 -left-3 w-[3px] rounded-r-full bg-accent shadow-[0_0_10px_var(--accent)]" />}
+      <span aria-hidden className="relative flex h-4 w-4 items-center justify-center">
+        <span className="absolute h-2.5 w-2.5 animate-ping rounded-full bg-accent opacity-50 motion-reduce:hidden" />
+        <span className="h-2 w-2 rounded-full bg-accent shadow-[0_0_8px_var(--accent)]" />
+      </span>
+      En vivo
+      <Pending />
+    </Link>
   );
 }
 

@@ -329,6 +329,9 @@ export async function removeProject(slug: string): Promise<{ name: string; files
   // Lo mismo con los cobros (payments.sql): sin FK, quedarían colgados del slug.
   const paid = await c.from("panel_payments").delete().eq("project_slug", slug);
   if (paid.error && paid.error.code !== "PGRST205" && paid.error.code !== "42P01") fail(paid.error);
+  // Y las visitas de «En vivo» (oficinas.sql): un proyecto nuevo con el mismo slug arranca apagado.
+  const seen = await c.from("panel_room_visits").delete().eq("project_slug", slug);
+  if (seen.error && seen.error.code !== "PGRST205" && seen.error.code !== "42P01") fail(seen.error);
 
   const del = await c.from("panel_projects").delete().eq("slug", slug);
   if (del.error) fail(del.error);
