@@ -35,7 +35,7 @@ export async function login(_: LoginState, form: FormData): Promise<LoginState> 
   if (await isLimited("admin_login", ip, MAX_FAILED_LOGINS, LOCKOUT_WINDOW_MS)) {
     return { error: "Demasiados intentos fallidos. Probá de nuevo en 15 minutos." };
   }
-  if (!checkPassword(pass)) {
+  if (!checkPassword(pass, who)) {
     await recordHit("admin_login", ip);
     return { error: "Contraseña incorrecta." };
   }

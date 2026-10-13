@@ -3,7 +3,7 @@
 // es público, así que no puede vivir en el código.
 // La contraseña es compartida; quién entró (Franco o Federico) viaja firmado
 // en la misma cookie para que el feed de cambios sepa quién hizo qué.
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
@@ -20,8 +20,18 @@ function password(): string | null {
   return process.env.ADMIN_PASSWORD || null;
 }
 
+/**
+ * La contraseña propia de cada uno (ADMIN_PASSWORD_FRANCO / ADMIN_PASSWORD_FEDERICO). Si la
+ * tiene, es la única que le sirve; si no, vale la compartida (ADMIN_PASSWORD). Así se puede
+ * pasar de una a otra de a uno, sin dejar a nadie afuera.
+ */
+const personal = (who: LeadOwner): string | null =>
+  process.env[`ADMIN_PASSWORD_${who.toUpperCase()}`]?.trim() || null;
+
+const anyPassword = () => password() ?? OWNERS.map(personal).find(Boolean) ?? null;
+
 function secret(): string | null {
-  const p = password();
+  const p = anyPassword();
   if (!p) return null;
   const s = process.env.ADMIN_SESSION_SECRET;
   // Sin ADMIN_SESSION_SECRET se deriva de la contraseña: anda, pero la firma
@@ -49,12 +59,18 @@ function safeEqual(a: string, b: string) {
 }
 
 export function adminConfigured() {
-  return Boolean(password());
+  return Boolean(anyPassword());
 }
 
-export function checkPassword(input: string) {
-  const p = password();
-  return Boolean(p) && safeEqual(input, p as string);
+const digest = (text: string) => createHash("sha256").update(text).digest("hex");
+
+/**
+ * Compara los hashes y no los textos: así el tiempo no delata el largo de la contraseña.
+ * Con `who`, vale su contraseña propia si la tiene; si no, la compartida.
+ */
+export function checkPassword(input: string, who?: LeadOwner) {
+  const p = (who && personal(who)) || password();
+  return Boolean(p) && safeEqual(digest(input), digest(p as string));
 }
 
 export async function startSession(who: LeadOwner) {

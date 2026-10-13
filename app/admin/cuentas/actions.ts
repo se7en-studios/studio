@@ -63,7 +63,7 @@ async function ensureOpen(
       needPassword: true,
     };
   }
-  if (!checkPassword(password)) {
+  if (!checkPassword(password, who)) {
     return { error: "Contraseña incorrecta.", needPassword: true };
   }
   await clearHits("vault_unlock", ip);
