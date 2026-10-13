@@ -54,3 +54,16 @@ export async function listDue(today: string): Promise<DuePost[]> {
   if (error) fail(error);
   return data as DuePost[];
 }
+
+export type CalendarPost = Pick<ContentPost, "id" | "post_date" | "kind" | "title" | "pinned" | "done_at">;
+
+/** Todos los posts sin archivos ni captions, para el calendario. */
+export async function listPostsLite(): Promise<CalendarPost[]> {
+  const { data, error } = await client()
+    .from("content_posts")
+    .select("id, post_date, kind, title, pinned, done_at")
+    .order("post_date")
+    .order("id");
+  if (error) fail(error);
+  return data as CalendarPost[];
+}
