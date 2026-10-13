@@ -238,7 +238,7 @@ export function CalendarView({
             Hoy
           </button>
         </div>
-        <h2 className="mr-auto ml-2 text-[18px] font-semibold capitalize">
+        <h2 className="mr-auto ml-2 text-[18px] font-semibold first-letter:uppercase">
           {monthLabel(ym)}
         </h2>
         <Segmented
@@ -266,7 +266,7 @@ export function CalendarView({
           value={project}
           onChange={(e) => setProject(e.target.value)}
           aria-label="Filtrar por proyecto"
-          className={cn(input, "w-auto")}
+          className={cn(input, "max-w-[260px]")}
         >
           <option value="todos">Todos los proyectos</option>
           <option value={NO_PROJECT}>Sin proyecto</option>
@@ -417,7 +417,7 @@ function Agenda({
             type="button"
             onClick={() => onSelect(d)}
             className={cn(
-              "focus-ring mb-2 text-[13px] font-semibold capitalize",
+              "focus-ring mb-2 text-[13px] font-semibold first-letter:uppercase",
               d === today && "text-accent",
             )}
           >
