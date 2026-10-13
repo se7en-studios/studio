@@ -33,9 +33,14 @@ async function optional<T>(p: Promise<T>, fallback: T): Promise<T> {
 /** Cotización de referencia: MEP, después oficial, después blue; 0 si no hay ninguna. */
 const referenceRate = (r: Rates) => r.mep ?? r.oficial ?? r.blue ?? 0;
 
-export default async function FinanzasPage() {
+export default async function FinanzasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ nuevo?: string }>;
+}) {
   const me = await panelSession();
   if (!me) return <AdminGate />;
+  const { nuevo } = await searchParams;
 
   const rates = await fetchRates();
   let manual: Entry[] = [];
@@ -85,6 +90,7 @@ export default async function FinanzasPage() {
           projects={projects.map((p) => ({ slug: p.slug, name: p.name }))}
           receivable={receivable}
           today={dayKey()}
+          initialAdd={nuevo === "1"}
         />
       )}
     </div>

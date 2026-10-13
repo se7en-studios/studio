@@ -7,6 +7,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BarChart3,
+  CalendarDays,
+  CalendarRange,
   CheckSquare,
   CornerDownLeft,
   FolderKanban,
@@ -17,6 +19,7 @@ import {
   Palette,
   Plus,
   Search,
+  Wallet,
 } from "lucide-react";
 import type { SearchIndex } from "./api/search/route";
 import { Kbd, cn } from "./kit";
@@ -30,12 +33,16 @@ const BASE: Item[] = [
   { id: "n-pedidos", group: "Ir a", label: "Pedidos", icon: <Inbox size={16} />, href: "/admin/pedidos" },
   { id: "n-proyectos", group: "Ir a", label: "Proyectos", icon: <FolderKanban size={16} />, href: "/admin/proyectos" },
   { id: "n-tareas", group: "Ir a", label: "Tareas", icon: <CheckSquare size={16} />, href: "/admin/tareas" },
+  { id: "n-calendario", group: "Ir a", label: "Calendario", icon: <CalendarRange size={16} />, href: "/admin/calendario" },
+  { id: "n-contenido", group: "Ir a", label: "Contenido de Instagram", icon: <CalendarDays size={16} />, href: "/admin/contenido" },
+  { id: "n-finanzas", group: "Ir a", label: "Finanzas", icon: <Wallet size={16} />, href: "/admin/finanzas" },
   { id: "n-metricas", group: "Ir a", label: "Métricas", icon: <BarChart3 size={16} />, href: "/admin/metricas" },
   { id: "n-registro", group: "Ir a", label: "Registro de cambios", icon: <History size={16} />, href: "/admin/cambios" },
   { id: "n-marca", group: "Ir a", label: "Marca", icon: <Palette size={16} />, href: "/admin/marca" },
   { id: "a-pedido", group: "Crear", label: "Nuevo pedido", icon: <Plus size={16} />, href: "/admin/pedidos?nuevo=1" },
   { id: "a-proyecto", group: "Crear", label: "Nuevo proyecto", icon: <Plus size={16} />, href: "/admin/proyectos?nuevo=1" },
   { id: "a-tarea", group: "Crear", label: "Nueva tarea", icon: <Plus size={16} />, href: "/admin/tareas?nueva=1" },
+  { id: "a-movimiento", group: "Crear", label: "Nuevo ingreso o costo", icon: <Plus size={16} />, href: "/admin/finanzas?nuevo=1" },
   { id: "a-mensaje", group: "Crear", label: "Mensaje al equipo", icon: <Plus size={16} />, href: "/admin/mensajes" },
 ];
 

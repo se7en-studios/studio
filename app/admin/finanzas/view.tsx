@@ -55,6 +55,8 @@ type Props = {
   /** USD por cobrar de los proyectos con monto acordado; null si falta la base. */
   receivable: number | null;
   today: string;
+  /** Desde un link (?nuevo=1): abre el formulario de alta. */
+  initialAdd?: boolean;
 };
 
 export function FinanceView({
@@ -64,6 +66,7 @@ export function FinanceView({
   projects,
   receivable,
   today,
+  initialAdd = false,
 }: Props) {
   const flash = useToast();
   const [items, setItems] = useState(entries);
@@ -78,7 +81,7 @@ export function FinanceView({
     CURRENCIES,
   );
   const [project, setProject] = useState("todos");
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(initialAdd);
   const [, start] = useTransition();
 
   // Sin cotización, los cobros de proyectos (en dólares) no tienen equivalente en pesos: se muestra sólo en dólares.
