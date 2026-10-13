@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "check": "node scripts/check-finance.mjs && node scripts/check-calendar.mjs && node scripts/check-digest.mjs && node scripts/gen-admin-light.mjs --check",
+    "check": "node scripts/check-finance.mjs && node scripts/check-calendar.mjs && node scripts/check-digest.mjs && node scripts/check-calls.mjs && node scripts/gen-admin-light.mjs --check",
     "verify": "npm run lint && npm run check && npm run build",
     "visual-check": "node scripts/visual-check.mjs",
     "bundle-size": "node scripts/bundle-size.mjs",

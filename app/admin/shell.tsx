@@ -21,6 +21,7 @@ import {
   LogOut,
   Menu,
   MessagesSquare,
+  Phone,
   Moon,
   Palette,
   Search,
@@ -32,6 +33,7 @@ import { otherTheme, themeCookie, type Theme } from "@/lib/admin/theme";
 import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
 import type { Pulse } from "./api/pulse/route";
 import { logout } from "./actions";
+import { CallListener } from "./call-listener";
 import { CommandPalette } from "./command";
 import { Face, Kbd, cn } from "./kit";
 import { ToastProvider } from "./overlay";
@@ -43,6 +45,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
     title: "Trabajo",
     items: [
       { href: "/admin", label: "Inicio", icon: <Home size={16} /> },
+      { href: "/admin/llamadas", label: "Llamadas", icon: <Phone size={16} /> },
       { href: "/admin/mensajes", label: "Mensajes", icon: <MessagesSquare size={16} />, badge: "unread", tone: "accent" },
       { href: "/admin/pedidos", label: "Pedidos", icon: <Inbox size={16} />, badge: "newLeads", tone: "accent" },
       { href: "/admin/proyectos", label: "Proyectos", icon: <FolderKanban size={16} /> },
@@ -66,7 +69,18 @@ const NAV: { title: string; items: NavItem[] }[] = [
 const PulseCtx = createContext<{ pulse: Pulse | null; refresh: () => void }>({ pulse: null, refresh: () => {} });
 export const usePulse = () => useContext(PulseCtx);
 
-export function AdminShell({ who, theme: initialTheme, children }: { who: LeadOwner; theme: Theme; children: React.ReactNode }) {
+export function AdminShell({
+  who,
+  theme: initialTheme,
+  callFeed,
+  children,
+}: {
+  who: LeadOwner;
+  theme: Theme;
+  /** De dónde recibe las llamadas: null si los avisos no están configurados. */
+  callFeed: { topic: string; server: string } | null;
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const [theme, setTheme] = useState(initialTheme);
   const [pulse, setPulse] = useState<Pulse | null>(null);
@@ -158,6 +172,7 @@ export function AdminShell({ who, theme: initialTheme, children }: { who: LeadOw
           </div>
 
           {palette && <CommandPalette onClose={() => setPalette(false)} />}
+          {callFeed && <CallListener who={who} topic={callFeed.topic} server={callFeed.server} />}
         </div>
       </ToastProvider>
     </PulseCtx.Provider>

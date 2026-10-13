@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { getSession } from "@/lib/admin/auth";
+import { listenTopic, notificationServer } from "@/lib/admin/notify";
 import { THEME_COOKIE, parseTheme } from "@/lib/admin/theme";
 import "./admin-light.css";
 import { AdminShell } from "./shell";
@@ -28,5 +29,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const me = await getSession();
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
   if (!me) return <div className="admin-app min-h-dvh" data-theme={theme}>{children}</div>;
-  return <AdminShell who={me.who} theme={theme}>{children}</AdminShell>;
+  // Tema al que escucha esta persona para recibir llamadas; solo lo ve quien tiene sesión.
+  const topic = listenTopic(me.who);
+  return (
+    <AdminShell who={me.who} theme={theme} callFeed={topic ? { topic, server: notificationServer() } : null}>
+      {children}
+    </AdminShell>
+  );
 }
