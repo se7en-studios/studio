@@ -540,3 +540,41 @@ body:has(.admin-app)::after {
     animation: none;
   }
 }
+
+/* Tema claro del panel. Redefine los mismos tokens: lo que usa var(--panel),
+   text-foreground, text-muted o text-accent cambia solo. Las clases de color
+   fijas (bg-white/…, text-red-400, …) están en app/admin/admin-light.css. */
+.admin-app[data-theme="light"] {
+  color-scheme: light;
+  --background: #f7f7f5;
+  --foreground: #15151a;
+  --muted: #62626b;
+  --border: rgba(15, 18, 30, 0.1);
+  --surface: #ffffff;
+  --surface-2: #f6f6f3;
+  --accent: #dc3d1d;
+  --accent-soft: rgba(220, 61, 29, 0.1);
+  --accent-hover: #c43418;
+  --bg: #f1f1ee;
+  --panel-0: #e9e9e5;
+  --panel: #ffffff;
+  --panel-2: #f5f5f2;
+  --panel-3: #ffffff;
+  --well: rgba(15, 18, 30, 0.045);
+  --well-soft: rgba(15, 18, 30, 0.03);
+  --line: rgba(15, 18, 30, 0.09);
+  --line-strong: rgba(15, 18, 30, 0.17);
+}
+:root:has(.admin-app[data-theme="light"]) {
+  color-scheme: light;
+}
+body:has(.admin-app[data-theme="light"]) {
+  background: #f1f1ee;
+}
+.admin-app[data-theme="light"] .admin-scroll {
+  scrollbar-color: rgba(15, 18, 30, 0.22) transparent;
+}
+.admin-app[data-theme="light"] .admin-skeleton {
+  background: linear-gradient(90deg, rgba(15, 18, 30, 0.04) 25%, rgba(15, 18, 30, 0.09) 50%, rgba(15, 18, 30, 0.04) 75%);
+  background-size: 200% 100%;
+}
