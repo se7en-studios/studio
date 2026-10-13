@@ -41,7 +41,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
       { href: "/admin/pedidos", label: "Pedidos", icon: <Inbox size={16} />, badge: "newLeads", tone: "accent" },
       { href: "/admin/proyectos", label: "Proyectos", icon: <FolderKanban size={16} /> },
       { href: "/admin/tareas", label: "Tareas", icon: <CheckSquare size={16} />, badge: "overdue", tone: "red" },
-      { href: "/admin/contenido", label: "Contenido", icon: <CalendarDays size={16} /> },
+      { href: "/admin/contenido", label: "Contenido", icon: <CalendarDays size={16} />, badge: "content", tone: "accent" },
     ],
   },
   {

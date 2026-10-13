@@ -1,10 +1,13 @@
 // «Para atender» en Inicio: lo que se está enfriando, en un solo lugar.
 // Componente de servidor; cada fila lleva directo a la ficha o al filtro.
 import Link from "next/link";
-import { AlertCircle, BellRing, Inbox, Snowflake, Wallet } from "lucide-react";
+import { AlertCircle, BellRing, CalendarDays, Inbox, Snowflake, Wallet } from "lucide-react";
 import { Card, CardLink, usd } from "./kit";
 import { ago } from "@/lib/admin/brief";
+import type { DuePost } from "@/lib/admin/content";
+import { KIND_LABEL } from "@/lib/admin/content-shared";
 import type { Lead } from "@/lib/admin/db";
+import { dayKey, dueLabel } from "@/lib/admin/task-shared";
 import {
   coldDays,
   lastContacts,
@@ -28,9 +31,12 @@ export function Attention({
   overdueTasks,
   now,
   unpaid = [],
+  content = [],
 }: {
   /** Proyectos entregados (o en mantenimiento) con saldo sin cobrar. */
   unpaid?: { slug: string; name: string; left: number }[];
+  /** Posts de Instagram de hoy o atrasados, sin publicar. */
+  content?: DuePost[];
   leads: Lead[];
   activities: Activity[] | null;
   overdueTasks: number;
@@ -45,7 +51,17 @@ export function Attention({
     .filter((x): x is { l: Lead; days: number } => x.days !== null)
     .sort((a, b) => b.days - a.days);
 
+  const today = dayKey(0, now);
+
   const rows: Row[] = [
+    ...content.map((p) => ({
+      id: `p-${p.id}`,
+      href: "/admin/contenido",
+      icon: <CalendarDays size={14} />,
+      title: p.title,
+      detail: p.post_date === today ? `Para publicar hoy · ${KIND_LABEL[p.kind]}, 19 h` : `Sin publicar · era para ${dueLabel(p.post_date, today)}`,
+      tone: p.post_date === today ? "text-accent" : "text-red-400",
+    })),
     ...unpaid.map((x) => ({
       id: `u-${x.slug}`,
       href: `/admin/proyectos/${x.slug}`,
