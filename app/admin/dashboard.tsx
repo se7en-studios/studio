@@ -55,6 +55,12 @@ const COLUMNS: { id: LeadStatus; label: string; hint: string; dot: string }[] = 
 ];
 const STAGE = Object.fromEntries(COLUMNS.map((c) => [c.id, c])) as Record<LeadStatus, (typeof COLUMNS)[number]>;
 
+/** Etapas en las que un pedido todavía se puede ganar. */
+const OPEN_STAGES: LeadStatus[] = ["nuevo", "contactado", "propuesta"];
+// Chance de cierre por etapa, para el pronóstico. Son supuestos propios, no historial:
+// ajustarlos cuando haya suficientes pedidos cerrados para medirlos de verdad.
+const STAGE_ODDS: Partial<Record<LeadStatus, number>> = { nuevo: 0.1, contactado: 0.25, propuesta: 0.5 };
+
 const PRIORITY_DOT: Record<Priority, string> = {
   alta: "bg-accent",
   media: "bg-amber-400",
@@ -106,6 +112,7 @@ export function Dashboard({
   const taskApi = useTasks(initialTasks?.list ?? [], flash);
   const [acts, setActs] = useState(initialActivities ?? []);
   const [coldOnly, setColdOnly] = useState(initialCold);
+  const [noStepOnly, setNoStepOnly] = useState(false);
   const [now] = useState(() => Date.now());
 
   const lastContact = useMemo(() => lastContacts(acts), [acts]);
@@ -120,15 +127,22 @@ export function Dashboard({
     return out;
   }, [taskApi.tasks]);
 
+  /** En curso y sin ningún seguimiento abierto: se enfría solo. Falso si no hay tareas (falta tasks.sql). */
+  const needsStep = useCallback(
+    (l: Lead) => initialTasks !== null && OPEN_STAGES.includes(l.status) && !nextTask.has(l.id),
+    [initialTasks, nextTask],
+  );
+
   const visible = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return leads.filter((l) => {
       if (owner === "sin" ? l.owner : owner !== "todos" && l.owner !== owner) return false;
       if (coldOnly && coldOf(l) === null) return false;
+      if (noStepOnly && !needsStep(l)) return false;
       if (!needle) return true;
       return [l.name, l.company, l.email, l.idea, l.project_type, l.phone ?? ""].some((v) => v.toLowerCase().includes(needle));
     });
-  }, [leads, q, owner, coldOnly, coldOf]);
+  }, [leads, q, owner, coldOnly, coldOf, noStepOnly, needsStep]);
 
   const byStage = useMemo(() => {
     const out = Object.fromEntries(COLUMNS.map((c) => [c.id, [] as Lead[]])) as Record<LeadStatus, Lead[]>;
@@ -148,8 +162,10 @@ export function Dashboard({
       won: won.reduce((sum, l) => sum + dealValue(l), 0),
       cold: leads.filter((l) => coldOf(l) !== null).length,
       winRate: closed ? Math.round((won.length / closed) * 100) : null,
+      forecast: leads.reduce((sum, l) => sum + dealValue(l) * (STAGE_ODDS[l.status] ?? 0), 0),
+      noStep: leads.filter(needsStep).length,
     };
-  }, [leads, coldOf]);
+  }, [leads, coldOf, needsStep]);
 
   /** Cambio optimista: se ve ya, se guarda después, se deshace si falla. */
   const leadsRef = useRef(leads);
@@ -264,7 +280,7 @@ export function Dashboard({
       )}
 
       {/* Números */}
-      <div className={cn(kpiRow, "md:grid-cols-3 xl:grid-cols-6")}>
+      <div className={cn(kpiRow, "md:grid-cols-4", initialTasks ? "xl:grid-cols-7" : "xl:grid-cols-6")}>
         <Kpi label="Sin responder" value={stats.fresh} tone={stats.fresh > 0 ? "accent" : undefined} />
         <Kpi label="En curso" value={stats.active} />
         <button
@@ -275,7 +291,22 @@ export function Dashboard({
         >
           <Kpi label={coldOnly ? "Fríos · filtrando" : "Fríos"} value={stats.cold} tone={stats.cold > 0 ? "amber" : undefined} icon={<Snowflake size={14} />} />
         </button>
-        <Kpi label="Valor en juego" value={usd(stats.pipeline)} />
+        {initialTasks && (
+          <button
+            onClick={() => setNoStepOnly((v) => !v)}
+            aria-pressed={noStepOnly}
+            title="Pedidos en curso sin ninguna tarea de seguimiento abierta. Tocá para filtrarlos."
+            className={cn("focus-ring rounded-xl text-left", noStepOnly && "ring-1 ring-accent/60")}
+          >
+            <Kpi
+              label={noStepOnly ? "Sin próximo paso · filtrando" : "Sin próximo paso"}
+              value={stats.noStep}
+              tone={stats.noStep > 0 ? "accent" : undefined}
+              icon={<CalendarClock size={14} />}
+            />
+          </button>
+        )}
+        <Kpi label="Valor en juego" value={usd(stats.pipeline)} hint={`Pronóstico ${usd(Math.round(stats.forecast))}`} />
         <Kpi label="Ganado" value={usd(stats.won)} tone={stats.won ? "green" : undefined} />
         <Kpi label="Tasa de cierre" value={stats.winRate == null ? "—" : `${stats.winRate}%`} />
       </div>
@@ -358,6 +389,7 @@ export function Dashboard({
                         next={nextTask.get(l.id)}
                         lastContact={lastContact.get(l.id)}
                         cold={coldOf(l)}
+                        noStep={needsStep(l)}
                         onOpen={openLead}
                         onMove={move}
                         onDragEnd={() => setDragOver(null)}
@@ -428,6 +460,7 @@ const LeadCard = memo(function LeadCard({
   next: task,
   lastContact,
   cold,
+  noStep,
   onOpen,
   onMove,
   onDragEnd,
@@ -436,6 +469,8 @@ const LeadCard = memo(function LeadCard({
   next?: Task;
   lastContact?: string;
   cold: number | null;
+  /** En curso y sin tarea de seguimiento abierta. */
+  noStep: boolean;
   onOpen: (id: string) => void;
   onMove: (id: string, s: LeadStatus) => void;
   onDragEnd: () => void;
@@ -478,6 +513,11 @@ const LeadCard = memo(function LeadCard({
           </div>
         )}
         {task && <FollowUpBadge task={task} />}
+        {noStep && (
+          <span className="mt-2 flex items-center gap-1.5 rounded-md bg-white/[0.05] px-2 py-1 text-[11px] text-muted">
+            <CalendarClock size={12} className="shrink-0" /> Sin próximo paso
+          </span>
+        )}
         {cold !== null ? (
           <span className="mt-2 flex items-center gap-1.5 rounded-md bg-amber-400/[0.07] px-2 py-1 text-[11px] text-amber-300">
             <Snowflake size={12} className="shrink-0" /> {lastContact ? `${cold} días sin contacto` : `Sin contacto en ${cold} días`}
