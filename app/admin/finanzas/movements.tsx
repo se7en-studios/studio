@@ -2,6 +2,8 @@
 
 // Lista de movimientos: monto en la moneda en que se cargó y el equivalente debajo.
 // Los cobros de proyectos se ven pero no se borran acá: se editan en su proyecto.
+// Cada fila son dos renglones (título y monto, detalle y equivalente) para que
+// entre bien en el celular sin cortar ni superponer nada.
 import { useState } from "react";
 import Link from "next/link";
 import { Repeat, Trash2 } from "lucide-react";
@@ -92,24 +94,34 @@ function Row({
 }) {
   const other = otherCurrency(e);
   const income = e.kind === "ingreso";
+  const title = e.description || categoryLabel(e.kind, e.category);
   return (
-    <div className="flex items-center gap-3 px-4 py-3">
-      <span className="w-[72px] shrink-0 text-[12px] text-muted tabular-nums">
-        {dayLabel(e.occurred_on)}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-medium">
-          {e.description || categoryLabel(e.kind, e.category)}
+    <div className="px-4 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <p className="min-w-0 text-[13px] leading-snug font-medium break-words">
+          {title}
         </p>
-        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-muted">
+        <p
+          className={cn(
+            "shrink-0 text-[13px] font-medium tabular-nums",
+            income ? "text-emerald-300" : "text-foreground",
+          )}
+        >
+          {income ? "+" : "−"} {fmt(e.amount, e.currency)}
+        </p>
+      </div>
+
+      <div className="mt-1 flex items-start justify-between gap-3">
+        <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-muted">
+          <span className="tabular-nums">{dayLabel(e.occurred_on)}</span>
           <span>{categoryLabel(e.kind, e.category)}</span>
           {e.source === "cobro" && (
-            <span className="rounded-full bg-emerald-400/10 px-1.5 text-emerald-300">
+            <span className="rounded-full bg-emerald-400/10 px-1.5 whitespace-nowrap text-emerald-300">
               Cobro de proyecto
             </span>
           )}
           {e.recurring && (
-            <span className="inline-flex items-center gap-1">
+            <span className="inline-flex items-center gap-1 whitespace-nowrap">
               <Repeat size={11} /> Todos los meses
               {e.until ? ` hasta ${dayLabel(e.until)}` : ""}
             </span>
@@ -126,58 +138,49 @@ function Row({
               <span>{project}</span>
             ))}
         </p>
-      </div>
-      <div className="shrink-0 text-right tabular-nums">
-        <p
-          className={cn(
-            "text-[13px] font-medium",
-            income ? "text-emerald-300" : "text-foreground",
-          )}
-        >
-          {income ? "+" : "−"} {fmt(e.amount, e.currency)}
-        </p>
-        <p
-          className="text-[12px] text-muted"
-          title={
-            e.source === "cobro"
-              ? "Al cambio de hoy"
-              : `Cotización ${fmt(e.fx, "ARS")}`
-          }
-        >
-          {e.source === "cobro" && e.fx === 0
-            ? "—"
-            : `${e.source === "cobro" ? "≈ " : ""}${fmt(other.amount, other.currency)}`}
-        </p>
-      </div>
-      <div className="w-[88px] shrink-0 text-right">
-        {e.source === "manual" &&
-          (confirming ? (
-            <span className="flex justify-end gap-1">
+
+        <div className="flex shrink-0 items-center gap-1.5">
+          <span
+            className="text-[12px] text-muted tabular-nums"
+            title={
+              e.source === "cobro"
+                ? "Al cambio de hoy"
+                : `Cotización ${fmt(e.fx, "ARS")}`
+            }
+          >
+            {e.source === "cobro" && e.fx === 0
+              ? "—"
+              : `${e.source === "cobro" ? "≈ " : ""}${fmt(other.amount, other.currency)}`}
+          </span>
+          {e.source === "manual" &&
+            (confirming ? (
+              <span className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={onDelete}
+                  className="focus-ring rounded-md bg-red-500/90 px-2 py-1 text-[11px] text-white"
+                >
+                  Borrar
+                </button>
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="focus-ring rounded-md px-1.5 py-1 text-[11px] text-muted hover:text-foreground"
+                >
+                  No
+                </button>
+              </span>
+            ) : (
               <button
                 type="button"
-                onClick={onDelete}
-                className="focus-ring rounded-md bg-red-500/90 px-2 py-1 text-[11px] text-white"
+                onClick={onAsk}
+                aria-label={`Borrar ${title}`}
+                className={cn(btnGhost, "p-1.5")}
               >
-                Borrar
+                <Trash2 size={14} />
               </button>
-              <button
-                type="button"
-                onClick={onCancel}
-                className="focus-ring rounded-md px-1.5 py-1 text-[11px] text-muted hover:text-foreground"
-              >
-                No
-              </button>
-            </span>
-          ) : (
-            <button
-              type="button"
-              onClick={onAsk}
-              aria-label={`Borrar ${e.description || categoryLabel(e.kind, e.category)}`}
-              className={btnGhost}
-            >
-              <Trash2 size={14} />
-            </button>
-          ))}
+            ))}
+        </div>
       </div>
     </div>
   );
