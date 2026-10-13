@@ -43,7 +43,7 @@ export default function AdminError({
         </Link>
       </div>
       {error.digest && (
-        <p className="mt-6 font-mono text-[11px] text-muted/70">
+        <p className="mt-6 font-mono text-[11px] text-muted">
           Código: {error.digest}
         </p>
       )}

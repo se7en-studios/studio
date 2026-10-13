@@ -113,7 +113,7 @@ export function MonthGrid({
                     ? "bg-accent font-semibold text-background"
                     : inMonth
                       ? "text-foreground"
-                      : "text-muted/50",
+                      : "text-muted",
                 )}
               >
                 {dayNumber(day)}

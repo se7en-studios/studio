@@ -208,7 +208,7 @@ function StageBars({
               <span className="text-foreground">{s.label}</span>
               <span className="font-mono text-muted tabular-nums">
                 {n}{" "}
-                <span className="text-muted/60">
+                <span className="text-muted">
                   · {Math.round((n / total) * 100)}%
                 </span>
               </span>

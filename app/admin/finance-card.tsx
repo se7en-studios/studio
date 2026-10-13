@@ -42,7 +42,7 @@ export function FinanceCard({
           Todavía no hay ingresos ni costos cargados.{" "}
           <Link
             href="/admin/finanzas?nuevo=1"
-            className="text-accent hover:underline"
+            className="text-accent underline underline-offset-2"
           >
             Cargar el primero
           </Link>

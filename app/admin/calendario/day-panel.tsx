@@ -191,7 +191,7 @@ function EventRow({ e, actions }: { e: CalEvent; actions: DayActions }) {
             <span>{e.done ? "Entregado" : "Fecha de entrega"}</span>
           )}
           {e.lead && (
-            <Link href={`/admin/pedidos?pedido=${e.lead.id}`} className="focus-ring truncate text-sky-300 hover:underline">
+            <Link href={`/admin/pedidos?pedido=${e.lead.id}`} className="focus-ring truncate text-sky-300 underline">
               {e.lead.name}
             </Link>
           )}

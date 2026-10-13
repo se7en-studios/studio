@@ -264,7 +264,7 @@ export default async function AdminHome() {
               </ul>
             ) : (
               <Empty icon={<MessagesSquare size={18} />} title="Sin mensajes todavía">
-                <Link href="/admin/mensajes" className="text-accent hover:underline">
+                <Link href="/admin/mensajes" className="text-accent underline underline-offset-2">
                   Escribile al equipo
                 </Link>{" "}
                 o abrí la conversación de un proyecto.

@@ -227,7 +227,7 @@ function Sidebar({
       <nav aria-label="Secciones del panel" className="admin-scroll mt-4 flex-1 overflow-y-auto px-3">
         {NAV.map((group) => (
           <div key={group.title} className="mb-5">
-            <p className="mb-1 px-2.5 text-[11px] font-medium text-muted/70">{group.title}</p>
+            <p className="mb-1 px-2.5 text-[11px] font-medium text-muted">{group.title}</p>
             <ul className="space-y-px">
               {group.items.map((item) => {
                 const on = isActive(item.href);

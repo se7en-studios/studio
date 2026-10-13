@@ -19,7 +19,7 @@ const TINT = "15, 18, 30"; // tinta fría: el equivalente claro del blanco trans
 const TEXT = {
   "red-300": "#b91c1c",
   "red-400": "#dc2626",
-  "amber-300": "#b45309",
+  "amber-300": "#92400e",
   "emerald-300": "#047857",
   "emerald-400": "#059669",
   "violet-300": "#6d28d9",

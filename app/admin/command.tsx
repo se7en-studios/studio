@@ -164,7 +164,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
           lastGroup = item.group;
           return (
             <li key={item.id} role="option" aria-selected={i === active}>
-              {head && <p className="px-2.5 pt-2.5 pb-1 text-[11px] font-medium text-muted/70">{item.group}</p>}
+              {head && <p className="px-2.5 pt-2.5 pb-1 text-[11px] font-medium text-muted">{item.group}</p>}
               <button
                 data-i={i}
                 onMouseMove={() => setActive(i)}
