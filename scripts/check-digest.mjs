@@ -73,3 +73,9 @@ assert.equal(taskAssignedNotice("Fede").path, "/admin/tareas");
 assert.equal(noteNotice("Franco", "  hola  ").message, "hola");
 assert.equal(noteNotice("Franco", "x".repeat(NOTE_MAX + 50)).message.length, NOTE_MAX);
 console.log("avisos entre socios OK");
+
+// Copia de seguridad del mes: sola ya es un aviso; y sin la marca, no hay nada que mandar.
+const bk = morningDigest({ ...base, backupDue: true });
+assert.match(bk.message, /copia de seguridad/);
+assert.equal(morningDigest({ ...base, backupDue: false }), null);
+console.log("copia mensual OK");

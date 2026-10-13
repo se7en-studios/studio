@@ -12,7 +12,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { after } from "next/server";
-import { checkPassword, endSession, getSession, startSession } from "@/lib/admin/auth";
+import { checkPassword, checkTotp, endSession, getSession, hasTotp, startSession } from "@/lib/admin/auth";
 import { OWNERS, STATUSES, patchLead, removeLead, type LeadOwner, type LeadStatus } from "@/lib/admin/db";
 import { leadDiff, STATUS_LABEL } from "@/lib/admin/lead-changes";
 import { logEvent } from "@/lib/admin/panel";
@@ -22,7 +22,7 @@ import { clientIp, isLimited, recordHit } from "@/lib/rate-limit";
 const MAX_FAILED_LOGINS = 5;
 const LOCKOUT_WINDOW_MS = 15 * 60 * 1000;
 
-export type LoginState = { error?: string };
+export type LoginState = { error?: string; needCode?: boolean };
 
 export async function login(_: LoginState, form: FormData): Promise<LoginState> {
   const pass = String(form.get("password") ?? "");
@@ -38,6 +38,15 @@ export async function login(_: LoginState, form: FormData): Promise<LoginState> 
   if (!checkPassword(pass, who)) {
     await recordHit("admin_login", ip);
     return { error: "Contraseña incorrecta." };
+  }
+  // Segundo paso: con la contraseña bien, se pide el código de la app (si tiene uno activado).
+  if (hasTotp(who)) {
+    const code = String(form.get("code") ?? "").trim();
+    if (!code) return { needCode: true };
+    if (!checkTotp(who, code)) {
+      await recordHit("admin_login", ip);
+      return { needCode: true, error: "Código incorrecto o vencido." };
+    }
   }
   await startSession(who);
   // Acá sí: el layout tiene que pasar de la pantalla de login al panel.
