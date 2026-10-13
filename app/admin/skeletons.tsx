@@ -130,3 +130,63 @@ export function TasksSkeleton() {
     </Shell>
   );
 }
+
+export function CalendarSkeleton() {
+  return (
+    <Shell>
+      <Header />
+      <Kpis n={4} cols="md:grid-cols-4" />
+      <Sk className="h-9 w-72 rounded-lg" />
+      <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
+        <Sk className="h-[520px] rounded-xl" />
+        <div className="space-y-4">
+          <Sk className="h-[220px] rounded-xl" />
+          <Sk className="h-[120px] rounded-xl" />
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+export function ContentSkeleton() {
+  return (
+    <Shell>
+      <Header />
+      <Sk className="h-8 w-80 rounded-lg" />
+      <div className="space-y-4">
+        {Array.from({ length: 3 }, (_, i) => (
+          <Sk key={i} className="h-[190px] rounded-xl" />
+        ))}
+      </div>
+    </Shell>
+  );
+}
+
+export function FinanceSkeleton() {
+  return (
+    <Shell>
+      <Header actions={2} />
+      <Filters />
+      <Kpis n={5} cols="md:grid-cols-3 xl:grid-cols-5" />
+      <Sk className="h-[210px] rounded-xl" />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Sk className="h-[200px] rounded-xl" />
+        <Sk className="h-[200px] rounded-xl" />
+      </div>
+      <Sk className="h-[260px] rounded-xl" />
+    </Shell>
+  );
+}
+
+export function MetricsSkeleton() {
+  return (
+    <Shell>
+      <Header />
+      <Kpis n={5} cols="md:grid-cols-3 xl:grid-cols-5" />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Sk className="h-[260px] rounded-xl" />
+        <Sk className="h-[260px] rounded-xl" />
+      </div>
+    </Shell>
+  );
+}
