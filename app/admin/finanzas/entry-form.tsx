@@ -15,11 +15,13 @@ import {
   type Currency,
   type Entry,
   type FinanceKind,
+  type Owner,
 } from "@/lib/admin/finance-shared";
 import type { Rates } from "@/lib/admin/fx";
 import { Chip, btnGhost, btnPrimary, input, label } from "../kit";
 import { Dialog } from "../overlay";
 import { createEntry } from "./actions";
+import { OwnerPicker } from "./owner";
 
 type Project = { slug: string; name: string };
 
@@ -38,6 +40,7 @@ export function EntryForm({
   fx,
   projects,
   today,
+  initialPending = false,
   onClose,
   onCreated,
 }: {
@@ -45,6 +48,8 @@ export function EntryForm({
   fx: number;
   projects: Project[];
   today: string;
+  /** Abre el formulario con «Pago pendiente» ya marcado. */
+  initialPending?: boolean;
   onClose: () => void;
   onCreated: (entry: Entry) => void;
 }) {
@@ -58,6 +63,8 @@ export function EntryForm({
   const [project, setProject] = useState("");
   const [recurring, setRecurring] = useState(false);
   const [until, setUntil] = useState("");
+  const [owner, setOwner] = useState<Owner>("ambos");
+  const [isPending, setIsPending] = useState(initialPending);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -84,6 +91,8 @@ export function EntryForm({
       project_slug: project || null,
       recurring,
       until: until || null,
+      owner,
+      status: isPending ? "pendiente" : "pagado",
     });
     if (!cleaned.ok) return setError(cleaned.error);
     setError(null);
@@ -186,7 +195,7 @@ export function EntryForm({
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label htmlFor="fin-day" className={label}>
-                Fecha
+                {isPending ? "Fecha prevista" : "Fecha"}
               </label>
               <input
                 id="fin-day"
@@ -252,6 +261,35 @@ export function EntryForm({
             </select>
           </div>
 
+          <div>
+            <span className={label}>
+              {kind === "costo" ? "Quién lo paga" : "Quién lo cobra"}
+            </span>
+            <OwnerPicker
+              value={owner}
+              onChange={setOwner}
+              legend={kind === "costo" ? "Quién lo paga" : "Quién lo cobra"}
+            />
+          </div>
+
+          <div className="rounded-lg border border-[var(--line)] p-3">
+            <label className="flex items-center gap-2 text-[13px]">
+              <input
+                type="checkbox"
+                checked={isPending}
+                onChange={(e) => setIsPending(e.target.checked)}
+                className="accent-[var(--accent)]"
+              />
+              Pago pendiente
+            </label>
+            <p className="mt-1.5 text-[12px] text-muted">
+              {kind === "costo" ? "Todavía no se pagó" : "Todavía no se cobró"}:
+              queda en «Pagos pendientes» y no cuenta en los totales hasta que
+              lo marques como {kind === "costo" ? "pagado" : "cobrado"}.
+            </p>
+          </div>
+
+          {!isPending && (
           <div className="rounded-lg border border-[var(--line)] p-3">
             <label className="flex items-center gap-2 text-[13px]">
               <input
@@ -281,6 +319,8 @@ export function EntryForm({
               </div>
             )}
           </div>
+
+          )}
 
           {error && (
             <p

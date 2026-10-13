@@ -83,4 +83,36 @@ assert.equal(f.parseAmount(" 350 "), 350);
 assert.ok(Number.isNaN(f.parseAmount("")));
 assert.ok(Number.isNaN(f.parseAmount("mil")));
 
+
+// Socios y pendientes.
+const own = (over) => entry({ owner: "ambos", status: "pagado", ...over });
+const shared = own({ id: "s", kind: "costo", currency: "USD", amount: 100 });
+const mine = own({ id: "m", kind: "costo", currency: "USD", amount: 40, owner: "franco" });
+const pend = own({ id: "p", kind: "ingreso", currency: "USD", amount: 900, status: "pendiente" });
+assert.deepEqual(f.forPerson([shared, mine], "franco").map((e) => e.amount), [50, 40]); // lo de los dos, a la mitad
+assert.deepEqual(f.forPerson([shared, mine], "federico").map((e) => e.amount), [50]);
+assert.equal(f.expand([pend], ["2026-10"]).length, 0); // un pendiente no cuenta hasta que se paga
+assert.equal(f.expand([{ ...pend, status: "pagado" }], ["2026-10"]).length, 1);
+const sum = (who) => f.totals(f.expand(f.forPerson([shared, mine], who), ["2026-10"])).costoUsd;
+assert.equal(sum("franco") + sum("federico"), 140); // entre los dos suman el total
+const base = { kind: "ingreso", currency: "USD", amount: 10, fx: 1000, occurred_on: "2026-10-05" };
+assert.equal(f.cleanEntry({ ...base, status: "pendiente", recurring: true }).value.recurring, false);
+assert.equal(f.cleanEntry({ ...base }).value.owner, "ambos");
+assert.equal(f.cleanEntry({ ...base, owner: "nadie" }).value.owner, "ambos");
+
+// Herramientas: la próxima renovación y el costo por mes.
+const tl = await import("../lib/admin/tool-shared.ts");
+assert.equal(tl.nextRenewal("2026-10-20", "mensual", "2026-10-13"), "2026-10-20");
+assert.equal(tl.nextRenewal("2026-08-20", "mensual", "2026-10-21"), "2026-11-20");
+assert.equal(tl.nextRenewal("2025-03-05", "anual", "2026-10-13"), "2027-03-05");
+assert.equal(tl.nextRenewal("2026-01-31", "mensual", "2026-02-10"), "2026-02-28"); // no se pasa de mes
+assert.equal(tl.nextRenewal("2026-01-31", "mensual", "2026-03-01"), "2026-03-31"); // y no arrastra el 28
+assert.equal(tl.daysUntil("2026-10-20", "2026-10-13"), 7);
+assert.equal(tl.monthlyIn({ amount: 120, currency: "USD", cycle: "anual" }, "USD", 1000), 10);
+assert.equal(tl.monthlyIn({ amount: 20, currency: "USD", cycle: "mensual" }, "ARS", 1000), 20_000);
+assert.equal(tl.monthlyIn({ amount: 20, currency: "USD", cycle: "mensual" }, "ARS", 0), 0);
+assert.equal(tl.logoOf("Claude Max"), "/logos/claude.svg");
+assert.equal(tl.logoOf("Algo raro"), null);
+assert.equal(tl.cleanTool({ name: " ", amount: 1, currency: "USD", cycle: "mensual", renews_on: "2026-10-01" }).ok, false);
+assert.equal(tl.cleanTool({ name: "Vercel", amount: 20, currency: "USD", cycle: "mensual", renews_on: "2026-10-01" }).value.owner, "ambos");
 console.log("finance OK");

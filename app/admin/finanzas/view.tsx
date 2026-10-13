@@ -15,6 +15,7 @@ import {
   expand,
   fixedCosts,
   fmt,
+  forPerson,
   groupTotals,
   margin,
   periodMonths,
@@ -25,6 +26,8 @@ import {
   type Entry,
   type Period,
 } from "@/lib/admin/finance-shared";
+import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
+import type { Tool } from "@/lib/admin/tool-shared";
 import type { Rates } from "@/lib/admin/fx";
 import {
   Kpi,
@@ -37,10 +40,13 @@ import {
 } from "../kit";
 import { useStoredChoice, useToast } from "../overlay";
 import { cell } from "../pedidos/csv";
-import { deleteEntry } from "./actions";
+import { deleteEntry, settleEntry } from "./actions";
 import { Breakdown, MonthlyChart, ProjectProfit } from "./charts";
 import { EntryForm } from "./entry-form";
 import { Movements } from "./movements";
+import { Partners } from "./partners";
+import { Pending, type OwedProject } from "./pending";
+import { Tools } from "./tools";
 
 type Project = { slug: string; name: string };
 const NO_PROJECT = "__sin-proyecto";
@@ -52,8 +58,10 @@ type Props = {
   /** Cotización de referencia (pesos por dólar); 0 si no hay ninguna. */
   fx: number;
   projects: Project[];
-  /** USD por cobrar de los proyectos con monto acordado; null si falta la base. */
-  receivable: number | null;
+  /** Proyectos con saldo por cobrar (USD); null si falta la base. */
+  owed: OwedProject[] | null;
+  /** Herramientas con renovación; null si falta la tabla. */
+  tools: Tool[] | null;
   today: string;
   /** Desde un link (?nuevo=1): abre el formulario de alta. */
   initialAdd?: boolean;
@@ -64,7 +72,8 @@ export function FinanceView({
   rates,
   fx,
   projects,
-  receivable,
+  owed,
+  tools,
   today,
   initialAdd = false,
 }: Props) {
@@ -81,7 +90,10 @@ export function FinanceView({
     CURRENCIES,
   );
   const [project, setProject] = useState("todos");
-  const [adding, setAdding] = useState(initialAdd);
+  const [person, setPerson] = useState("todos");
+  const [adding, setAdding] = useState<"movimiento" | "pendiente" | null>(
+    initialAdd ? "movimiento" : null,
+  );
   const [, start] = useTransition();
 
   // Sin cotización, los cobros de proyectos (en dólares) no tienen equivalente en pesos: se muestra sólo en dólares.
@@ -96,7 +108,8 @@ export function FinanceView({
   const projectName = (slug: string | null) =>
     slug ? (names.get(slug) ?? slug) : null;
 
-  const scoped = useMemo(
+  // Por proyecto; después, por socio: a cada uno le toca lo suyo y la mitad de lo de los dos.
+  const byProject = useMemo(
     () =>
       items.filter(
         (e) =>
@@ -107,6 +120,13 @@ export function FinanceView({
       ),
     [items, project],
   );
+  const scoped = useMemo(
+    () =>
+      person === "franco" || person === "federico"
+        ? forPerson(byProject, person)
+        : byProject,
+    [byProject, person],
+  );
   const months = useMemo(
     () => periodMonths(period, today, items),
     [period, today, items],
@@ -116,6 +136,12 @@ export function FinanceView({
   const { ingreso, costo } = pick(tot, currency);
   const otherTot = pick(tot, other);
   const result = ingreso - costo;
+  const pendingItems = scoped.filter((e) => e.status === "pendiente");
+  const share = person === "todos" ? 1 : 0.5;
+  const owedShown = (owed ?? [])
+    .filter((p) => project === "todos" || project === p.slug)
+    .map((p) => ({ ...p, balance: p.balance * share }));
+  const receivable = owed ? owedShown.reduce((s, p) => s + p.balance, 0) : null;
   const fixed = fixedCosts(scoped, monthOf(today));
   const inPeriod = useMemo(() => {
     const ids = new Set(occ.map((o) => o.entry.id));
@@ -152,6 +178,17 @@ export function FinanceView({
     label: projectName(key) ?? key,
     totals: t,
   }));
+
+  function settle(id: string) {
+    start(async () => {
+      const res = await settleEntry(id);
+      if (res.entry) {
+        const paid = res.entry;
+        setItems((xs) => xs.map((x) => (x.id === id ? paid : x)));
+        flash(paid.kind === "costo" ? "Marcado como pagado" : "Marcado como cobrado", "ok");
+      } else flash(res.error ?? "No se pudo actualizar.", "error");
+    });
+  }
 
   function remove(id: string) {
     const before = items;
@@ -200,6 +237,15 @@ export function FinanceView({
             </option>
           ))}
         </select>
+        <Segmented
+          value={person}
+          onChange={setPerson}
+          label="Socio"
+          options={[
+            { id: "todos", label: "Todos" },
+            ...PEOPLE_IDS.map((id) => ({ id, label: PEOPLE[id].name })),
+          ]}
+        />
         <div className="ml-auto flex gap-2">
           <button
             type="button"
@@ -211,7 +257,7 @@ export function FinanceView({
           </button>
           <button
             type="button"
-            onClick={() => setAdding(true)}
+            onClick={() => setAdding("movimiento")}
             className={btnPrimary}
           >
             <Plus size={14} /> Nuevo movimiento
@@ -282,6 +328,15 @@ export function FinanceView({
         )}
       </div>
 
+      <Pending
+        entries={pendingItems}
+        owed={owedShown.filter((p) => p.balance > 0)}
+        today={today}
+        projectName={projectName}
+        onSettle={settle}
+        onAdd={() => setAdding("pendiente")}
+      />
+
       <MonthlyChart series={byMonth(occ, months)} currency={currency} />
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -299,7 +354,10 @@ export function FinanceView({
         />
       </div>
 
+      <Partners entries={byProject} months={months} currency={currency} />
+
       <ProjectProfit rows={profitRows} currency={currency} />
+      <Tools initial={tools} currency={currency} fx={fx} today={today} />
       <Movements
         entries={inPeriod}
         projectName={projectName}
@@ -312,7 +370,8 @@ export function FinanceView({
           fx={fx}
           projects={projects}
           today={today}
-          onClose={() => setAdding(false)}
+          initialPending={adding === "pendiente"}
+          onClose={() => setAdding(null)}
           onCreated={(entry) => {
             setItems((xs) => [entry, ...xs]);
             flash("Movimiento cargado", "ok");

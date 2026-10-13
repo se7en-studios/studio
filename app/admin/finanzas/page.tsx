@@ -12,6 +12,7 @@ import {
 import { paidBySlug } from "@/lib/admin/payments";
 import { balance } from "@/lib/admin/payment-shared";
 import { listStates } from "@/lib/admin/projects";
+import { listTools } from "@/lib/admin/tools";
 import { dayKey } from "@/lib/admin/task-shared";
 import { AdminGate, PageHeader } from "../ui";
 import { FinanceSetup } from "./setup";
@@ -55,30 +56,33 @@ export default async function FinanzasPage({
   // Sin cotización del día, los cobros se convierten con la del último movimiento cargado a mano.
   const fx =
     referenceRate(rates) || (manual.find((m) => m.currency === "ARS")?.fx ?? 0);
-  const [cobros, projects, states, paid] = await Promise.all([
+  const [cobros, projects, states, paid, tools] = await Promise.all([
     optional(listCobros(fx), [] as Entry[]),
     optional(listProjects(), caseProjects() as PanelProject[]),
     optional(listStates(), null),
     optional(paidBySlug(), null),
+    optional(listTools(), null),
   ]);
 
-  // Lo que falta cobrar de los proyectos con monto acordado (en USD), igual que en Inicio.
-  const receivable =
+  // Proyectos con monto acordado y saldo por cobrar (en USD), igual que en Inicio.
+  const owed =
     states && paid
-      ? projects.reduce((sum, p) => {
+      ? projects.flatMap((p) => {
           const s = states.get(p.slug);
-          return s && s.status !== "pausado"
-            ? sum + (balance(s.budget, paid.get(p.slug) ?? 0) ?? 0)
-            : sum;
-        }, 0)
+          const left =
+            s && s.status !== "pausado"
+              ? balance(s.budget, paid.get(p.slug) ?? 0)
+              : null;
+          return left ? [{ slug: p.slug, name: p.name, balance: left }] : [];
+        })
       : null;
 
   return (
     <div className="space-y-6">
       <PageHeader title="Finanzas">
-        Ingresos y costos del estudio, en pesos o en dólares y siempre con el
-        equivalente en la otra moneda. Los cobros que cargás en cada proyecto
-        entran solos.
+        Ingresos y costos del estudio repartidos entre Franco y Federico, en
+        pesos o en dólares y siempre con el equivalente en la otra moneda. Los
+        cobros que cargás en cada proyecto entran solos.
       </PageHeader>
       {setup ? (
         <FinanceSetup />
@@ -88,7 +92,8 @@ export default async function FinanzasPage({
           rates={rates}
           fx={fx}
           projects={projects.map((p) => ({ slug: p.slug, name: p.name }))}
-          receivable={receivable}
+          owed={owed}
+          tools={tools}
           today={dayKey()}
           initialAdd={nuevo === "1"}
         />
