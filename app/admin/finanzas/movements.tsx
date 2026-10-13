@@ -436,6 +436,11 @@ function Row({
               Cobro de proyecto
             </span>
           )}
+          {e.studio && (
+            <span className="rounded-full bg-white/[0.06] px-1.5 whitespace-nowrap">
+              50% de la cuenta del estudio
+            </span>
+          )}
           {e.source === "herramienta" && (
             <span className="rounded-full bg-white/[0.06] px-1.5 whitespace-nowrap">
               Herramienta

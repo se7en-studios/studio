@@ -75,6 +75,43 @@ export async function startSession(who: LeadOwner) {
 export async function endSession() {
   const store = await cookies();
   store.delete({ name: COOKIE, path: "/admin" });
+  store.delete({ name: VAULT_COOKIE, path: "/admin" });
+}
+
+// Caja fuerte (Cuentas): ver o cambiar una clave pide volver a poner la contraseña del
+// panel, y eso la deja «abierta» unos minutos. Es otra cookie, firmada y de vida corta,
+// para que una sesión robada de hace días no alcance para leer las claves.
+const VAULT_COOKIE = "se7en_vault";
+const VAULT_TTL_MS = 1000 * 60 * 5;
+
+// Subllave propia: una cookie de sesión no se puede reusar como cookie de la caja.
+const vaultKey = (key: string) => `${key}:vault`;
+
+export async function unlockVault(who: LeadOwner) {
+  const key = secret();
+  if (!key) return;
+  const exp = Date.now() + VAULT_TTL_MS;
+  const value = `${exp}.${who}.vault`;
+  (await cookies()).set(VAULT_COOKIE, `${value}.${sign(value, vaultKey(key))}`, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    path: "/admin",
+    expires: new Date(exp),
+  });
+}
+
+export async function vaultUnlocked(who: LeadOwner): Promise<boolean> {
+  const key = secret();
+  const raw = (await cookies()).get(VAULT_COOKIE)?.value;
+  if (!key || !raw) return false;
+  const [exp, by, tag, mac] = raw.split(".");
+  if (!exp || by !== who || tag !== "vault" || !mac || Number(exp) < Date.now()) return false;
+  return safeEqual(mac, sign(`${exp}.${by}.${tag}`, vaultKey(key)));
+}
+
+export async function lockVault() {
+  (await cookies()).delete({ name: VAULT_COOKIE, path: "/admin" });
 }
 
 /**

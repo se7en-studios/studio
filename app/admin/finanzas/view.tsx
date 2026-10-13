@@ -16,10 +16,12 @@ import {
   expand,
   fixedCosts,
   fmt,
+  forPartner,
   groupTotals,
   margin,
   periodMonths,
   pick,
+  settle as splitOf,
   totals,
   usdOf,
   type Currency,
@@ -145,7 +147,12 @@ export function FinanceView({
     [all, project],
   );
   const scoped = useMemo(
-    () => (who === "todos" ? byProject : byProject.filter((e) => e.owner === who)),
+    () =>
+      who === "todos"
+        ? byProject
+        : who === "ambos"
+          ? byProject.filter((e) => e.owner === "ambos")
+          : forPartner(byProject, who),
     [byProject, who],
   );
   const months = useMemo(
@@ -156,6 +163,9 @@ export function FinanceView({
   const tot = totals(occ);
   const { ingreso, costo } = pick(tot, currency);
   const otherTot = pick(tot, other);
+  // Lo que le toca a cada socio de los ingresos (la cuenta del estudio va mitad y mitad).
+  const split = splitOf(occ, currency);
+  const evenSplit = Math.abs(split.franco.in - split.federico.in) < 1;
   const result = ingreso - costo;
   const pendingItems = scoped.filter((e) => e.status === "pendiente");
   // El saldo de un proyecto no es de nadie en particular: sólo se ve en «todos».
@@ -224,7 +234,11 @@ export function FinanceView({
   }
 
   // Cada origen se edita donde corresponde: herramientas en su formulario, cobros en el suyo.
-  function editRow(e: Entry) {
+  // Con el filtro de un socio, las filas de la cuenta del estudio vienen partidas: se edita el original.
+  const original = (e: Entry) => all.find((x) => x.id === e.id) ?? e;
+
+  function editRow(shown: Entry) {
+    const e = original(shown);
     const tool = toolList.find((t) => `tool-${t.id}` === e.id);
     if (tool) return setEditingTool(tool);
     if (e.source === "cobro")
@@ -357,7 +371,18 @@ export function FinanceView({
           label="Ingresos"
           value={fmt(ingreso, currency)}
           tone={ingreso ? "green" : undefined}
-          hint={`≈ ${fmt(otherTot.ingreso, other)}`}
+          hint={
+            <>
+              <span className="block truncate">≈ {fmt(otherTot.ingreso, other)}</span>
+              {ingreso > 0 && (
+                <span className="block truncate">
+                  {evenSplit
+                    ? `50/50: ${fmt(split.franco.in, currency)} c/u`
+                    : `Franco ${fmt(split.franco.in, currency)} · Federico ${fmt(split.federico.in, currency)}`}
+                </span>
+              )}
+            </>
+          }
         />
         <Kpi
           label="Costos"
@@ -441,7 +466,7 @@ export function FinanceView({
           projectName={projectName}
           onEdit={editRow}
           onDelete={remove}
-          onDuplicate={setCopyFrom}
+          onDuplicate={(e) => setCopyFrom(original(e))}
         />
       )}
 
@@ -452,7 +477,7 @@ export function FinanceView({
           today={today}
           projectName={projectName}
           onSettle={settle}
-          onEdit={setEditing}
+          onEdit={(e) => setEditing(original(e))}
           onAdd={() => setAdding("pendiente")}
         />
       )}

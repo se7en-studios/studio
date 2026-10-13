@@ -5,6 +5,8 @@
 import { after } from "next/server";
 import { getSession } from "@/lib/admin/auth";
 import { OWNERS } from "@/lib/admin/db";
+import { taskAssignedNotice } from "@/lib/admin/digest";
+import { notifyPartner } from "@/lib/admin/notify";
 import { logEvent } from "@/lib/admin/panel";
 import { PEOPLE } from "@/lib/admin/people";
 import { taskDiff } from "@/lib/admin/task-changes";
@@ -48,6 +50,7 @@ export async function createTask(input: TaskInput): Promise<Task> {
       lead_id: task.lead_id,
     }),
   );
+  if (forOther) after(() => notifyPartner(me.who, taskAssignedNotice(PEOPLE[me.who].name)));
   return task;
 }
 
@@ -72,6 +75,7 @@ export async function updateTask(id: string, patch: Partial<TaskInput>): Promise
       lead_id: task.lead_id,
       changes,
     });
+    if (handedOver) await notifyPartner(me.who, taskAssignedNotice(PEOPLE[me.who].name));
   });
   return task;
 }
