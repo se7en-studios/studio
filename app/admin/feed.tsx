@@ -72,7 +72,7 @@ export function EventList({
       {days.map((d) => (
         <section key={d.label}>
           <h2 className="sticky top-14 z-10 mb-2 bg-[var(--bg)]/90 px-1 py-1 text-[12px] font-medium text-muted backdrop-blur first-letter:uppercase lg:top-0">
-            {d.label} <span className="ml-1 font-mono text-[11px] text-muted/60">{d.items.length}</span>
+            {d.label} <span className="ml-1 font-mono text-[11px] text-muted">{d.items.length}</span>
           </h2>
           <ul className="divide-y divide-[var(--line)] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)]">
             {d.items.map(row)}
@@ -159,11 +159,11 @@ export function Changes({ changes }: { changes: Change[] }) {
         <li key={`${c.field}-${i}`} className="grid grid-cols-[minmax(0,110px)_minmax(0,1fr)] items-baseline gap-3 text-[12px]">
           <span className="truncate text-muted">{c.label}</span>
           <span className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
-            <span className={cn("break-words", c.before ? "text-muted line-through decoration-white/25" : "text-muted/60 italic")}>
+            <span className={cn("break-words", c.before ? "text-muted line-through decoration-white/25" : "text-muted italic")}>
               {c.before ?? "vacío"}
             </span>
             <ArrowRight size={11} className="shrink-0 translate-y-px text-muted/60" />
-            <span className={cn("break-words", c.after ? "text-foreground" : "text-muted/60 italic")}>{c.after ?? "vacío"}</span>
+            <span className={cn("break-words", c.after ? "text-foreground" : "text-muted italic")}>{c.after ?? "vacío"}</span>
           </span>
         </li>
       ))}

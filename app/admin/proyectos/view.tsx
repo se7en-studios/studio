@@ -220,7 +220,7 @@ export function ProjectsView({
 
 
 function Due({ due, today, status }: { due: string | null; today: string; status: ProjectStatus }) {
-  if (!due) return <span className="text-muted/60">Sin fecha</span>;
+  if (!due) return <span className="text-muted">Sin fecha</span>;
   const late = due < today && ACTIVE_STATUSES.includes(status);
   return (
     <span className={cn("inline-flex items-center gap-1", late ? "text-red-400" : "text-muted")}>

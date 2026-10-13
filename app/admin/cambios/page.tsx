@@ -96,7 +96,7 @@ export default async function CambiosPage({ searchParams }: { searchParams: Prom
               />
             </form>
             <div>
-              <p className="mb-1.5 px-1 text-[11px] font-medium text-muted/70">Tipo</p>
+              <p className="mb-1.5 px-1 text-[11px] font-medium text-muted">Tipo</p>
               <div className="flex flex-wrap gap-0.5 lg:flex-col">
                 <Link href={href({ tipo: undefined })} className={chip(!kind)}>
                   Todo
@@ -109,7 +109,7 @@ export default async function CambiosPage({ searchParams }: { searchParams: Prom
               </div>
             </div>
             <div>
-              <p className="mb-1.5 px-1 text-[11px] font-medium text-muted/70">Quién</p>
+              <p className="mb-1.5 px-1 text-[11px] font-medium text-muted">Quién</p>
               <div className="flex flex-wrap gap-0.5 lg:flex-col">
                 <Link href={href({ quien: undefined })} className={chip(!actor)}>
                   Los dos
