@@ -142,7 +142,7 @@ function Row({
   const result = ingreso - costo;
   const m = margin(ingreso, costo);
   return (
-    <tr>
+    <tr className="transition-colors hover:bg-white/[0.02]">
       <td className="px-4 py-2.5">{label}</td>
       <td className="px-2 py-2.5 text-right tabular-nums">
         {fmt(ingreso, currency)}

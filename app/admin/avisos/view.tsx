@@ -114,12 +114,13 @@ function Status({
             {r.label}
             <span
               className={cn(
-                "rounded-full px-2 py-0.5 text-[11px]",
+                "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px]",
                 r.ok
                   ? "bg-emerald-400/10 text-emerald-300"
                   : "bg-amber-400/10 text-amber-300",
               )}
             >
+              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-current" />
               {r.ok ? r.on : r.off}
             </span>
           </li>

@@ -12,6 +12,10 @@ import {
 import { Card, cn } from "../kit";
 
 const COLORS = { ingreso: "bg-emerald-400", costo: "bg-orange-400" };
+const BARS = {
+  ingreso: "bg-gradient-to-t from-emerald-500/70 to-emerald-300",
+  costo: "bg-gradient-to-t from-orange-500/70 to-orange-300",
+};
 
 function monthName(month: string, withYear: boolean) {
   return new Date(`${month}-01T12:00:00Z`).toLocaleDateString("es-AR", {
@@ -45,8 +49,11 @@ export function MonthlyChart({
       }
     >
       <div className="overflow-x-auto p-4">
+        <p className="mb-1 text-[11px] text-muted tabular-nums">
+          {max > 1 ? `Hasta ${fmt(max, currency)}` : " "}
+        </p>
         <ul
-          className="flex h-40 items-end gap-2"
+          className="flex h-40 items-end gap-2 bg-[linear-gradient(to_bottom,var(--line)_1px,transparent_1px)] bg-[length:100%_25%]"
           style={{ minWidth: `${rows.length * 44}px` }}
         >
           {rows.map((r) => (
@@ -59,15 +66,15 @@ export function MonthlyChart({
                 title={`${monthName(r.month, true)}: ingresos ${fmt(r.ingreso, currency)} · costos ${fmt(r.costo, currency)}`}
               >
                 <span
-                  className={cn("w-1/2 max-w-[18px] rounded-t", COLORS.ingreso)}
+                  className={cn("w-1/2 max-w-[18px] rounded-t-md", BARS.ingreso)}
                   style={{ height: height(r.ingreso) }}
                 />
                 <span
-                  className={cn("w-1/2 max-w-[18px] rounded-t", COLORS.costo)}
+                  className={cn("w-1/2 max-w-[18px] rounded-t-md", BARS.costo)}
                   style={{ height: height(r.costo) }}
                 />
               </div>
-              <span className="text-[11px] text-muted capitalize">
+              <span className="text-[11px] text-muted first-letter:uppercase">
                 {monthName(r.month, withYear)}
               </span>
               <span className="sr-only">
@@ -127,9 +134,9 @@ export function Breakdown({
                     <span className="text-muted">· {share}%</span>
                   </span>
                 </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
                   <div
-                    className={cn("h-full rounded-full", COLORS[tone])}
+                    className={cn("h-full rounded-full", BARS[tone].replace("bg-gradient-to-t", "bg-gradient-to-r"))}
                     style={{ width: `${share}%` }}
                   />
                 </div>
@@ -179,7 +186,7 @@ export function ProjectProfit({
                 const result = r.ingreso - r.costo;
                 const m = margin(r.ingreso, r.costo);
                 return (
-                  <tr key={r.key}>
+                  <tr key={r.key} className="transition-colors hover:bg-white/[0.02]">
                     <td className="px-4 py-2.5 font-medium">{r.label}</td>
                     <td className="px-2 py-2.5 text-right tabular-nums">
                       {fmt(r.ingreso, currency)}

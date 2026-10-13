@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle2, Search } from "lucide-react";
+import { AlarmClock, CalendarCheck, CheckCircle2, ListTodo, Search } from "lucide-react";
 import type { LeadOwner } from "@/lib/admin/db";
 import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
 import {
@@ -104,10 +104,10 @@ export function TasksBoard({
   return (
     <div className="space-y-6">
       <div className={cn(kpiRow, "md:grid-cols-4")}>
-        <Kpi label="Vencidas" value={stats.overdue} tone={stats.overdue ? "red" : undefined} />
-        <Kpi label="Para hoy" value={stats.today} tone={stats.today ? "accent" : undefined} />
-        <Kpi label="Abiertas" value={stats.open} />
-        <Kpi label="Hechas en 7 días" value={stats.doneWeek} tone={stats.doneWeek ? "green" : undefined} />
+        <Kpi label="Vencidas" value={stats.overdue} tone={stats.overdue ? "red" : undefined} icon={<AlarmClock size={14} />} />
+        <Kpi label="Para hoy" value={stats.today} tone={stats.today ? "accent" : undefined} icon={<CalendarCheck size={14} />} />
+        <Kpi label="Abiertas" value={stats.open} icon={<ListTodo size={14} />} />
+        <Kpi label="Hechas en 7 días" value={stats.doneWeek} tone={stats.doneWeek ? "green" : undefined} icon={<CheckCircle2 size={14} />} />
       </div>
 
       <QuickAdd
@@ -130,7 +130,7 @@ export function TasksBoard({
               aria-pressed={who === c.id}
               className={`focus-ring flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 whitespace-nowrap transition-colors ${
                 who === c.id
-                  ? "bg-white/[0.08] text-foreground"
+                  ? "bg-[var(--panel-3)] text-foreground shadow-[var(--shadow-card)]"
                   : "text-muted hover:text-foreground"
               }`}
             >
@@ -180,7 +180,7 @@ export function TasksBoard({
             return (
               <section key={b.id}>
                 <h2
-                  className={`mb-2 flex items-baseline gap-2 px-1 text-[12px] font-medium ${
+                  className={`mb-2 flex items-baseline gap-2 px-1 text-[11px] font-semibold tracking-[0.12em] uppercase ${
                     b.id === "vencidas"
                       ? "text-red-400"
                       : b.id === "hoy"
