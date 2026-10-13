@@ -20,11 +20,14 @@ import {
   LogOut,
   Menu,
   MessagesSquare,
+  Moon,
   Palette,
   Search,
+  Sun,
   Wallet,
 } from "lucide-react";
 import type { LeadOwner } from "@/lib/admin/db";
+import { otherTheme, themeCookie, type Theme } from "@/lib/admin/theme";
 import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
 import type { Pulse } from "./api/pulse/route";
 import { logout } from "./actions";
@@ -61,8 +64,9 @@ const NAV: { title: string; items: NavItem[] }[] = [
 const PulseCtx = createContext<{ pulse: Pulse | null; refresh: () => void }>({ pulse: null, refresh: () => {} });
 export const usePulse = () => useContext(PulseCtx);
 
-export function AdminShell({ who, children }: { who: LeadOwner; children: React.ReactNode }) {
+export function AdminShell({ who, theme: initialTheme, children }: { who: LeadOwner; theme: Theme; children: React.ReactNode }) {
   const pathname = usePathname();
+  const [theme, setTheme] = useState(initialTheme);
   const [pulse, setPulse] = useState<Pulse | null>(null);
   const [menu, setMenu] = useState(false);
   const [palette, setPalette] = useState(false);
@@ -106,14 +110,20 @@ export function AdminShell({ who, children }: { who: LeadOwner; children: React.
     document.title = total ? `(${total}) ${base}` : base;
   }, [total, pathname]);
 
+  function toggleTheme() {
+    const next = otherTheme(theme);
+    setTheme(next);
+    document.cookie = themeCookie(next);
+  }
+
   const sidebar = (
-    <Sidebar who={who} pathname={pathname} pulse={pulse} onSearch={() => setPalette(true)} />
+    <Sidebar who={who} pathname={pathname} pulse={pulse} theme={theme} onTheme={toggleTheme} onSearch={() => setPalette(true)} />
   );
 
   return (
     <PulseCtx.Provider value={{ pulse, refresh }}>
       <ToastProvider>
-        <div className="admin-app min-h-dvh text-foreground">
+        <div className="admin-app min-h-dvh text-foreground" data-theme={theme}>
           <aside className="fixed inset-y-0 left-0 z-40 hidden w-[244px] border-r border-[var(--line)] bg-[var(--panel-0)] lg:block">
             {sidebar}
           </aside>
@@ -156,11 +166,15 @@ function Sidebar({
   who,
   pathname,
   pulse,
+  theme,
+  onTheme,
   onSearch,
 }: {
   who: LeadOwner;
   pathname: string;
   pulse: Pulse | null;
+  theme: Theme;
+  onTheme: () => void;
   onSearch: () => void;
 }) {
   const isActive = (href: string) =>
@@ -249,6 +263,15 @@ function Sidebar({
             <span className="block truncate text-[13px] font-medium">{PEOPLE[who].name}</span>
             <span className="block truncate text-[11px] text-muted">{other ? `Con ${PEOPLE[other].name}` : "Equipo"}</span>
           </span>
+          <button
+            type="button"
+            onClick={onTheme}
+            aria-label={theme === "dark" ? "Cambiar al tema claro" : "Cambiar al tema oscuro"}
+            title={theme === "dark" ? "Tema claro" : "Tema oscuro"}
+            className="focus-ring rounded-lg p-1.5 text-muted transition-colors hover:bg-white/[0.06] hover:text-foreground"
+          >
+            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
           <form action={logout}>
             <button aria-label="Salir" title="Salir" className="focus-ring rounded-lg p-1.5 text-muted transition-colors hover:bg-white/[0.06] hover:text-foreground">
               <LogOut size={16} />
