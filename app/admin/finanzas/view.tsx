@@ -20,6 +20,7 @@ import {
   margin,
   periodMonths,
   pick,
+  settle as splitOf,
   totals,
   usdOf,
   type Currency,
@@ -156,6 +157,9 @@ export function FinanceView({
   const tot = totals(occ);
   const { ingreso, costo } = pick(tot, currency);
   const otherTot = pick(tot, other);
+  // Lo que le toca a cada socio de los ingresos (la cuenta del estudio va mitad y mitad).
+  const split = splitOf(occ, currency);
+  const evenSplit = Math.abs(split.franco.in - split.federico.in) < 1;
   const result = ingreso - costo;
   const pendingItems = scoped.filter((e) => e.status === "pendiente");
   // El saldo de un proyecto no es de nadie en particular: sólo se ve en «todos».
@@ -357,7 +361,18 @@ export function FinanceView({
           label="Ingresos"
           value={fmt(ingreso, currency)}
           tone={ingreso ? "green" : undefined}
-          hint={`≈ ${fmt(otherTot.ingreso, other)}`}
+          hint={
+            <>
+              <span className="block truncate">≈ {fmt(otherTot.ingreso, other)}</span>
+              {ingreso > 0 && (
+                <span className="block truncate">
+                  {evenSplit
+                    ? `50/50: ${fmt(split.franco.in, currency)} c/u`
+                    : `Franco ${fmt(split.franco.in, currency)} · Federico ${fmt(split.federico.in, currency)}`}
+                </span>
+              )}
+            </>
+          }
         />
         <Kpi
           label="Costos"
