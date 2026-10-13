@@ -22,6 +22,7 @@ import {
   MessagesSquare,
   Palette,
   Search,
+  Wallet,
 } from "lucide-react";
 import type { LeadOwner } from "@/lib/admin/db";
 import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
@@ -49,6 +50,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
   {
     title: "Estudio",
     items: [
+      { href: "/admin/finanzas", label: "Finanzas", icon: <Wallet size={16} /> },
       { href: "/admin/metricas", label: "Métricas", icon: <BarChart3 size={16} /> },
       { href: "/admin/cambios", label: "Registro", icon: <History size={16} /> },
       { href: "/admin/marca", label: "Marca", icon: <Palette size={16} /> },
