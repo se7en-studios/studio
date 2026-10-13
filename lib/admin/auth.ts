@@ -84,12 +84,15 @@ export async function endSession() {
 const VAULT_COOKIE = "se7en_vault";
 const VAULT_TTL_MS = 1000 * 60 * 5;
 
+// Subllave propia: una cookie de sesión no se puede reusar como cookie de la caja.
+const vaultKey = (key: string) => `${key}:vault`;
+
 export async function unlockVault(who: LeadOwner) {
   const key = secret();
   if (!key) return;
   const exp = Date.now() + VAULT_TTL_MS;
   const value = `${exp}.${who}.vault`;
-  (await cookies()).set(VAULT_COOKIE, `${value}.${sign(value, key)}`, {
+  (await cookies()).set(VAULT_COOKIE, `${value}.${sign(value, vaultKey(key))}`, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
@@ -104,7 +107,7 @@ export async function vaultUnlocked(who: LeadOwner): Promise<boolean> {
   if (!key || !raw) return false;
   const [exp, by, tag, mac] = raw.split(".");
   if (!exp || by !== who || tag !== "vault" || !mac || Number(exp) < Date.now()) return false;
-  return safeEqual(mac, sign(`${exp}.${by}.${tag}`, key));
+  return safeEqual(mac, sign(`${exp}.${by}.${tag}`, vaultKey(key)));
 }
 
 export async function lockVault() {

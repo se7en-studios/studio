@@ -66,3 +66,31 @@ export async function allowRequest(
   await recordHit(bucket, ip);
   return true;
 }
+
+/**
+ * Como `isLimited`, pero para lo que protege secretos: si no puede contar, bloquea
+ * (fail closed) en lugar de dejar pasar.
+ */
+export async function isLimitedStrict(bucket: string, ip: string, limit: number, windowMs: number) {
+  const c = db();
+  if (!c) return true;
+  const { count, error } = await c
+    .from("rate_limit_hits")
+    .select("id", { count: "exact", head: true })
+    .eq("bucket", bucket)
+    .eq("key_hash", keyHash(ip))
+    .gte("created_at", new Date(Date.now() - windowMs).toISOString());
+  if (error) {
+    console.error(`[rate-limit] ${bucket}: no se pudo contar, se bloquea:`, error.message);
+    return true;
+  }
+  return (count ?? 0) >= limit;
+}
+
+/** Borra los registros de esa IP en el bucket (por ejemplo, cuando acertó la contraseña). */
+export async function clearHits(bucket: string, ip: string) {
+  const c = db();
+  if (!c) return;
+  const { error } = await c.from("rate_limit_hits").delete().eq("bucket", bucket).eq("key_hash", keyHash(ip));
+  if (error) console.error(`[rate-limit] ${bucket}: no se pudo limpiar:`, error.message);
+}

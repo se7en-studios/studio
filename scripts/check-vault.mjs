@@ -37,6 +37,10 @@ const [v, iv, tag, data] = sealed.split(".");
 const flipped = data.slice(0, -2) + (data.endsWith("A") ? "B" : "A") + data.slice(-1);
 assert.throws(() => crypto.decrypt([v, iv, tag, flipped].join("."), aad, key));
 assert.throws(() => crypto.decrypt("basura", aad, key), /inválido/);
+// Un tag recortado o un IV de otro largo no se aceptan (GCM sin largo fijo permitiría tags cortos).
+const shortTag = Buffer.from(tag, "base64url").subarray(0, 4).toString("base64url");
+assert.throws(() => crypto.decrypt([v, iv, shortTag, data].join("."), aad, key), /No se pudo descifrar/);
+assert.throws(() => crypto.decrypt([v, Buffer.alloc(16).toString("base64url"), tag, data].join("."), aad, key), /No se pudo descifrar/);
 // Sin llave no se cifra ni se descifra (y no se cae en una llave vacía).
 assert.throws(() => crypto.encrypt("x", aad, null), /VAULT_KEY/);
 assert.throws(() => crypto.decrypt(sealed, aad, null), /VAULT_KEY/);
@@ -61,6 +65,10 @@ assert.equal(shared.cleanAccount({ ...base, secret: "" }, { creating: false }).v
 for (const bad of ["http://vercel.com", "javascript:alert(1)", "https://", "vercel.com"])
   assert.equal(shared.cleanAccount({ ...base, url: bad }, { creating: true }).ok, false, bad);
 assert.equal(shared.cleanAccount({ ...base, url: "https://vercel.com/login" }, { creating: true }).value.url, "https://vercel.com/login");
+// El truco del usuario embebido (https://google.com@otro.com lleva a otro.com), mayúsculas y hosts sin punto.
+for (const bad of ["https://accounts.google.com@evil.com", "https://user:pass@vercel.com", "https://localhost", "HTTP://vercel.com"])
+  assert.equal(shared.cleanAccount({ ...base, url: bad }, { creating: true }).ok, false, bad);
+assert.equal(shared.cleanAccount({ ...base, url: "HTTPS://Vercel.com/login" }, { creating: true }).value.url, "https://vercel.com/login");
 // Valores raros caen en los de siempre.
 const odd = shared.cleanAccount({ ...base, twofa: "otro", owner: "nadie" }, { creating: true }).value;
 assert.deepEqual([odd.twofa, odd.owner], ["app", "ambos"]);

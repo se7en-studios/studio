@@ -16,6 +16,7 @@ import type { LeadOwner } from "@/lib/admin/db";
 import { logEvent } from "@/lib/admin/panel";
 import { dayKey } from "@/lib/admin/task-shared";
 import {
+  accountUrl,
   insertAccount,
   readSecrets,
   removeAccount,
@@ -27,11 +28,11 @@ import {
   type Account,
   type AccountInput,
 } from "@/lib/admin/vault-shared";
-import { clientIp, isLimited, recordHit } from "@/lib/rate-limit";
+import { clearHits, clientIp, isLimitedStrict, recordHit } from "@/lib/rate-limit";
 
 const MAX_FAILED = 5;
 const WINDOW_MS = 15 * 60 * 1000;
-const UUID = /^[0-9a-f-]{36}$/i;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type Fail = { error: string; needPassword?: boolean };
 export type VaultResult<T> = T | Fail;
@@ -53,23 +54,29 @@ async function ensureOpen(
     return { error: "Poné tu contraseña para seguir.", needPassword: true };
   await new Promise((r) => setTimeout(r, 400)); // frena probar contraseñas en ráfaga
   const ip = clientIp(await headers());
-  if (await isLimited("vault_unlock", ip, MAX_FAILED, WINDOW_MS)) {
+  // Se anota el intento ANTES de probar la contraseña y se cuenta después: así una ráfaga en
+  // paralelo no pasa toda con el contador en cero. Si acierta, se limpian los intentos.
+  await recordHit("vault_unlock", ip);
+  if (await isLimitedStrict("vault_unlock", ip, MAX_FAILED + 1, WINDOW_MS)) {
     return {
       error: "Demasiados intentos fallidos. Probá de nuevo en 15 minutos.",
       needPassword: true,
     };
   }
   if (!checkPassword(password)) {
-    await recordHit("vault_unlock", ip);
     return { error: "Contraseña incorrecta.", needPassword: true };
   }
+  await clearHits("vault_unlock", ip);
   await unlockVault(who);
   return null;
 }
 
-const failed = (e: unknown): { error: string } => ({
-  error: e instanceof Error ? e.message : "No se pudo completar.",
-});
+const KNOWN = /^(Sesión vencida|Falta cargar VAULT_KEY|No se pudo descifrar|Falta correr|Falta conectar)/;
+const failed = (e: unknown): { error: string } => {
+  if (e instanceof Error && KNOWN.test(e.message)) return { error: e.message };
+  console.error("[cuentas]", e instanceof Error ? e.message : e);
+  return { error: "No se pudo completar. Probá de nuevo." };
+};
 const name = (a: { service: string; label: string }) =>
   a.label ? `${a.service} · ${a.label}` : a.service;
 
@@ -85,7 +92,7 @@ export async function saveAccount(
     const clean = cleanAccount(input, { creating: !id });
     if (!clean.ok) return { error: clean.error };
     const v = clean.value;
-    if (id && (v.secret || v.notes)) {
+    if (id && (v.secret || v.notes || (v.url ?? null) !== (await accountUrl(id)))) {
       const closed = await ensureOpen(me.who, password);
       if (closed) return closed;
     }
@@ -119,13 +126,11 @@ export async function revealAccount(
     if (closed) return closed;
     const found = await readSecrets(id);
     if (!found) return { error: "Esa cuenta ya no existe." };
-    after(() =>
-      logEvent({
-        actor: me.who,
-        kind: "proyecto",
-        text: `abrió la clave de ${name(found)} en Cuentas`,
-      }),
-    );
+    await logEvent({
+      actor: me.who,
+      kind: "proyecto",
+      text: `abrió la clave de ${name(found)} en Cuentas`,
+    });
     return { secret: found.secret, notes: found.notes };
   } catch (e) {
     return failed(e);

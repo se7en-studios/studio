@@ -73,8 +73,22 @@ export type CleanAccount = Omit<
 export const MAX_SECRET = 500;
 export const MAX_NOTES = 2000;
 
-/** Se acepta solo https:// (las claves se usan en pantallas de ingreso: nada de http ni de otros esquemas). */
-const HTTPS = /^https:\/\/[^\s]{3,290}$/i;
+/**
+ * Se acepta solo https:// y sin usuario ni clave dentro del link: `https://google.com@otro.com`
+ * lleva a otro.com. Las claves se usan en pantallas de ingreso, así que el link tiene que ser
+ * limpio. Devuelve el link normalizado, o null si no sirve.
+ */
+export function cleanHttpsUrl(text: string): string | null {
+  if (!text || text.length > 300 || /\s/.test(text)) return null;
+  let u: URL;
+  try {
+    u = new URL(text);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== "https:" || u.username || u.password || !u.hostname.includes(".")) return null;
+  return u.href;
+}
 
 export function cleanAccount(
   input: AccountInput,
@@ -85,8 +99,9 @@ export function cleanAccount(
     .slice(0, 40);
   if (!service) return { ok: false, error: "Elegí el servicio." };
   const url = String(input.url ?? "").trim();
-  if (url && !HTTPS.test(url))
-    return { ok: false, error: "El link tiene que empezar con https://." };
+  const cleanUrl = url ? cleanHttpsUrl(url) : null;
+  if (url && !cleanUrl)
+    return { ok: false, error: "El link tiene que ser https:// y sin usuario ni clave adentro." };
   const twofa = TWOFA.find((t) => t.id === input.twofa)?.id ?? "app";
   const owner = OWNERS.find((o) => o === input.owner) ?? "ambos";
   const secret = String(input.secret ?? "");
@@ -103,7 +118,7 @@ export function cleanAccount(
       label: String(input.label ?? "")
         .trim()
         .slice(0, 80),
-      url: url || null,
+      url: cleanUrl,
       username: String(input.username ?? "")
         .trim()
         .slice(0, 120),

@@ -46,13 +46,13 @@ export function decrypt(
   if (version !== VERSION || !iv || !tag || !data)
     throw new Error("Dato cifrado inválido.");
   try {
-    const decipher = createDecipheriv(
-      "aes-256-gcm",
-      key,
-      Buffer.from(iv, "base64url"),
-    );
+    const ivBuf = Buffer.from(iv, "base64url");
+    const tagBuf = Buffer.from(tag, "base64url");
+    // Largos fijos: un tag recortado o un IV raro no se aceptan.
+    if (ivBuf.length !== 12 || tagBuf.length !== 16) throw new Error("formato");
+    const decipher = createDecipheriv("aes-256-gcm", key, ivBuf, { authTagLength: 16 });
     decipher.setAAD(Buffer.from(aad));
-    decipher.setAuthTag(Buffer.from(tag, "base64url"));
+    decipher.setAuthTag(tagBuf);
     return Buffer.concat([
       decipher.update(Buffer.from(data, "base64url")),
       decipher.final(),

@@ -27,3 +27,16 @@ create index if not exists panel_vault_service_idx on panel_vault (service, labe
 
 -- RLS activo y sin policies: sólo el servidor, con la service role key.
 alter table panel_vault enable row level security;
+
+-- El freno de intentos de la caja usa esta tabla (la misma del login del panel). Si ya
+-- corriste supabase/rate-limit.sql no hace nada; se incluye acá porque, sin ella, la caja
+-- se queda cerrada a propósito.
+create table if not exists public.rate_limit_hits (
+  id bigint generated always as identity primary key,
+  bucket text not null,
+  key_hash text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists rate_limit_hits_bucket_key_created_idx
+  on public.rate_limit_hits (bucket, key_hash, created_at desc);
+alter table public.rate_limit_hits enable row level security;

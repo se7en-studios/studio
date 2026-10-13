@@ -138,3 +138,10 @@ export async function removeAccount(
   if (error) fail(error);
   return data as { service: string; label: string } | null;
 }
+
+/** El link guardado de una cuenta (null si no tiene); undefined si la cuenta no existe. */
+export async function accountUrl(id: string): Promise<string | null | undefined> {
+  const { data, error } = await client().from("panel_vault").select("url").eq("id", id).maybeSingle();
+  if (error) fail(error);
+  return data ? (data as { url: string | null }).url : undefined;
+}
