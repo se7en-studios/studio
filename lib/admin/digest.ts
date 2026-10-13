@@ -7,6 +7,10 @@ export type Notice = {
   message: string;
   /** Ruta del panel que abre al tocar el aviso. */
   path: string;
+  /** Dirección completa que abre en lugar de la ruta (por ejemplo, una sala de Meet). */
+  url?: string;
+  /** Etiquetas del aviso (ntfy): las llamadas llevan quién llama y a quién. */
+  tags?: string[];
 };
 
 /** `date` es YYYY-MM-DD. */
