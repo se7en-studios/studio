@@ -2,6 +2,7 @@
 // como ingresos. Usa la service role key: NUNCA importar desde un componente de cliente.
 import type { LeadOwner } from "./db";
 import type { Entry, EntryInput } from "./finance-shared";
+import { paymentToEntry, type Payment } from "./payment-shared";
 import { PanelNotReady, client } from "./panel";
 
 const LEGACY_COLUMNS =
@@ -60,7 +61,7 @@ export async function listEntries(): Promise<Entry[]> {
 export async function listCobros(fx: number): Promise<Entry[]> {
   const { data, error } = await client()
     .from("panel_payments")
-    .select("id, project_slug, paid_on, amount, note, created_by, owner")
+    .select("id, created_at, project_slug, paid_on, amount, note, created_by, owner")
     .order("paid_on", { ascending: false })
     .limit(LIMIT);
   if (error) {
@@ -70,33 +71,9 @@ export async function listCobros(fx: number): Promise<Entry[]> {
       throw new PanelNotReady("Falta correr supabase/finance-v3.sql en Supabase.");
     throw new Error(error.message);
   }
-  return (
-    data as {
-      id: string;
-      project_slug: string;
-      paid_on: string;
-      amount: string | number;
-      note: string;
-      created_by: LeadOwner | null;
-      owner: Entry["owner"];
-    }[]
-  ).map((p): Entry => ({
-    id: `cobro-${p.id}`,
-    kind: "ingreso",
-    occurred_on: p.paid_on,
-    currency: "USD",
-    amount: Number(p.amount),
-    fx,
-    category: "proyecto",
-    description: p.note,
-    project_slug: p.project_slug,
-    recurring: false,
-    until: null,
-    owner: p.owner,
-    status: "pagado",
-    created_by: p.created_by,
-    source: "cobro",
-  }));
+  return (data as (Omit<Payment, "amount"> & { amount: string | number })[]).map((p) =>
+    paymentToEntry({ ...p, amount: Number(p.amount) }, fx),
+  );
 }
 
 export async function insertEntry(

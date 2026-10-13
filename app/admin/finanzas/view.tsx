@@ -8,6 +8,7 @@ import { Download, Plus } from "lucide-react";
 import { monthOf } from "@/lib/admin/calendar-shared";
 import {
   CURRENCIES,
+  OWNERS,
   PERIODS,
   arsOf,
   byMonth,
@@ -23,9 +24,11 @@ import {
   usdOf,
   type Currency,
   type Entry,
+  type Owner,
   type Period,
 } from "@/lib/admin/finance-shared";
 import type { LeadOwner } from "@/lib/admin/db";
+import { paymentToEntry, type Payment } from "@/lib/admin/payment-shared";
 import { toolEntries, type Tool } from "@/lib/admin/tool-shared";
 import type { Rates } from "@/lib/admin/fx";
 import {
@@ -39,12 +42,15 @@ import {
 } from "../kit";
 import { useStoredChoice, useToast } from "../overlay";
 import { cell } from "../pedidos/csv";
-import { deleteEntry, deleteTool, settleEntry } from "./actions";
+import { deleteCobro, deleteEntry, deleteTool, settleEntry } from "./actions";
 import { Breakdown, MonthlyChart, ProjectProfit } from "./charts";
 import { EntryForm } from "./entry-form";
 import { Movements } from "./movements";
 import { Partners } from "./partners";
+import { PaymentForm } from "./payment-form";
+import { OWNER_LABEL } from "./owner";
 import { Pending, type OwedProject } from "./pending";
+import { ByOwner, SummaryTable } from "./summary-table";
 import { Tools } from "./tools";
 
 type Project = { slug: string; name: string };
@@ -52,6 +58,8 @@ const NO_PROJECT = "__sin-proyecto";
 // ponytail: apagada por ahora, hay costos individuales de cada socio. Poner en true para volver a ver quién le debe a quién (todo a 50/50).
 const SHOW_PARTNERS = false;
 const PERIOD_IDS = PERIODS.map((p) => p.id);
+const TABS = ["resumen", "movimientos", "pendientes", "herramientas"] as const;
+type Tab = (typeof TABS)[number];
 
 type Props = {
   entries: Entry[];
@@ -94,6 +102,11 @@ export function FinanceView({
     CURRENCIES,
   );
   const [project, setProject] = useState("todos");
+  // De quién: cada uno ve lo suyo (sus costos individuales) o todo junto.
+  const [who, setWho] = useState<"todos" | Owner>("todos");
+  const [tab, setTab] = useStoredChoice<Tab>("panel:finanzas:vista", "resumen", TABS);
+  const [copyFrom, setCopyFrom] = useState<Entry | null>(null);
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [toolList, setToolList] = useState(tools ?? []);
   const [editing, setEditing] = useState<Entry | null>(null);
   const [editingTool, setEditingTool] = useState<Tool | "new" | null>(null);
@@ -131,7 +144,10 @@ export function FinanceView({
       ),
     [all, project],
   );
-  const scoped = byProject;
+  const scoped = useMemo(
+    () => (who === "todos" ? byProject : byProject.filter((e) => e.owner === who)),
+    [byProject, who],
+  );
   const months = useMemo(
     () => periodMonths(period, today, all),
     [period, today, all],
@@ -142,8 +158,10 @@ export function FinanceView({
   const otherTot = pick(tot, other);
   const result = ingreso - costo;
   const pendingItems = scoped.filter((e) => e.status === "pendiente");
-  const owedShown = (owed ?? [])
-    .filter((p) => project === "todos" || project === p.slug);
+  // El saldo de un proyecto no es de nadie en particular: sólo se ve en «todos».
+  const owedShown = (owed ?? []).filter(
+    (p) => who === "todos" && (project === "todos" || project === p.slug),
+  );
   const receivable = owed ? owedShown.reduce((s, p) => s + p.balance, 0) : null;
   const fixed = fixedCosts(scoped, monthOf(today));
   const inPeriod = useMemo(() => {
@@ -205,15 +223,39 @@ export function FinanceView({
     });
   }
 
-  // Los costos que vienen de una herramienta se editan y se borran en la herramienta.
+  // Cada origen se edita donde corresponde: herramientas en su formulario, cobros en el suyo.
   function editRow(e: Entry) {
     const tool = toolList.find((t) => `tool-${t.id}` === e.id);
-    if (tool) setEditingTool(tool);
-    else setEditing(e);
+    if (tool) return setEditingTool(tool);
+    if (e.source === "cobro")
+      return setEditingPayment({
+        id: e.id.slice("cobro-".length),
+        created_at: "",
+        project_slug: e.project_slug ?? "",
+        paid_on: e.occurred_on,
+        amount: e.amount,
+        note: e.description,
+        created_by: e.created_by,
+        owner: e.owner,
+      });
+    setEditing(e);
+  }
+
+  function removeCobro(id: string) {
+    const before = items;
+    setItems((xs) => xs.filter((x) => x.id !== id));
+    start(async () => {
+      const res = await deleteCobro(id.slice("cobro-".length));
+      if (res.error) {
+        setItems(before);
+        flash(res.error, "error");
+      } else flash("Cobro borrado", "ok");
+    });
   }
 
   function remove(id: string) {
     if (id.startsWith("tool-")) return removeTool(id.slice(5));
+    if (id.startsWith("cobro-")) return removeCobro(id);
     const before = items;
     setItems((xs) => xs.filter((x) => x.id !== id));
     start(async () => {
@@ -260,6 +302,15 @@ export function FinanceView({
             </option>
           ))}
         </select>
+        <Segmented
+          value={who}
+          onChange={setWho}
+          label="De quién"
+          options={[
+            { id: "todos", label: "Todos" },
+            ...OWNERS.map((o) => ({ id: o, label: OWNER_LABEL[o] })),
+          ]}
+        />
         <div className="ml-auto flex gap-2">
           <button
             type="button"
@@ -342,68 +393,98 @@ export function FinanceView({
         )}
       </div>
 
-      <Pending
-        entries={pendingItems}
-        owed={owedShown.filter((p) => p.balance > 0)}
-        today={today}
-        projectName={projectName}
-        onSettle={settle}
-        onEdit={setEditing}
-        onAdd={() => setAdding("pendiente")}
+      <Segmented
+        value={tab}
+        onChange={setTab}
+        label="Sección"
+        options={[
+          { id: "resumen", label: "Resumen" },
+          { id: "movimientos", label: `Movimientos (${inPeriod.length})` },
+          {
+            id: "pendientes",
+            label: `Pendientes (${pendingItems.length + owedShown.filter((p) => p.balance > 0).length})`,
+          },
+          { id: "herramientas", label: `Herramientas (${toolList.length})` },
+        ]}
       />
 
-      <MonthlyChart series={byMonth(occ, months)} currency={currency} />
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Breakdown
-          title="Costos por categoría"
-          rows={costRows}
-          currency={currency}
-          tone="costo"
-        />
-        <Breakdown
-          title="Ingresos por proyecto"
-          rows={incomeRows}
-          currency={currency}
-          tone="ingreso"
-        />
-      </div>
-
-      {SHOW_PARTNERS && (
-        <Partners occ={occ} currency={currency} result={result} />
+      {tab === "resumen" && (
+        <div className="space-y-4">
+          <MonthlyChart series={byMonth(occ, months)} currency={currency} />
+          <SummaryTable series={byMonth(occ, months)} currency={currency} />
+          <ByOwner occ={occ} currency={currency} />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Breakdown
+              title="Costos por categoría"
+              rows={costRows}
+              currency={currency}
+              tone="costo"
+            />
+            <Breakdown
+              title="Ingresos por proyecto"
+              rows={incomeRows}
+              currency={currency}
+              tone="ingreso"
+            />
+          </div>
+          {SHOW_PARTNERS && (
+            <Partners occ={occ} currency={currency} result={result} />
+          )}
+          <ProjectProfit rows={profitRows} currency={currency} />
+        </div>
       )}
 
-      <ProjectProfit rows={profitRows} currency={currency} />
-      <Tools
-        list={tools === null ? null : toolList}
-        setList={setToolList}
-        editing={editingTool}
-        setEditing={setEditingTool}
-        onRemove={removeTool}
-        defaultOwner={me}
-        currency={currency}
-        fx={fx}
-        today={today}
-      />
-      <Movements
-        entries={inPeriod}
-        projectName={projectName}
-        onEdit={editRow}
-        onDelete={remove}
-      />
+      {tab === "movimientos" && (
+        <Movements
+          entries={inPeriod}
+          currency={currency}
+          projectName={projectName}
+          onEdit={editRow}
+          onDelete={remove}
+          onDuplicate={setCopyFrom}
+        />
+      )}
 
-      {(adding || editing) && (
+      {tab === "pendientes" && (
+        <Pending
+          entries={pendingItems}
+          owed={owedShown.filter((p) => p.balance > 0)}
+          today={today}
+          projectName={projectName}
+          onSettle={settle}
+          onEdit={setEditing}
+          onAdd={() => setAdding("pendiente")}
+        />
+      )}
+
+      {tab === "herramientas" && (
+        <Tools
+          list={tools === null ? null : toolList}
+          setList={setToolList}
+          editing={editingTool}
+          setEditing={setEditingTool}
+          onRemove={removeTool}
+          defaultOwner={me}
+          currency={currency}
+          fx={fx}
+          today={today}
+        />
+      )}
+
+      {(adding || editing || copyFrom) && (
         <EntryForm
           rates={rates}
           fx={fx}
           projects={projects}
           today={today}
           entry={editing}
+          copyFrom={copyFrom}
           defaultOwner={me}
           initialPending={adding === "pendiente"}
           onClose={() => {
             setAdding(null);
             setEditing(null);
+            setCopyFrom(null);
           }}
           onSaved={(entry) => {
             const edited = items.some((x) => x.id === entry.id);
@@ -413,6 +494,20 @@ export function FinanceView({
                 : [entry, ...xs],
             );
             flash(edited ? "Movimiento actualizado" : "Movimiento cargado", "ok");
+          }}
+        />
+      )}
+
+      {editingPayment && (
+        <PaymentForm
+          payment={editingPayment}
+          projects={projects}
+          onClose={() => setEditingPayment(null)}
+          onSaved={(saved) => {
+            setItems((xs) =>
+              xs.map((x) => (x.id === `cobro-${saved.id}` ? paymentToEntry(saved, fx) : x)),
+            );
+            flash("Cobro actualizado", "ok");
           }}
         />
       )}

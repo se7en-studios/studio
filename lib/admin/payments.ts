@@ -56,6 +56,20 @@ export async function insertPayment(
   return normalize(data as Payment);
 }
 
+export async function updatePayment(
+  id: string,
+  p: Pick<Payment, "project_slug" | "paid_on" | "amount" | "note" | "owner">,
+): Promise<Payment | null> {
+  const { data, error } = await client()
+    .from("panel_payments")
+    .update(p)
+    .eq("id", id)
+    .select(COLUMNS)
+    .maybeSingle();
+  if (error) failPayments(error);
+  return data ? normalize(data as Payment) : null;
+}
+
 export async function removePayment(id: string): Promise<Payment> {
   const { data, error } = await client().from("panel_payments").delete().eq("id", id).select(COLUMNS).single();
   if (error) failPayments(error);

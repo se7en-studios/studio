@@ -42,6 +42,7 @@ export function EntryForm({
   today,
   initialPending = false,
   entry = null,
+  copyFrom = null,
   defaultOwner = "ambos",
   onClose,
   onSaved,
@@ -54,26 +55,29 @@ export function EntryForm({
   initialPending?: boolean;
   /** Si viene, se edita ese movimiento en vez de crear uno nuevo. */
   entry?: Entry | null;
+  /** Si viene, se abre un movimiento nuevo con los datos de este (para repetir uno parecido). */
+  copyFrom?: Entry | null;
   /** Quién pagó o cobró, de entrada: la persona que está cargando. */
   defaultOwner?: Owner;
   onClose: () => void;
   onSaved: (entry: Entry) => void;
 }) {
-  const [kind, setKind] = useState<FinanceKind>(entry?.kind ?? "costo");
-  const [currency, setCurrency] = useState<Currency>(entry?.currency ?? "ARS");
+  const seed = entry ?? copyFrom;
+  const [kind, setKind] = useState<FinanceKind>(seed?.kind ?? "costo");
+  const [currency, setCurrency] = useState<Currency>(seed?.currency ?? "ARS");
   const [amount, setAmount] = useState(
-    entry ? String(entry.amount).replace(".", ",") : "",
+    seed ? String(seed.amount).replace(".", ",") : "",
   );
   const [rate, setRate] = useState(
-    entry ? String(entry.fx).replace(".", ",") : fx ? String(fx) : "",
+    seed ? String(seed.fx).replace(".", ",") : fx ? String(fx) : "",
   );
   const [day, setDay] = useState(entry?.occurred_on ?? today);
-  const [category, setCategory] = useState(entry?.category ?? "otros");
-  const [description, setDescription] = useState(entry?.description ?? "");
-  const [project, setProject] = useState(entry?.project_slug ?? "");
-  const [recurring, setRecurring] = useState(entry?.recurring ?? false);
-  const [until, setUntil] = useState(entry?.until ?? "");
-  const [owner, setOwner] = useState<Owner>(entry?.owner ?? defaultOwner);
+  const [category, setCategory] = useState(seed?.category ?? "otros");
+  const [description, setDescription] = useState(seed?.description ?? "");
+  const [project, setProject] = useState(seed?.project_slug ?? "");
+  const [recurring, setRecurring] = useState(seed?.recurring ?? false);
+  const [until, setUntil] = useState(seed?.until ?? "");
+  const [owner, setOwner] = useState<Owner>(seed?.owner ?? defaultOwner);
   const [isPending, setIsPending] = useState(
     entry ? entry.status === "pendiente" : initialPending,
   );
@@ -121,7 +125,7 @@ export function EntryForm({
     });
   }
 
-  const title = entry ? "Editar movimiento" : "Nuevo movimiento";
+  const title = entry ? "Editar movimiento" : copyFrom ? "Duplicar movimiento" : "Nuevo movimiento";
   const whoLabel = kind === "costo" ? "Quién lo pagó" : "Quién lo cobró";
   return (
     <Dialog onClose={onClose} label={title} width="max-w-xl">

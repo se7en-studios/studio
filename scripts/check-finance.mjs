@@ -146,4 +146,16 @@ assert.equal(tl.toolEntries([{ ...tool, currency: "ARS", amount: 5000 }], 1000).
 // Una herramienta cargada a las 22 h del 31/10 (Buenos Aires = 01 h UTC del 1/11) cuenta desde octubre.
 assert.equal(tl.toolEntries([{ ...tool, created_at: "2026-11-01T01:00:00Z" }], 0)[0].occurred_on, "2026-10-31");
 
+// Cobros de proyecto: como ingreso de Finanzas y validación del formulario de edición.
+const ps = await import('../lib/admin/payment-shared.ts');
+const pay = { id: 'abc', created_at: '', project_slug: 'apex', paid_on: '2026-10-05', amount: 300, note: 'Seña', created_by: 'franco', owner: 'franco' };
+const pe = ps.paymentToEntry(pay, 1200);
+assert.deepEqual([pe.id, pe.kind, pe.currency, pe.amount, pe.source, pe.owner, pe.fx], ['cobro-abc', 'ingreso', 'USD', 300, 'cobro', 'franco', 1200]);
+assert.equal(f.arsOf(pe), 360_000);
+assert.equal(ps.cleanPayment({ ...pay, amount: 0 }).ok, false);
+assert.equal(ps.cleanPayment({ ...pay, paid_on: '2026-02-31' }).ok, false);
+assert.equal(ps.cleanPayment({ ...pay, project_slug: '' }).ok, false);
+assert.equal(ps.cleanPayment({ ...pay, owner: 'nadie', note: '  hola  ' }).value.owner, 'ambos');
+assert.equal(ps.cleanPayment({ ...pay, note: '  hola  ' }).value.note, 'hola');
+
 console.log("finance OK");

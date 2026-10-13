@@ -15,6 +15,8 @@ import {
   type EntryInput,
 } from "@/lib/admin/finance-shared";
 import { PanelNotReady, logEvent } from "@/lib/admin/panel";
+import { cleanPayment, type Payment, type PaymentInput } from "@/lib/admin/payment-shared";
+import { removePayment, updatePayment } from "@/lib/admin/payments";
 import { dayKey } from "@/lib/admin/task-shared";
 import { cleanTool, type Tool, type ToolInput } from "@/lib/admin/tool-shared";
 import { insertTool, removeTool, updateTool } from "@/lib/admin/tools";
@@ -166,6 +168,53 @@ export async function deleteTool(id: string): Promise<{ error?: string }> {
         actor: me.who,
         kind: "proyecto",
         text: `quitó la herramienta ${name}`,
+      }),
+    );
+    return {};
+  } catch (e) {
+    return { error: message(e) };
+  }
+}
+
+/** Corrige un cobro de proyecto (monto, fecha, nota, proyecto o quién lo cobró) desde Finanzas. */
+export async function editPayment(
+  id: string,
+  input: PaymentInput,
+): Promise<{ payment?: Payment; error?: string }> {
+  const me = await getSession();
+  if (!me) return { error: "Sesión vencida: volvé a entrar." };
+  if (!UUID.test(id)) return { error: "Cobro inválido." };
+  const cleaned = cleanPayment(input);
+  if (!cleaned.ok) return { error: cleaned.error };
+  try {
+    const payment = await updatePayment(id, cleaned.value);
+    if (!payment) return { error: "Ese cobro ya no existe." };
+    after(() =>
+      logEvent({
+        actor: me.who,
+        kind: "proyecto",
+        text: "editó un cobro",
+        project_slug: payment.project_slug,
+      }),
+    );
+    return { payment };
+  } catch (e) {
+    return { error: message(e) };
+  }
+}
+
+export async function deleteCobro(id: string): Promise<{ error?: string }> {
+  const me = await getSession();
+  if (!me) return { error: "Sesión vencida: volvé a entrar." };
+  if (!UUID.test(id)) return { error: "Cobro inválido." };
+  try {
+    const gone = await removePayment(id);
+    after(() =>
+      logEvent({
+        actor: me.who,
+        kind: "proyecto",
+        text: "borró un cobro",
+        project_slug: gone.project_slug,
       }),
     );
     return {};
