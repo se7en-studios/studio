@@ -39,3 +39,18 @@ export async function setPostDone(id: string, by: LeadOwner | null): Promise<{ t
   if (error) fail(error);
   return data as { title: string } | null;
 }
+
+export type DuePost = Pick<ContentPost, "id" | "post_date" | "kind" | "title">;
+
+/** Posts de hoy o atrasados que todavía no se publicaron, el más viejo primero. */
+export async function listDue(today: string): Promise<DuePost[]> {
+  const { data, error } = await client()
+    .from("content_posts")
+    .select("id, post_date, kind, title")
+    .is("done_at", null)
+    .lte("post_date", today)
+    .order("post_date")
+    .order("id");
+  if (error) fail(error);
+  return data as DuePost[];
+}

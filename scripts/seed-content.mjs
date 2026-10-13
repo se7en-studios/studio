@@ -42,7 +42,11 @@ async function readPost(folder) {
   if (!m) throw new Error(`Nombre de carpeta inesperado: ${folder}`);
   const [, post_date, kind] = m;
   const path = join(dir, folder);
-  const names = (await readdir(path)).filter((n) => !SKIP.has(n)).sort(byUploadOrder);
+  // Recursivo: las destacadas traen sus portadas en una subcarpeta (se guardan como "portadas/x.png").
+  const names = (await readdir(path, { recursive: true, withFileTypes: true }))
+    .filter((e) => e.isFile() && !SKIP.has(e.name))
+    .map((e) => join(e.parentPath, e.name).slice(path.length + 1).replaceAll("\\", "/"))
+    .sort(byUploadOrder);
   const files = await Promise.all(
     names.map(async (name) => ({
       name,

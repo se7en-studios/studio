@@ -5,6 +5,7 @@ import { CalendarClock, FolderKanban, History, MessagesSquare, Plus } from "luci
 import { panelSession } from "@/lib/admin/auth";
 import { db, listLeads, type Lead, type LeadOwner } from "@/lib/admin/db";
 import { listActivity } from "@/lib/admin/activity";
+import { listDue, type DuePost } from "@/lib/admin/content";
 import type { Activity } from "@/lib/admin/activity-shared";
 import { ago } from "@/lib/admin/brief";
 import { channelSummaries } from "@/lib/admin/messages";
@@ -45,7 +46,7 @@ const TZ = "America/Argentina/Buenos_Aires";
  */
 async function loadHome(who: LeadOwner) {
   const hasDb = db() !== null;
-  const [leadsR, actsR, projectsR, statesR, eventsR, tasksR, linksR, chatsR, paidR] = await Promise.all([
+  const [leadsR, actsR, projectsR, statesR, eventsR, tasksR, linksR, chatsR, paidR, contentR] = await Promise.all([
     safe<Lead[]>(hasDb ? listLeads() : Promise.resolve([]), []),
     safe<Activity[] | null>(listActivity(), null),
     safe<PanelProject[]>(listProjects(), caseProjects()),
@@ -55,6 +56,7 @@ async function loadHome(who: LeadOwner) {
     safe<TaskLinks>(taskLinks(), { leads: [], projects: [] }),
     safe<ChannelSummary[]>(channelSummaries(who), []),
     safe<Map<string, number> | null>(paidBySlug(), null),
+    safe<DuePost[]>(listDue(dayKey()), []),
   ]);
 
   const leads = leadsR.value;
@@ -93,7 +95,7 @@ async function loadHome(who: LeadOwner) {
   const hour = Number(new Date().toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit" }));
   const hello = hour < 13 ? "Buen día" : hour < 20 ? "Buenas tardes" : "Buenas noches";
 
-  return { unpaid, hasDb, fresh, active, projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now, actsR, eventsR, linksR };
+  return { unpaid, hasDb, fresh, active, projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now, actsR, eventsR, linksR, content: contentR.value };
 }
 
 // Lo primero que se ve al entrar: qué está pendiente, cómo vienen los
@@ -104,7 +106,7 @@ export default async function AdminHome() {
 
   const d = await loadHome(me.who);
   const { hasDb, fresh, active, projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now } = d;
-  const { actsR, eventsR, linksR, unpaid } = d;
+  const { actsR, eventsR, linksR, unpaid, content } = d;
 
   return (
     <div className="space-y-6">
@@ -163,7 +165,7 @@ export default async function AdminHome() {
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-4">
-          {hasDb && <Attention leads={leads} activities={actsR.value} now={now} overdueTasks={overdue} unpaid={unpaid?.filter((x) => x.done) ?? []} />}
+          {hasDb && <Attention leads={leads} activities={actsR.value} now={now} overdueTasks={overdue} unpaid={unpaid?.filter((x) => x.done) ?? []} content={content} />}
 
           <Card
             title="Proyectos en curso"
