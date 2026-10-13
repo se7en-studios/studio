@@ -204,6 +204,31 @@ export function slab(m: MapModel, matAt: (x: number, y: number) => Material) {
   }
 }
 
+/** Lo que va pintado en el piso según el tema: la cancha de pádel y la colchoneta. */
+export function decal(f: Furni, accent: string) {
+  const { x, y, w, d } = f;
+  if (f.k === "court") {
+    poly([P(x + 0.05, y + 0.05), P(x + w - 0.05, y + 0.05), P(x + w - 0.05, y + d - 0.05), P(x + 0.05, y + d - 0.05)], c("#2f6fb3"), OUT_SOFT);
+    const L = c("#f4f1ea");
+    const segs: [XY, XY][] = [
+      [P(x + 0.2, y + 0.2), P(x + w - 0.2, y + 0.2)],
+      [P(x + w - 0.2, y + 0.2), P(x + w - 0.2, y + d - 0.2)],
+      [P(x + w - 0.2, y + d - 0.2), P(x + 0.2, y + d - 0.2)],
+      [P(x + 0.2, y + d - 0.2), P(x + 0.2, y + 0.2)],
+      [P(x + w * 0.25, y + d / 2), P(x + w * 0.75, y + d / 2)],
+      [P(x + w * 0.25, y + 0.2), P(x + w * 0.25, y + d - 0.2)],
+      [P(x + w * 0.75, y + 0.2), P(x + w * 0.75, y + d - 0.2)],
+    ];
+    for (const [a, b] of segs) line(a, b, L, 1.2);
+    // La red, en el medio de la cancha
+    poly([P(x + w / 2, y + 0.12, 9), P(x + w / 2, y + d - 0.12, 9), P(x + w / 2, y + d - 0.12, 0), P(x + w / 2, y + 0.12, 0)], "rgba(18,18,24,0.4)");
+    line(P(x + w / 2, y + 0.12, 9), P(x + w / 2, y + d - 0.12, 9), L, 1.4);
+  } else if (f.k === "yogamat") {
+    poly([P(x + 0.18, y + 0.05), P(x + 0.82, y + 0.05), P(x + 0.82, y + d - 0.05), P(x + 0.18, y + d - 0.05)], c(accent), OUT_SOFT);
+    line(P(x + 0.18, y + 0.3), P(x + 0.82, y + 0.3), c(dark(accent, 0.25)), 1);
+  }
+}
+
 export function rug(f: Furni, color: string, edge: string) {
   const { x, y, w, d } = f;
   poly([P(x + 0.08, y + 0.08), P(x + w - 0.08, y + 0.08), P(x + w - 0.08, y + d - 0.08), P(x + 0.08, y + d - 0.08)], c(edge));
@@ -306,17 +331,62 @@ export function decor(dc: Decor, accent: string, period: Period) {
     case "tv":
       R(0.2, L - 0.2, 6, 33, "#0f0f13", OUT);
       break;
+    case "rackets": {
+      const { z0, z1 } = kindZ(dc);
+      for (const u of [0.16, 0.56]) {
+        R(u, u + 0.28, z0 + 9, z1, "#1f2a44", OUT_SOFT);
+        R(u + 0.04, u + 0.24, z0 + 12, z1 - 3, accent);
+        R(u + 0.11, u + 0.17, z0, z0 + 9, "#2b2b33");
+      }
+      break;
+    }
+    case "plan": {
+      const { z0, z1 } = kindZ(dc);
+      R(0.12, L - 0.12, z0, z1, "#8f8b95", OUT_SOFT);
+      R(0.16, L - 0.16, z0 + 2, z1 - 2, "#f4f1ea");
+      for (let i = 0; i < 4; i++) {
+        R(0.22, 0.3, z0 + 5 + i * 4.5, z0 + 7 + i * 4.5, accent);
+        R(0.36, 0.5 + hash(i, 3) * 0.32, z0 + 5.5 + i * 4.5, z0 + 6.5 + i * 4.5, "#3a3a44");
+      }
+      break;
+    }
+    case "blueprint": {
+      const { z0, z1 } = kindZ(dc);
+      R(0.12, L - 0.12, z0, z1, "#e9e4da", OUT_SOFT);
+      R(0.16, L - 0.16, z0 + 2, z1 - 2, "#2b5a9e");
+      for (const u of [0.32, 0.5, 0.68]) R(u, u + 0.01, z0 + 2, z1 - 2, "#4a78bb");
+      R(0.3, 0.46, z0 + 4, z1 - 6, "#dbe8f7");
+      R(0.33, 0.43, z0 + 5, z1 - 8, "#2b5a9e");
+      R(0.52, 0.72, z0 + 4, z0 + 12, "#dbe8f7");
+      R(0.55, 0.69, z0 + 5, z0 + 11, "#2b5a9e");
+      break;
+    }
+    case "mapscreen": {
+      const { z0, z1 } = kindZ(dc);
+      R(0.1, L - 0.1, z0, z1, "#141418", OUT);
+      break;
+    }
+    case "menuboard": {
+      const { z0, z1 } = kindZ(dc);
+      R(0.12, L - 0.12, z0, z1, "#6b4a33", OUT_SOFT);
+      R(0.16, L - 0.16, z0 + 2, z1 - 2, "#1f3b30");
+      R(0.24, 0.76, z1 - 7, z1 - 5, accent);
+      for (let i = 0; i < 3; i++) R(0.24, 0.5 + hash(i, 7) * 0.26, z0 + 5 + i * 4, z0 + 6 + i * 4, "#e9e4da");
+      break;
+    }
   }
 }
 const kindZ = (dc: Decor) => (dc.side === "L" && dc.x === 0 ? { z0: 50, z1: 90 } : { z0: 8, z1: 32 });
 
 /** Pantallas dibujadas en una pared: el motor les pone contenido por arriba de la oscuridad. */
-export function decorScreen(dc: Decor): XY[] | null {
-  if (dc.k !== "tv") return null;
+export function decorScreen(dc: Decor): { quad: XY[]; kind: ScreenKind } | null {
+  if (dc.k !== "tv" && dc.k !== "mapscreen") return null;
   const fc: Facing = dc.side === "L" ? "x" : "y";
-  const plane = dc.side === "L" ? dc.x + 0.01 : dc.y + 0.01;
+  const plane = dc.side === "L" ? dc.x + 0.02 : dc.y + 0.02;
   const start = dc.side === "L" ? dc.y : dc.x;
-  return [onFace(fc, plane, start, 0.28, 30), onFace(fc, plane, start, dc.len - 0.28, 30), onFace(fc, plane, start, dc.len - 0.28, 9), onFace(fc, plane, start, 0.28, 9)];
+  const [u0, u1, z0, z1] = dc.k === "tv" ? [0.28, dc.len - 0.28, 9, 30] : [0.16, dc.len - 0.16, kindZ(dc).z0 + 2, kindZ(dc).z1 - 2];
+  const quad: XY[] = [onFace(fc, plane, start, u0, z1), onFace(fc, plane, start, u1, z1), onFace(fc, plane, start, u1, z0), onFace(fc, plane, start, u0, z0)];
+  return { quad, kind: dc.k === "tv" ? "review" : "map" };
 }
 /** El cartel LED de la recepción, en coordenadas del mundo. */
 export function tickerQuad(dc: Decor): XY[] {
@@ -330,7 +400,7 @@ export const SKY: Record<Period, string> = { manana: "#f3b48d", dia: "#93cbf3", 
 // --- Muebles --------------------------------------------------------------------
 
 /** Pantallas, luces y LEDs que el motor vuelve a pintar arriba de la oscuridad. */
-export type ScreenKind = "code" | "design" | "review" | "notes" | "site";
+export type ScreenKind = "code" | "design" | "review" | "notes" | "site" | "map";
 export type Glow =
   | { t: "screen"; quad: XY[]; kind: ScreenKind; accent: string; room: string | null }
   | { t: "lamp"; at: XY; room: string | null }
@@ -519,6 +589,114 @@ export function furni(f: Furni, ctx: FurniCtx) {
       faceRect("y", y + 0.755, x + 0.15, 0.55, 0.6, 30, 44, c("#9a948a"));
       faceRect("y", y + 0.755, x + 0.15, 0.1, 0.2, 48, 52, c("#ff4d2e"));
       break;
+    // --- Piezas del centro, según el tema del proyecto ---
+    case "balls": {
+      // Canasto de pelotas de pádel y dos paletas apoyadas
+      box(x + 0.28, y + 0.3, 0, 0.44, 0.4, 14, "#c9c4bb", { top: "#3a3a40" });
+      const [bx, by] = P(x + 0.5, y + 0.5, 14);
+      for (const [dx, dy] of [[-5, -1], [0, -3], [5, -1], [-2, 1], [3, 1]]) ellipse(bx + dx, by + dy, 2.8, 2.6, c("#d4ec3e"), OUT_SOFT);
+      for (const [px, flip] of [[x + 0.12, 1], [x + 0.88, -1]] as [number, number][]) {
+        const [hx, hy] = P(px, y + 0.8, 0);
+        line([hx, hy], [hx + 4 * flip, hy - 13], c("#2b2b33"), 2);
+        ellipse(hx + 6 * flip, hy - 20, 6, 8, c(acc), OUT);
+        ellipse(hx + 6 * flip, hy - 20, 3.4, 5.2, c("#1f1f26"));
+      }
+      break;
+    }
+    case "matetable": {
+      // La pava con vapor y un mate con bombilla
+      box(x + 0.45, y + 0.45, 0, 0.1, 0.1, 22, "#2a2830", { line: null });
+      box(x + 0.15, y + 0.15, 22, 0.7, 0.7, 3, "#c79a63");
+      box(x + 0.2, y + 0.3, 25, 0.26, 0.26, 10, "#cfd3d8", { top: "#e6e9ec" });
+      box(x + 0.3, y + 0.4, 35, 0.06, 0.06, 3, "#2a2830", { line: null });
+      const [sx, sy] = P(x + 0.46, y + 0.43, 31);
+      line([sx, sy], [sx + 6, sy - 3], c("#cfd3d8"), 2.2);
+      ctx.glows.push({ t: "steam", at: [sx + 6, sy - 5], room: f.room });
+      const [mx, my] = P(x + 0.66, y + 0.62, 25);
+      ellipse(mx, my - 4, 4.5, 5, c("#7a4a2a"), OUT);
+      ellipse(mx, my - 8.5, 3.4, 1.4, c("#6f9a3a"));
+      line([mx + 1, my - 8], [mx + 4, my - 15], c("#d8dade"), 1.4);
+      break;
+    }
+    case "squatrack": {
+      // Rack con la barra cargada y discos en el piso
+      box(x + 0.1, y + 0.3, 0, w - 0.2, 0.3, 3, "#2a2830");
+      for (const px of [x + 0.15, x + w - 0.3]) box(px, y + 0.38, 3, 0.14, 0.14, 56, "#3a3a44");
+      box(x - 0.05, y + 0.43, 44, w + 0.1, 0.04, 2, "#c9ccd2", { line: null });
+      for (const px of [x + 0.02, x + w - 0.02]) {
+        const [dx, dy] = P(px, y + 0.45, 45);
+        ellipse(dx, dy, 3.5, 9, c(acc), OUT);
+        ellipse(dx, dy, 1.4, 3, c("#1c1c22"));
+      }
+      const [fx, fy] = P(x + w - 0.45, y + 0.85, 0);
+      for (let i = 0; i < 3; i++) ellipse(fx, fy - i * 3, 7, 3.4, c(i % 2 ? "#2a2830" : "#3a3a44"), OUT_SOFT);
+      break;
+    }
+    case "yogaprops": {
+      // Pesa rusa y rodillo de espuma
+      const [kx, ky] = P(x + 0.35, y + 0.4, 0);
+      ellipse(kx, ky - 6, 6, 6, c("#26252d"), OUT);
+      g.beginPath();
+      g.arc(kx, ky - 12, 3.6, Math.PI, 0);
+      g.strokeStyle = c("#26252d");
+      g.lineWidth = 2.2;
+      g.stroke();
+      g.lineCap = "round";
+      line(P(x + 0.72, y + 0.2, 5), P(x + 0.72, y + 0.85, 5), c(acc), 9);
+      line(P(x + 0.72, y + 0.2, 5), P(x + 0.72, y + 0.85, 5), c(lite(acc, 0.25)), 3);
+      g.lineCap = "butt";
+      break;
+    }
+    case "maquette": {
+      // Maqueta de un edificio sobre un pedestal
+      box(x + 0.1, y + 0.1, 0, 0.8, 0.8, 22, "#e2dbcf");
+      box(x + 0.28, y + 0.3, 22, 0.3, 0.3, 26, "#f4f1ea", { right: "#cfc9bd" });
+      box(x + 0.6, y + 0.45, 22, 0.2, 0.25, 14, "#e8e2d6", { right: "#cbc4b7" });
+      for (let i = 0; i < 4; i++) faceRect("y", y + 0.6, x + 0.28, 0.05, 0.25, 26 + i * 5, 28 + i * 5, c("#7fb8e8"));
+      const [t1x, t1y] = P(x + 0.22, y + 0.75, 22);
+      ellipse(t1x, t1y - 3, 3, 3, c("#5bb36a"), OUT_SOFT);
+      const [t2x, t2y] = P(x + 0.82, y + 0.22, 22);
+      ellipse(t2x, t2y - 3, 2.5, 2.5, c("#4a9d55"), OUT_SOFT);
+      break;
+    }
+    case "globe": {
+      // Globo terráqueo con un foco de incendio que titila
+      box(x + 0.35, y + 0.35, 0, 0.3, 0.3, 4, "#2a2830");
+      box(x + 0.47, y + 0.47, 4, 0.06, 0.06, 26, "#c9a24a", { line: null });
+      const [gx, gy] = P(x + 0.5, y + 0.5, 40);
+      ellipse(gx, gy, 11, 11, c("#3d7fc4"), OUT);
+      ellipse(gx - 3, gy - 3, 4, 3, c("#5bb36a"));
+      ellipse(gx + 4, gy + 3, 3, 4, c("#5bb36a"));
+      ellipse(gx + 2, gy - 6.5, 2, 1.5, c("#5bb36a"));
+      g.beginPath();
+      g.ellipse(gx, gy, 12.5, 12.5, 0, -Math.PI * 0.6, Math.PI * 0.6);
+      g.strokeStyle = c("#c9a24a");
+      g.lineWidth = 1.5;
+      g.stroke();
+      ctx.glows.push({ t: "led", at: [gx - 3, gy - 1], i: -2, room: f.room });
+      break;
+    }
+    case "phonetable": {
+      // Mesa de exhibición con tres celulares prendidos
+      box(x + 0.1, y + 0.2, 0, 0.8, 0.6, 24, "#f2efe8", { right: "#d9d4ca" });
+      for (let i = 0; i < 3; i++) {
+        const px = x + 0.2 + i * 0.22;
+        box(px, y + 0.45, 24, 0.13, 0.04, 17, "#1c1c22");
+        const quad: XY[] = [P(px + 0.015, y + 0.495, 39), P(px + 0.115, y + 0.495, 39), P(px + 0.115, y + 0.495, 26), P(px + 0.015, y + 0.495, 26)];
+        poly(quad, c("#0b0b10"));
+        ctx.glows.push({ t: "screen", quad, kind: "site", accent: acc, room: f.room });
+      }
+      break;
+    }
+    case "cafetable": {
+      // Mesa con un café y el QR de la carta
+      box(x + 0.45, y + 0.45, 0, 0.1, 0.1, 22, "#2a2830", { line: null });
+      box(x + 0.12, y + 0.12, 22, 0.76, 0.76, 3, "#d8cdb9");
+      box(x + 0.25, y + 0.5, 25, 0.16, 0.16, 6, "#f4f1ea");
+      box(x + 0.55, y + 0.25, 25, 0.24, 0.05, 13, "#f4f1ea");
+      for (const [u0, z0] of [[0.03, 28], [0.14, 33], [0.07, 31.5], [0.16, 28.5], [0.04, 34]]) faceRect("y", y + 0.305, x + 0.55, u0, u0 + 0.05, z0, z0 + 2.5, c("#16161b"));
+      break;
+    }
     case "boxes":
       for (let i = 0; i < w; i++) {
         box(x + i + 0.1, y + 0.15, 0, 0.8, 0.7, 20, "#b08a5a");

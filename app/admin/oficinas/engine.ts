@@ -2,6 +2,7 @@
 // view.tsx lo monta sobre un <canvas> y le avisa lo que cambia (visitas, hora,
 // quién es quién). El arte está en art.ts y el plano en oficinas-shared.ts.
 import {
+  DECALS,
   canStep,
   daysLabel,
   findPath,
@@ -24,8 +25,10 @@ import {
   WALL,
   avatar,
   begin,
+  decal,
   decay,
   decor,
+  decorScreen,
   floorTile,
   furni,
   hash,
@@ -53,6 +56,8 @@ export type EngineOptions = {
   me: Who;
   /** Familia de la fuente pixel (Silkscreen) para carteles y el LED. */
   font: string;
+  /** Nombres para las etiquetas sobre los muñecos. */
+  names?: Partial<Record<Who, string>>;
   onRoom: (id: string | null) => void;
 };
 export type Engine = {
@@ -133,6 +138,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   // --- Lo que se ordena por profundidad: paredes, arco y muebles ----------------
   const items: Item[] = [];
   let glows: Glow[] = [];
+  const litDecor = new Set<string>();
   const playerBox = { x0: 0, y0: 0, x1: 0, y1: 0, depth: 0 };
 
   function wallStyle(side: "L" | "R", kind: "rail" | "wall" | "tall", owner: string | null): WallStyle {
@@ -178,6 +184,14 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
                 decor(dc, accentOf(dc.room), period);
               }
               ctx.restore();
+              // Las pantallas de pared (tele, mapa) se prenden por arriba de la oscuridad, una sola vez.
+              for (const dc of here) {
+                const scr = decorScreen(dc);
+                if (scr && !litDecor.has(dc.id)) {
+                  litDecor.add(dc.id);
+                  glows.push({ t: "screen", quad: scr.quad, kind: scr.kind, accent: accentOf(dc.room), room: dc.room });
+                }
+              }
             }
             ctx.globalAlpha = 1;
           },
@@ -220,7 +234,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   }
   const COVERABLE = new Set(["desk", "chair", "sofa"]);
   for (const f of m.furni) {
-    if (f.k === "rug") continue;
+    if (DECALS.has(f.k)) continue;
     const r = f.room ? byId.get(f.room) : null;
     const status = r?.id ? o.info[r.id]?.status ?? "" : "";
     const [ax, ay] = P(f.x + f.w / 2, f.y + f.d / 2);
@@ -431,6 +445,15 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
           }
           break;
         }
+        case "map": {
+          // Mapa satelital con focos de incendio que titilan
+          R(0, 0, 20, 12, "#0d2236");
+          R(2, 2, 6, 4, "#2f6b3f");
+          R(9, 4.5, 7, 5, "#2f6b3f");
+          R(4.5, 7, 3, 3, "#2f6b3f");
+          for (const [fx, fy, k] of [[4, 3, 0], [12, 7, 1], [14.5, 5.5, 2], [6, 8, 1]]) if (reduced || (Math.floor(ts / 450) + k) % 3) R(fx, fy, 1.4, 1.4, "#ff6b2c");
+          break;
+        }
         case "site": {
           R(0, 0, 20, 12, "#f2ede4");
           const off = reduced ? 0 : (ts / 140) % 26;
@@ -476,7 +499,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       } else if (gl.t === "led") {
         const L = lightOf(gl.room);
         let col = "#1c1c22";
-        if (gl.i < 0) col = "#ff4d2e";
+        if (gl.i === -2) col = L > 0.15 ? (Math.floor(ts / 380) % 3 ? "#ff7a2e" : "#ffd28a") : "#5a2a1c";
+        else if (gl.i < 0) col = "#ff4d2e";
         else if (L > 0.5) col = hash(gl.i, Math.floor(ts / 420)) > 0.3 ? "#5eea8a" : "#1d3a28";
         else if (L > 0.15) col = Math.floor(ts / 1500) % 2 ? "#e8a33d" : "#1c1c22";
         ctx.fillStyle = col;
@@ -547,10 +571,11 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         floorTile(x, y, matAt(x, y), m.archiveY !== null && y >= m.archiveY && x === 7 && m.region[y][x] === "hall");
       }
     for (const f of m.furni) {
-      if (f.k !== "rug") continue;
+      if (!DECALS.has(f.k)) continue;
       const r = f.room ? byId.get(f.room) : null;
       setFade(fadeOfId(f.room));
-      if (r?.kind === "office") rug(f, r.who === "franco" ? "#8f8257" : "#33333f", r.who === "franco" ? "#e2d5a3" : "#ff4d2e");
+      if (f.k !== "rug") decal(f, accentOf(f.room));
+      else if (r?.kind === "office") rug(f, r.who === "franco" ? "#8f8257" : "#33333f", r.who === "franco" ? "#e2d5a3" : "#ff4d2e");
       else if (r?.kind === "reception") rug(f, "#b8442c", "#ffb199");
       else {
         const acc = accentOf(f.room);
@@ -575,6 +600,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
 
     // Personas, ordenadas con lo demás por profundidad
     glows = [];
+    litDecor.clear();
     const [psx, psy] = P(pxT, pyT);
     const pDepth = player.moving ? Math.max(player.from.x + player.from.y, player.to.x + player.to.y) + 0.05 : player.x + player.y + 0.05;
     Object.assign(playerBox, { x0: psx - 14, x1: psx + 14, y0: psy - 66, y1: psy, depth: pDepth });
@@ -635,8 +661,28 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       const [sx, sy] = toScreen(P((m.spine.x0 + m.spine.x1) / 2, m.archiveY, 118));
       sign(ctx, o.font, sx, sy, { name: "ARCHIVO", fade: 0, accent: "#c9a24a", gold: true });
     }
+    // Nombres arriba de las cabezas, como en los hoteles pixelados
+    const nameOf = (w: Who) => (o.names?.[w] ?? w).toUpperCase();
+    const tag = (text: string, at: XY) => {
+      const [sx, sy] = toScreen(at);
+      ctx.font = `8px ${o.font}`;
+      const w = Math.ceil(ctx.measureText(text).width) + 10, x = Math.round(sx - w / 2), y = Math.round(sy - 13);
+      ctx.fillStyle = "rgba(12,12,16,0.72)";
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, 13, 4);
+      ctx.fill();
+      ctx.fillStyle = "#f1ede6";
+      ctx.textBaseline = "top";
+      ctx.fillText(text, x + 5, y + 3);
+    };
+    const near = !!po?.seat && current?.id === po.id && Math.abs(player.x - po.seat.x) + Math.abs(player.y - po.seat.y) <= 3;
+    tag(nameOf(me), [psx, psy - 66]);
+    if (po?.seat && !(near && partnerLine)) {
+      const [sx, sy] = P(po.seat.x + 0.5, po.seat.y + 0.5);
+      tag(nameOf(otherOf(me)), [sx, sy - 54]);
+    }
     // Globo del otro socio cuando te acercás a su escritorio
-    if (po?.seat && partnerLine && current?.id === po.id && Math.abs(player.x - po.seat.x) + Math.abs(player.y - po.seat.y) <= 3) {
+    if (po?.seat && partnerLine && near) {
       const [sx, sy] = toScreen(P(po.seat.x + 0.5, po.seat.y + 0.5, 64));
       ctx.font = `8px ${o.font}`;
       const w = Math.ceil(ctx.measureText(partnerLine).width) + 14, h = 17;
