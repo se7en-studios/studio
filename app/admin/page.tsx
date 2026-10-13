@@ -6,6 +6,8 @@ import { panelSession } from "@/lib/admin/auth";
 import { db, listLeads, type Lead, type LeadOwner } from "@/lib/admin/db";
 import { listActivity } from "@/lib/admin/activity";
 import { listDue, type DuePost } from "@/lib/admin/content";
+import { listCobros, listEntries } from "@/lib/admin/finance";
+import type { Entry } from "@/lib/admin/finance-shared";
 import type { Activity } from "@/lib/admin/activity-shared";
 import { ago } from "@/lib/admin/brief";
 import { channelSummaries } from "@/lib/admin/messages";
@@ -23,6 +25,7 @@ import { Attention } from "./attention";
 import { EventList } from "./feed";
 import { Card, CardLink, Empty, Face, Kpi, PageHeader, Progress, StatusPill, btnPrimary, btnSecondary, cn, kpiRow, usdShort } from "./kit";
 import { MyTasks } from "./tareas/my-tasks";
+import { FinanceCard } from "./finance-card";
 import { AdminGate, SetupNotice } from "./ui";
 
 export const metadata: Metadata = { title: "Inicio" };
@@ -46,7 +49,7 @@ const TZ = "America/Argentina/Buenos_Aires";
  */
 async function loadHome(who: LeadOwner) {
   const hasDb = db() !== null;
-  const [leadsR, actsR, projectsR, statesR, eventsR, tasksR, linksR, chatsR, paidR, contentR] = await Promise.all([
+  const [leadsR, actsR, projectsR, statesR, eventsR, tasksR, linksR, chatsR, paidR, contentR, financeR] = await Promise.all([
     safe<Lead[]>(hasDb ? listLeads() : Promise.resolve([]), []),
     safe<Activity[] | null>(listActivity(), null),
     safe<PanelProject[]>(listProjects(), caseProjects()),
@@ -57,6 +60,8 @@ async function loadHome(who: LeadOwner) {
     safe<ChannelSummary[]>(channelSummaries(who), []),
     safe<Map<string, number> | null>(paidBySlug(), null),
     safe<DuePost[]>(listDue(dayKey()), []),
+    // Cobros en USD: la cotización no importa para este resumen.
+    safe<Entry[] | null>(Promise.all([listEntries(), listCobros(0)]).then(([a, b]) => [...a, ...b]), null),
   ]);
 
   const leads = leadsR.value;
@@ -95,7 +100,7 @@ async function loadHome(who: LeadOwner) {
   const hour = Number(new Date().toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit" }));
   const hello = hour < 13 ? "Buen día" : hour < 20 ? "Buenas tardes" : "Buenas noches";
 
-  return { unpaid, hasDb, fresh, active, projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now, actsR, eventsR, linksR, content: contentR.value };
+  return { unpaid, hasDb, fresh, active, projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now, actsR, eventsR, linksR, content: contentR.value, finance: financeR.value };
 }
 
 // Lo primero que se ve al entrar: qué está pendiente, cómo vienen los
@@ -106,7 +111,7 @@ export default async function AdminHome() {
 
   const d = await loadHome(me.who);
   const { hasDb, fresh, active, projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now } = d;
-  const { actsR, eventsR, linksR, unpaid, content } = d;
+  const { actsR, eventsR, linksR, unpaid, content, finance } = d;
 
   return (
     <div className="space-y-6">
@@ -222,6 +227,8 @@ export default async function AdminHome() {
 
         <div className="min-w-0 space-y-4">
           {tasks && <MyTasks tasks={tasks} links={linksR.value} me={me.who} />}
+
+          {finance && <FinanceCard entries={finance} today={today} />}
 
           <Card
             title="Mensajes"
