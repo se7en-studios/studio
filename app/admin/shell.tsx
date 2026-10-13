@@ -10,6 +10,7 @@ import { usePathname } from "next/navigation";
 import {
   ArrowUpRight,
   BarChart3,
+  Bell,
   CalendarDays,
   CalendarRange,
   CheckSquare,
@@ -56,6 +57,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
       { href: "/admin/finanzas", label: "Finanzas", icon: <Wallet size={16} /> },
       { href: "/admin/metricas", label: "Métricas", icon: <BarChart3 size={16} /> },
       { href: "/admin/cambios", label: "Registro", icon: <History size={16} /> },
+      { href: "/admin/avisos", label: "Avisos", icon: <Bell size={16} /> },
       { href: "/admin/marca", label: "Marca", icon: <Palette size={16} /> },
     ],
   },

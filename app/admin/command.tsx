@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BarChart3,
+  Bell,
   CalendarDays,
   CalendarRange,
   CheckSquare,
@@ -38,6 +39,7 @@ const BASE: Item[] = [
   { id: "n-finanzas", group: "Ir a", label: "Finanzas", icon: <Wallet size={16} />, href: "/admin/finanzas" },
   { id: "n-metricas", group: "Ir a", label: "Métricas", icon: <BarChart3 size={16} />, href: "/admin/metricas" },
   { id: "n-registro", group: "Ir a", label: "Registro de cambios", icon: <History size={16} />, href: "/admin/cambios" },
+  { id: "n-avisos", group: "Ir a", label: "Avisos al celular", icon: <Bell size={16} />, href: "/admin/avisos" },
   { id: "n-marca", group: "Ir a", label: "Marca", icon: <Palette size={16} />, href: "/admin/marca" },
   { id: "a-pedido", group: "Crear", label: "Nuevo pedido", icon: <Plus size={16} />, href: "/admin/pedidos?nuevo=1" },
   { id: "a-proyecto", group: "Crear", label: "Nuevo proyecto", icon: <Plus size={16} />, href: "/admin/proyectos?nuevo=1" },
