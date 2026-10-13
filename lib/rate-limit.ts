@@ -73,7 +73,8 @@ export async function allowRequest(
  */
 export async function isLimitedStrict(bucket: string, ip: string, limit: number, windowMs: number) {
   const c = db();
-  if (!c) return true;
+  // Sin base no se puede contar: en producción se bloquea; en desarrollo local se deja probar.
+  if (!c) return process.env.NODE_ENV === "production";
   const { count, error } = await c
     .from("rate_limit_hits")
     .select("id", { count: "exact", head: true })

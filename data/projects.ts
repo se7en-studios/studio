@@ -27,8 +27,8 @@ export const projects: Project[] = [
     url: "https://takefyy.com/",
     image: "/projects/takefyy-2026-09.jpg",
     screens: {
-      tablet: "/projects/devices/undefined-tablet-2026-09.jpg",
-      mobile: "/projects/devices/undefined-mobile-2026-09.jpg",
+      tablet: "/projects/devices/takefyy-tablet-2026-09.jpg",
+      mobile: "/projects/devices/takefyy-mobile-2026-09.jpg",
     },
     video: {
       mp4: "/projects/videos/takefyy-2026-09c.mp4",
@@ -71,8 +71,8 @@ export const projects: Project[] = [
     url: "https://ponelapavayerbas.com/",
     image: "/projects/pone-la-pava-2026-09b.jpg",
     screens: {
-      tablet: "/projects/devices/undefined-tablet-2026-09.jpg",
-      mobile: "/projects/devices/undefined-mobile-2026-09.jpg",
+      tablet: "/projects/devices/pone-la-pava-tablet-2026-09.jpg",
+      mobile: "/projects/devices/pone-la-pava-mobile-2026-09.jpg",
     },
     video: {
       mp4: "/projects/videos/pone-la-pava-2026-09c.mp4",
@@ -115,8 +115,8 @@ export const projects: Project[] = [
     url: "https://www.sentineltech.com.ar/",
     image: "/projects/sentinel-2026-09.jpg",
     screens: {
-      tablet: "/projects/devices/undefined-tablet-2026-09.jpg",
-      mobile: "/projects/devices/undefined-mobile-2026-09.jpg",
+      tablet: "/projects/devices/sentinel-tablet-2026-09.jpg",
+      mobile: "/projects/devices/sentinel-mobile-2026-09.jpg",
     },
     video: {
       mp4: "/projects/videos/sentinel-2026-09c.mp4",
@@ -159,8 +159,8 @@ export const projects: Project[] = [
     url: "https://apexperformance.com.ar/",
     image: "/projects/apex-ai-2026-09-es.jpg",
     screens: {
-      tablet: "/projects/devices/undefined-tablet-2026-09.jpg",
-      mobile: "/projects/devices/undefined-mobile-2026-09.jpg",
+      tablet: "/projects/devices/apex-ai-tablet-2026-09.jpg",
+      mobile: "/projects/devices/apex-ai-mobile-2026-09.jpg",
     },
     video: {
       mp4: "/projects/videos/apex-ai-2026-09c.mp4",
@@ -203,8 +203,8 @@ export const projects: Project[] = [
     url: "https://altumsci.com.ar/",
     image: "/projects/altum-sci-2026-09.jpg",
     screens: {
-      tablet: "/projects/devices/undefined-tablet-2026-09.jpg",
-      mobile: "/projects/devices/undefined-mobile-2026-09.jpg",
+      tablet: "/projects/devices/altum-sci-tablet-2026-09.jpg",
+      mobile: "/projects/devices/altum-sci-mobile-2026-09.jpg",
     },
     video: {
       mp4: "/projects/videos/altum-sci-2026-09c.mp4",
@@ -247,8 +247,8 @@ export const projects: Project[] = [
     url: "https://www.pravilo.com.ar/",
     image: "/projects/pravilo-2026-09.jpg",
     screens: {
-      tablet: "/projects/devices/undefined-tablet-2026-09.jpg",
-      mobile: "/projects/devices/undefined-mobile-2026-09.jpg",
+      tablet: "/projects/devices/pravilo-tablet-2026-09.jpg",
+      mobile: "/projects/devices/pravilo-mobile-2026-09.jpg",
     },
     video: {
       mp4: "/projects/videos/pravilo-2026-09c.mp4",
@@ -291,8 +291,8 @@ export const projects: Project[] = [
     url: "https://muzzaga-padel-seven.vercel.app/",
     image: "/projects/muzzaga-2026-09.jpg",
     screens: {
-      tablet: "/projects/devices/undefined-tablet-2026-09.jpg",
-      mobile: "/projects/devices/undefined-mobile-2026-09.jpg",
+      tablet: "/projects/devices/muzzaga-tablet-2026-09.jpg",
+      mobile: "/projects/devices/muzzaga-mobile-2026-09.jpg",
     },
     video: {
       mp4: "/projects/videos/muzzaga-2026-09c.mp4",
@@ -336,8 +336,8 @@ export const projects: Project[] = [
     url: "https://iphonevita.vercel.app/",
     image: "/projects/iphone-vita-2026-09.jpg",
     screens: {
-      tablet: "/projects/devices/undefined-tablet-2026-09.jpg",
-      mobile: "/projects/devices/undefined-mobile-2026-09.jpg",
+      tablet: "/projects/devices/iphone-vita-tablet-2026-09.jpg",
+      mobile: "/projects/devices/iphone-vita-mobile-2026-09.jpg",
     },
     video: {
       mp4: "/projects/videos/iphone-vita-2026-09c.mp4",
