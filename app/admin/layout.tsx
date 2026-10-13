@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { getSession } from "@/lib/admin/auth";
 import { THEME_COOKIE, parseTheme } from "@/lib/admin/theme";
@@ -10,7 +10,17 @@ import { AdminShell } from "./shell";
 export const metadata: Metadata = {
   title: { default: "Panel", template: "%s · Panel" },
   robots: { index: false, follow: false },
+  // App instalable en el celular (public/admin): abre a pantalla completa y sólo dentro de /admin.
+  manifest: "/admin/manifest.webmanifest",
+  icons: { icon: "/admin/icon-192.png", apple: "/admin/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "Se7en Panel", statusBarStyle: "black-translucent" },
 };
+
+/** El color de la barra del celular sigue al tema elegido en el panel. */
+export async function generateViewport(): Promise<Viewport> {
+  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
+  return { themeColor: theme === "light" ? "#f1f1ee" : "#0a0a0b" };
+}
 
 // Sólo arma el marco del panel. El chequeo de sesión de verdad está en cada
 // página y en cada acción: el layout no se vuelve a renderizar al navegar.
