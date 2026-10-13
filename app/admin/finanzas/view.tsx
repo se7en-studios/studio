@@ -49,6 +49,8 @@ import { Tools } from "./tools";
 
 type Project = { slug: string; name: string };
 const NO_PROJECT = "__sin-proyecto";
+// ponytail: apagada por ahora, hay costos individuales de cada socio. Poner en true para volver a ver quién le debe a quién (todo a 50/50).
+const SHOW_PARTNERS = false;
 const PERIOD_IDS = PERIODS.map((p) => p.id);
 
 type Props = {
@@ -367,7 +369,9 @@ export function FinanceView({
         />
       </div>
 
-      <Partners occ={occ} currency={currency} result={result} />
+      {SHOW_PARTNERS && (
+        <Partners occ={occ} currency={currency} result={result} />
+      )}
 
       <ProjectProfit rows={profitRows} currency={currency} />
       <Tools

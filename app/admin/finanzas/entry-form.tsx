@@ -283,8 +283,7 @@ export function EntryForm({
             <span className={label}>{whoLabel}</span>
             <OwnerPicker value={owner} onChange={setOwner} legend={whoLabel} />
             <p className="mt-1.5 text-[12px] text-muted">
-              Todo se divide 50/50. Esto sirve para saber quién le debe a quién;
-              «Cuenta del estudio» no genera deuda.
+              Sirve para ver de quién es cada movimiento; «Cuenta del estudio» es lo que es de los dos.
             </p>
           </div>
 
