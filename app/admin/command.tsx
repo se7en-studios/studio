@@ -22,6 +22,7 @@ import {
   Phone,
   Palette,
   Plus,
+  Radio,
   Search,
   Wallet,
 } from "lucide-react";
@@ -47,6 +48,7 @@ const BASE: Item[] = [
   { id: "n-registro", group: "Ir a", label: "Registro de cambios", icon: <History size={16} />, href: "/admin/cambios" },
   { id: "n-avisos", group: "Ir a", label: "Avisos al celular", icon: <Bell size={16} />, href: "/admin/avisos" },
   { id: "n-marca", group: "Ir a", label: "Marca", icon: <Palette size={16} />, href: "/admin/marca" },
+  { id: "n-envivo", group: "Ir a", label: "En vivo (mapa del estudio)", icon: <Radio size={16} />, href: "/admin/oficinas" },
   { id: "a-pedido", group: "Crear", label: "Nuevo pedido", icon: <Plus size={16} />, href: "/admin/pedidos?nuevo=1" },
   { id: "a-proyecto", group: "Crear", label: "Nuevo proyecto", icon: <Plus size={16} />, href: "/admin/proyectos?nuevo=1" },
   { id: "a-tarea", group: "Crear", label: "Nueva tarea", icon: <Plus size={16} />, href: "/admin/tareas?nueva=1" },
