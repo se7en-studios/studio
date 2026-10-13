@@ -11,7 +11,6 @@ import {
 } from "@/lib/admin/content-shared";
 import { Card, Chip, Empty, btnSecondary, cn } from "../kit";
 import { useToast } from "../overlay";
-import { bytes } from "../ui";
 import { markPublished } from "./actions";
 
 type Filter = "pendientes" | "publicados" | "todo";
@@ -228,7 +227,7 @@ function Files({ files }: { files: ContentFile[] }) {
               target="_blank"
               rel="noreferrer"
               download={f.name}
-              aria-label={`Descargar ${f.name} (${bytes(f.size)})`}
+              aria-label={`Descargar ${f.name}`}
               className="focus-ring group relative flex aspect-square items-center justify-center overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--well)]"
             >
               {isImg(f) && f.url ? (
