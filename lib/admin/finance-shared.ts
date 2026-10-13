@@ -65,6 +65,8 @@ export type Entry = {
   created_by: LeadOwner | null;
   /** «cobro» viene de los cobros de proyectos y «herramienta» de las suscripciones: no se editan acá y su cotización es la de hoy. */
   source: "manual" | "cobro" | "herramienta";
+  /** Es la mitad de un movimiento de la cuenta del estudio, vista desde un socio: el monto ya viene partido. */
+  studio?: boolean;
 };
 
 export type EntryInput = Pick<
@@ -325,6 +327,20 @@ export function settle(occ: Occurrence[], currency: Currency): Settlement {
         ? { from: "franco", to: "federico", amount: half }
         : { from: "federico", to: "franco", amount: -half };
   return out;
+}
+
+/**
+ * Lo de un socio: lo suyo más la mitad de la cuenta del estudio. Esas mitades pasan a ser
+ * del socio (`owner`) y quedan marcadas con `studio`; para editar hay que volver al original.
+ */
+export function forPartner(entries: Entry[], who: LeadOwner): Entry[] {
+  return entries.flatMap((e): Entry[] =>
+    e.owner === who
+      ? [e]
+      : e.owner === "ambos"
+        ? [{ ...e, owner: who, amount: round2(e.amount / 2), studio: true }]
+        : [],
+  );
 }
 
 /** Margen sobre ingresos en %, o null si no hubo ingresos. */

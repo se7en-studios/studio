@@ -6,6 +6,8 @@ import { getSession } from "@/lib/admin/auth";
 import { OWNERS, db, type Lead } from "@/lib/admin/db";
 import { dateLabel, diff, usd } from "@/lib/admin/changes";
 import { PEOPLE } from "@/lib/admin/people";
+import { paymentNotice } from "@/lib/admin/digest";
+import { notifyPartner } from "@/lib/admin/notify";
 import { insertPayment, removePayment } from "@/lib/admin/payments";
 import type { Payment } from "@/lib/admin/payment-shared";
 import { OWNERS as PAYMENT_OWNERS, type Owner } from "@/lib/admin/finance-shared";
@@ -290,6 +292,7 @@ export async function addPayment(
       project_slug: slug,
     }),
   );
+  after(() => notifyPartner(me.who, paymentNotice(PEOPLE[me.who].name)));
   return row;
 }
 

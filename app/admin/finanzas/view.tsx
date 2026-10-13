@@ -16,6 +16,7 @@ import {
   expand,
   fixedCosts,
   fmt,
+  forPartner,
   groupTotals,
   margin,
   periodMonths,
@@ -146,7 +147,12 @@ export function FinanceView({
     [all, project],
   );
   const scoped = useMemo(
-    () => (who === "todos" ? byProject : byProject.filter((e) => e.owner === who)),
+    () =>
+      who === "todos"
+        ? byProject
+        : who === "ambos"
+          ? byProject.filter((e) => e.owner === "ambos")
+          : forPartner(byProject, who),
     [byProject, who],
   );
   const months = useMemo(
@@ -228,7 +234,11 @@ export function FinanceView({
   }
 
   // Cada origen se edita donde corresponde: herramientas en su formulario, cobros en el suyo.
-  function editRow(e: Entry) {
+  // Con el filtro de un socio, las filas de la cuenta del estudio vienen partidas: se edita el original.
+  const original = (e: Entry) => all.find((x) => x.id === e.id) ?? e;
+
+  function editRow(shown: Entry) {
+    const e = original(shown);
     const tool = toolList.find((t) => `tool-${t.id}` === e.id);
     if (tool) return setEditingTool(tool);
     if (e.source === "cobro")
@@ -456,7 +466,7 @@ export function FinanceView({
           projectName={projectName}
           onEdit={editRow}
           onDelete={remove}
-          onDuplicate={setCopyFrom}
+          onDuplicate={(e) => setCopyFrom(original(e))}
         />
       )}
 
@@ -467,7 +477,7 @@ export function FinanceView({
           today={today}
           projectName={projectName}
           onSettle={settle}
-          onEdit={setEditing}
+          onEdit={(e) => setEditing(original(e))}
           onAdd={() => setAdding("pendiente")}
         />
       )}

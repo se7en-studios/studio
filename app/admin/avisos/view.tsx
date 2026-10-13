@@ -4,9 +4,10 @@
 // y un botón para mandar un aviso de prueba.
 import { useState, useTransition } from "react";
 import { BellRing, Check, Copy, RefreshCw, Send } from "lucide-react";
-import { Card, btnPrimary, btnSecondary, cn } from "../kit";
+import { NOTE_MAX } from "@/lib/admin/digest";
+import { Card, btnPrimary, btnSecondary, cn, input } from "../kit";
 import { useToast } from "../overlay";
-import { sendTestNotice } from "./actions";
+import { sendNote, sendTestNotice } from "./actions";
 
 type Suggestion = { topic: string; secret: string };
 
@@ -16,6 +17,8 @@ type Props = {
   server: string;
   cronReady: boolean;
   suggestion: Suggestion;
+  /** El otro socio: a quién va el aviso suelto y si tiene su propio tema. */
+  partner: { name: string; personal: boolean };
 };
 
 const randomHex = (bytes: number) =>
@@ -27,6 +30,21 @@ const WHEN = [
   {
     what: "Pedido nuevo",
     when: "Al instante, cuando alguien llena el formulario de la web",
+    cron: false,
+  },
+  {
+    what: "Mensaje nuevo",
+    when: "Cuando el otro te escribe en el chat del panel (sin el texto, y no más de uno por minuto por conversación)",
+    cron: false,
+  },
+  {
+    what: "Cobro registrado",
+    when: "Cuando el otro anota un cobro en un proyecto (sin monto)",
+    cron: false,
+  },
+  {
+    what: "Tarea para vos",
+    when: "Cuando el otro te pasa una tarea",
     cron: false,
   },
   {
@@ -47,11 +65,13 @@ export function NoticesView({
   server,
   cronReady,
   suggestion,
+  partner,
 }: Props) {
   return (
     <div className="grid items-start gap-4 lg:grid-cols-2">
       <div className="space-y-4">
         <Status configured={configured} cronReady={cronReady} />
+        {configured && <SendNote name={partner.name} personal={partner.personal} />}
         {configured && topic ? (
           <Subscribe topic={topic} server={server} />
         ) : (
@@ -75,7 +95,8 @@ export function NoticesView({
         <p className="border-t border-[var(--line)] px-4 py-3 text-[12px] text-muted">
           Los avisos pasan por el servicio ntfy. Llevan solo cantidades y
           títulos de posts del estudio, nunca el nombre ni los datos de un
-          cliente.
+          cliente. Los de mensajes, cobros y tareas dicen de quién son, no su
+          contenido. El aviso suelto lleva exactamente lo que escribís.
         </p>
       </Card>
     </div>
@@ -246,6 +267,57 @@ function Activate({ initial }: { initial: Suggestion }) {
           </li>
         </ol>
       </div>
+    </Card>
+  );
+}
+
+/** Un aviso escrito a mano para el otro: le llega al celular (y le suena el panel abierto). */
+function SendNote({ name, personal }: { name: string; personal: boolean }) {
+  const flash = useToast();
+  const [text, setText] = useState("");
+  const [pending, start] = useTransition();
+
+  function send() {
+    start(async () => {
+      const res = await sendNote(text);
+      if (res.error) {
+        flash(res.error, "error");
+        return;
+      }
+      setText("");
+      flash(`Aviso enviado a ${name}`, "ok");
+    });
+  }
+
+  return (
+    <Card title={`Mandarle un aviso a ${name}`} icon={<Send size={14} />}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (text.trim() && !pending) send();
+        }}
+        className="space-y-3 p-4"
+      >
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          maxLength={NOTE_MAX}
+          rows={3}
+          placeholder="Ej.: mirá el pedido nuevo cuando puedas"
+          aria-label={`Aviso para ${name}`}
+          className={cn(input, "resize-none")}
+        />
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[12px] text-muted">
+            {personal
+              ? `Le llega solo a ${name}.`
+              : `${name} no tiene su aviso propio: le llega a los dos.`}
+          </p>
+          <button type="submit" disabled={!text.trim() || pending} className={btnPrimary}>
+            <Send size={14} /> {pending ? "Enviando…" : "Mandar"}
+          </button>
+        </div>
+      </form>
     </Card>
   );
 }

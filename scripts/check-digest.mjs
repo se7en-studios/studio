@@ -62,3 +62,14 @@ const ren = morningDigest({ ...base, renewals: [{ name: "Vercel", days: 1 }, { n
 assert.equal(ren.message, ["• Renueva hoy: Claude", "• Renueva mañana: Vercel, Supabase", "• Renueva en 3 días: Resend"].join("\n"));
 assert.equal(morningDigest({ ...base, renewals: [] }), null);
 console.log("renovaciones OK");
+
+// Avisos al otro socio: dicen de quién y dónde, nunca el texto, el monto ni el nombre del cliente.
+const { messageNotice, paymentNotice, taskAssignedNotice, noteNotice, NOTE_MAX } = await import("../lib/admin/digest.ts");
+assert.equal(messageNotice("Franco", "general").title, "Franco te escribió");
+assert.match(messageNotice("Franco", "proyecto", "/admin/mensajes?c=p%3Aalgo").message, /en un proyecto/);
+assert.equal(messageNotice("Franco", "pedido").path, "/admin/mensajes");
+assert.doesNotMatch(paymentNotice("Fede").message, /\d/); // sin monto
+assert.equal(taskAssignedNotice("Fede").path, "/admin/tareas");
+assert.equal(noteNotice("Franco", "  hola  ").message, "hola");
+assert.equal(noteNotice("Franco", "x".repeat(NOTE_MAX + 50)).message.length, NOTE_MAX);
+console.log("avisos entre socios OK");

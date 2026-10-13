@@ -102,3 +102,30 @@ export function newLeadNotice(channel: string | null | undefined): Notice {
     path: "/admin/pedidos",
   };
 }
+
+/** Largo máximo de un aviso suelto que se manda a mano. */
+export const NOTE_MAX = 280;
+
+export type ChatKind = "general" | "proyecto" | "pedido";
+
+/** Un mensaje nuevo para el otro. Sin el texto ni el nombre del cliente: solo de quién y dónde. */
+export function messageNotice(from: string, kind: ChatKind, path = "/admin/mensajes"): Notice {
+  const where =
+    kind === "general" ? "en la conversación general" : kind === "proyecto" ? "en un proyecto" : "en un pedido";
+  return { title: `${from} te escribió`, message: `Mensaje nuevo ${where}.`, path };
+}
+
+/** Se registró un cobro en un proyecto. Sin monto ni nombre del proyecto. */
+export function paymentNotice(from: string): Notice {
+  return { title: `${from} registró un cobro`, message: "Entró un cobro en un proyecto.", path: "/admin/finanzas" };
+}
+
+/** Te pasaron una tarea. Sin el título: puede nombrar a un cliente. */
+export function taskAssignedNotice(from: string): Notice {
+  return { title: `${from} te pasó una tarea`, message: "Tenés una tarea nueva.", path: "/admin/tareas" };
+}
+
+/** Un aviso suelto escrito a mano: es el texto que eligió quien lo manda. */
+export function noteNotice(from: string, text: string): Notice {
+  return { title: `Aviso de ${from}`, message: text.trim().slice(0, NOTE_MAX), path: "/admin" };
+}
