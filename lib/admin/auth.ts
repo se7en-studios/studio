@@ -30,17 +30,25 @@ const personal = (who: LeadOwner): string | null =>
   process.env[`ADMIN_PASSWORD_${who.toUpperCase()}`]?.trim() || null;
 
 /** El secreto del segundo paso de cada uno (TOTP_SECRET_FRANCO / TOTP_SECRET_FEDERICO). */
-const totpSecret = (who: LeadOwner): string | null => {
-  const text = process.env[`TOTP_SECRET_${who.toUpperCase()}`]?.trim();
-  return text && base32Decode(text) ? text : null;
-};
+const totpRaw = (who: LeadOwner): string | null => process.env[`TOTP_SECRET_${who.toUpperCase()}`]?.trim() || null;
 
-/** Si lo tiene, entrar pide además el código de su app. Sin la variable, no se pide. */
-export const hasTotp = (who: LeadOwner) => totpSecret(who) !== null;
+/**
+ * Si la variable existe, entrar pide el código de la app. Si está mal copiada (un carácter de
+ * más, comillas), NO se apaga el segundo paso: entrar queda bloqueado para esa persona hasta
+ * que se corrija o se borre la variable (falla cerrado). Sin la variable, no se pide.
+ */
+export const hasTotp = (who: LeadOwner) => totpRaw(who) !== null;
+
+/** «sin segundo paso», «activo» o «roto» (la variable existe pero no es un secreto válido). */
+export function totpStatus(who: LeadOwner): "off" | "ok" | "broken" {
+  const raw = totpRaw(who);
+  if (!raw) return "off";
+  return base32Decode(raw) ? "ok" : "broken";
+}
 
 export function checkTotp(who: LeadOwner, code: string) {
-  const secret = totpSecret(who);
-  return secret !== null && verifyTotp(secret, code);
+  const secret = totpRaw(who);
+  return secret !== null && base32Decode(secret) !== null && verifyTotp(secret, code);
 }
 
 // Estado para la pantalla de Seguridad: solo sí o no, nunca los valores.

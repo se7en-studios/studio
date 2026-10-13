@@ -6,6 +6,7 @@ import {
   panelSession,
   sessionSecretStrong,
   sharedPasswordActive,
+  totpStatus,
 } from "@/lib/admin/auth";
 import { notificationsConfigured } from "@/lib/admin/notify";
 import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
@@ -55,13 +56,19 @@ export default async function SeguridadPage() {
     },
     {
       label: `Segundo paso de ${names.me}`,
-      ok: hasTotp(me.who),
-      hint: "Activalo en el recuadro de al lado.",
+      ok: totpStatus(me.who) === "ok",
+      hint:
+        totpStatus(me.who) === "broken"
+          ? `TOTP_SECRET_${mine} no es un secreto válido: entrar queda bloqueado. Corregila o borrala en Vercel.`
+          : "Activalo en el recuadro de al lado.",
     },
     {
       label: `Segundo paso de ${names.other}`,
-      ok: hasTotp(other),
-      hint: "Lo activa desde esta misma pantalla.",
+      ok: totpStatus(other) === "ok",
+      hint:
+        totpStatus(other) === "broken"
+          ? `TOTP_SECRET_${other.toUpperCase()} no es un secreto válido: su ingreso queda bloqueado hasta corregirla o borrarla.`
+          : "Lo activa desde esta misma pantalla.",
     },
     {
       label: "Firma de las sesiones",

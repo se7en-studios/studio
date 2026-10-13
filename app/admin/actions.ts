@@ -17,9 +17,13 @@ import { OWNERS, STATUSES, patchLead, removeLead, type LeadOwner, type LeadStatu
 import { leadDiff, STATUS_LABEL } from "@/lib/admin/lead-changes";
 import { logEvent } from "@/lib/admin/panel";
 import { PEOPLE } from "@/lib/admin/people";
-import { clientIp, isLimited, recordHit } from "@/lib/rate-limit";
+import { clearHits, clientIp, isLimitedStrict, recordHit } from "@/lib/rate-limit";
 
-const MAX_FAILED_LOGINS = 5;
+// Intentos por IP en 15 min, contando contraseñas y códigos (con segundo paso un ingreso
+// bueno ya usa dos: la contraseña y el código).
+const MAX_LOGIN_ATTEMPTS = 8;
+// Códigos incorrectos por persona en 15 min, vengan de la IP que vengan.
+const MAX_CODE_ATTEMPTS = 15;
 const LOCKOUT_WINDOW_MS = 15 * 60 * 1000;
 
 export type LoginState = { error?: string; needCode?: boolean };
@@ -30,24 +34,27 @@ export async function login(_: LoginState, form: FormData): Promise<LoginState> 
   // Pausa fija: frena probar contraseñas a mano en ráfaga.
   await new Promise((r) => setTimeout(r, 400));
   if (!OWNERS.includes(who)) return { error: "Elegí quién sos." };
-  // Bloqueo por IP: 5 intentos fallidos en 15 min. Sólo cuentan los fallos.
+  // Se anota el intento ANTES de probar y se cuenta después: una ráfaga en paralelo no pasa
+  // toda con el contador en cero. Si el ingreso sale bien, se limpian los intentos. Si no se
+  // puede contar (base caída), en producción se bloquea en lugar de dejar pasar.
   const ip = clientIp(await headers());
-  if (await isLimited("admin_login", ip, MAX_FAILED_LOGINS, LOCKOUT_WINDOW_MS)) {
+  await recordHit("admin_login", ip);
+  if (await isLimitedStrict("admin_login", ip, MAX_LOGIN_ATTEMPTS + 1, LOCKOUT_WINDOW_MS)) {
     return { error: "Demasiados intentos fallidos. Probá de nuevo en 15 minutos." };
   }
-  if (!checkPassword(pass, who)) {
-    await recordHit("admin_login", ip);
-    return { error: "Contraseña incorrecta." };
-  }
+  if (!checkPassword(pass, who)) return { error: "Contraseña incorrecta." };
   // Segundo paso: con la contraseña bien, se pide el código de la app (si tiene uno activado).
   if (hasTotp(who)) {
     const code = String(form.get("code") ?? "").trim();
     if (!code) return { needCode: true };
-    if (!checkTotp(who, code)) {
-      await recordHit("admin_login", ip);
-      return { needCode: true, error: "Código incorrecto o vencido." };
+    await recordHit("admin_totp", who);
+    if (await isLimitedStrict("admin_totp", who, MAX_CODE_ATTEMPTS + 1, LOCKOUT_WINDOW_MS)) {
+      return { needCode: true, error: "Demasiados códigos incorrectos en esta cuenta. Probá de nuevo en 15 minutos." };
     }
+    if (!checkTotp(who, code)) return { needCode: true, error: "Código incorrecto o vencido." };
+    await clearHits("admin_totp", who);
   }
+  await clearHits("admin_login", ip);
   await startSession(who);
   // Acá sí: el layout tiene que pasar de la pantalla de login al panel.
   revalidatePath("/admin", "layout");

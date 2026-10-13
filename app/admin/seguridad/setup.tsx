@@ -12,9 +12,9 @@ import { checkSetupCode } from "./actions";
 const code = "rounded bg-white/[0.06] px-1 text-foreground";
 
 export function TotpSetup({
-  secret,
-  uri,
-  svg,
+  secret: initialSecret,
+  uri: initialUri,
+  svg: initialSvg,
   envName,
 }: {
   secret: string;
@@ -24,6 +24,8 @@ export function TotpSetup({
   envName: string;
 }) {
   const flash = useToast();
+  // Se fija al abrir: si la página se vuelve a pintar, la línea que se copia sigue siendo la que se comprobó.
+  const [{ secret, uri, svg }] = useState({ secret: initialSecret, uri: initialUri, svg: initialSvg });
   const [digits, setDigits] = useState("");
   const [verified, setVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
