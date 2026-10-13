@@ -17,6 +17,7 @@ import {
   Home,
   Inbox,
   KeyRound,
+  ShieldCheck,
   MessagesSquare,
   Phone,
   Palette,
@@ -34,6 +35,7 @@ type Item = { id: string; group: string; label: string; hint?: string; icon: Rea
 const BASE: Item[] = [
   { id: "n-inicio", group: "Ir a", label: "Inicio", icon: <Home size={16} />, href: "/admin" },
   { id: "n-cuentas", group: "Ir a", label: "Cuentas (caja fuerte)", icon: <KeyRound size={16} />, href: "/admin/cuentas" },
+  { id: "n-seguridad", group: "Ir a", label: "Seguridad", icon: <ShieldCheck size={16} />, href: "/admin/seguridad" },
   { id: "n-llamadas", group: "Ir a", label: "Llamadas por Meet", icon: <Phone size={16} />, href: "/admin/llamadas" },
   { id: "n-mensajes", group: "Ir a", label: "Mensajes", icon: <MessagesSquare size={16} />, href: "/admin/mensajes" },
   { id: "n-pedidos", group: "Ir a", label: "Pedidos", icon: <Inbox size={16} />, href: "/admin/pedidos" },

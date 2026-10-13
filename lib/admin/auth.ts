@@ -8,11 +8,12 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { OWNERS, type LeadOwner } from "./db";
+import { base32Decode, verifyTotp } from "./totp";
 
 export type Session = { who: LeadOwner };
 
 const COOKIE = "se7en_admin";
-const TTL_MS = 1000 * 60 * 60 * 24 * 14; // 14 días
+const TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 días
 const MIN_SECRET = 32;
 let warned = false;
 
@@ -27,6 +28,33 @@ function password(): string | null {
  */
 const personal = (who: LeadOwner): string | null =>
   process.env[`ADMIN_PASSWORD_${who.toUpperCase()}`]?.trim() || null;
+
+/** El secreto del segundo paso de cada uno (TOTP_SECRET_FRANCO / TOTP_SECRET_FEDERICO). */
+const totpRaw = (who: LeadOwner): string | null => process.env[`TOTP_SECRET_${who.toUpperCase()}`]?.trim() || null;
+
+/**
+ * Si la variable existe, entrar pide el código de la app. Si está mal copiada (un carácter de
+ * más, comillas), NO se apaga el segundo paso: entrar queda bloqueado para esa persona hasta
+ * que se corrija o se borre la variable (falla cerrado). Sin la variable, no se pide.
+ */
+export const hasTotp = (who: LeadOwner) => totpRaw(who) !== null;
+
+/** «sin segundo paso», «activo» o «roto» (la variable existe pero no es un secreto válido). */
+export function totpStatus(who: LeadOwner): "off" | "ok" | "broken" {
+  const raw = totpRaw(who);
+  if (!raw) return "off";
+  return base32Decode(raw) ? "ok" : "broken";
+}
+
+export function checkTotp(who: LeadOwner, code: string) {
+  const secret = totpRaw(who);
+  return secret !== null && base32Decode(secret) !== null && verifyTotp(secret, code);
+}
+
+// Estado para la pantalla de Seguridad: solo sí o no, nunca los valores.
+export const hasOwnPassword = (who: LeadOwner) => personal(who) !== null;
+export const sharedPasswordActive = () => password() !== null;
+export const sessionSecretStrong = () => (process.env.ADMIN_SESSION_SECRET?.length ?? 0) >= MIN_SECRET;
 
 const anyPassword = () => password() ?? OWNERS.map(personal).find(Boolean) ?? null;
 

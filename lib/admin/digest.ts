@@ -26,6 +26,8 @@ export type DigestInput = {
   dueTodayTasks: number;
   newLeads: number;
   renewals?: Renewal[];
+  /** Primer día del mes: recuerda bajar la copia de seguridad. */
+  backupDue?: boolean;
 };
 
 const plural = (n: number, one: string, many: string) =>
@@ -67,6 +69,7 @@ export function morningDigest(i: DigestInput): Notice | null {
       ? `${plural(i.newLeads, "pedido", "pedidos")} sin responder`
       : null,
     ...renewalLines(i.renewals ?? []),
+    i.backupDue ? "Toca bajar la copia de seguridad del mes (Avisos → Copia de seguridad)" : null,
   ].filter((l): l is string => l !== null);
   return lines.length
     ? {

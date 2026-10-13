@@ -26,6 +26,7 @@ import {
   Moon,
   Palette,
   Search,
+  ShieldCheck,
   Sun,
   Wallet,
 } from "lucide-react";
@@ -63,6 +64,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
       { href: "/admin/cambios", label: "Registro", icon: <History size={16} /> },
       { href: "/admin/avisos", label: "Avisos", icon: <Bell size={16} /> },
       { href: "/admin/cuentas", label: "Cuentas", icon: <KeyRound size={16} /> },
+      { href: "/admin/seguridad", label: "Seguridad", icon: <ShieldCheck size={16} /> },
       { href: "/admin/marca", label: "Marca", icon: <Palette size={16} /> },
     ],
   },

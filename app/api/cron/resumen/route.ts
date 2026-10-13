@@ -50,6 +50,8 @@ export async function GET(request: Request) {
     overdueTasks: open.filter((t) => bucket(t, today) === "vencidas").length,
     dueTodayTasks: open.filter((t) => bucket(t, today) === "hoy").length,
     newLeads: newLeads ?? 0,
+    // El día 1 de cada mes se recuerda bajar la copia de seguridad.
+    backupDue: today.endsWith("-01"),
     // Sólo las que renuevan en 3 días o menos.
     renewals: tools
       .map((t) => ({ name: t.name, days: daysUntil(nextRenewal(t.renews_on, t.cycle, today), today) }))
