@@ -5,10 +5,12 @@
 import { useState, useTransition } from "react";
 import { Trash2, Wallet } from "lucide-react";
 import type { LeadOwner } from "@/lib/admin/db";
+import type { Owner } from "@/lib/admin/finance-shared";
 import { PEOPLE } from "@/lib/admin/people";
 import { balance, type Payment } from "@/lib/admin/payment-shared";
 import { Card, Progress, btnPrimary, cn, input, usd } from "../../kit";
 import { useToast } from "../../overlay";
+import { OWNER_LABEL, OwnerPicker } from "../../finanzas/owner";
 import { addPayment, deletePayment } from "../actions";
 
 const today = () =>
@@ -42,6 +44,7 @@ export function Payments({
   const [amount, setAmount] = useState("");
   const [paidOn, setPaidOn] = useState(today);
   const [note, setNote] = useState("");
+  const [owner, setOwner] = useState<Owner>(me);
   const [pending, start] = useTransition();
 
   const paid = items.reduce((s, p) => s + p.amount, 0);
@@ -60,6 +63,7 @@ export function Payments({
       amount: n,
       note: note.trim(),
       created_by: me,
+      owner,
     };
     setItems((xs) =>
       [temp, ...xs].sort((a, b) => b.paid_on.localeCompare(a.paid_on)),
@@ -72,6 +76,7 @@ export function Payments({
           amount: n,
           paid_on: paidOn,
           note: temp.note,
+          owner,
         });
         setItems((xs) => xs.map((x) => (x.id === temp.id ? saved : x)));
       } catch (err) {
@@ -177,6 +182,12 @@ export function Payments({
         >
           Registrar
         </button>
+        <div className="col-span-2 sm:col-span-4">
+          <span className="mb-1.5 block text-[11px] font-medium tracking-wide text-muted uppercase">
+            Quién lo cobró
+          </span>
+          <OwnerPicker value={owner} onChange={setOwner} legend="Quién cobró" />
+        </div>
       </form>
 
       {items.length > 0 && (
@@ -194,6 +205,7 @@ export function Payments({
                   day(p.paid_on),
                   p.note,
                   p.created_by && PEOPLE[p.created_by].name,
+                  `cobró: ${OWNER_LABEL[p.owner]}`,
                 ]
                   .filter(Boolean)
                   .join(" · ")}

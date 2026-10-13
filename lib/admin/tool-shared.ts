@@ -1,12 +1,14 @@
 // Herramientas y suscripciones: tipos, validación y fechas de renovación. Puro:
 // lo usan la página, las acciones y los componentes de cliente.
-import { CURRENCIES, OWNERS, type Currency, type Owner } from "./finance-shared";
+import { CURRENCIES, OWNERS, type Currency, type Entry, type Owner } from "./finance-shared";
 
 export const CYCLES = ["mensual", "anual"] as const;
 export type Cycle = (typeof CYCLES)[number];
 
 export type Tool = {
   id: string;
+  /** ISO: desde qué mes cuenta como costo. */
+  created_at: string;
   name: string;
   amount: number;
   currency: Currency;
@@ -17,7 +19,7 @@ export type Tool = {
   notes: string;
 };
 
-export type ToolInput = Omit<Tool, "id">;
+export type ToolInput = Omit<Tool, "id" | "created_at">;
 
 /** Herramientas conocidas: nombre sugerido y logo en public/logos/<id>.svg. */
 export const TOOL_PRESETS = [
@@ -78,6 +80,33 @@ export function monthlyIn(t: Pick<Tool, "amount" | "currency" | "cycle">, to: Cu
   if (t.currency === to) return month;
   if (fx <= 0) return 0;
   return to === "ARS" ? month * fx : month / fx;
+}
+
+/**
+ * Cada herramienta como costo fijo mensual (lo anual, prorrateado) desde el mes
+ * en que se cargó, para que entre en los costos y el resultado. La cotización es
+ * la de hoy; sin ella no se puede convertir una herramienta en pesos.
+ */
+export function toolEntries(tools: Tool[], fx: number): Entry[] {
+  return tools
+    .filter((t) => t.amount > 0 && (t.currency === "USD" || fx > 0))
+    .map((t) => ({
+      id: `tool-${t.id}`,
+      kind: "costo",
+      occurred_on: t.created_at.slice(0, 10),
+      currency: t.currency,
+      amount: Math.round(monthlyIn(t, t.currency, fx) * 100) / 100,
+      fx,
+      category: "herramientas",
+      description: t.cycle === "anual" ? `${t.name} (anual, prorrateado)` : t.name,
+      project_slug: null,
+      recurring: true,
+      until: null,
+      owner: t.owner,
+      status: "pagado",
+      created_by: null,
+      source: "herramienta",
+    }));
 }
 
 export type CleanedTool = { ok: true; value: ToolInput } | { ok: false; error: string };

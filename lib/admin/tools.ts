@@ -3,7 +3,7 @@
 import { PanelNotReady, client } from "./panel";
 import type { Tool, ToolInput } from "./tool-shared";
 
-const COLUMNS = "id, name, amount, currency, cycle, renews_on, owner, notes";
+const COLUMNS = "id, created_at, name, amount, currency, cycle, renews_on, owner, notes";
 
 function fail(e: { code?: string; message: string }): never {
   if (e.code === "PGRST205" || e.code === "42P01") {

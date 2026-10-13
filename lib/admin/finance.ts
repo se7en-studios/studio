@@ -60,7 +60,7 @@ export async function listEntries(): Promise<Entry[]> {
 export async function listCobros(fx: number): Promise<Entry[]> {
   const { data, error } = await client()
     .from("panel_payments")
-    .select("id, project_slug, paid_on, amount, note, created_by")
+    .select("id, project_slug, paid_on, amount, note, created_by, owner")
     .order("paid_on", { ascending: false })
     .limit(LIMIT);
   if (error) {
@@ -75,6 +75,7 @@ export async function listCobros(fx: number): Promise<Entry[]> {
       amount: string | number;
       note: string;
       created_by: LeadOwner | null;
+      owner: Entry["owner"];
     }[]
   ).map((p): Entry => ({
     id: `cobro-${p.id}`,
@@ -88,7 +89,7 @@ export async function listCobros(fx: number): Promise<Entry[]> {
     project_slug: p.project_slug,
     recurring: false,
     until: null,
-    owner: "ambos",
+    owner: p.owner,
     status: "pagado",
     created_by: p.created_by,
     source: "cobro",
@@ -106,6 +107,17 @@ export async function insertEntry(
     .single();
   if (error) fail(error);
   return toEntry(data as Row);
+}
+
+export async function updateEntry(id: string, input: EntryInput): Promise<Entry | null> {
+  const { data, error } = await client()
+    .from("panel_finance")
+    .update(input)
+    .eq("id", id)
+    .select(COLUMNS)
+    .maybeSingle();
+  if (error) fail(error);
+  return data ? toEntry(data as Row) : null;
 }
 
 /** Marca un pendiente como pagado, con la fecha en que realmente se pagó. */

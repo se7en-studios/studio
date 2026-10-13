@@ -21,6 +21,9 @@ import { paidBySlug } from "@/lib/admin/payments";
 import { balance } from "@/lib/admin/payment-shared";
 import { bucket, dayKey, dueLabel, type Task, type TaskLinks } from "@/lib/admin/task-shared";
 import { listTasks, taskLinks } from "@/lib/admin/tasks";
+import { daysUntil, nextRenewal, toolEntries, type Tool } from "@/lib/admin/tool-shared";
+import { listTools } from "@/lib/admin/tools";
+import { fmt } from "@/lib/admin/finance-shared";
 import { Attention } from "./attention";
 import { EventList } from "./feed";
 import { Card, CardLink, Empty, Face, Kpi, PageHeader, Progress, StatusPill, btnPrimary, btnSecondary, cn, kpiRow, usdShort } from "./kit";
@@ -49,7 +52,7 @@ const TZ = "America/Argentina/Buenos_Aires";
  */
 async function loadHome(who: LeadOwner) {
   const hasDb = db() !== null;
-  const [leadsR, actsR, projectsR, statesR, eventsR, tasksR, linksR, chatsR, paidR, contentR, financeR] = await Promise.all([
+  const [leadsR, actsR, projectsR, statesR, eventsR, tasksR, linksR, chatsR, paidR, contentR, financeR, toolsR] = await Promise.all([
     safe<Lead[]>(hasDb ? listLeads() : Promise.resolve([]), []),
     safe<Activity[] | null>(listActivity(), null),
     safe<PanelProject[]>(listProjects(), caseProjects()),
@@ -62,6 +65,7 @@ async function loadHome(who: LeadOwner) {
     safe<DuePost[]>(listDue(dayKey()), []),
     // Cobros en USD: la cotización no importa para este resumen.
     safe<Entry[] | null>(Promise.all([listEntries(), listCobros(0)]).then(([a, b]) => [...a, ...b]), null),
+    safe<Tool[]>(listTools(), []),
   ]);
 
   const leads = leadsR.value;
@@ -90,6 +94,11 @@ async function loadHome(who: LeadOwner) {
         .filter((x) => x.left > 0)
         .sort((a, b) => b.left - a.left)
     : null;
+  // Herramientas que renuevan en la semana, la más cercana primero.
+  const renewals = toolsR.value
+    .map((t) => ({ id: t.id, name: t.name, days: daysUntil(nextRenewal(t.renews_on, t.cycle, today), today), price: `${fmt(t.amount, t.currency)} / ${t.cycle === "anual" ? "año" : "mes"}` }))
+    .filter((r) => r.days <= 7)
+    .sort((a, b) => a.days - b.days);
   const names = Object.fromEntries(projectsR.value.map((p) => [p.slug, p.name]));
   const leadNames = Object.fromEntries(leads.map((l) => [l.id, l.name]));
   const chats = [...chatsR.value].sort((a, b) => (b.last?.created_at ?? "").localeCompare(a.last?.created_at ?? "")).slice(0, 5);
@@ -100,7 +109,7 @@ async function loadHome(who: LeadOwner) {
   const hour = Number(new Date().toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit" }));
   const hello = hour < 13 ? "Buen día" : hour < 20 ? "Buenas tardes" : "Buenas noches";
 
-  return { unpaid, hasDb, fresh, active, projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now, actsR, eventsR, linksR, content: contentR.value, finance: financeR.value };
+  return { renewals, unpaid, hasDb, fresh, active, projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now, actsR, eventsR, linksR, content: contentR.value, finance: financeR.value && [...financeR.value, ...toolEntries(toolsR.value, 0)] };
 }
 
 // Lo primero que se ve al entrar: qué está pendiente, cómo vienen los
@@ -111,7 +120,7 @@ export default async function AdminHome() {
 
   const d = await loadHome(me.who);
   const { hasDb, fresh, active, projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now } = d;
-  const { actsR, eventsR, linksR, unpaid, content, finance } = d;
+  const { actsR, eventsR, linksR, unpaid, content, finance, renewals } = d;
 
   return (
     <div className="space-y-6">
@@ -170,7 +179,7 @@ export default async function AdminHome() {
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-4">
-          {hasDb && <Attention leads={leads} activities={actsR.value} now={now} overdueTasks={overdue} unpaid={unpaid?.filter((x) => x.done) ?? []} content={content} />}
+          {hasDb && <Attention leads={leads} activities={actsR.value} now={now} overdueTasks={overdue} unpaid={unpaid?.filter((x) => x.done) ?? []} content={content} renewals={renewals} />}
 
           <Card
             title="Proyectos en curso"

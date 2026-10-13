@@ -29,6 +29,7 @@ export function eventStyle(e: CalEvent): {
   style?: React.CSSProperties;
 } {
   if (e.type === "post" && e.kind) return { className: KIND_STYLE[e.kind] };
+  if (e.type === "renovacion") return { className: "bg-amber-300/15 text-amber-300" };
   if (e.type === "seguimiento") return { className: "bg-sky-400/15 text-sky-300" };
   if (e.type === "entrega" && e.accent)
     return {
@@ -50,6 +51,7 @@ const SECTIONS = [
   { type: "task", label: "Tareas" },
   { type: "seguimiento", label: "Seguimientos de pedidos" },
   { type: "entrega", label: "Entregas de proyectos" },
+  { type: "renovacion", label: "Renovaciones de herramientas" },
 ] as const;
 
 export function DayEvents({
@@ -160,7 +162,9 @@ function EventRow({ e, actions }: { e: CalEvent; actions: DayActions }) {
             href={
               e.type === "post"
                 ? "/admin/contenido"
-                : `/admin/proyectos/${e.project}`
+                : e.type === "renovacion"
+                  ? "/admin/finanzas"
+                  : `/admin/proyectos/${e.project}`
             }
             className="focus-ring block max-w-full"
           >
@@ -190,6 +194,7 @@ function EventRow({ e, actions }: { e: CalEvent; actions: DayActions }) {
           {e.type === "entrega" && (
             <span>{e.done ? "Entregado" : "Fecha de entrega"}</span>
           )}
+          {e.type === "renovacion" && <span>{e.detail}</span>}
           {e.lead && (
             <Link href={`/admin/pedidos?pedido=${e.lead.id}`} className="focus-ring truncate text-sky-300 underline">
               {e.lead.name}

@@ -1,5 +1,6 @@
 // Tipos y cuentas de los cobros. Puro: lo usan las páginas y los componentes de cliente.
 import type { LeadOwner } from "./db";
+import type { Owner } from "./finance-shared";
 
 export type Payment = {
   id: string;
@@ -11,6 +12,8 @@ export type Payment = {
   amount: number;
   note: string;
   created_by: LeadOwner | null;
+  /** Quién cobró la plata (todo se divide 50/50 entre los socios). */
+  owner: Owner;
 };
 
 /** Lo que falta cobrar. Sin monto acordado no hay saldo que calcular. */

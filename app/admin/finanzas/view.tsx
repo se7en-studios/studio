@@ -15,7 +15,6 @@ import {
   expand,
   fixedCosts,
   fmt,
-  forPerson,
   groupTotals,
   margin,
   periodMonths,
@@ -26,8 +25,8 @@ import {
   type Entry,
   type Period,
 } from "@/lib/admin/finance-shared";
-import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
-import type { Tool } from "@/lib/admin/tool-shared";
+import type { LeadOwner } from "@/lib/admin/db";
+import { toolEntries, type Tool } from "@/lib/admin/tool-shared";
 import type { Rates } from "@/lib/admin/fx";
 import {
   Kpi,
@@ -40,7 +39,7 @@ import {
 } from "../kit";
 import { useStoredChoice, useToast } from "../overlay";
 import { cell } from "../pedidos/csv";
-import { deleteEntry, settleEntry } from "./actions";
+import { deleteEntry, deleteTool, settleEntry } from "./actions";
 import { Breakdown, MonthlyChart, ProjectProfit } from "./charts";
 import { EntryForm } from "./entry-form";
 import { Movements } from "./movements";
@@ -63,6 +62,8 @@ type Props = {
   /** Herramientas con renovación; null si falta la tabla. */
   tools: Tool[] | null;
   today: string;
+  /** Quién está cargando: es el «quién pagó o cobró» por defecto. */
+  me: LeadOwner;
   /** Desde un link (?nuevo=1): abre el formulario de alta. */
   initialAdd?: boolean;
 };
@@ -75,6 +76,7 @@ export function FinanceView({
   owed,
   tools,
   today,
+  me,
   initialAdd = false,
 }: Props) {
   const flash = useToast();
@@ -90,14 +92,22 @@ export function FinanceView({
     CURRENCIES,
   );
   const [project, setProject] = useState("todos");
-  const [person, setPerson] = useState("todos");
+  const [toolList, setToolList] = useState(tools ?? []);
+  const [editing, setEditing] = useState<Entry | null>(null);
+  const [editingTool, setEditingTool] = useState<Tool | "new" | null>(null);
   const [adding, setAdding] = useState<"movimiento" | "pendiente" | null>(
     initialAdd ? "movimiento" : null,
   );
   const [, start] = useTransition();
 
+  // Las herramientas cuentan como costos fijos mensuales (lo anual, prorrateado).
+  const all = useMemo(
+    () => [...items, ...toolEntries(toolList, fx)],
+    [items, toolList, fx],
+  );
+
   // Sin cotización, los cobros de proyectos (en dólares) no tienen equivalente en pesos: se muestra sólo en dólares.
-  const arsReliable = fx > 0 || !items.some((e) => e.source === "cobro");
+  const arsReliable = fx > 0 || !all.some((e) => e.source !== "manual");
   const currency: Currency = arsReliable ? stored : "USD";
   const other: Currency = currency === "USD" ? "ARS" : "USD";
 
@@ -108,28 +118,21 @@ export function FinanceView({
   const projectName = (slug: string | null) =>
     slug ? (names.get(slug) ?? slug) : null;
 
-  // Por proyecto; después, por socio: a cada uno le toca lo suyo y la mitad de lo de los dos.
   const byProject = useMemo(
     () =>
-      items.filter(
+      all.filter(
         (e) =>
           project === "todos" ||
           (project === NO_PROJECT
             ? !e.project_slug
             : e.project_slug === project),
       ),
-    [items, project],
+    [all, project],
   );
-  const scoped = useMemo(
-    () =>
-      person === "franco" || person === "federico"
-        ? forPerson(byProject, person)
-        : byProject,
-    [byProject, person],
-  );
+  const scoped = byProject;
   const months = useMemo(
-    () => periodMonths(period, today, items),
-    [period, today, items],
+    () => periodMonths(period, today, all),
+    [period, today, all],
   );
   const occ = useMemo(() => expand(scoped, months), [scoped, months]);
   const tot = totals(occ);
@@ -137,10 +140,8 @@ export function FinanceView({
   const otherTot = pick(tot, other);
   const result = ingreso - costo;
   const pendingItems = scoped.filter((e) => e.status === "pendiente");
-  const share = person === "todos" ? 1 : 0.5;
   const owedShown = (owed ?? [])
-    .filter((p) => project === "todos" || project === p.slug)
-    .map((p) => ({ ...p, balance: p.balance * share }));
+    .filter((p) => project === "todos" || project === p.slug);
   const receivable = owed ? owedShown.reduce((s, p) => s + p.balance, 0) : null;
   const fixed = fixedCosts(scoped, monthOf(today));
   const inPeriod = useMemo(() => {
@@ -190,7 +191,27 @@ export function FinanceView({
     });
   }
 
+  function removeTool(id: string) {
+    const before = toolList;
+    setToolList((xs) => xs.filter((x) => x.id !== id));
+    start(async () => {
+      const res = await deleteTool(id);
+      if (res.error) {
+        setToolList(before);
+        flash(res.error, "error");
+      } else flash("Herramienta quitada", "ok");
+    });
+  }
+
+  // Los costos que vienen de una herramienta se editan y se borran en la herramienta.
+  function editRow(e: Entry) {
+    const tool = toolList.find((t) => `tool-${t.id}` === e.id);
+    if (tool) setEditingTool(tool);
+    else setEditing(e);
+  }
+
   function remove(id: string) {
+    if (id.startsWith("tool-")) return removeTool(id.slice(5));
     const before = items;
     setItems((xs) => xs.filter((x) => x.id !== id));
     start(async () => {
@@ -237,15 +258,6 @@ export function FinanceView({
             </option>
           ))}
         </select>
-        <Segmented
-          value={person}
-          onChange={setPerson}
-          label="Socio"
-          options={[
-            { id: "todos", label: "Todos" },
-            ...PEOPLE_IDS.map((id) => ({ id, label: PEOPLE[id].name })),
-          ]}
-        />
         <div className="ml-auto flex gap-2">
           <button
             type="button"
@@ -334,6 +346,7 @@ export function FinanceView({
         today={today}
         projectName={projectName}
         onSettle={settle}
+        onEdit={setEditing}
         onAdd={() => setAdding("pendiente")}
       />
 
@@ -354,27 +367,48 @@ export function FinanceView({
         />
       </div>
 
-      <Partners entries={byProject} months={months} currency={currency} />
+      <Partners occ={occ} currency={currency} result={result} />
 
       <ProjectProfit rows={profitRows} currency={currency} />
-      <Tools initial={tools} currency={currency} fx={fx} today={today} />
+      <Tools
+        list={tools === null ? null : toolList}
+        setList={setToolList}
+        editing={editingTool}
+        setEditing={setEditingTool}
+        onRemove={removeTool}
+        defaultOwner={me}
+        currency={currency}
+        fx={fx}
+        today={today}
+      />
       <Movements
         entries={inPeriod}
         projectName={projectName}
+        onEdit={editRow}
         onDelete={remove}
       />
 
-      {adding && (
+      {(adding || editing) && (
         <EntryForm
           rates={rates}
           fx={fx}
           projects={projects}
           today={today}
+          entry={editing}
+          defaultOwner={me}
           initialPending={adding === "pendiente"}
-          onClose={() => setAdding(null)}
-          onCreated={(entry) => {
-            setItems((xs) => [entry, ...xs]);
-            flash("Movimiento cargado", "ok");
+          onClose={() => {
+            setAdding(null);
+            setEditing(null);
+          }}
+          onSaved={(entry) => {
+            const edited = items.some((x) => x.id === entry.id);
+            setItems((xs) =>
+              edited
+                ? xs.map((x) => (x.id === entry.id ? entry : x))
+                : [entry, ...xs],
+            );
+            flash(edited ? "Movimiento actualizado" : "Movimiento cargado", "ok");
           }}
         />
       )}
@@ -415,7 +449,11 @@ function downloadCsv(
     e.fx || e.currency === "ARS" ? Math.round(arsOf(e) * 100) / 100 : "",
     e.recurring ? "mensual" : "",
     e.until ?? "",
-    e.source === "cobro" ? "cobro de proyecto" : "manual",
+    e.source === "cobro"
+      ? "cobro de proyecto"
+      : e.source === "herramienta"
+        ? "herramienta"
+        : "manual",
   ]);
   // BOM: sin él Excel abre los acentos rotos.
   const blob = new Blob(

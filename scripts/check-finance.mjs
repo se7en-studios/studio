@@ -84,17 +84,35 @@ assert.ok(Number.isNaN(f.parseAmount("")));
 assert.ok(Number.isNaN(f.parseAmount("mil")));
 
 
-// Socios y pendientes.
+// Pendientes: no cuentan hasta que se pagan.
 const own = (over) => entry({ owner: "ambos", status: "pagado", ...over });
-const shared = own({ id: "s", kind: "costo", currency: "USD", amount: 100 });
-const mine = own({ id: "m", kind: "costo", currency: "USD", amount: 40, owner: "franco" });
 const pend = own({ id: "p", kind: "ingreso", currency: "USD", amount: 900, status: "pendiente" });
-assert.deepEqual(f.forPerson([shared, mine], "franco").map((e) => e.amount), [50, 40]); // lo de los dos, a la mitad
-assert.deepEqual(f.forPerson([shared, mine], "federico").map((e) => e.amount), [50]);
-assert.equal(f.expand([pend], ["2026-10"]).length, 0); // un pendiente no cuenta hasta que se paga
+assert.equal(f.expand([pend], ["2026-10"]).length, 0);
 assert.equal(f.expand([{ ...pend, status: "pagado" }], ["2026-10"]).length, 1);
-const sum = (who) => f.totals(f.expand(f.forPerson([shared, mine], who), ["2026-10"])).costoUsd;
-assert.equal(sum("franco") + sum("federico"), 140); // entre los dos suman el total
+
+// Cuentas entre socios: todo se divide 50/50 y el owner es quién puso o cobró la plata.
+const settleOf = (list, cur = "USD") => f.settle(f.expand(list, ["2026-10"]), cur);
+// Franco pagó un costo de 100 y nadie más puso nada: Federico le debe 50.
+assert.deepEqual(settleOf([own({ kind: "costo", amount: 100, owner: "franco" })]).owes, { from: "federico", to: "franco", amount: 50 });
+// Federico cobró 300 y los dos parten a la mitad: Federico le debe 150 a Franco.
+assert.deepEqual(settleOf([own({ kind: "ingreso", amount: 300, owner: "federico" })]).owes, { from: "federico", to: "franco", amount: 150 });
+// Cada uno pagó lo mismo: a mano. Y la cuenta del estudio no genera deuda.
+assert.equal(settleOf([own({ kind: "costo", amount: 100, owner: "franco" }), own({ kind: "costo", amount: 100, owner: "federico" })]).owes, null);
+assert.equal(settleOf([own({ kind: "costo", amount: 999, owner: "ambos" })]).owes, null);
+// Se compensan: Franco cobró 400 y pagó 100; Federico pagó 100.
+const mix = settleOf([
+  own({ kind: "ingreso", amount: 400, owner: "franco" }),
+  own({ kind: "costo", amount: 100, owner: "franco" }),
+  own({ kind: "costo", amount: 100, owner: "federico" }),
+]);
+assert.deepEqual([mix.franco, mix.federico], [{ in: 400, out: 100 }, { in: 0, out: 100 }]);
+assert.deepEqual(mix.owes, { from: "franco", to: "federico", amount: 200 }); // 300 vs −100 → diferencia 400, la mitad
+// En pesos usa la cotización de cada movimiento.
+assert.equal(settleOf([own({ kind: "costo", amount: 100, owner: "franco", fx: 1000 })], "ARS").owes.amount, 50_000);
+// Un costo recurrente cuenta una vez por mes.
+const twoMonths = f.settle(f.expand([own({ kind: "costo", amount: 100, owner: "franco", recurring: true, occurred_on: "2026-09-01" })], ["2026-09", "2026-10"]), "USD");
+assert.equal(twoMonths.owes.amount, 100);
+
 const base = { kind: "ingreso", currency: "USD", amount: 10, fx: 1000, occurred_on: "2026-10-05" };
 assert.equal(f.cleanEntry({ ...base, status: "pendiente", recurring: true }).value.recurring, false);
 assert.equal(f.cleanEntry({ ...base }).value.owner, "ambos");
@@ -115,4 +133,13 @@ assert.equal(tl.logoOf("Claude Max"), "/logos/claude.svg");
 assert.equal(tl.logoOf("Algo raro"), null);
 assert.equal(tl.cleanTool({ name: " ", amount: 1, currency: "USD", cycle: "mensual", renews_on: "2026-10-01" }).ok, false);
 assert.equal(tl.cleanTool({ name: "Vercel", amount: 20, currency: "USD", cycle: "mensual", renews_on: "2026-10-01" }).value.owner, "ambos");
+// Las herramientas como costo fijo mensual (lo anual, prorrateado).
+const tool = { id: "t1", created_at: "2026-09-10T12:00:00Z", name: "Vercel", amount: 20, currency: "USD", cycle: "mensual", renews_on: "2026-10-20", owner: "franco", notes: "" };
+const te = tl.toolEntries([tool, { ...tool, id: "t2", name: "Dominio", amount: 120, cycle: "anual" }, { ...tool, id: "t3", currency: "ARS", amount: 5000 }], 0);
+assert.equal(te.length, 2); // la de pesos no se puede convertir sin cotización
+assert.deepEqual(te.map((e) => [e.amount, e.owner, e.recurring, e.kind]), [[20, "franco", true, "costo"], [10, "franco", true, "costo"]]);
+assert.equal(f.fixedCosts(te, "2026-10").usd, 30);
+assert.equal(f.fixedCosts(te, "2026-08").usd, 0); // todavía no estaba cargada
+assert.equal(tl.toolEntries([{ ...tool, currency: "ARS", amount: 5000 }], 1000).length, 1);
+
 console.log("finance OK");

@@ -6,6 +6,7 @@ import {
   insertEntry,
   removeEntry,
   settleEntry as settleEntryRow,
+  updateEntry,
 } from "@/lib/admin/finance";
 import {
   categoryLabel,
@@ -39,6 +40,34 @@ export async function createEntry(
         actor: me.who,
         kind: "proyecto",
         text: `cargó ${entry.kind === "costo" ? "un costo" : "un ingreso"}: ${what}`,
+        project_slug: entry.project_slug,
+      }),
+    );
+    return { entry };
+  } catch (e) {
+    return { error: message(e) };
+  }
+}
+
+/** Corrige un movimiento cargado a mano (monto, socio, fecha…). */
+export async function editEntry(
+  id: string,
+  input: EntryInput,
+): Promise<{ entry?: Entry; error?: string }> {
+  const me = await getSession();
+  if (!me) return { error: "Sesión vencida: volvé a entrar." };
+  if (!UUID.test(id)) return { error: "Movimiento inválido." };
+  const cleaned = cleanEntry(input);
+  if (!cleaned.ok) return { error: cleaned.error };
+  try {
+    const entry = await updateEntry(id, cleaned.value);
+    if (!entry) return { error: "Ese movimiento ya no existe." };
+    const what = entry.description || categoryLabel(entry.kind, entry.category);
+    after(() =>
+      logEvent({
+        actor: me.who,
+        kind: "proyecto",
+        text: `editó ${entry.kind === "costo" ? "un costo" : "un ingreso"}: ${what}`,
         project_slug: entry.project_slug,
       }),
     );

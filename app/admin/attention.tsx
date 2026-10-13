@@ -1,7 +1,7 @@
 // «Para atender» en Inicio: lo que se está enfriando, en un solo lugar.
 // Componente de servidor; cada fila lleva directo a la ficha o al filtro.
 import Link from "next/link";
-import { AlertCircle, BellRing, CalendarDays, Inbox, Snowflake, Wallet } from "lucide-react";
+import { AlertCircle, BellRing, CalendarClock, CalendarDays, Inbox, Snowflake, Wallet } from "lucide-react";
 import { Card, CardLink, usd } from "./kit";
 import { ago } from "@/lib/admin/brief";
 import type { DuePost } from "@/lib/admin/content";
@@ -32,9 +32,12 @@ export function Attention({
   now,
   unpaid = [],
   content = [],
+  renewals = [],
 }: {
   /** Proyectos entregados (o en mantenimiento) con saldo sin cobrar. */
   unpaid?: { slug: string; name: string; left: number }[];
+  /** Herramientas que renuevan en los próximos 7 días. */
+  renewals?: { id: string; name: string; days: number; price: string }[];
   /** Posts de Instagram de hoy o atrasados, sin publicar. */
   content?: DuePost[];
   leads: Lead[];
@@ -61,6 +64,14 @@ export function Attention({
       title: p.title,
       detail: p.post_date === today ? `Para publicar hoy · ${KIND_LABEL[p.kind]}, 19 h` : `Sin publicar · era para ${dueLabel(p.post_date, today)}`,
       tone: p.post_date === today ? "text-accent" : "text-red-400",
+    })),
+    ...renewals.map((r) => ({
+      id: `r-${r.id}`,
+      href: "/admin/finanzas",
+      icon: <CalendarClock size={14} />,
+      title: r.name,
+      detail: `Renueva ${r.days === 0 ? "hoy" : r.days === 1 ? "mañana" : `en ${r.days} días`} · ${r.price}`,
+      tone: r.days <= 3 ? "text-red-400" : "text-amber-300",
     })),
     ...unpaid.map((x) => ({
       id: `u-${x.slug}`,
@@ -97,7 +108,7 @@ export function Attention({
       action={cold.length > 0 && <CardLink href="/admin/pedidos?frios=1">Ver fríos →</CardLink>}
     >
       {total === 0 ? (
-        <p className="px-4 py-5 text-[13px] text-muted">Todo al día: nada sin responder, enfriándose ni sin cobrar.</p>
+        <p className="px-4 py-5 text-[13px] text-muted">Todo al día: nada sin responder, enfriándose, sin cobrar ni por renovar.</p>
       ) : (
         <ul className="divide-y divide-[var(--line)]">
           {overdueTasks > 0 && (

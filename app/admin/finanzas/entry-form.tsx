@@ -1,6 +1,6 @@
 "use client";
 
-// Alta de un ingreso o un costo. Se carga en pesos o en dólares con la cotización
+// Alta o edición de un ingreso o un costo. Se carga en pesos o en dólares con la cotización
 // del momento (atajos MEP, oficial y blue, o a mano) y muestra el equivalente en vivo.
 import { useState, useTransition } from "react";
 import { X } from "lucide-react";
@@ -20,7 +20,7 @@ import {
 import type { Rates } from "@/lib/admin/fx";
 import { Chip, btnGhost, btnPrimary, input, label } from "../kit";
 import { Dialog } from "../overlay";
-import { createEntry } from "./actions";
+import { createEntry, editEntry } from "./actions";
 import { OwnerPicker } from "./owner";
 
 type Project = { slug: string; name: string };
@@ -41,8 +41,10 @@ export function EntryForm({
   projects,
   today,
   initialPending = false,
+  entry = null,
+  defaultOwner = "ambos",
   onClose,
-  onCreated,
+  onSaved,
 }: {
   rates: Rates;
   fx: number;
@@ -50,21 +52,31 @@ export function EntryForm({
   today: string;
   /** Abre el formulario con «Pago pendiente» ya marcado. */
   initialPending?: boolean;
+  /** Si viene, se edita ese movimiento en vez de crear uno nuevo. */
+  entry?: Entry | null;
+  /** Quién pagó o cobró, de entrada: la persona que está cargando. */
+  defaultOwner?: Owner;
   onClose: () => void;
-  onCreated: (entry: Entry) => void;
+  onSaved: (entry: Entry) => void;
 }) {
-  const [kind, setKind] = useState<FinanceKind>("costo");
-  const [currency, setCurrency] = useState<Currency>("ARS");
-  const [amount, setAmount] = useState("");
-  const [rate, setRate] = useState(fx ? String(fx) : "");
-  const [day, setDay] = useState(today);
-  const [category, setCategory] = useState("otros");
-  const [description, setDescription] = useState("");
-  const [project, setProject] = useState("");
-  const [recurring, setRecurring] = useState(false);
-  const [until, setUntil] = useState("");
-  const [owner, setOwner] = useState<Owner>("ambos");
-  const [isPending, setIsPending] = useState(initialPending);
+  const [kind, setKind] = useState<FinanceKind>(entry?.kind ?? "costo");
+  const [currency, setCurrency] = useState<Currency>(entry?.currency ?? "ARS");
+  const [amount, setAmount] = useState(
+    entry ? String(entry.amount).replace(".", ",") : "",
+  );
+  const [rate, setRate] = useState(
+    entry ? String(entry.fx).replace(".", ",") : fx ? String(fx) : "",
+  );
+  const [day, setDay] = useState(entry?.occurred_on ?? today);
+  const [category, setCategory] = useState(entry?.category ?? "otros");
+  const [description, setDescription] = useState(entry?.description ?? "");
+  const [project, setProject] = useState(entry?.project_slug ?? "");
+  const [recurring, setRecurring] = useState(entry?.recurring ?? false);
+  const [until, setUntil] = useState(entry?.until ?? "");
+  const [owner, setOwner] = useState<Owner>(entry?.owner ?? defaultOwner);
+  const [isPending, setIsPending] = useState(
+    entry ? entry.status === "pendiente" : initialPending,
+  );
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -97,19 +109,23 @@ export function EntryForm({
     if (!cleaned.ok) return setError(cleaned.error);
     setError(null);
     start(async () => {
-      const res = await createEntry(cleaned.value);
+      const res = entry
+        ? await editEntry(entry.id, cleaned.value)
+        : await createEntry(cleaned.value);
       if (res.entry) {
-        onCreated(res.entry);
+        onSaved(res.entry);
         onClose();
       } else setError(res.error ?? "No se pudo guardar.");
     });
   }
 
+  const title = entry ? "Editar movimiento" : "Nuevo movimiento";
+  const whoLabel = kind === "costo" ? "Quién lo pagó" : "Quién lo cobró";
   return (
-    <Dialog onClose={onClose} label="Nuevo movimiento" width="max-w-xl">
+    <Dialog onClose={onClose} label={title} width="max-w-xl">
       <form onSubmit={submit} className="flex max-h-[92dvh] flex-col">
         <header className="flex items-center justify-between border-b border-[var(--line)] px-5 py-3.5">
-          <h2 className="text-[15px] font-semibold">Nuevo movimiento</h2>
+          <h2 className="text-[15px] font-semibold">{title}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -262,14 +278,12 @@ export function EntryForm({
           </div>
 
           <div>
-            <span className={label}>
-              {kind === "costo" ? "Quién lo paga" : "Quién lo cobra"}
-            </span>
-            <OwnerPicker
-              value={owner}
-              onChange={setOwner}
-              legend={kind === "costo" ? "Quién lo paga" : "Quién lo cobra"}
-            />
+            <span className={label}>{whoLabel}</span>
+            <OwnerPicker value={owner} onChange={setOwner} legend={whoLabel} />
+            <p className="mt-1.5 text-[12px] text-muted">
+              Todo se divide 50/50. Esto sirve para saber quién le debe a quién;
+              «Cuenta del estudio» no genera deuda.
+            </p>
           </div>
 
           <div className="rounded-lg border border-[var(--line)] p-3">

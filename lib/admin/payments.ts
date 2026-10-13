@@ -4,7 +4,7 @@ import type { LeadOwner } from "./db";
 import { PanelNotReady, client } from "./panel";
 import type { Payment } from "./payment-shared";
 
-const COLUMNS = "id, created_at, project_slug, paid_on, amount, note, created_by";
+const COLUMNS = "id, created_at, project_slug, paid_on, amount, note, created_by, owner";
 
 function failPayments(e: { code?: string; message: string }): never {
   if (e.code === "PGRST205" || e.code === "42P01") {
@@ -40,7 +40,7 @@ export async function paidBySlug(): Promise<Map<string, number>> {
 }
 
 export async function insertPayment(
-  p: Pick<Payment, "project_slug" | "paid_on" | "amount" | "note">,
+  p: Pick<Payment, "project_slug" | "paid_on" | "amount" | "note" | "owner">,
   by: LeadOwner,
 ): Promise<Payment> {
   const { data, error } = await client()

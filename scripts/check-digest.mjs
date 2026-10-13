@@ -56,3 +56,9 @@ assert.match(newLeadNotice("email").message, /web/);
 assert.equal(newLeadNotice(undefined).path, "/admin/pedidos");
 
 console.log("digest OK");
+
+// Renovaciones: una línea por fecha, sin montos; sin renovaciones el aviso sigue como antes.
+const ren = morningDigest({ ...base, renewals: [{ name: "Vercel", days: 1 }, { name: "Claude", days: 0 }, { name: "Supabase", days: 1 }, { name: "Resend", days: 3 }] });
+assert.equal(ren.message, ["• Renueva hoy: Claude", "• Renueva mañana: Vercel, Supabase", "• Renueva en 3 días: Resend"].join("\n"));
+assert.equal(morningDigest({ ...base, renewals: [] }), null);
+console.log("renovaciones OK");

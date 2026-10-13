@@ -6,7 +6,7 @@
 // entre bien en el celular sin cortar ni superponer nada.
 import { useState } from "react";
 import Link from "next/link";
-import { Repeat, Trash2 } from "lucide-react";
+import { Pencil, Repeat, Trash2 } from "lucide-react";
 import {
   categoryLabel,
   fmt,
@@ -29,10 +29,12 @@ const dayLabel = (day: string) =>
 export function Movements({
   entries,
   projectName,
+  onEdit,
   onDelete,
 }: {
   entries: Entry[];
   projectName: (slug: string | null) => string | null;
+  onEdit: (entry: Entry) => void;
   onDelete: (id: string) => void;
 }) {
   const [shown, setShown] = useState(PAGE);
@@ -58,6 +60,7 @@ export function Movements({
                   confirming={confirmId === e.id}
                   onAsk={() => setConfirmId(e.id)}
                   onCancel={() => setConfirmId(null)}
+                  onEdit={() => onEdit(e)}
                   onDelete={() => onDelete(e.id)}
                 />
               </li>
@@ -84,6 +87,7 @@ function Row({
   confirming,
   onAsk,
   onCancel,
+  onEdit,
   onDelete,
 }: {
   e: Entry;
@@ -91,6 +95,7 @@ function Row({
   confirming: boolean;
   onAsk: () => void;
   onCancel: () => void;
+  onEdit: () => void;
   onDelete: () => void;
 }) {
   const other = otherCurrency(e);
@@ -122,6 +127,11 @@ function Row({
               Cobro de proyecto
             </span>
           )}
+          {e.source === "herramienta" && (
+            <span className="rounded-full bg-white/[0.06] px-1.5 whitespace-nowrap">
+              Herramienta
+            </span>
+          )}
           {e.recurring && (
             <span className="inline-flex items-center gap-1 whitespace-nowrap">
               <Repeat size={11} /> Todos los meses
@@ -145,16 +155,16 @@ function Row({
           <span
             className="text-[12px] text-muted tabular-nums"
             title={
-              e.source === "cobro"
+              e.source !== "manual"
                 ? "Al cambio de hoy"
                 : `Cotización ${fmt(e.fx, "ARS")}`
             }
           >
-            {e.source === "cobro" && e.fx === 0
+            {e.source !== "manual" && e.fx === 0
               ? "—"
-              : `${e.source === "cobro" ? "≈ " : ""}${fmt(other.amount, other.currency)}`}
+              : `${e.source !== "manual" ? "≈ " : ""}${fmt(other.amount, other.currency)}`}
           </span>
-          {e.source === "manual" &&
+          {e.source !== "cobro" &&
             (confirming ? (
               <span className="flex gap-1">
                 <button
@@ -173,14 +183,24 @@ function Row({
                 </button>
               </span>
             ) : (
-              <button
-                type="button"
-                onClick={onAsk}
-                aria-label={`Borrar ${title}`}
-                className={cn(btnGhost, "p-1.5")}
-              >
-                <Trash2 size={14} />
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={onEdit}
+                  aria-label={`Editar ${title}`}
+                  className={cn(btnGhost, "p-1.5")}
+                >
+                  <Pencil size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={onAsk}
+                  aria-label={`Borrar ${title}`}
+                  className={cn(btnGhost, "p-1.5")}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </>
             ))}
         </div>
       </div>

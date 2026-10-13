@@ -6,6 +6,8 @@ import { morningDigest } from "@/lib/admin/digest";
 import { notificationsConfigured, notify } from "@/lib/admin/notify";
 import { bucket, dayKey } from "@/lib/admin/task-shared";
 import { listTasks } from "@/lib/admin/tasks";
+import { daysUntil, nextRenewal } from "@/lib/admin/tool-shared";
+import { listTools } from "@/lib/admin/tools";
 
 // Resumen de la mañana (vercel.json: 12:00 UTC, las 09:00 en Argentina). Lo que falte
 // (tablas sin crear, base caída) no corta el aviso: se manda con lo que haya.
@@ -34,10 +36,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ sent: false, reason: "Falta NTFY_TOPIC." });
 
   const today = dayKey();
-  const [posts, tasks, newLeads] = await Promise.all([
+  const [posts, tasks, newLeads, tools] = await Promise.all([
     orEmpty("posts", listDue(today), []),
     orEmpty("tareas", listTasks(), []),
     orEmpty("pedidos", countNewLeads(), 0),
+    orEmpty("herramientas", listTools(), []),
   ]);
   const open = tasks.filter((t) => !t.done_at);
 
@@ -47,6 +50,10 @@ export async function GET(request: Request) {
     overdueTasks: open.filter((t) => bucket(t, today) === "vencidas").length,
     dueTodayTasks: open.filter((t) => bucket(t, today) === "hoy").length,
     newLeads: newLeads ?? 0,
+    // Sólo las que renuevan en 3 días o menos.
+    renewals: tools
+      .map((t) => ({ name: t.name, days: daysUntil(nextRenewal(t.renews_on, t.cycle, today), today) }))
+      .filter((r) => r.days <= 3),
   });
   if (!notice)
     return NextResponse.json({ sent: false, reason: "Nada para avisar." });

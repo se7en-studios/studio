@@ -3,9 +3,9 @@
 // Herramientas y suscripciones con su logo, cuánto cuestan y cuándo renuevan.
 // La próxima renovación se calcula sola desde la fecha cargada y el ciclo: no
 // hace falta volver a cargarla después de cada pago.
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { CalendarClock, Pencil, Plus, Trash2 } from "lucide-react";
-import { fmt, type Currency } from "@/lib/admin/finance-shared";
+import { fmt, type Currency, type Owner } from "@/lib/admin/finance-shared";
 import {
   daysUntil,
   monthlyIn,
@@ -14,7 +14,6 @@ import {
 } from "@/lib/admin/tool-shared";
 import { Card, btnGhost, btnSecondary, cn } from "../kit";
 import { useToast } from "../overlay";
-import { deleteTool } from "./actions";
 import { OwnerFaces } from "./owner";
 import { ToolForm } from "./tool-form";
 import { ToolLogo } from "./tool-logo";
@@ -34,24 +33,35 @@ function inDays(n: number) {
   return `En ${n} días`;
 }
 
+const NONE: Tool[] = [];
+
 export function Tools({
-  initial,
+  list,
+  setList,
+  editing,
+  setEditing,
+  onRemove,
+  defaultOwner,
   currency,
   fx,
   today,
 }: {
   /** null: falta la tabla en Supabase. */
-  initial: Tool[] | null;
+  list: Tool[] | null;
+  setList: Dispatch<SetStateAction<Tool[]>>;
+  /** La herramienta que se está editando, «new» para una nueva; el estado vive en la vista para poder abrirla desde Movimientos. */
+  editing: Tool | "new" | null;
+  setEditing: (t: Tool | "new" | null) => void;
+  onRemove: (id: string) => void;
+  defaultOwner: Owner;
   currency: Currency;
   /** Pesos por dólar de hoy; 0 si no hay. */
   fx: number;
   today: string;
 }) {
   const flash = useToast();
-  const [tools, setTools] = useState(initial ?? []);
-  const [editing, setEditing] = useState<Tool | "new" | null>(null);
+  const tools = list ?? NONE;
   const [confirmId, setConfirmId] = useState<string | null>(null);
-  const [, start] = useTransition();
 
   const rows = useMemo(
     () =>
@@ -71,25 +81,17 @@ export function Tools({
   const unconverted = fx <= 0 && tools.some((t) => t.currency !== currency);
 
   function remove(id: string) {
-    const before = tools;
-    setTools((xs) => xs.filter((x) => x.id !== id));
     setConfirmId(null);
-    start(async () => {
-      const res = await deleteTool(id);
-      if (res.error) {
-        setTools(before);
-        flash(res.error, "error");
-      } else flash("Herramienta quitada", "ok");
-    });
+    onRemove(id);
   }
 
   return (
     <Card
       title="Herramientas y renovaciones"
       icon={<CalendarClock size={14} />}
-      count={initial && tools.length ? tools.length : undefined}
+      count={list && tools.length ? tools.length : undefined}
       action={
-        initial && (
+        list && (
           <button
             type="button"
             onClick={() => setEditing("new")}
@@ -100,7 +102,7 @@ export function Tools({
         )
       }
     >
-      {!initial ? (
+      {!list ? (
         <p className="px-4 py-5 text-[13px] text-muted">
           Federico: falta correr{" "}
           <code className="rounded bg-white/[0.06] px-1 text-foreground">
@@ -203,9 +205,10 @@ export function Tools({
       {editing && (
         <ToolForm
           tool={editing === "new" ? null : editing}
+          defaultOwner={defaultOwner}
           onClose={() => setEditing(null)}
           onSaved={(saved) => {
-            setTools((xs) =>
+            setList((xs) =>
               xs.some((x) => x.id === saved.id)
                 ? xs.map((x) => (x.id === saved.id ? saved : x))
                 : [...xs, saved],
