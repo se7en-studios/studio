@@ -1,6 +1,8 @@
 // Acceso a los pedidos (tabla `leads`) desde el servidor. Usa la service role
 // key: NUNCA importar este archivo desde un componente de cliente.
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { after } from "next/server";
+import { notifyNewLead } from "./notify";
 
 export const STATUSES = ["nuevo", "contactado", "propuesta", "ganado", "perdido"] as const;
 export type LeadStatus = (typeof STATUSES)[number];
@@ -48,6 +50,8 @@ export async function insertLead(lead: NewLead): Promise<boolean> {
   if (!c) return false;
   const { error } = await c.from("leads").insert(lead);
   if (error) console.error("[leads] insert:", error.message);
+  // Aviso al celular con la respuesta ya enviada: no demora a quien llenó el formulario.
+  if (!error) after(() => notifyNewLead(lead.channel));
   return !error;
 }
 
