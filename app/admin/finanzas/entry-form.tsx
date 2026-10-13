@@ -18,7 +18,7 @@ import {
   type Owner,
 } from "@/lib/admin/finance-shared";
 import type { Rates } from "@/lib/admin/fx";
-import { Chip, btnGhost, btnPrimary, input, label } from "../kit";
+import { Chip, btnGhost, btnPrimary, cn, input, label } from "../kit";
 import { Dialog } from "../overlay";
 import { createEntry, editEntry } from "./actions";
 import { OwnerPicker } from "./owner";
@@ -143,11 +143,28 @@ export function EntryForm({
         </header>
 
         <div className="admin-scroll space-y-4 overflow-y-auto p-5">
-          <div className="flex gap-1.5" role="group" aria-label="Tipo">
+          <div
+            className="grid grid-cols-2 gap-1 rounded-xl border border-[var(--line)] bg-[var(--well-soft)] p-1"
+            role="group"
+            aria-label="Tipo"
+          >
             {KINDS.map((k) => (
-              <Chip key={k} on={kind === k} onClick={() => pickKind(k)}>
+              <button
+                key={k}
+                type="button"
+                onClick={() => pickKind(k)}
+                aria-pressed={kind === k}
+                className={cn(
+                  "focus-ring rounded-lg px-3 py-2 text-[13px] font-medium transition-colors",
+                  kind === k
+                    ? k === "ingreso"
+                      ? "bg-emerald-400/15 text-emerald-300 shadow-[var(--shadow-card)]"
+                      : "bg-amber-400/15 text-amber-300 shadow-[var(--shadow-card)]"
+                    : "text-muted hover:text-foreground",
+                )}
+              >
                 {KIND_LABEL[k]}
-              </Chip>
+              </button>
             ))}
           </div>
 
