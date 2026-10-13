@@ -21,6 +21,7 @@ import { paidBySlug } from "@/lib/admin/payments";
 import { balance } from "@/lib/admin/payment-shared";
 import { bucket, dayKey, dueLabel, type Task, type TaskLinks } from "@/lib/admin/task-shared";
 import { listTasks, taskLinks } from "@/lib/admin/tasks";
+import { fetchRates } from "@/lib/admin/fx";
 import { daysUntil, nextRenewal, toolEntries, type Tool } from "@/lib/admin/tool-shared";
 import { listTools } from "@/lib/admin/tools";
 import { fmt } from "@/lib/admin/finance-shared";
@@ -52,7 +53,7 @@ const TZ = "America/Argentina/Buenos_Aires";
  */
 async function loadHome(who: LeadOwner) {
   const hasDb = db() !== null;
-  const [leadsR, actsR, projectsR, statesR, eventsR, tasksR, linksR, chatsR, paidR, contentR, financeR, toolsR] = await Promise.all([
+  const [leadsR, actsR, projectsR, statesR, eventsR, tasksR, linksR, chatsR, paidR, contentR, financeR, toolsR, rates] = await Promise.all([
     safe<Lead[]>(hasDb ? listLeads() : Promise.resolve([]), []),
     safe<Activity[] | null>(listActivity(), null),
     safe<PanelProject[]>(listProjects(), caseProjects()),
@@ -66,6 +67,8 @@ async function loadHome(who: LeadOwner) {
     // Cobros en USD: la cotización no importa para este resumen.
     safe<Entry[] | null>(Promise.all([listEntries(), listCobros(0)]).then(([a, b]) => [...a, ...b]), null),
     safe<Tool[]>(listTools(), []),
+    // Para pasar a dólares las herramientas en pesos; sin cotización, Inicio las deja afuera.
+    fetchRates(),
   ]);
 
   const leads = leadsR.value;
@@ -109,7 +112,7 @@ async function loadHome(who: LeadOwner) {
   const hour = Number(new Date().toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit" }));
   const hello = hour < 13 ? "Buen día" : hour < 20 ? "Buenas tardes" : "Buenas noches";
 
-  return { renewals, unpaid, hasDb, fresh, active, projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now, actsR, eventsR, linksR, content: contentR.value, finance: financeR.value && [...financeR.value, ...toolEntries(toolsR.value, 0)] };
+  return { renewals, unpaid, hasDb, fresh, active, projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now, actsR, eventsR, linksR, content: contentR.value, finance: financeR.value && [...financeR.value, ...toolEntries(toolsR.value, rates.mep ?? rates.oficial ?? rates.blue ?? 0)] };
 }
 
 // Lo primero que se ve al entrar: qué está pendiente, cómo vienen los

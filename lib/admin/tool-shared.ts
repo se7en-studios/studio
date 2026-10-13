@@ -1,6 +1,7 @@
 // Herramientas y suscripciones: tipos, validación y fechas de renovación. Puro:
 // lo usan la página, las acciones y los componentes de cliente.
-import { CURRENCIES, OWNERS, type Currency, type Entry, type Owner } from "./finance-shared";
+import { dayKey } from "./task-shared";
+import { CURRENCIES, OWNERS, isRealDay, type Currency, type Entry, type Owner } from "./finance-shared";
 
 export const CYCLES = ["mensual", "anual"] as const;
 export type Cycle = (typeof CYCLES)[number];
@@ -47,7 +48,6 @@ export function logoOf(name: string): string | null {
   return hit ? `/logos/${hit.id}.svg` : null;
 }
 
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const DAY_MS = 86_400_000;
 
 /** Suma meses a una fecha sin pasarse de mes (31/01 + 1 mes = 28/02). */
@@ -93,7 +93,7 @@ export function toolEntries(tools: Tool[], fx: number): Entry[] {
     .map((t) => ({
       id: `tool-${t.id}`,
       kind: "costo",
-      occurred_on: t.created_at.slice(0, 10),
+      occurred_on: dayKey(0, Date.parse(t.created_at)),
       currency: t.currency,
       amount: Math.round(monthlyIn(t, t.currency, fx) * 100) / 100,
       fx,
@@ -122,7 +122,7 @@ export function cleanTool(input: Partial<ToolInput> & { amount?: unknown }): Cle
   const cycle = CYCLES.find((c) => c === input.cycle);
   if (!cycle) return { ok: false, error: "Elegí si se paga por mes o por año." };
   const renews_on = String(input.renews_on ?? "");
-  if (!DAY.test(renews_on) || Number.isNaN(Date.parse(renews_on)) || renews_on < "2000-01-01")
+  if (!isRealDay(renews_on) || renews_on < "2000-01-01")
     return { ok: false, error: "La fecha de renovación no es válida." };
   return {
     ok: true,

@@ -65,6 +65,9 @@ export async function listCobros(fx: number): Promise<Entry[]> {
     .limit(LIMIT);
   if (error) {
     if (error.code === "PGRST205" || error.code === "42P01") return [];
+    // Falta finance-v3.sql: se avisa (la página muestra el paso) en vez de perder los ingresos en silencio.
+    if (error.code === "42703")
+      throw new PanelNotReady("Falta correr supabase/finance-v3.sql en Supabase.");
     throw new Error(error.message);
   }
   return (

@@ -14,15 +14,19 @@ import {
   type Entry,
   type EntryInput,
 } from "@/lib/admin/finance-shared";
-import { logEvent } from "@/lib/admin/panel";
+import { PanelNotReady, logEvent } from "@/lib/admin/panel";
 import { dayKey } from "@/lib/admin/task-shared";
 import { cleanTool, type Tool, type ToolInput } from "@/lib/admin/tool-shared";
 import { insertTool, removeTool, updateTool } from "@/lib/admin/tools";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
-const message = (e: unknown) =>
-  e instanceof Error ? e.message : "Algo falló. Probá de nuevo.";
+/** Lo que falta configurar se dice tal cual; el resto se registra y al usuario le llega un texto genérico. */
+function message(e: unknown) {
+  if (e instanceof PanelNotReady) return e.message;
+  console.error("[panel] Finanzas:", e instanceof Error ? e.message : e);
+  return "Algo falló. Probá de nuevo.";
+}
 
 /** El texto del registro no lleva montos: lo ven los dos socios, pero el registro es del equipo. */
 export async function createEntry(

@@ -116,6 +116,7 @@ assert.equal(twoMonths.owes.amount, 100);
 const base = { kind: "ingreso", currency: "USD", amount: 10, fx: 1000, occurred_on: "2026-10-05" };
 assert.equal(f.cleanEntry({ ...base, status: "pendiente", recurring: true }).value.recurring, false);
 assert.equal(f.cleanEntry({ ...base }).value.owner, "ambos");
+assert.equal(f.cleanEntry({ ...base, occurred_on: "2026-02-31" }).ok, false); // fecha imposible
 assert.equal(f.cleanEntry({ ...base, owner: "nadie" }).value.owner, "ambos");
 
 // Herramientas: la próxima renovación y el costo por mes.
@@ -141,5 +142,8 @@ assert.deepEqual(te.map((e) => [e.amount, e.owner, e.recurring, e.kind]), [[20, 
 assert.equal(f.fixedCosts(te, "2026-10").usd, 30);
 assert.equal(f.fixedCosts(te, "2026-08").usd, 0); // todavía no estaba cargada
 assert.equal(tl.toolEntries([{ ...tool, currency: "ARS", amount: 5000 }], 1000).length, 1);
+
+// Una herramienta cargada a las 22 h del 31/10 (Buenos Aires = 01 h UTC del 1/11) cuenta desde octubre.
+assert.equal(tl.toolEntries([{ ...tool, created_at: "2026-11-01T01:00:00Z" }], 0)[0].occurred_on, "2026-10-31");
 
 console.log("finance OK");

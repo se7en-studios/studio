@@ -104,6 +104,9 @@ export function fmt(n: number, currency: Currency) {
 // --- Validación (cliente y servidor) ----------------------------------------
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
+/** Una fecha YYYY-MM-DD que existe (2026-02-31 no). */
+export const isRealDay = (d: string) =>
+  DAY.test(d) && !Number.isNaN(Date.parse(d)) && new Date(d).toISOString().slice(0, 10) === d;
 const SLUG = /^[a-z0-9-]{1,64}$/;
 export const MAX_AMOUNT = 1_000_000_000;
 export const MAX_FX = 100_000;
@@ -126,7 +129,7 @@ export function cleanEntry(
   if (!Number.isFinite(fx) || fx <= 0 || fx > MAX_FX)
     return { ok: false, error: "Poné la cotización (pesos por dólar)." };
   const day = String(input.occurred_on ?? "");
-  if (!DAY.test(day) || Number.isNaN(Date.parse(day)))
+  if (!isRealDay(day))
     return { ok: false, error: "La fecha no es válida." };
   const category = categoriesOf(kind).some((c) => c.id === input.category)
     ? String(input.category)
@@ -139,7 +142,7 @@ export function cleanEntry(
   // Un pago pendiente es uno solo: no se repite.
   const recurring = Boolean(input.recurring) && status === "pagado";
   const until = recurring && input.until ? String(input.until) : null;
-  if (until && (!DAY.test(until) || until < day))
+  if (until && (!isRealDay(until) || until < day))
     return { ok: false, error: "«Hasta» no puede ser anterior a la fecha." };
   return {
     ok: true,

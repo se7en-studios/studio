@@ -13,7 +13,8 @@ export function FinanceSetup() {
         <li>
           En Supabase → SQL Editor, pegar y correr{" "}
           <code className={code}>supabase/finance.sql</code> y después{" "}
-          <code className={code}>supabase/finance-v2.sql</code> del repo. Crean
+          <code className={code}>supabase/finance-v2.sql</code> y{" "}
+          <code className={code}>supabase/finance-v3.sql</code> del repo. Crean
           las tablas de ingresos y costos, el reparto entre socios, los pagos
           pendientes y las herramientas.
         </li>

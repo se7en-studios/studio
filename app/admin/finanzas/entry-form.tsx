@@ -97,7 +97,9 @@ export function EntryForm({
     e.preventDefault();
     const cleaned = cleanEntry({
       ...draft,
-      occurred_on: day,
+      // Un pendiente que pasa a pagado cuenta desde hoy, no desde su fecha prevista.
+      occurred_on:
+        entry?.status === "pendiente" && !isPending && day > today ? today : day,
       category,
       description,
       project_slug: project || null,

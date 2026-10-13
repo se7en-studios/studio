@@ -10,6 +10,10 @@ function failPayments(e: { code?: string; message: string }): never {
   if (e.code === "PGRST205" || e.code === "42P01") {
     throw new PanelNotReady("Falta correr supabase/payments.sql en Supabase.");
   }
+  // Columna inexistente: falta supabase/finance-v3.sql (quién cobró cada pago).
+  if (e.code === "42703" || e.code === "PGRST204") {
+    throw new PanelNotReady("Falta correr supabase/finance-v3.sql en Supabase.");
+  }
   throw new Error(e.message);
 }
 
