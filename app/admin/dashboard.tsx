@@ -690,7 +690,7 @@ function LeadTable({
                 </td>
                 <td className="max-md:hidden px-3 py-2.5">
                   <span className="flex items-center gap-1.5 text-[13px] text-muted">
-                    <Face who={l.owner} size={18} /> {l.owner ? PEOPLE[l.owner].name : "—"}
+                    <Face who={l.owner} size={18} alt="" /> {l.owner ? PEOPLE[l.owner].name : "—"}
                   </span>
                 </td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{dealValue(l) ? usd(dealValue(l)) : "—"}</td>

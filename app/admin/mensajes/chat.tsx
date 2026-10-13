@@ -248,7 +248,7 @@ export function Chat({
             <ArrowUp size={16} />
           </button>
         </div>
-        <p className="mt-1.5 px-1 text-[11px] text-muted/70">Enter para mandar · Shift + Enter para otra línea</p>
+        <p className="mt-1.5 px-1 text-[11px] text-muted">Enter para mandar · Shift + Enter para otra línea</p>
       </form>
     </div>
   );

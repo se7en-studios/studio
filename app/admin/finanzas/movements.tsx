@@ -130,7 +130,7 @@ function Row({
             (e.project_slug ? (
               <Link
                 href={`/admin/proyectos/${e.project_slug}`}
-                className="focus-ring hover:text-foreground hover:underline"
+                className="focus-ring underline hover:text-foreground"
               >
                 {project}
               </Link>

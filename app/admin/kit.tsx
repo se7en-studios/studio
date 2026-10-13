@@ -193,7 +193,7 @@ export function Kpi({
     <>
       <p className="flex items-center justify-between gap-2 text-[12px] text-muted">
         {label}
-        {icon && <span className="text-muted/70">{icon}</span>}
+        {icon && <span className="text-muted">{icon}</span>}
       </p>
       <p className={cn("mt-2 text-[24px] leading-none font-semibold tracking-[-0.02em] tabular-nums", tone ? TONE[tone] : "text-foreground")}>
         {value}
@@ -212,13 +212,13 @@ export function Kpi({
   );
 }
 
-export function Face({ who, size = 22, ring }: { who: LeadOwner | null; size?: number; ring?: boolean }) {
+export function Face({ who, size = 22, ring, alt }: { who: LeadOwner | null; size?: number; ring?: boolean; /** Vacío si el nombre está al lado. */ alt?: string }) {
   const p = who ? PEOPLE[who] : null;
   if (p?.image) {
     return (
       <Image
         src={p.image}
-        alt={p.name}
+        alt={alt ?? p.name}
         title={p.name}
         width={size * 2}
         height={size * 2}
@@ -257,9 +257,9 @@ export function StatusPill({ status, className }: { status: ProjectStatus; class
   );
 }
 
-export function Progress({ value, accent }: { value: number; accent?: string }) {
+export function Progress({ value, accent, label = "Avance" }: { value: number; accent?: string; label?: string }) {
   return (
-    <span className="block h-1 w-full overflow-hidden rounded-full bg-white/[0.07]" role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={100}>
+    <span className="block h-1 w-full overflow-hidden rounded-full bg-white/[0.07]" role="progressbar" aria-label={label} aria-valuenow={value} aria-valuemin={0} aria-valuemax={100}>
       <span
         className="block h-full rounded-full bg-accent transition-[width] duration-500"
         style={{ width: `${Math.max(0, Math.min(100, value))}%`, background: accent }}
