@@ -10,6 +10,13 @@ export type FinanceKind = (typeof KINDS)[number];
 export const CURRENCIES = ["ARS", "USD"] as const;
 export type Currency = (typeof CURRENCIES)[number];
 
+/** De quién es un movimiento: de un socio o de los dos (se parte 50/50). */
+export const OWNERS = ["ambos", "franco", "federico"] as const;
+export type Owner = (typeof OWNERS)[number];
+
+export const STATUSES = ["pagado", "pendiente"] as const;
+export type EntryStatus = (typeof STATUSES)[number];
+
 type Category = { id: string; label: string };
 
 export const COST_CATEGORIES: Category[] = [
@@ -51,6 +58,9 @@ export type Entry = {
   recurring: boolean;
   /** YYYY-MM-DD: último mes en que se repite. null = sin fin. */
   until: string | null;
+  owner: Owner;
+  /** «pendiente»: todavía no se cobró o pagó, no cuenta en los totales. */
+  status: EntryStatus;
   created_by: LeadOwner | null;
   /** «cobro» viene de los cobros de proyectos: no se edita acá y su cotización es la de hoy. */
   source: "manual" | "cobro";
@@ -68,6 +78,8 @@ export type EntryInput = Pick<
   | "project_slug"
   | "recurring"
   | "until"
+  | "owner"
+  | "status"
 >;
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -121,7 +133,10 @@ export function cleanEntry(
   const slug = input.project_slug ? String(input.project_slug) : null;
   if (slug && !SLUG.test(slug))
     return { ok: false, error: "Proyecto inválido." };
-  const recurring = Boolean(input.recurring);
+  const owner = OWNERS.find((o) => o === input.owner) ?? "ambos";
+  const status = STATUSES.find((x) => x === input.status) ?? "pagado";
+  // Un pago pendiente es uno solo: no se repite.
+  const recurring = Boolean(input.recurring) && status === "pagado";
   const until = recurring && input.until ? String(input.until) : null;
   if (until && (!DAY.test(until) || until < day))
     return { ok: false, error: "«Hasta» no puede ser anterior a la fecha." };
@@ -140,6 +155,8 @@ export function cleanEntry(
       project_slug: slug,
       recurring,
       until,
+      owner,
+      status,
     },
   };
 }
@@ -181,10 +198,14 @@ export function periodMonths(
 
 export type Occurrence = { entry: Entry; month: string };
 
-/** Un movimiento puntual cuenta en su mes; uno recurrente, en cada mes desde que empieza hasta que termina. */
+/**
+ * Un movimiento puntual cuenta en su mes; uno recurrente, en cada mes desde que
+ * empieza hasta que termina. Los pendientes no cuentan hasta que se pagan.
+ */
 export function expand(entries: Entry[], months: string[]): Occurrence[] {
   const out: Occurrence[] = [];
   for (const entry of entries) {
+    if (entry.status === "pendiente") continue;
     const start = monthOf(entry.occurred_on);
     const end = entry.until ? monthOf(entry.until) : null;
     for (const month of months) {
@@ -261,6 +282,18 @@ export function fixedCosts(
     ),
   );
   return { usd: t.costoUsd, ars: t.costoArs };
+}
+
+/** La parte de un movimiento que le toca a un socio: lo de «ambos» se parte en dos. */
+export const shareOf = (owner: Owner, who: LeadOwner) =>
+  owner === "ambos" ? 0.5 : owner === who ? 1 : 0;
+
+/** Los movimientos de un socio, con el monto que le toca (la cotización no cambia). */
+export function forPerson(entries: Entry[], who: LeadOwner): Entry[] {
+  return entries.flatMap((e) => {
+    const share = shareOf(e.owner, who);
+    return share ? [{ ...e, amount: round2(e.amount * share) }] : [];
+  });
 }
 
 /** Margen sobre ingresos en %, o null si no hubo ingresos. */

@@ -4,38 +4,53 @@ import type { LeadOwner } from "./db";
 import type { Entry, EntryInput } from "./finance-shared";
 import { PanelNotReady, client } from "./panel";
 
-const COLUMNS =
+const LEGACY_COLUMNS =
   "id, kind, occurred_on, currency, amount, fx, category, description, project_slug, recurring, until, created_by";
+const COLUMNS = `${LEGACY_COLUMNS}, owner, status`;
 const LIMIT = 5000;
 
 function fail(e: { code?: string; message: string }): never {
   if (e.code === "PGRST205" || e.code === "42P01") {
     throw new PanelNotReady("Falta correr supabase/finance.sql en Supabase.");
   }
+  // Columna inexistente: falta supabase/finance-v2.sql (socios y pendientes).
+  if (e.code === "42703" || e.code === "PGRST204") {
+    throw new PanelNotReady(
+      "Falta correr supabase/finance-v2.sql en Supabase.",
+    );
+  }
   throw new Error(e.message);
 }
 
 /** numeric llega como string desde PostgREST. */
-type Row = Omit<Entry, "amount" | "fx" | "source"> & {
-  amount: string | number;
-  fx: string | number;
-};
+type Row = Omit<Entry, "amount" | "fx" | "source" | "owner" | "status"> &
+  Partial<Pick<Entry, "owner" | "status">> & {
+    amount: string | number;
+    fx: string | number;
+  };
 const toEntry = (r: Row): Entry => ({
   ...r,
   amount: Number(r.amount),
   fx: Number(r.fx),
+  owner: r.owner ?? "ambos",
+  status: r.status ?? "pagado",
   source: "manual",
 });
 
-export async function listEntries(): Promise<Entry[]> {
-  const { data, error } = await client()
+const select = (columns: string) =>
+  client()
     .from("panel_finance")
-    .select(COLUMNS)
+    .select(columns)
     .order("occurred_on", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(LIMIT);
-  if (error) fail(error);
-  return (data as Row[]).map(toEntry);
+
+export async function listEntries(): Promise<Entry[]> {
+  let res = await select(COLUMNS);
+  // Sin finance-v2.sql sigue andando como antes (todo «ambos» y pagado), hasta que se corra.
+  if (res.error?.code === "42703") res = await select(LEGACY_COLUMNS);
+  if (res.error) fail(res.error);
+  return (res.data as unknown as Row[]).map(toEntry);
 }
 
 /**
@@ -73,6 +88,8 @@ export async function listCobros(fx: number): Promise<Entry[]> {
     project_slug: p.project_slug,
     recurring: false,
     until: null,
+    owner: "ambos",
+    status: "pagado",
     created_by: p.created_by,
     source: "cobro",
   }));
@@ -91,9 +108,23 @@ export async function insertEntry(
   return toEntry(data as Row);
 }
 
-export async function removeEntry(
+/** Marca un pendiente como pagado, con la fecha en que realmente se pagó. */
+export async function settleEntry(
   id: string,
-): Promise<{
+  paidOn: string,
+): Promise<Entry | null> {
+  const { data, error } = await client()
+    .from("panel_finance")
+    .update({ status: "pagado", occurred_on: paidOn })
+    .eq("id", id)
+    .eq("status", "pendiente")
+    .select(COLUMNS)
+    .maybeSingle();
+  if (error) fail(error);
+  return data ? toEntry(data as Row) : null;
+}
+
+export async function removeEntry(id: string): Promise<{
   kind: Entry["kind"];
   description: string;
   category: string;

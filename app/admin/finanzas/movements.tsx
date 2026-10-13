@@ -14,6 +14,7 @@ import {
   type Entry,
 } from "@/lib/admin/finance-shared";
 import { Card, Empty, btnGhost, cn } from "../kit";
+import { OwnerFaces } from "./owner";
 
 const PAGE = 40;
 
@@ -98,8 +99,9 @@ function Row({
   return (
     <div className="px-4 py-3">
       <div className="flex items-start justify-between gap-3">
-        <p className="min-w-0 text-[13px] leading-snug font-medium break-words">
-          {title}
+        <p className="flex min-w-0 items-center gap-2 text-[13px] leading-snug font-medium">
+          <OwnerFaces owner={e.owner} size={16} />
+          <span className="break-words">{title}</span>
         </p>
         <p
           className={cn(
