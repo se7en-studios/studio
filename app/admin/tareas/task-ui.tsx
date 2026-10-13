@@ -269,6 +269,7 @@ export function QuickAdd({
   onAdd,
   fixed,
   defaultAssignee,
+  defaultDue = null,
   placeholder = "Nueva tarea… (Enter para guardar)",
   autoFocus = false,
 }: {
@@ -278,13 +279,15 @@ export function QuickAdd({
   onAdd: (input: TaskInput) => void;
   fixed?: Pick<TaskInput, "lead_id" | "project_slug">;
   defaultAssignee?: LeadOwner | null;
+  /** Fecha con la que arranca cada tarea nueva (YYYY-MM-DD). */
+  defaultDue?: string | null;
   placeholder?: string;
 }) {
   const blank = (): TaskInput => ({
     title: "",
     notes: "",
     assignee: defaultAssignee === undefined ? me : defaultAssignee,
-    due: null,
+    due: defaultDue,
     priority: "media",
     lead_id: fixed?.lead_id ?? null,
     project_slug: fixed?.project_slug ?? null,
