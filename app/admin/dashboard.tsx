@@ -11,25 +11,23 @@ import {
   Inbox,
   LayoutGrid,
   List,
-  Mail,
   MessagesSquare,
   Search,
   Snowflake,
   Trash2,
 } from "lucide-react";
 import { WhatsAppLogo } from "@/components/icons/whatsapp-logo";
-import { SITE } from "@/data/site";
 import { ago, headline, nextStep, priority, tags, type Priority } from "@/lib/admin/brief";
 import type { Lead, LeadOwner, LeadStatus } from "@/lib/admin/db";
 import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
 import { leadChannel } from "@/lib/admin/message-shared";
 import type { PanelEvent } from "@/lib/admin/panel";
-import { bucket, compareTasks, dueLabel, type Task, type TaskLinks } from "@/lib/admin/task-shared";
+import { bucket, compareTasks, dayKey, dueLabel, type Task, type TaskLinks } from "@/lib/admin/task-shared";
 import { coldDays, isContact, lastContacts, type Activity, type ActivityKind } from "@/lib/admin/activity-shared";
 import { dealValue } from "@/lib/admin/metrics";
 import { deleteLead, setNotes, setOwner, setStatus } from "./actions";
 import { EventList } from "./feed";
-import { Chip, Face, Kpi, PageHeader, Segmented, btnDanger, btnGhost, btnPrimary, btnSecondary, cn, input, label as sectionLabel, kpiRow, searchInput, usd, usdShort } from "./kit";
+import { Chip, Face, Kpi, PageHeader, Segmented, btnDanger, btnGhost, btnSecondary, cn, input, label as sectionLabel, kpiRow, searchInput, usd, usdShort } from "./kit";
 import { Chat } from "./mensajes/chat";
 import { Drawer, useStoredChoice, useToast } from "./overlay";
 import { ActivityLog } from "./pedidos/activity";
@@ -37,6 +35,7 @@ import { BulkBar } from "./pedidos/bulk-bar";
 import { deleteActivity, logActivity, setContact, setValue, type ContactFields } from "./pedidos/actions";
 import { DealFields } from "./pedidos/deal";
 import { NewLeadButton } from "./pedidos/new-lead";
+import { Reply } from "./pedidos/reply";
 import { WonProject } from "./pedidos/won-project";
 import { downloadCsv } from "./pedidos/csv";
 import { QuickAdd, TaskDrawer, TaskRow } from "./tareas/task-ui";
@@ -61,6 +60,12 @@ const OPEN_STAGES: LeadStatus[] = ["nuevo", "contactado", "propuesta"];
 // Chance de cierre por etapa, para el pronóstico. Son supuestos propios, no historial:
 // ajustarlos cuando haya suficientes pedidos cerrados para medirlos de verdad.
 const STAGE_ODDS: Partial<Record<LeadStatus, number>> = { nuevo: 0.1, contactado: 0.25, propuesta: 0.5 };
+
+// Al pasar un pedido a estas etapas sin ninguna tarea de seguimiento abierta, se crea una sola.
+const FOLLOW_UP: Partial<Record<LeadStatus, { days: number; title: (name: string) => string }>> = {
+  contactado: { days: 3, title: (name) => `Dar seguimiento a ${name}` },
+  propuesta: { days: 2, title: (name) => `Seguimiento de la propuesta a ${name}` },
+};
 
 const PRIORITY_DOT: Record<Priority, string> = {
   alta: "bg-accent",
@@ -190,7 +195,31 @@ export function Dashboard({
     [flash],
   );
 
-  const move = useCallback((id: string, s: LeadStatus) => update(id, { status: s }, () => setStatus(id, s)), [update]);
+  /** Crea la tarea de seguimiento de la etapa, si hay tareas y el pedido no tiene ninguna abierta. */
+  function scheduleFollowUp(lead: Lead, status: LeadStatus) {
+    const rule = FOLLOW_UP[status];
+    if (!rule || !initialTasks || nextTask.has(lead.id)) return;
+    const due = dayKey(rule.days);
+    taskApi.add(
+      { title: rule.title(lead.name.trim().split(/\s+/)[0] || lead.name), notes: "", assignee: lead.owner ?? me, due, priority: "media", lead_id: lead.id, project_slug: null },
+      me,
+    );
+    flash(`Seguimiento programado para ${dueLabel(due)}`, "ok");
+  }
+  // move va a las tarjetas (memo): llega a la versión más nueva de scheduleFollowUp por una ref.
+  const followUpRef = useRef(scheduleFollowUp);
+  useEffect(() => {
+    followUpRef.current = scheduleFollowUp;
+  });
+
+  const move = useCallback(
+    (id: string, s: LeadStatus) => {
+      const lead = leadsRef.current.find((l) => l.id === id);
+      update(id, { status: s }, () => setStatus(id, s));
+      if (lead && lead.status !== s) followUpRef.current(lead, s);
+    },
+    [update],
+  );
 
   function remove(id: string) {
     const before = leads;
@@ -221,6 +250,7 @@ export function Dashboard({
     setActs((a) => [temp, ...a]);
     if (lead.status === "nuevo" && isContact(temp)) {
       setLeads((ls) => ls.map((l) => (l.id === lead.id ? { ...l, status: "contactado" } : l)));
+      scheduleFollowUp(lead, "contactado");
     }
     startTransition(async () => {
       try {
@@ -677,12 +707,6 @@ function LeadTable({
   );
 }
 
-function replyMail(l: Lead) {
-  const subject = `Tu proyecto con ${SITE.name}`;
-  const body = `Hola ${l.name.split(" ")[0]}! Gracias por escribirnos.\n\nLeímos tu idea (${l.project_type || "tu proyecto"}) y nos encantaría charlarla. ¿Te queda bien una llamada de 15 minutos esta semana?\n\nFranco y Federico — ${SITE.name}`;
-  return `mailto:${l.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-}
-
 type Tab = "ficha" | "chat" | "cambios";
 
 
@@ -799,12 +823,9 @@ function Detail({
           {lead.status === "ganado" && projectSlug !== undefined && <WonProject leadId={lead.id} slug={projectSlug} />}
 
           {/* Responder */}
-          <div className="mt-4 flex flex-wrap gap-2">
-            {lead.email && (
-              <a href={replyMail(lead)} className={btnPrimary}>
-                <Mail size={14} /> Responder por mail
-              </a>
-            )}
+          <Reply lead={lead} onSent={(kind, label) => history?.onLog(kind, `Plantilla «${label}»`, dayKey())} />
+
+          <div className="mt-3 flex flex-wrap gap-2">
             {lead.channel === "whatsapp" && (
               <span className="inline-flex items-center gap-2 rounded-lg border border-[#25D366]/40 px-3 py-1.5 text-[13px] text-[#25D366]">
                 <WhatsAppLogo size={14} /> Escribió por WhatsApp
