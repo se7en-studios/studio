@@ -98,7 +98,7 @@ export function Dialog({
         aria-modal="true"
         aria-label={label}
         className={cn(
-          "admin-pop relative max-h-[92dvh] w-full overflow-hidden rounded-t-2xl border border-[var(--line-strong)] bg-[var(--panel)] shadow-[0_40px_120px_-20px_rgba(0,0,0,0.8)] md:rounded-2xl",
+          "admin-pop relative max-h-[92dvh] w-full overflow-hidden rounded-t-2xl border border-[var(--line-strong)] bg-[var(--panel)] shadow-[var(--shadow-pop)] md:rounded-2xl",
           width,
         )}
       >

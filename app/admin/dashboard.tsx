@@ -786,7 +786,7 @@ function Detail({
             <span className={cn("h-1.5 w-1.5 rounded-full", STAGE[lead.status].dot)} />
             {STAGE[lead.status].label} · prioridad {priority(lead)}
           </p>
-          <h2 className="mt-1 truncate text-[20px] font-semibold tracking-[-0.01em]">
+          <h2 className="mt-1 truncate text-[22px] font-semibold tracking-[-0.02em]">
             {lead.name}
             {lead.company && <span className="font-normal text-muted"> · {lead.company}</span>}
           </h2>
@@ -802,7 +802,7 @@ function Detail({
                 )}
               >
                 {t.icon} {t.label}
-                {tab === t.id && <span className="absolute inset-x-1.5 -bottom-px h-0.5 rounded-full bg-accent" />}
+                {tab === t.id && <span className="absolute inset-x-1.5 -bottom-px h-0.5 rounded-full bg-accent shadow-[0_0_10px_var(--accent)]" />}
               </button>
             ))}
           </div>
@@ -815,7 +815,7 @@ function Detail({
         <LeadEvents id={lead.id} />
       ) : (
         <div className="flex min-h-full flex-col p-5">
-          <div className="rounded-lg border border-accent/20 bg-accent/[0.05] px-3.5 py-3">
+          <div className="rounded-lg border border-l-[3px] border-accent/20 border-l-accent bg-accent/[0.05] px-3.5 py-3">
             <p className="text-[11px] font-medium tracking-wide text-accent uppercase">Próximo paso</p>
             <p className="mt-1 text-[14px]">{nextStep(lead)}</p>
           </div>
@@ -878,7 +878,7 @@ function Detail({
               .filter(([, v]) => v)
               .map(([k, v]) => (
                 <div key={k}>
-                  <dt className="text-[11px] text-muted">{k}</dt>
+                  <dt className="text-[11px] font-medium tracking-[0.1em] text-muted uppercase">{k}</dt>
                   <dd className="mt-0.5 text-[13px] break-words">{v}</dd>
                 </div>
               ))}
