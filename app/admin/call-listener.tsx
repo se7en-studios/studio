@@ -129,7 +129,7 @@ export function CallListener({
       width="max-w-sm"
     >
       <div className="flex flex-col items-center px-6 py-8 text-center">
-        <span className="relative mb-4">
+        <span className="relative mb-5 rounded-full p-1 ring-2 ring-accent/40 shadow-[0_0_40px_-6px_var(--accent)]">
           <span
             aria-hidden
             className="absolute inset-0 animate-ping rounded-full bg-accent/30"
@@ -147,16 +147,16 @@ export function CallListener({
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => setIncoming(null)}
-            className={btnPrimary}
+            className={`${btnPrimary} px-5 py-2.5 text-[14px]`}
           >
-            <Phone size={14} /> Unirme
+            <Phone size={15} /> Unirme
           </a>
           <button
             type="button"
             onClick={() => setIncoming(null)}
-            className={btnSecondary}
+            className={`${btnSecondary} px-5 py-2.5 text-[14px]`}
           >
-            <PhoneOff size={14} /> Ahora no
+            <PhoneOff size={15} /> Ahora no
           </button>
         </div>
       </div>

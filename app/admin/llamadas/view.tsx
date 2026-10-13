@@ -87,10 +87,12 @@ function CallCard({
   return (
     <Card title={`Llamar a ${other.name}`} icon={<Phone size={14} />}>
       <div className="space-y-4 p-4">
-        <div className="flex items-center gap-3">
-          <Face who={other.id} size={44} />
+        <div className="flex items-center gap-4 rounded-xl border border-[var(--line)] bg-[var(--well-soft)] p-3.5">
+          <span className="relative shrink-0 rounded-full p-0.5 ring-2 ring-accent/40 shadow-[0_0_28px_-6px_var(--accent)]">
+            <Face who={other.id} size={52} />
+          </span>
           <div className="min-w-0">
-            <p className="text-[15px] font-medium">{other.name}</p>
+            <p className="text-[17px] font-semibold tracking-[-0.015em]">{other.name}</p>
             <p className="text-[12px] text-muted">
               Le suena el panel si lo tiene abierto, y le llega al celular.
             </p>
@@ -114,9 +116,9 @@ function CallCard({
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => ring(myRoom)}
-            className={cn(btnPrimary, "w-full py-2.5")}
+            className={cn(btnPrimary, "w-full py-3 text-[14px]")}
           >
-            <Phone size={14} /> Llamar a {other.name}
+            <Phone size={15} /> Llamar a {other.name}
           </a>
         ) : (
           <>
@@ -125,9 +127,9 @@ function CallCard({
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => setStep("paste")}
-              className={cn(btnPrimary, "w-full py-2.5")}
+              className={cn(btnPrimary, "w-full py-3 text-[14px]")}
             >
-              <Phone size={14} /> Abrir sala de Meet
+              <Phone size={15} /> Abrir sala de Meet
             </a>
             {step !== "idle" && (
               <div>
@@ -328,12 +330,13 @@ function SetupCard({
             </div>
             <span
               className={cn(
-                "shrink-0 rounded-full px-2 py-0.5 text-[11px]",
+                "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px]",
                 r.ok
                   ? "bg-emerald-400/10 text-emerald-300"
                   : "bg-white/[0.06] text-muted",
               )}
             >
+              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-current" />
               {r.ok ? "Listo" : "Opcional"}
             </span>
           </li>
