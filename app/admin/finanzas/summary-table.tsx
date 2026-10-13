@@ -3,15 +3,15 @@
 // Resumen por mes y por persona: ingresos, costos, resultado y margen, con los
 // números del período. El gráfico los muestra; acá se leen exactos.
 import {
-  OWNERS,
   fmt,
   margin,
   pick,
-  totals,
+  settle,
   type Currency,
   type Occurrence,
   type Totals,
 } from "@/lib/admin/finance-shared";
+import { PEOPLE_IDS } from "@/lib/admin/people";
 import { Card, cn } from "../kit";
 import { OWNER_LABEL, OwnerFaces } from "./owner";
 
@@ -52,7 +52,7 @@ export function SummaryTable({
   );
 }
 
-/** Cada ingreso y costo clasificado según de quién es: Franco, Federico o la cuenta del estudio. */
+/** Lo de cada socio: lo suyo más la mitad de la cuenta del estudio (que se reparte 50/50). */
 export function ByOwner({
   occ,
   currency,
@@ -60,14 +60,16 @@ export function ByOwner({
   occ: Occurrence[];
   currency: Currency;
 }) {
-  const lines: Line[] = OWNERS.map((owner) => ({
-    key: owner,
+  const s = settle(occ, currency);
+  const lines: Line[] = PEOPLE_IDS.map((who) => ({
+    key: who,
     label: (
       <span className="inline-flex items-center gap-2">
-        <OwnerFaces owner={owner} size={18} /> {OWNER_LABEL[owner]}
+        <OwnerFaces owner={who} size={18} /> {OWNER_LABEL[who]}
       </span>
     ),
-    ...pick(totals(occ.filter((o) => o.entry.owner === owner)), currency),
+    ingreso: s[who].in,
+    costo: s[who].out,
   }));
   return (
     <Table

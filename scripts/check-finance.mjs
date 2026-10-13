@@ -99,6 +99,9 @@ assert.deepEqual(settleOf([own({ kind: "ingreso", amount: 300, owner: "federico"
 // Cada uno pagó lo mismo: a mano. Y la cuenta del estudio no genera deuda.
 assert.equal(settleOf([own({ kind: "costo", amount: 100, owner: "franco" }), own({ kind: "costo", amount: 100, owner: "federico" })]).owes, null);
 assert.equal(settleOf([own({ kind: "costo", amount: 999, owner: "ambos" })]).owes, null);
+// La cuenta del estudio se reparte mitad y mitad entre los dos.
+const studio = settleOf([own({ kind: "ingreso", amount: 300, owner: "ambos" }), own({ kind: "costo", amount: 100, owner: "ambos" })]);
+assert.deepEqual([studio.franco, studio.federico], [{ in: 150, out: 50 }, { in: 150, out: 50 }]);
 // Se compensan: Franco cobró 400 y pagó 100; Federico pagó 100.
 const mix = settleOf([
   own({ kind: "ingreso", amount: 400, owner: "franco" }),

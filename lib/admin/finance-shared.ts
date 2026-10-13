@@ -300,7 +300,8 @@ export type Settlement = {
 /**
  * Todo se divide 50/50. Cada movimiento dice quién puso o cobró la plata
  * (el «owner»): el que cobró más o pagó menos le debe la diferencia al otro, a
- * la mitad. Lo de la «cuenta del estudio» ya está compartido y no genera deuda.
+ * la mitad. Lo de la «cuenta del estudio» (owner «ambos») se reparte mitad y
+ * mitad entre los dos: cada uno lo ve en lo suyo y no genera deuda.
  */
 export function settle(occ: Occurrence[], currency: Currency): Settlement {
   const out: Settlement = {
@@ -309,9 +310,12 @@ export function settle(occ: Occurrence[], currency: Currency): Settlement {
     owes: null,
   };
   for (const { entry: e } of occ) {
-    if (e.owner === "ambos") continue;
     const value = currency === "USD" ? usdOf(e) : arsOf(e);
-    out[e.owner][e.kind === "ingreso" ? "in" : "out"] += value;
+    const side = e.kind === "ingreso" ? "in" : "out";
+    if (e.owner === "ambos") {
+      out.franco[side] += value / 2;
+      out.federico[side] += value / 2;
+    } else out[e.owner][side] += value;
   }
   const net = (p: Partner) => p.in - p.out;
   const half = round2((net(out.franco) - net(out.federico)) / 2);

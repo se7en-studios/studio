@@ -287,7 +287,7 @@ export function EntryForm({
             <span className={label}>{whoLabel}</span>
             <OwnerPicker value={owner} onChange={setOwner} legend={whoLabel} />
             <p className="mt-1.5 text-[12px] text-muted">
-              Sirve para ver de quién es cada movimiento; «Cuenta del estudio» es lo que es de los dos.
+              Sirve para ver de quién es cada movimiento; «Cuenta del estudio» es de los dos: se reparte 50/50 entre Franco y Federico.
             </p>
           </div>
 

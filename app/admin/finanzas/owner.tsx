@@ -6,7 +6,7 @@ import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
 import { Chip, Face } from "../kit";
 
 export const OWNER_LABEL: Record<Owner, string> = {
-  ambos: "Cuenta del estudio",
+  ambos: "Cuenta del estudio (50/50)",
   franco: PEOPLE.franco.name,
   federico: PEOPLE.federico.name,
 };

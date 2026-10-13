@@ -2,7 +2,7 @@
 
 // Cuentas entre socios. Todo se divide 50/50: cada movimiento dice quién puso o
 // cobró la plata, y de ahí sale quién le debe a quién para quedar parejos.
-// Lo de la «cuenta del estudio» ya está compartido y no genera deuda.
+// Lo de la «cuenta del estudio» se reparte mitad y mitad y no genera deuda.
 import {
   fmt,
   settle,
@@ -52,7 +52,7 @@ export function Partners({
         <p className="text-[12px] text-muted">
           A cada uno le toca la mitad del resultado:{" "}
           {fmt(result / 2, currency)}. La deuda cuenta lo que cada uno cobró y
-          pagó de su bolsillo; lo de la cuenta del estudio no entra.
+          pagó de su bolsillo; la cuenta del estudio se parte 50/50 y no genera deuda.
         </p>
       </div>
     </Card>
