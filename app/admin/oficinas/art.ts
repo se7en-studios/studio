@@ -196,9 +196,12 @@ function wallImage(dc: Decor, src: Img, u0: number, u1: number, z0: number, z1: 
   quadImage(src, at(l, z1), at(r, z1), at(l, z0), ((u1 - u0) * TILE) / (z1 - z0));
 }
 
-export type Brand = { family: string; weight: number; uppercase: boolean; highlight: string };
-/** Lo propio de cada sala: la captura del sitio (cuando carga) y las texturas con la marca. */
-export type RoomArt = { site: HTMLImageElement | null; rug: HTMLCanvasElement; mat: HTMLCanvasElement; poster: HTMLCanvasElement; court: HTMLCanvasElement };
+/** `tagline`: la frase entera del sitio; `highlight`, su remate. */
+export type Brand = { family: string; weight: number; uppercase: boolean; highlight: string; tagline?: string };
+/** El logo completo y el ícono de la marca, ya cargados (null mientras tanto o si no hay). */
+export type BrandImages = { logo: HTMLImageElement | null; mark: HTMLImageElement | null };
+/** Lo propio de cada sala: la captura del sitio, el ícono de la marca (cuando cargan) y las texturas horneadas. */
+export type RoomArt = BrandImages & { site: HTMLImageElement | null; rug: HTMLCanvasElement; mat: HTMLCanvasElement; poster: HTMLCanvasElement; court: HTMLCanvasElement };
 
 const TEX = 96; // px de textura por baldosa: alcanza para el zoom más cercano en pantallas retina
 const BRAND_FALLBACK = "ui-sans-serif, system-ui, sans-serif";
@@ -237,6 +240,30 @@ function wordmark(t: CanvasRenderingContext2D, text: string | string[], font: (p
     t.fillText(s, cx - (m.actualBoundingBoxRight - m.actualBoundingBoxLeft) / 2, y);
   });
 }
+/** Una imagen centrada en (cx, cy), lo más grande que entre en maxW × maxH sin deformarse. */
+function fitImage(t: CanvasRenderingContext2D, img: Img, cx: number, cy: number, maxW: number, maxH: number) {
+  const [w, h] = sizeOf(img);
+  const k = Math.min(maxW / w, maxH / h);
+  t.imageSmoothingQuality = "high";
+  t.drawImage(img, cx - (w * k) / 2, cy - (h * k) / 2, w * k, h * k);
+}
+/**
+ * La firma de la marca en una caja: el logo si hay; si no, el ícono con el
+ * nombre al lado; si no, el nombre solo (a 0.62 del alto, como una línea de texto).
+ */
+function lockup(t: CanvasRenderingContext2D, imgs: BrandImages, text: string, font: (px: number) => string, cx: number, cy: number, maxW: number, maxH: number, color: string) {
+  if (imgs.logo) return fitImage(t, imgs.logo, cx, cy, maxW, maxH);
+  if (!imgs.mark) return wordmark(t, text, font, cx, cy, maxW, maxH * 0.62, color);
+  const [iw, ih] = sizeOf(imgs.mark);
+  const mh = maxH * 0.86, mw = (iw / ih) * mh, gap = mh * 0.24;
+  t.font = font(100);
+  const m = t.measureText(text);
+  const k = Math.min((maxW - mw - gap) / (m.actualBoundingBoxLeft + m.actualBoundingBoxRight || 1), (maxH * 0.5) / (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent || 1));
+  const tw = (m.actualBoundingBoxLeft + m.actualBoundingBoxRight) * k;
+  const x0 = cx - (mw + gap + tw) / 2;
+  fitImage(t, imgs.mark, x0 + mw / 2, cy, mw, mh);
+  wordmark(t, text, font, x0 + mw + gap + tw / 2, cy, tw, maxH * 0.5, color);
+}
 /** Un nombre largo en dos renglones parejos: «Apex / Performance», «Poné La / Pava». */
 function twoLines(s: string): string | string[] {
   const sp = [...s.matchAll(/ /g)].map((m) => m.index as number);
@@ -246,11 +273,11 @@ function twoLines(s: string): string | string[] {
 }
 
 /**
- * Las texturas con la marca del proyecto: su nombre en su tipografía y su color.
- * `posterAspect` es ancho/alto del cartel (la pared alta y la media no miden lo mismo).
- * Se vuelven a hornear cuando termina de bajar la tipografía.
+ * Las texturas con la marca del proyecto: su logo (o su nombre en su tipografía)
+ * y su color. `posterAspect` es ancho/alto del cartel (la pared alta y la media
+ * no miden lo mismo). Se vuelven a hornear cuando bajan la tipografía y los logos.
  */
-export function bakeBrand(name: string, accent: string, brand: Brand | null, posterAspect: number): Omit<RoomArt, "site"> {
+export function bakeBrand(name: string, accent: string, brand: Brand | null, posterAspect: number, imgs: BrandImages): Omit<RoomArt, "site" | "logo" | "mark"> {
   const family = brand?.family ?? BRAND_FALLBACK;
   // Las marcas de trazo fino (Outfit 300) no se leen chiquitas: mínimo 500.
   const font = (px: number) => `${Math.max(brand?.weight ?? 700, 500)} ${px}px ${family}`;
@@ -259,7 +286,7 @@ export function bakeBrand(name: string, accent: string, brand: Brand | null, pos
   const deep = mix(accent, "#16141b", 0.8);
   const cream = "#f4efe6";
 
-  // Alfombra de 3×2: guarda del color de la marca y el nombre al medio
+  // Alfombra de 3×2: guarda del color de la marca y el logo al medio
   const [rug, r] = texture(3 * TEX, 2 * TEX);
   const e = 0.08 * TEX;
   r.fillStyle = accent;
@@ -271,22 +298,25 @@ export function bakeBrand(name: string, accent: string, brand: Brand | null, pos
   r.strokeStyle = "rgba(244,239,230,0.35)";
   r.lineWidth = 1.5;
   r.strokeRect(0.25 * TEX, 0.25 * TEX, 2.5 * TEX, 1.5 * TEX);
-  wordmark(r, text, font, 1.5 * TEX, TEX, 2.25 * TEX, 0.62 * TEX, ink);
+  lockup(r, imgs, text, font, 1.5 * TEX, TEX, 2.25 * TEX, TEX, ink);
 
-  // Felpudo: el color de la marca con el nombre en oscuro, como un felpudo teñido
+  // Felpudo: oscuro con la guarda del color de la marca y el ícono (o el nombre)
   const [mat, t] = texture(0.84 * TEX * 1.4, 0.64 * TEX * 1.4);
   const mw = mat.width, mh = mat.height;
-  t.fillStyle = mix(accent, "#1a1820", 0.55);
-  t.beginPath();
-  t.roundRect(0, 0, mw, mh, 6);
-  t.fill();
   t.fillStyle = accent;
-  t.fillRect(5, 5, mw - 10, mh - 10);
-  t.fillStyle = "rgba(255,255,255,0.12)";
-  for (let i = 0; i < 40; i++) t.fillRect(5 + hash(i, 3) * (mw - 12), 5 + hash(3, i) * (mh - 12), 2, 1);
-  wordmark(t, twoLines(text), font, mw / 2, mh / 2, mw * 0.8, mh * 0.56, mix(accent, "#141218", 0.82));
+  t.beginPath();
+  t.roundRect(0, 0, mw, mh, 7);
+  t.fill();
+  t.fillStyle = deep;
+  t.beginPath();
+  t.roundRect(6, 6, mw - 12, mh - 12, 4);
+  t.fill();
+  t.fillStyle = "rgba(255,255,255,0.07)";
+  for (let i = 0; i < 60; i++) t.fillRect(7 + hash(i, 3) * (mw - 16), 7 + hash(3, i) * (mh - 16), 2, 1);
+  if (imgs.mark) fitImage(t, imgs.mark, mw / 2, mh / 2, mw * 0.62, mh * 0.62);
+  else wordmark(t, twoLines(text), font, mw / 2, mh / 2, mw * 0.76, mh * 0.5, ink);
 
-  // Cartel de pared: el nombre grande y, abajo, el remate de la frase de la marca
+  // Cartel de pared: el logo y, abajo, el remate de la frase de la marca
   const ph = 120, pw = ph * posterAspect;
   const [poster, p] = texture(pw, ph);
   p.fillStyle = deep;
@@ -295,15 +325,23 @@ export function bakeBrand(name: string, accent: string, brand: Brand | null, pos
   p.lineWidth = 3;
   p.strokeRect(6, 6, pw - 12, ph - 12);
   const hl = brand?.highlight ?? "";
-  if (hl) {
-    wordmark(p, text, font, pw / 2, ph * 0.42, pw * 0.82, ph * 0.36, ink);
-    wordmark(p, hl, font, pw / 2, ph * 0.76, pw * 0.62, ph * 0.12, cream);
-  } else wordmark(p, text, font, pw / 2, ph / 2, pw * 0.82, ph * 0.42, ink);
+  const [lw, lh] = imgs.logo ? sizeOf(imgs.logo) : [0, 1];
+  if (imgs.logo && lw / lh < 1.4) {
+    // Un logo redondo o cuadrado (un sello) queda chico centrado: va grande a la
+    // izquierda y la frase entera al lado (el sello ya dice el nombre)
+    const phrase = brand?.tagline || hl;
+    fitImage(p, imgs.logo, ph * 0.56, ph / 2, ph * 0.74, ph * 0.74);
+    wordmark(p, phrase ? twoLines(phrase) : text, font, (ph * 0.98 + pw - 14) / 2, ph / 2, pw - ph * 0.98 - 22, ph * 0.5, phrase ? cream : ink);
+  } else if (hl) {
+    lockup(p, imgs, text, font, pw / 2, ph * 0.42, pw * 0.8, ph * 0.5, ink);
+    wordmark(p, hl, font, pw / 2, ph * 0.8, pw * 0.6, ph * 0.11, cream);
+  } else lockup(p, imgs, text, font, pw / 2, ph / 2, pw * 0.8, ph * 0.66, ink);
 
-  // El nombre pintado en la cancha (sólo lo usa el pádel)
+  // El logo pintado en la cancha (sólo lo usa el pádel)
   const [court, k] = texture(1.4 * TEX, 0.9 * TEX);
-  k.globalAlpha = 0.82;
-  wordmark(k, twoLines(text), font, court.width / 2, court.height / 2, court.width * 0.94, court.height * 0.62, "#f4f1ea");
+  k.globalAlpha = 0.85;
+  if (imgs.logo) fitImage(k, imgs.logo, court.width / 2, court.height / 2, court.width * 0.94, court.height * 0.9);
+  else wordmark(k, twoLines(text), font, court.width / 2, court.height / 2, court.width * 0.94, court.height * 0.62, "#f4f1ea");
 
   return { rug, mat, poster, court };
 }
@@ -610,7 +648,8 @@ export const SKY: Record<Period, string> = { manana: "#f3b48d", dia: "#93cbf3", 
 // --- Muebles --------------------------------------------------------------------
 
 /** Pantallas, luces y LEDs que el motor vuelve a pintar arriba de la oscuridad. */
-export type ScreenKind = "code" | "design" | "review" | "notes" | "site" | "map";
+/** «status»: la compu de cada sala de proyecto, con los días sin entrar y las novedades. */
+export type ScreenKind = "code" | "review" | "map" | "site" | "status";
 export type Glow =
   | { t: "screen"; quad: XY[]; kind: ScreenKind; accent: string; room: string | null }
   | { t: "lamp"; at: XY; room: string | null }
@@ -629,17 +668,19 @@ function sheet(x: number, y: number, w: number, d: number, h: number) {
 }
 
 function monitor(fx: number, fy: number, face: Facing, kind: ScreenKind, ctx: FurniCtx, room: string | null, z = 27) {
-  // fx, fy: centro del monitor sobre el escritorio
+  // fx, fy: centro del monitor sobre el escritorio. La compu de la sala es más
+  // grande: en su pantalla se leen los días sin entrar.
+  const [hw, h, sw, sh] = kind === "status" ? [0.5, 30, 0.45, 26] : [0.36, 22, 0.31, 19];
   if (face === "x") {
-    box(fx - 0.06, fy - 0.36, z, 0.1, 0.72, 22, "#24232b");
+    box(fx - 0.06, fy - hw, z, 0.1, hw * 2, h, "#24232b");
     box(fx - 0.12, fy - 0.08, z - 3, 0.16, 0.16, 3, METAL);
-    const quad = [P(fx + 0.04, fy - 0.31, z + 19), P(fx + 0.04, fy + 0.31, z + 19), P(fx + 0.04, fy + 0.31, z + 3), P(fx + 0.04, fy - 0.31, z + 3)] as XY[];
+    const quad = [P(fx + 0.04, fy - sw, z + sh), P(fx + 0.04, fy + sw, z + sh), P(fx + 0.04, fy + sw, z + 3), P(fx + 0.04, fy - sw, z + 3)] as XY[];
     poly(quad, c("#0b0b10"));
     if (!ctx.covered) ctx.glows.push({ t: "screen", quad, kind, accent: ctx.accent, room });
   } else {
-    box(fx - 0.36, fy - 0.06, z, 0.72, 0.1, 22, "#24232b");
+    box(fx - hw, fy - 0.06, z, hw * 2, 0.1, h, "#24232b");
     box(fx - 0.08, fy - 0.12, z - 3, 0.16, 0.16, 3, METAL);
-    const quad = [P(fx - 0.31, fy + 0.04, z + 19), P(fx + 0.31, fy + 0.04, z + 19), P(fx + 0.31, fy + 0.04, z + 3), P(fx - 0.31, fy + 0.04, z + 3)] as XY[];
+    const quad = [P(fx - sw, fy + 0.04, z + sh), P(fx + sw, fy + 0.04, z + sh), P(fx + sw, fy + 0.04, z + 3), P(fx - sw, fy + 0.04, z + 3)] as XY[];
     poly(quad, c("#0b0b10"));
     if (!ctx.covered) ctx.glows.push({ t: "screen", quad, kind, accent: ctx.accent, room });
   }
@@ -654,22 +695,20 @@ export function furni(f: Furni, ctx: FurniCtx) {
       for (const [lx, ly] of [[x + 0.08, y + 0.08], [x + w - 0.16, y + 0.08], [x + 0.08, y + d - 0.16], [x + w - 0.16, y + d - 0.16]]) box(lx, ly, 0, 0.08, 0.08, 24, "#3a3842");
       box(x + 0.04, y + 0.04, 24, w - 0.08, d - 0.08, 4, WOOD);
       if (ctx.covered) { sheet(x, y, w, d, 34); break; }
-      const kinds: Record<string, ScreenKind> = { descubrimiento: "notes", diseno: "design", desarrollo: "code", revision: "review", mantenimiento: "site", pausado: "code", entregado: "site" };
-      const screenKind = kinds[ctx.status] ?? "code";
       if (ctx.kind === "office") {
         // El monitor mira al que está sentado: de este lado se ve la espalda.
         box(x + w / 2 - 0.7, y + 0.3, 28, 0.62, 0.1, 20, "#2a2931");
         box(x + w / 2 + 0.35, y + 0.35, 28, 0.32, 0.22, 2, "#f2ede4");
         box(x + w - 0.45, y + 0.55, 28, 0.12, 0.12, 6, "#ece6da");
       } else if (face === "x") {
-        monitor(x + 0.3, y + d / 2, "x", f.k === "desk2" ? "code" : screenKind, ctx, f.room);
+        monitor(x + 0.3, y + d / 2, "x", f.k === "desk2" ? "code" : "status", ctx, f.room);
         box(x + 0.45, y + d / 2 - 0.3, 28, 0.16, 0.6, 1.5, "#3a3a44");
         box(x + 0.35, y + 0.2, 28, 0.12, 0.12, 6, "#ece6da");
       } else {
         if (f.k === "desk2") {
           monitor(x + w / 2 - 0.45, y + 0.3, "y", "code", ctx, f.room);
           monitor(x + w / 2 + 0.45, y + 0.3, "y", "code", ctx, f.room);
-        } else monitor(x + w / 2, y + 0.3, "y", screenKind, ctx, f.room);
+        } else monitor(x + w / 2, y + 0.3, "y", "status", ctx, f.room);
         box(x + w / 2 - 0.3, y + 0.45, 28, 0.6, 0.16, 1.5, "#3a3a44");
         box(x + w - 0.3, y + 0.35, 28, 0.12, 0.12, 6, "#ece6da");
       }
@@ -1151,51 +1190,4 @@ function hair(who: Who, back: boolean, by: number) {
     g.fillStyle = L.hair2;
     g.fillRect(dx, dy + by, 1.5, 1);
   }
-}
-
-// --- Carteles (en pantalla, no en el mundo) ---------------------------------------
-
-export type SignSpec = { name: string; sub?: string; badge?: number; fade: number; accent: string; gold?: boolean; warm?: boolean };
-/** Dibuja un cartel con la base centrada en (x, y) en px de pantalla. Devuelve su caja para tocarlo. */
-/** Lo que ocupa un cartel (con el lugar del globito de novedades arriba), para acomodarlos sin que se pisen. */
-export function measureSign(ctx: CanvasRenderingContext2D, font: string, s: SignSpec) {
-  ctx.font = `8px ${font}`;
-  const w = Math.max(Math.ceil(ctx.measureText(s.name).width), s.sub ? Math.ceil(ctx.measureText(s.sub).width) : 0) + 14;
-  return { w, h: (s.sub ? 27 : 17) + 6 };
-}
-
-export function sign(ctx: CanvasRenderingContext2D, font: string, sx: number, sy: number, s: SignSpec) {
-  ctx.font = `8px ${font}`;
-  const nameW = Math.ceil(ctx.measureText(s.name).width);
-  const subW = s.sub ? Math.ceil(ctx.measureText(s.sub).width) : 0;
-  const w = Math.max(nameW, subW) + 14, h = s.sub ? 27 : 17;
-  const x = Math.round(sx - w / 2), y = Math.round(sy - h);
-  ctx.globalAlpha = 1 - s.fade * 0.35;
-  ctx.fillStyle = "rgba(0,0,0,0.35)";
-  ctx.fillRect(x + 2, y + 2, w, h);
-  ctx.fillStyle = "#17161d";
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 3);
-  ctx.fill();
-  ctx.fillStyle = s.gold ? "#c9a24a" : fadeHex(s.accent, s.fade * 0.6);
-  ctx.fillRect(x, y, w, 2);
-  ctx.textBaseline = "top";
-  ctx.fillStyle = "#f1ede6";
-  ctx.fillText(s.name, x + 7, y + 5);
-  if (s.sub) {
-    ctx.fillStyle = s.warm ? "#ffb199" : "#a39e95";
-    ctx.fillText(s.sub, x + 7, y + 15);
-  }
-  ctx.globalAlpha = 1;
-  if (s.badge) {
-    const t = String(s.badge), bw = Math.ceil(ctx.measureText(t).width) + 9;
-    const bx = x + w - bw + 4, byy = y - 6;
-    ctx.fillStyle = "#ff4d2e";
-    ctx.beginPath();
-    ctx.roundRect(bx, byy, bw, 13, 6);
-    ctx.fill();
-    ctx.fillStyle = "#16161b";
-    ctx.fillText(t, bx + 5, byy + 3);
-  }
-  return { x, y: y - 6, w, h: h + 6 };
 }

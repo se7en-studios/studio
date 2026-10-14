@@ -4,7 +4,6 @@
 import {
   DECALS,
   canStep,
-  daysLabel,
   findPath,
   hasDoor,
   inBounds,
@@ -34,23 +33,21 @@ import {
   floorTile,
   furni,
   hash,
-  measureSign,
   mix,
   posterAspect,
   quadImage,
   rug,
   setFade,
-  sign,
   slab,
   tickerQuad,
   viewOf,
   wallSegment,
   type Brand,
+  type BrandImages,
   type Dir,
   type Glow,
   type Material,
   type RoomArt,
-  type SignSpec,
   type WallStyle,
   type XY,
 } from "./art";
@@ -61,8 +58,8 @@ export type RoomInfo = {
   status: string;
   /** Captura del sitio: va enmarcada en la pared y en el monitor. */
   cover?: string | null;
-  /** Tipografía de la marca (familia ya resuelta). null = letra genérica. */
-  brand?: Brand | null;
+  /** La marca: tipografía (familia ya resuelta) y rutas del logo y el ícono. null = letra genérica. */
+  brand?: (Brand & { logo: string | null; mark: string | null }) | null;
 };
 export type RoomLooks = Record<string, { fade: number; days: number | null; badge: number }>;
 export type EngineOptions = {
@@ -70,11 +67,11 @@ export type EngineOptions = {
   /** Por id de sala de proyecto. */
   info: Record<string, RoomInfo>;
   me: Who;
-  /** Familia de la fuente pixel (Silkscreen) para carteles y el LED. */
+  /** Familia de la fuente pixel (Silkscreen) para las compus, el globo y el LED. */
   font: string;
-  /** Nombres para las etiquetas sobre los muñecos. */
-  names?: Partial<Record<Who, string>>;
   onRoom: (id: string | null) => void;
+  /** La sala que queda bajo el mouse (null al salir): su nombre va arriba, no flotando en el mapa. */
+  onHover?: (id: string | null) => void;
 };
 export type Engine = {
   setMe: (me: Who) => void;
@@ -135,7 +132,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   let hover: Pt | null = null;
   let marker: (Pt & { t0: number }) | null = null;
   const held = new Set<string>();
-  let signBoxes: { id: string; x: number; y: number; w: number; h: number }[] = [];
+  let hoverRoom: string | null = null;
   let raf = 0, last = performance.now();
 
   const fadeOfId = (id: string | null | undefined) => (id ? disp.get(id) ?? 0 : 0);
@@ -153,18 +150,23 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     const inf = o.info[r.id];
     if (r.kind !== "project" || !inf) continue;
     const poster = m.decor.find((dc) => dc.room === r.id && dc.k === "brand");
-    const bake = () => arts.set(r.id, { ...bakeBrand(inf.name, inf.accent, inf.brand ?? null, poster ? posterAspect(poster) : 2), site: arts.get(r.id)?.site ?? null });
+    const imgs: BrandImages = { logo: null, mark: null };
+    const bake = () => arts.set(r.id, { ...bakeBrand(inf.name, inf.accent, inf.brand ?? null, poster ? posterAspect(poster) : 2, imgs), ...imgs, site: arts.get(r.id)?.site ?? null });
     bake();
     if (inf.brand) document.fonts?.load(`${Math.max(inf.brand.weight, 500)} 40px ${inf.brand.family}`).then(() => !dead && bake(), () => {});
-    if (inf.cover) {
-      const img = new Image();
-      img.decoding = "async";
-      img.onload = () => {
-        const a = arts.get(r.id);
-        if (a && !dead) a.site = img;
-      };
-      img.src = inf.cover;
-    }
+    load(inf.brand?.logo, (img) => ((imgs.logo = img), bake()));
+    load(inf.brand?.mark, (img) => ((imgs.mark = img), bake()));
+    load(inf.cover, (img) => {
+      const a = arts.get(r.id);
+      if (a) a.site = img;
+    });
+  }
+  function load(src: string | null | undefined, done: (img: HTMLImageElement) => void) {
+    if (!src) return;
+    const img = new Image();
+    img.decoding = "async";
+    img.onload = () => !dead && done(img);
+    img.src = src;
   }
   const artOf = (id: string | null | undefined) => (id ? arts.get(id) ?? null : null);
 
@@ -440,10 +442,67 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     fn();
     ctx.restore();
   }
+  /**
+   * La compu de cada sala: los días sin entrar en grande y, si hay, las
+   * novedades en rojo. En una sala apagada queda como pantalla de bloqueo, en
+   * ámbar: desde el pasillo se ve cuánto hace que nadie entra.
+   */
+  function statusScreen(gl: Extract<Glow, { t: "screen" }>) {
+    const L = lightOf(gl.room), on = L > 0.5;
+    const lk = gl.room ? looks[gl.room] : undefined;
+    const days = lk?.days ?? null, badge = lk?.badge ?? 0;
+    const mark = artOf(gl.room)?.mark ?? null;
+    const q = gl.quad, flip = q[1][0] < q[0][0];
+    const W = 42, H = 30;
+    inQuad(flip ? [q[1], q[0], q[3], q[2]] : q, W, H, () => {
+      ctx.fillStyle = on ? "#121219" : "#07070b";
+      ctx.fillRect(0, 0, W, H);
+      if (on) {
+        ctx.fillStyle = "#1f1e27";
+        ctx.fillRect(0, 0, W, 7);
+        ctx.fillStyle = gl.accent;
+        ctx.fillRect(0, 7, W, 1);
+        if (mark) {
+          const k = Math.min(5.4 / mark.naturalWidth, 5.4 / mark.naturalHeight);
+          ctx.drawImage(mark, 1.4, 0.8, mark.naturalWidth * k, mark.naturalHeight * k);
+        }
+      }
+      const big = days === null ? "NUNCA" : days === 0 ? "HOY" : String(Math.min(days, 99));
+      const unit = days === null || days === 0 ? "" : days === 1 ? "DÍA" : "DÍAS";
+      const amber = (a: number) => `rgba(232,140,64,${a})`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = on ? "#f4efe6" : amber(0.45 + 0.4 * L);
+      ctx.font = `${big.length > 3 ? 8 : 14}px ${o.font}`;
+      ctx.fillText(big, W / 2, unit ? 16 : 18.5);
+      if (unit) {
+        ctx.font = `6px ${o.font}`;
+        ctx.fillStyle = on ? "#a39e95" : amber(0.4);
+        ctx.fillText(unit, W / 2, 25.5);
+      }
+      // Las novedades, en la barra de arriba (no pisan el número)
+      if (badge) {
+        ctx.fillStyle = "#ff3b30";
+        ctx.beginPath();
+        ctx.roundRect(W - 12.5, 0.6, 11.5, 6.6, 2.5);
+        ctx.fill();
+        ctx.fillStyle = "#ffffff";
+        ctx.font = `5px ${o.font}`;
+        ctx.fillText(badge > 9 ? "9+" : String(badge), W - 6.75, 4.1);
+      }
+      ctx.textAlign = "left";
+    });
+    if (on) {
+      ctx.globalCompositeOperation = "lighter";
+      fillPoly(ctx, gl.quad, `rgba(255,236,210,${0.06 * L})`);
+      ctx.globalCompositeOperation = "source-over";
+    }
+  }
   function screenGlow(gl: Extract<Glow, { t: "screen" }>, ts: number) {
+    if (gl.kind === "status") return statusScreen(gl);
     const L = lightOf(gl.room);
     const tick = reduced ? 0 : Math.floor(ts / 380);
-    // El monitor de mantenimiento muestra el sitio de verdad (derecho, aunque la pantalla mire a +x)
+    // Las pantallas «site» (el pedestal del archivo, los celulares) muestran el sitio de verdad, derecho aunque miren a +x
     const site = gl.kind === "site" && L > 0.5 ? artOf(gl.room)?.site : null;
     if (site) {
       const q = gl.quad, flip = q[1][0] < q[0][0];
@@ -473,28 +532,12 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
           }
           break;
         }
-        case "design": {
-          R(0, 0, 20, 12, "#efe9df");
-          R(1, 1, 7, 5, gl.accent);
-          R(9, 1, 6, 1.2, "#2a2830");
-          R(9, 3, 4, 1, "#9a948a");
-          R(1 + (reduced ? 9 : Math.floor(ts / 200) % 17), 8, 1.2, 1.2, "#15151b");
-          break;
-        }
         case "review": {
           R(0, 0, 20, 12, "#0f1a14");
           const live = Math.floor(ts / 900) % 4;
           for (let i = 0; i < 4; i++) {
             R(1, 1.5 + i * 2.6, 1.4, 1.4, i === live ? "#fcd34d" : "#6ee7b7");
             R(3.5, 1.7 + i * 2.6, 4 + hash(i, 5) * 12, 1, "#cfe9da");
-          }
-          break;
-        }
-        case "notes": {
-          R(0, 0, 20, 12, "#1b1b24");
-          for (let i = 0; i < 4; i++) {
-            R(1, 1.5 + i * 2.6, 1.2, 1.2, gl.accent);
-            R(3, 1.6 + i * 2.6, 4 + hash(i, 9) * 12, 1, "#e9e4da");
           }
           break;
         }
@@ -521,7 +564,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     });
     if (L > 0.5) {
       ctx.globalCompositeOperation = "lighter";
-      fillPoly(ctx, gl.quad, gl.kind === "site" || gl.kind === "design" ? `rgba(255,236,210,${0.08 * L})` : `rgba(110,170,255,${0.1 * L})`);
+      fillPoly(ctx, gl.quad, gl.kind === "site" ? `rgba(255,236,210,${0.08 * L})` : `rgba(110,170,255,${0.1 * L})`);
       ctx.globalCompositeOperation = "source-over";
     }
   }
@@ -695,83 +738,11 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     drawDark();
     emissives(ts);
 
-    // Carteles y nombres, en px de pantalla. Se acomodan para no pisarse:
-    // primero los nombres de las personas, después la sala donde estás y las
-    // más cercanas. Si un cartel no entra, se achica; si tampoco, no se dibuja.
+    // Sin carteles flotantes: cada sala se reconoce por su marca y por lo que
+    // dice su compu, y el nombre de la que está bajo el mouse va arriba (onHover).
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const toScreen = (p: XY): XY => [(p[0] * scale + offX) / dpr, (p[1] * scale + offY) / dpr];
-    signBoxes = [];
-    type Box = { x: number; y: number; w: number; h: number };
-    const taken: Box[] = [];
-    const hits = (b: Box) => taken.some((t) => b.x < t.x + t.w && b.x + b.w > t.x && b.y < t.y + t.h && b.y + b.h > t.y);
-    const nameOf = (w: Who) => (o.names?.[w] ?? w).toUpperCase();
     const near = !!po?.seat && current?.id === po.id && Math.abs(player.x - po.seat.x) + Math.abs(player.y - po.seat.y) <= 3;
-    const playerScreen = toScreen([psx, psy - 66]);
-    const tags: { text: string; at: XY }[] = [{ text: nameOf(me), at: playerScreen }];
-    if (po?.seat && !(near && partnerLine)) {
-      const [sx, sy] = P(po.seat.x + 0.5, po.seat.y + 0.5);
-      tags.push({ text: nameOf(otherOf(me)), at: toScreen([sx, sy - 54]) });
-    }
-    ctx.font = `8px ${o.font}`;
-    for (const t of tags) {
-      const w = Math.ceil(ctx.measureText(t.text).width) + 10;
-      taken.push({ x: t.at[0] - w / 2 - 2, y: t.at[1] - 15, w: w + 4, h: 17 });
-    }
-    const cands: { id: string | null; at: XY; spec: SignSpec; prio: number }[] = [];
-    for (const r of m.rooms) {
-      if (r.kind === "storage") continue;
-      let at: XY, spec: SignSpec;
-      if (r.kind === "project" || r.kind === "kitchen") {
-        const lk = looks[r.id];
-        const f = r.kind === "project" ? fadeOfId(r.id) : 0;
-        at = r.column === "left" ? P(r.door.x, r.door.y + 1.2, 64) : P(r.door.x, r.door.y - 0.2, 64);
-        spec = r.kind === "kitchen"
-          ? { name: "COCINA", fade: 0, accent: "#ff4d2e" }
-          : { name: (o.info[r.id]?.name ?? r.id).toUpperCase(), sub: daysLabel(lk?.days ?? null).toUpperCase(), badge: lk?.badge ?? 0, fade: f, accent: accentOf(r.id), gold: r.zone === "archive", warm: f < 0.2 };
-      } else if (r.kind === "office") {
-        at = P(r.door.x + 0.5, r.door.y, 52);
-        spec = { name: r.who === "franco" ? "FRANCO" : "FEDERICO", sub: r.who === me ? "TU OFICINA" : "OFICINA", fade: 0, accent: "#ff4d2e" };
-      } else {
-        at = P(r.door.x + 0.5, r.door.y, 44);
-        spec = { name: "RECEPCIÓN", fade: 0, accent: "#ff4d2e" };
-      }
-      const s = toScreen(at);
-      if (s[0] < -120 || s[1] < -60 || s[0] > canvas.width / dpr + 120 || s[1] > canvas.height / dpr + 60) continue;
-      cands.push({ id: r.id, at: s, spec, prio: r.id === current?.id ? -1 : Math.hypot(s[0] - playerScreen[0], s[1] - playerScreen[1]) });
-    }
-    if (m.archiveY !== null) {
-      const s = toScreen(P((m.spine.x0 + m.spine.x1) / 2, m.archiveY, 118));
-      cands.push({ id: null, at: s, spec: { name: "ARCHIVO", fade: 0, accent: "#c9a24a", gold: true }, prio: Math.hypot(s[0] - playerScreen[0], s[1] - playerScreen[1]) });
-    }
-    cands.sort((a, b) => a.prio - b.prio);
-    const far = ZOOMS[zi] < 0.8;
-    for (const c of cands) {
-      const short = { ...c.spec, sub: undefined };
-      const variants = far || !c.spec.sub ? [short] : [c.spec, short];
-      place: for (const spec of variants)
-        for (const dy of [0, -14, 14, -28]) {
-          const sz = measureSign(ctx, o.font, spec);
-          const box = { x: c.at[0] - sz.w / 2, y: c.at[1] + dy - sz.h, w: sz.w, h: sz.h };
-          if (hits(box)) continue;
-          const b = sign(ctx, o.font, c.at[0], c.at[1] + dy, spec);
-          taken.push(box);
-          if (c.id) signBoxes.push({ id: c.id, ...b });
-          break place;
-        }
-    }
-    // Nombres arriba de las cabezas, como en los hoteles pixelados
-    for (const t of tags) {
-      const [sx, sy] = t.at;
-      ctx.font = `8px ${o.font}`;
-      const w = Math.ceil(ctx.measureText(t.text).width) + 10, x = Math.round(sx - w / 2), y = Math.round(sy - 13);
-      ctx.fillStyle = "rgba(12,12,16,0.72)";
-      ctx.beginPath();
-      ctx.roundRect(x, y, w, 13, 4);
-      ctx.fill();
-      ctx.fillStyle = "#f1ede6";
-      ctx.textBaseline = "top";
-      ctx.fillText(t.text, x + 5, y + 3);
-    }
     // Globo del otro socio cuando te acercás a su escritorio
     if (po?.seat && partnerLine && near) {
       const [sx, sy] = toScreen(P(po.seat.x + 0.5, po.seat.y + 0.5, 64));
@@ -815,11 +786,6 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   function onDown(e: PointerEvent) {
     canvas.focus({ preventScroll: true });
     const t = toTile(e);
-    const hit = signBoxes.find((s) => t.cx >= s.x && t.cx <= s.x + s.w && t.cy >= s.y && t.cy <= s.y + s.h);
-    if (hit) {
-      api.goTo(hit.id);
-      return;
-    }
     if (!inBounds(m, t.x, t.y)) return;
     if (walkable(m, t.x, t.y) && walkTo(t)) return;
     const r = roomAt(m, t.x, t.y);
@@ -829,8 +795,18 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     if (e.pointerType !== "mouse") return;
     const t = toTile(e);
     hover = inBounds(m, t.x, t.y) ? { x: t.x, y: t.y } : null;
+    const r = hover ? roomAt(m, hover.x, hover.y) : null;
+    setHoverRoom(r && r.kind !== "storage" ? r.id : null);
   }
-  const onLeave = () => (hover = null);
+  function setHoverRoom(id: string | null) {
+    if (id === hoverRoom) return;
+    hoverRoom = id;
+    o.onHover?.(id);
+  }
+  const onLeave = () => {
+    hover = null;
+    setHoverRoom(null);
+  };
   const typing = (el: EventTarget | null) => el instanceof HTMLElement && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName));
   function onKey(e: KeyboardEvent) {
     const k = KEYS[e.key];
