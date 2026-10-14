@@ -34,23 +34,24 @@ export function EnVivo() {
   }, []);
 
   return (
-    <section id="en-vivo" className="border-t border-border py-20 md:py-28">
+    <section id="en-vivo" className="border-t border-border py-14 md:py-20">
       <Container>
-        <div className="max-w-2xl">
-          <p className="mb-5 font-mono text-xs tracking-widest text-muted uppercase">
-            <span className="text-accent">●</span> En vivo
-          </p>
-          <h2 className="display text-4xl uppercase text-foreground md:text-6xl">
-            <RevealText>Así laburamos, en vivo.</RevealText>
-          </h2>
-          <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted">
-            Cada sala es un proyecto en producción, con su sitio en la tele. Si
-            estamos conectados nos ves trabajando; si no, el guía te los muestra
-            uno por uno.
-          </p>
-        </div>
-        <div ref={ref} className="mt-12">
-          {near ? <EnVivoMap active={inView} /> : <MapFrame />}
+        {/* Una ventanita, como una cámara del estudio: no compite con el resto de la página. */}
+        <div className="grid items-center gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,440px)] md:gap-12">
+          <div className="max-w-md">
+            <p className="mb-4 font-mono text-xs tracking-widest text-muted uppercase">
+              <span className="text-accent">●</span> En vivo
+            </p>
+            <h2 className="display text-3xl uppercase text-foreground md:text-4xl">
+              <RevealText>Así laburamos.</RevealText>
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-muted">
+              Cada sala es un proyecto en producción, con su sitio en la tele.
+              Si estamos conectados nos ves trabajando; si no, el guía te los
+              muestra uno por uno.
+            </p>
+          </div>
+          <div ref={ref}>{near ? <EnVivoMap active={inView} /> : <MapFrame />}</div>
         </div>
         {/* Para teclado y lectores de pantalla: el mapa se recorre con el mouse. */}
         <ul className="sr-only">
