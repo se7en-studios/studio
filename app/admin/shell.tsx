@@ -11,7 +11,7 @@ import {
   ArrowUpRight,
   BarChart3,
   Bell,
-  CalendarDays,
+  Clapperboard,
   CalendarRange,
   CheckSquare,
   FolderKanban,
@@ -54,7 +54,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
       { href: "/admin/proyectos", label: "Proyectos", icon: <FolderKanban size={16} /> },
       { href: "/admin/tareas", label: "Tareas", icon: <CheckSquare size={16} />, badge: "overdue", tone: "red" },
       { href: "/admin/calendario", label: "Calendario", icon: <CalendarRange size={16} /> },
-      { href: "/admin/contenido", label: "Contenido", icon: <CalendarDays size={16} />, badge: "content", tone: "accent" },
+      { href: "/admin/contenido", label: "Contenido", icon: <Clapperboard size={16} />, badge: "content", tone: "accent" },
     ],
   },
   {

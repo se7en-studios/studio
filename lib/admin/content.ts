@@ -2,7 +2,7 @@
 // la service role key: NUNCA importar este archivo desde un componente de cliente.
 import type { LeadOwner } from "./db";
 import { PanelNotReady, client, sign } from "./panel";
-import type { ContentFile, ContentPost } from "./content-shared";
+import type { ContentFile, ContentPost, PostInput } from "./content-shared";
 
 const COLUMNS = "id, post_date, kind, title, pinned, steps, tips, caption, files, done_at, done_by";
 
@@ -66,4 +66,23 @@ export async function listPostsLite(): Promise<CalendarPost[]> {
     .order("id");
   if (error) fail(error);
   return data as CalendarPost[];
+}
+
+/** Un post nuevo desde el panel, sin archivos. */
+export async function insertPost(input: PostInput): Promise<ContentPost> {
+  const id = `${input.post_date}-${input.kind}-${crypto.randomUUID().slice(0, 8)}`;
+  const { data, error } = await client().from("content_posts").insert({ id, ...input }).select(COLUMNS).single();
+  if (error) fail(error);
+  return { ...(data as Row), files: [] };
+}
+
+/** Edita o reprograma un post. Devuelve el post anterior (para el registro) y el nuevo, sin re-firmar archivos. */
+export async function updatePost(id: string, input: PostInput): Promise<{ before: Row; after: Row } | null> {
+  const c = client();
+  const before = await c.from("content_posts").select(COLUMNS).eq("id", id).maybeSingle();
+  if (before.error) fail(before.error);
+  if (!before.data) return null;
+  const { data, error } = await c.from("content_posts").update(input).eq("id", id).select(COLUMNS).single();
+  if (error) fail(error);
+  return { before: before.data as Row, after: data as Row };
 }

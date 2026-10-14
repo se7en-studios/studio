@@ -2,16 +2,21 @@
 
 // Panel de contenido: un bloque por día con lo que hay que subir. El tilde de
 // «publicado» es optimista (se ve al instante y se revierte si el servidor falla).
+// Los posts se crean, editan y reprograman acá; los archivos siguen yendo por
+// scripts/seed-content.mjs.
 import { useMemo, useState, useTransition } from "react";
-import { Check, Copy, Download, FileVideo, Pin } from "lucide-react";
+import { Check, Copy, Download, FileVideo, Pencil, Pin, Plus, X } from "lucide-react";
 import {
+  KINDS,
   KIND_LABEL,
+  POST_TITLE_MAX,
   type ContentFile,
   type ContentPost,
+  type PostInput,
 } from "@/lib/admin/content-shared";
-import { Card, Chip, Empty, btnSecondary, cn } from "../kit";
-import { useToast } from "../overlay";
-import { markPublished } from "./actions";
+import { Card, Chip, Empty, btnGhost, btnPrimary, btnSecondary, cn, input, label } from "../kit";
+import { Dialog, useToast } from "../overlay";
+import { markPublished, savePost } from "./actions";
 
 type Filter = "pendientes" | "publicados" | "todo";
 const FILTERS: { id: Filter; label: string }[] = [
@@ -45,7 +50,21 @@ export function ContentView({ posts }: { posts: ContentPost[] }) {
   const [items, setItems] = useState(posts);
   const [filter, setFilter] = useState<Filter>("pendientes");
   const [, start] = useTransition();
+  /** null: cerrado; "new": alta; un post: editándolo. */
+  const [editing, setEditing] = useState<ContentPost | "new" | null>(null);
   const today = todayKey();
+
+  function saved(post: ContentPost) {
+    setItems((xs) => {
+      const old = xs.find((x) => x.id === post.id);
+      // Editar no toca los archivos: quedan los que ya estaban, con sus URLs.
+      const next = old ? xs.map((x) => (x.id === post.id ? { ...post, files: old.files } : x)) : [...xs, post];
+      return next.sort((a, b) => a.post_date.localeCompare(b.post_date) || a.id.localeCompare(b.id));
+    });
+    setEditing(null);
+    const moved = editing !== null && editing !== "new" && editing.post_date !== post.post_date;
+    flash(moved ? "Post reprogramado" : "Post guardado", "ok");
+  }
 
   const done = items.filter((p) => p.done_at).length;
   const next = items.find((p) => !p.done_at && p.post_date >= today);
@@ -91,7 +110,10 @@ export function ContentView({ posts }: { posts: ContentPost[] }) {
             </>
           )}
         </p>
-        <div className="ml-auto flex gap-1.5">
+        <div className="ml-auto flex flex-wrap items-center gap-1.5">
+          <button type="button" onClick={() => setEditing("new")} className={btnPrimary}>
+            <Plus size={14} /> Nuevo post
+          </button>
           {FILTERS.map((f) => (
             <Chip
               key={f.id}
@@ -120,9 +142,18 @@ export function ContentView({ posts }: { posts: ContentPost[] }) {
               post={p}
               isToday={p.post_date === today}
               onToggle={() => toggle(p)}
+              onEdit={() => setEditing(p)}
             />
           ))}
         </ul>
+      )}
+      {editing && (
+        <PostDialog
+          post={editing === "new" ? null : editing}
+          defaultDate={today}
+          onClose={() => setEditing(null)}
+          onSaved={saved}
+        />
       )}
     </div>
   );
@@ -132,10 +163,12 @@ function PostCard({
   post,
   isToday,
   onToggle,
+  onEdit,
 }: {
   post: ContentPost;
   isToday: boolean;
   onToggle: () => void;
+  onEdit: () => void;
 }) {
   const published = Boolean(post.done_at);
   return (
@@ -177,6 +210,9 @@ function PostCard({
                 {post.title}
               </h2>
             </div>
+            <button type="button" onClick={onEdit} aria-label={`Editar o reprogramar «${post.title}»`} className={btnGhost}>
+              <Pencil size={14} /> Editar
+            </button>
             <button
               type="button"
               onClick={onToggle}
@@ -282,5 +318,129 @@ function Caption({ text }: { text: string }) {
         {text}
       </pre>
     </details>
+  );
+}
+
+/** Alta o edición de un post. Cambiar la fecha lo reprograma. */
+function PostDialog({
+  post,
+  defaultDate,
+  onClose,
+  onSaved,
+}: {
+  post: ContentPost | null;
+  defaultDate: string;
+  onClose: () => void;
+  onSaved: (post: ContentPost) => void;
+}) {
+  const [draft, setDraft] = useState<PostInput>(
+    post
+      ? { post_date: post.post_date, kind: post.kind, title: post.title, pinned: post.pinned, steps: post.steps, caption: post.caption, tips: post.tips }
+      : { post_date: defaultDate, kind: "reel", title: "", pinned: false, steps: "", caption: "", tips: [] },
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const set = (p: Partial<PostInput>) => setDraft((d) => ({ ...d, ...p }));
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    start(async () => {
+      const res = await savePost(post?.id ?? null, draft);
+      if (res.post) onSaved(res.post);
+      else setError(res.error ?? "No se pudo guardar");
+    });
+  }
+
+  return (
+    <Dialog onClose={onClose} label={post ? "Editar post" : "Nuevo post"}>
+      <form onSubmit={submit} className="admin-scroll max-h-[92dvh] overflow-y-auto p-6">
+        <div className="flex items-start justify-between gap-4">
+          <h2 className="text-[20px] font-semibold tracking-[-0.01em]">{post ? "Editar post" : "Nuevo post"}</h2>
+          <button type="button" onClick={onClose} aria-label="Cancelar" className="focus-ring rounded-lg p-1.5 text-muted hover:bg-white/[0.06] hover:text-foreground">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label htmlFor="cp-title" className={label}>
+              Título
+            </label>
+            <input
+              id="cp-title"
+              required
+              autoFocus
+              maxLength={POST_TITLE_MAX}
+              value={draft.title}
+              onChange={(e) => set({ title: e.target.value })}
+              placeholder="Ej: Caso: Muzzaga Pádel"
+              className={input}
+            />
+          </div>
+          <div>
+            <label htmlFor="cp-date" className={label}>
+              Fecha
+            </label>
+            <input
+              id="cp-date"
+              type="date"
+              required
+              value={draft.post_date}
+              onChange={(e) => set({ post_date: e.target.value })}
+              className={cn(input, "[color-scheme:dark]")}
+            />
+          </div>
+          <div>
+            <label htmlFor="cp-kind" className={label}>
+              Tipo
+            </label>
+            <select id="cp-kind" value={draft.kind} onChange={(e) => set({ kind: e.target.value as PostInput["kind"] })} className={input}>
+              {KINDS.map((k) => (
+                <option key={k} value={k}>
+                  {KIND_LABEL[k]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <label className="flex items-center gap-2 text-[13px] text-muted sm:col-span-2">
+            <input type="checkbox" checked={draft.pinned} onChange={(e) => set({ pinned: e.target.checked })} className="accent-[var(--accent)]" />
+            Fijar en el perfil
+          </label>
+          <div className="sm:col-span-2">
+            <label htmlFor="cp-steps" className={label}>
+              Qué hacer
+            </label>
+            <textarea id="cp-steps" rows={3} value={draft.steps} onChange={(e) => set({ steps: e.target.value })} className={cn(input, "py-2.5")} />
+          </div>
+          <div className="sm:col-span-2">
+            <label htmlFor="cp-tips" className={label}>
+              Consejos (uno por línea)
+            </label>
+            <textarea
+              id="cp-tips"
+              rows={2}
+              value={draft.tips.join("\n")}
+              onChange={(e) => set({ tips: e.target.value.split("\n") })}
+              className={cn(input, "py-2.5")}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label htmlFor="cp-caption" className={label}>
+              Caption
+            </label>
+            <textarea id="cp-caption" rows={5} value={draft.caption} onChange={(e) => set({ caption: e.target.value })} className={cn(input, "py-2.5")} />
+          </div>
+        </div>
+        {!post && <p className="mt-3 text-[12px] text-muted">Los archivos se suben con scripts/seed-content.mjs.</p>}
+        {error && <p className="mt-3 text-[13px] text-red-400">{error}</p>}
+        <div className="mt-6 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className={btnGhost}>
+            Cancelar
+          </button>
+          <button type="submit" disabled={pending || !draft.title.trim()} className={btnPrimary}>
+            {pending ? "Guardando…" : post ? "Guardar" : "Agendar post"}
+          </button>
+        </div>
+      </form>
+    </Dialog>
   );
 }
