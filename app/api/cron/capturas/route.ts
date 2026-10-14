@@ -1,26 +1,49 @@
 import { NextResponse } from "next/server";
 import { saveCapture, sitesToCapture } from "@/lib/admin/capturas";
 import { authorizeCron } from "@/lib/admin/cron";
+import { verifyGithubOidc } from "@/lib/admin/github-oidc";
 import { PanelNotReady } from "@/lib/admin/panel";
 
 // Capturas de los sitios para la tele de «En vivo». La tarea de GitHub
 // (.github/workflows/capturas.yml) pide la lista (GET), saca cada captura con
-// Chrome y la sube acá (POST), con el mismo CRON_SECRET que los crons de
-// Vercel. No está en vercel.json: Vercel no puede abrir un Chrome.
+// Chrome y la sube acá (POST). No está en vercel.json: Vercel no puede abrir un Chrome.
+//
+// La tarea se identifica con el token OIDC que GitHub le firma (sin secretos
+// que copiar): sólo vale el de capturas.yml en master de este repo. A mano, desde
+// una compu, sirve el mismo CRON_SECRET que los crons de Vercel.
 export const dynamic = "force-dynamic";
+
+const CAPTURE_JOB = {
+  audience: "se7en-capturas",
+  repositoryId: "1334580586", // se7en-studios/studio
+  workflow: ".github/workflows/capturas.yml",
+  ref: "refs/heads/master",
+};
+
+async function authorize(request: Request) {
+  const token = (request.headers.get("authorization") ?? "").replace(/^Bearer /, "");
+  if (token.split(".").length === 3) {
+    const claims = await verifyGithubOidc(token, CAPTURE_JOB).catch((e) => {
+      console.error("[cron capturas] token de GitHub:", e instanceof Error ? e.message : e);
+      return null;
+    });
+    if (claims) return null;
+  }
+  return authorizeCron(request);
+}
 
 const SLUG = /^[a-z0-9-]{1,64}$/;
 /** Una página entera a 640 de ancho pesa menos de 1 MB; Vercel corta en 4,5 MB. */
 const MAX_BYTES = 4 * 1024 * 1024;
 
 export async function GET(request: Request) {
-  const denied = authorizeCron(request);
+  const denied = await authorize(request);
   if (denied) return denied;
   return NextResponse.json({ sites: await sitesToCapture() });
 }
 
 export async function POST(request: Request) {
-  const denied = authorizeCron(request);
+  const denied = await authorize(request);
   if (denied) return denied;
   const q = new URL(request.url).searchParams;
   const slug = q.get("slug") ?? "";
