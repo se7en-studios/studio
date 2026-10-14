@@ -75,6 +75,20 @@ for (const n of [0, 1, 4, 5, 8, 9, 18]) {
     assert.equal(S.roomAt(m, r.inside.x, r.inside.y)?.id, r.id, `${r.id}: la entrada queda adentro`);
     assert.equal(S.roomAt(m, r.outside.x, r.outside.y), null, `${r.id}: la salida queda en el pasillo`);
   }
+  // Cada sala lleva su marca: el felpudo afuera de la puerta (sin tapar el paso) y el cartel en una pared entera, adentro.
+  for (const r of m.rooms.filter((x) => x.kind === "project")) {
+    const mats = m.furni.filter((f) => f.k === "doormat" && f.room === r.id);
+    assert.equal(mats.length, 1, `${r.id}: un felpudo`);
+    assert.deepEqual([mats[0].x, mats[0].y, mats[0].solid], [r.outside.x, r.outside.y, false], `${r.id}: el felpudo va afuera de la puerta`);
+    const signs = m.decor.filter((d) => d.k === "brand" && d.room === r.id);
+    assert.equal(signs.length, 1, `${r.id}: un cartel`);
+    const s = signs[0];
+    for (let y = s.y; y < s.y + s.len; y++) {
+      assert.notEqual(m.edgeL[y][s.x], "none", `${r.id}: el cartel cuelga de una pared`);
+      assert.equal(S.hasDoor(m, s.x, y, "L"), false, `${r.id}: el cartel no tapa la puerta`);
+      assert.equal(S.roomAt(m, s.x, y)?.id, r.id, `${r.id}: el cartel queda adentro`);
+    }
+  }
   // Las paredes no se atraviesan: entre dos salas de proyecto vecinas no hay paso directo.
   const left = m.rooms.filter((r) => r.column === "left");
   if (left.length > 1) {

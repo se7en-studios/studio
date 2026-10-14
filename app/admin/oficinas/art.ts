@@ -131,6 +131,183 @@ function box(x: number, y: number, z: number, w: number, d: number, h: number, b
   poly([P(x, y, z + h), P(x + w, y, z + h), P(x + w, y + d, z + h), P(x, y + d, z + h)], c(o.top ?? lite(base, 0.12)), st);
 }
 
+// --- Imágenes: capturas de los sitios y texturas de marca ------------------------
+
+type Img = HTMLImageElement | HTMLCanvasElement;
+/** Largo de una baldosa medido sobre la pared o el piso, en px del mundo. */
+const TILE = Math.hypot(HW, HH);
+const sizeOf = (s: Img): [number, number] => (s instanceof HTMLImageElement ? [s.naturalWidth, s.naturalHeight] : [s.width, s.height]);
+const fadedCache = new WeakMap<Img, Map<number, HTMLCanvasElement | null>>();
+/** La misma imagen apagada con la cuenta de fadeHex. Se arma una vez por escalón de 5 %. */
+function faded(src: Img, f: number): Img {
+  const q = Math.round(f * 20) / 20;
+  if (q <= 0) return src;
+  let byQ = fadedCache.get(src);
+  if (!byQ) fadedCache.set(src, (byQ = new Map()));
+  let out = byQ.get(q);
+  if (out === undefined) {
+    out = null;
+    try {
+      const [w, h] = sizeOf(src);
+      const cv = document.createElement("canvas");
+      cv.width = w;
+      cv.height = h;
+      const t = cv.getContext("2d") as CanvasRenderingContext2D;
+      t.drawImage(src, 0, 0);
+      const data = t.getImageData(0, 0, w, h), px = data.data;
+      for (let i = 0; i < px.length; i += 4) {
+        const l = 0.3 * px[i] + 0.59 * px[i + 1] + 0.11 * px[i + 2];
+        for (let k = 0; k < 3; k++) px[i + k] = (px[i + k] * (1 - q) + l * q) * (1 - 0.4 * q);
+      }
+      t.putImageData(data, 0, 0);
+      out = cv;
+    } catch {
+      // Una imagen de otro origen no se deja leer: va sin apagar.
+    }
+    byQ.set(q, out);
+  }
+  return out ?? src;
+}
+/**
+ * Una imagen sobre un paralelogramo del mundo: `a` es la esquina de arriba a la
+ * izquierda tal como se lee, `b` la de arriba a la derecha y `d` la de abajo a
+ * la izquierda. Con `aspect` (ancho/alto real) recorta al centro en vez de deformar.
+ */
+export function quadImage(src: Img, a: XY, b: XY, d: XY, aspect?: number) {
+  const [w, h] = sizeOf(src);
+  if (!w || !h) return;
+  let sx = 0, sy = 0, sw = w, sh = h;
+  if (aspect) {
+    if (w / h > aspect) { sw = h * aspect; sx = (w - sw) / 2; }
+    else { sh = w / aspect; sy = (h - sh) / 2; }
+  }
+  g.save();
+  g.imageSmoothingQuality = "high";
+  g.transform((b[0] - a[0]) / sw, (b[1] - a[1]) / sw, (d[0] - a[0]) / sh, (d[1] - a[1]) / sh, a[0], a[1]);
+  g.drawImage(faded(src, F), sx, sy, sw, sh, 0, 0, sw, sh);
+  g.restore();
+}
+/** Una imagen colgada en una pared, derecha para el que mira (en la pared L el +u va hacia la izquierda). */
+function wallImage(dc: Decor, src: Img, u0: number, u1: number, z0: number, z1: number) {
+  const fc: Facing = dc.side === "L" ? "x" : "y";
+  const plane = (dc.side === "L" ? dc.x : dc.y) + 0.015, start = dc.side === "L" ? dc.y : dc.x;
+  const at = (u: number, z: number) => onFace(fc, plane, start, u, z);
+  const [l, r] = dc.side === "L" ? [u1, u0] : [u0, u1];
+  quadImage(src, at(l, z1), at(r, z1), at(l, z0), ((u1 - u0) * TILE) / (z1 - z0));
+}
+
+export type Brand = { family: string; weight: number; uppercase: boolean; highlight: string };
+/** Lo propio de cada sala: la captura del sitio (cuando carga) y las texturas con la marca. */
+export type RoomArt = { site: HTMLImageElement | null; rug: HTMLCanvasElement; mat: HTMLCanvasElement; poster: HTMLCanvasElement; court: HTMLCanvasElement };
+
+const TEX = 96; // px de textura por baldosa: alcanza para el zoom más cercano en pantallas retina
+const BRAND_FALLBACK = "ui-sans-serif, system-ui, sans-serif";
+const lumOf = (h: string) => {
+  const [r, gg, b] = rgb(h);
+  return 0.3 * r + 0.59 * gg + 0.11 * b;
+};
+function texture(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
+  const cv = document.createElement("canvas");
+  cv.width = Math.round(w);
+  cv.height = Math.round(h);
+  return [cv, cv.getContext("2d") as CanvasRenderingContext2D];
+}
+/**
+ * Escribe `text` centrado en (cx, cy) lo más grande que entre en maxW × maxH,
+ * medido por la tinta. Varios renglones van con el mismo cuerpo.
+ */
+function wordmark(t: CanvasRenderingContext2D, text: string | string[], font: (px: number) => string, cx: number, cy: number, maxW: number, maxH: number, color: string) {
+  const lines = typeof text === "string" ? [text] : text;
+  const lh = maxH / lines.length;
+  t.font = font(100);
+  let k = Infinity;
+  for (const s of lines) {
+    const m = t.measureText(s);
+    k = Math.min(k, maxW / (m.actualBoundingBoxLeft + m.actualBoundingBoxRight || 1), (lh * (lines.length > 1 ? 0.8 : 1)) / (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent || 1));
+  }
+  t.font = font(100 * k);
+  t.textAlign = "left";
+  t.textBaseline = "alphabetic";
+  t.fillStyle = color;
+  // Los renglones se alinean por la altura de las mayúsculas, no por su tinta (si no, «g» y «p» los desparejan).
+  const cap = t.measureText("H").actualBoundingBoxAscent;
+  lines.forEach((s, i) => {
+    const m = t.measureText(s);
+    const y = lines.length > 1 ? cy + (i - (lines.length - 1) / 2) * lh + cap / 2 : cy + (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2;
+    t.fillText(s, cx - (m.actualBoundingBoxRight - m.actualBoundingBoxLeft) / 2, y);
+  });
+}
+/** Un nombre largo en dos renglones parejos: «Apex / Performance», «Poné La / Pava». */
+function twoLines(s: string): string | string[] {
+  const sp = [...s.matchAll(/ /g)].map((m) => m.index as number);
+  if (s.length < 10 || !sp.length) return s;
+  const cut = sp.reduce((a, b) => (Math.abs(b - s.length / 2) < Math.abs(a - s.length / 2) ? b : a));
+  return [s.slice(0, cut), s.slice(cut + 1)];
+}
+
+/**
+ * Las texturas con la marca del proyecto: su nombre en su tipografía y su color.
+ * `posterAspect` es ancho/alto del cartel (la pared alta y la media no miden lo mismo).
+ * Se vuelven a hornear cuando termina de bajar la tipografía.
+ */
+export function bakeBrand(name: string, accent: string, brand: Brand | null, posterAspect: number): Omit<RoomArt, "site"> {
+  const family = brand?.family ?? BRAND_FALLBACK;
+  // Las marcas de trazo fino (Outfit 300) no se leen chiquitas: mínimo 500.
+  const font = (px: number) => `${Math.max(brand?.weight ?? 700, 500)} ${px}px ${family}`;
+  const text = brand?.uppercase ? name.toUpperCase() : name;
+  const ink = lumOf(accent) < 80 ? lite(accent, 0.45) : accent;
+  const deep = mix(accent, "#16141b", 0.8);
+  const cream = "#f4efe6";
+
+  // Alfombra de 3×2: guarda del color de la marca y el nombre al medio
+  const [rug, r] = texture(3 * TEX, 2 * TEX);
+  const e = 0.08 * TEX;
+  r.fillStyle = accent;
+  r.beginPath();
+  r.roundRect(e, e, 3 * TEX - 2 * e, 2 * TEX - 2 * e, 0.06 * TEX);
+  r.fill();
+  r.fillStyle = deep;
+  r.fillRect(0.18 * TEX, 0.18 * TEX, 2.64 * TEX, 1.64 * TEX);
+  r.strokeStyle = "rgba(244,239,230,0.35)";
+  r.lineWidth = 1.5;
+  r.strokeRect(0.25 * TEX, 0.25 * TEX, 2.5 * TEX, 1.5 * TEX);
+  wordmark(r, text, font, 1.5 * TEX, TEX, 2.25 * TEX, 0.62 * TEX, ink);
+
+  // Felpudo: el color de la marca con el nombre en oscuro, como un felpudo teñido
+  const [mat, t] = texture(0.84 * TEX * 1.4, 0.64 * TEX * 1.4);
+  const mw = mat.width, mh = mat.height;
+  t.fillStyle = mix(accent, "#1a1820", 0.55);
+  t.beginPath();
+  t.roundRect(0, 0, mw, mh, 6);
+  t.fill();
+  t.fillStyle = accent;
+  t.fillRect(5, 5, mw - 10, mh - 10);
+  t.fillStyle = "rgba(255,255,255,0.12)";
+  for (let i = 0; i < 40; i++) t.fillRect(5 + hash(i, 3) * (mw - 12), 5 + hash(3, i) * (mh - 12), 2, 1);
+  wordmark(t, twoLines(text), font, mw / 2, mh / 2, mw * 0.8, mh * 0.56, mix(accent, "#141218", 0.82));
+
+  // Cartel de pared: el nombre grande y, abajo, el remate de la frase de la marca
+  const ph = 120, pw = ph * posterAspect;
+  const [poster, p] = texture(pw, ph);
+  p.fillStyle = deep;
+  p.fillRect(0, 0, pw, ph);
+  p.strokeStyle = accent;
+  p.lineWidth = 3;
+  p.strokeRect(6, 6, pw - 12, ph - 12);
+  const hl = brand?.highlight ?? "";
+  if (hl) {
+    wordmark(p, text, font, pw / 2, ph * 0.42, pw * 0.82, ph * 0.36, ink);
+    wordmark(p, hl, font, pw / 2, ph * 0.76, pw * 0.62, ph * 0.12, cream);
+  } else wordmark(p, text, font, pw / 2, ph / 2, pw * 0.82, ph * 0.42, ink);
+
+  // El nombre pintado en la cancha (sólo lo usa el pádel)
+  const [court, k] = texture(1.4 * TEX, 0.9 * TEX);
+  k.globalAlpha = 0.82;
+  wordmark(k, twoLines(text), font, court.width / 2, court.height / 2, court.width * 0.94, court.height * 0.62, "#f4f1ea");
+
+  return { rug, mat, poster, court };
+}
+
 /** Punto sobre una cara vertical: la que mira a +y (plano y = plane) o a +x (plano x = plane). */
 const onFace = (face: Facing, plane: number, start: number, u: number, z: number): XY =>
   face === "y" ? P(start + u, plane, z) : P(plane, start + u, z);
@@ -204,9 +381,16 @@ export function slab(m: MapModel, matAt: (x: number, y: number) => Material) {
   }
 }
 
-/** Lo que va pintado en el piso según el tema: la cancha de pádel y la colchoneta. */
-export function decal(f: Furni, accent: string) {
+/** Lo que va pintado en el piso según el tema: la cancha de pádel, la colchoneta y el felpudo de la puerta. */
+export function decal(f: Furni, accent: string, art: RoomArt | null) {
   const { x, y, w, d } = f;
+  if (f.k === "doormat") {
+    // Se lee de frente: el texto corre a lo largo de la puerta (hacia -y) y mira al pasillo.
+    poly([P(x + 0.16, y + 0.06), P(x + 0.84, y + 0.06), P(x + 0.84, y + 0.94), P(x + 0.16, y + 0.94)], "rgba(20,16,22,0.22)");
+    if (art) quadImage(art.mat, P(x + 0.18, y + 0.92), P(x + 0.18, y + 0.08), P(x + 0.82, y + 0.92));
+    else poly([P(x + 0.18, y + 0.08), P(x + 0.82, y + 0.08), P(x + 0.82, y + 0.92), P(x + 0.18, y + 0.92)], c(accent), OUT_SOFT);
+    return;
+  }
   if (f.k === "court") {
     poly([P(x + 0.05, y + 0.05), P(x + w - 0.05, y + 0.05), P(x + w - 0.05, y + d - 0.05), P(x + 0.05, y + d - 0.05)], c("#2f6fb3"), OUT_SOFT);
     const L = c("#f4f1ea");
@@ -220,6 +404,8 @@ export function decal(f: Furni, accent: string) {
       [P(x + w * 0.75, y + 0.2), P(x + w * 0.75, y + d - 0.2)],
     ];
     for (const [a, b] of segs) line(a, b, L, 1.2);
+    // El nombre del club pintado en la mitad de atrás, como en las canchas de verdad
+    if (art) quadImage(art.court, P(x + 0.32, y + 0.25), P(x + w / 2 - 0.28, y + 0.25), P(x + 0.32, y + d - 0.85), (w / 2 - 0.6) / (d - 1.1));
     // La red, en el medio de la cancha
     poly([P(x + w / 2, y + 0.12, 9), P(x + w / 2, y + d - 0.12, 9), P(x + w / 2, y + d - 0.12, 0), P(x + w / 2, y + 0.12, 0)], "rgba(18,18,24,0.4)");
     line(P(x + w / 2, y + 0.12, 9), P(x + w / 2, y + d - 0.12, 9), L, 1.4);
@@ -227,6 +413,13 @@ export function decal(f: Furni, accent: string) {
     poly([P(x + 0.18, y + 0.05), P(x + 0.82, y + 0.05), P(x + 0.82, y + d - 0.05), P(x + 0.18, y + d - 0.05)], c(accent), OUT_SOFT);
     line(P(x + 0.18, y + 0.3), P(x + 0.82, y + 0.3), c(dark(accent, 0.25)), 1);
   }
+}
+
+/** La alfombra de una sala de proyecto, con la marca horneada (ver bakeBrand). */
+export function brandRug(f: Furni, tex: HTMLCanvasElement) {
+  const { x, y, w, d } = f;
+  poly([P(x + 0.1, y + 0.12), P(x + w - 0.04, y + 0.12), P(x + w - 0.04, y + d - 0.02), P(x + 0.1, y + d - 0.02)], "rgba(20,16,22,0.18)");
+  quadImage(tex, P(x, y), P(x + w, y), P(x, y + d));
 }
 
 export function rug(f: Furni, color: string, edge: string) {
@@ -264,7 +457,7 @@ export function wallSegment(side: "L" | "R", x: number, y: number, kind: "rail" 
 }
 
 /** Lo que va colgado en una pared (ventana, pizarrón, tele…). Se recorta al tramo que se está dibujando. */
-export function decor(dc: Decor, accent: string, period: Period) {
+export function decor(dc: Decor, accent: string, period: Period, art: RoomArt | null = null) {
   const fc: Facing = dc.side === "L" ? "x" : "y";
   const plane = dc.side === "L" ? dc.x + 0.01 : dc.y + 0.01;
   const start = dc.side === "L" ? dc.y : dc.x;
@@ -300,13 +493,26 @@ export function decor(dc: Decor, accent: string, period: Period) {
       R(0.33, 0.67, kindZ(dc).z1 - 10, kindZ(dc).z1 - 8, "#f2ede4");
       break;
     case "frame":
-      R(0.15, 0.85, 9, 31, "#c9a24a", OUT_SOFT);
-      R(0.2, 0.8, 12, 28, "#f2ede4");
-      R(0.2, 0.8, 24, 28, accent);
-      R(0.26, 0.5, 14, 22, dark(accent, 0.25));
-      R(0.56, 0.74, 19, 20, "#9a948a");
-      R(0.56, 0.7, 16, 17, "#9a948a");
+      // El sitio en vivo, enmarcado: la captura de verdad apenas carga
+      R(0.1, 0.9, 7, 31, "#c9a24a", OUT_SOFT);
+      R(0.14, 0.86, 10, 28, "#f2ede4");
+      if (art?.site) {
+        wallImage(dc, art.site, 0.17, 0.83, 12, 26);
+        break;
+      }
+      R(0.17, 0.83, 22, 26, accent);
+      R(0.22, 0.48, 13, 20, dark(accent, 0.25));
+      R(0.54, 0.76, 17, 18, "#9a948a");
+      R(0.54, 0.7, 14, 15, "#9a948a");
       break;
+    case "brand": {
+      // El cartel con el nombre del proyecto en su letra
+      const [z0, z1] = brandZ(dc);
+      R(0.08, L - 0.08, z0 - 2, z1 + 2, "#1f1e26", OUT_SOFT);
+      if (art) wallImage(dc, art.poster, 0.12, L - 0.12, z0, z1);
+      else R(0.12, L - 0.12, z0, z1, dark(accent, 0.1));
+      break;
+    }
     case "plaque":
       R(0.3, 0.7, 16, 26, "#c9a24a", OUT_SOFT);
       R(0.35, 0.65, 18, 24, "#e8c14e");
@@ -377,6 +583,10 @@ export function decor(dc: Decor, accent: string, period: Period) {
   }
 }
 const kindZ = (dc: Decor) => (dc.side === "L" && dc.x === 0 ? { z0: 50, z1: 90 } : { z0: 8, z1: 32 });
+/** El cartel de marca: arriba de la lámpara en la pared alta del edificio, o a lo alto de una media pared. */
+const brandZ = (dc: Decor): [number, number] => (dc.side === "L" && dc.x === 0 ? [56, 92] : [7, 31]);
+/** Ancho/alto del cartel de marca colgado en `dc`, para hornearlo sin recortes. */
+export const posterAspect = (dc: Decor) => ((dc.len - 0.24) * TILE) / (brandZ(dc)[1] - brandZ(dc)[0]);
 
 /** Pantallas dibujadas en una pared: el motor les pone contenido por arriba de la oscuridad. */
 export function decorScreen(dc: Decor): { quad: XY[]; kind: ScreenKind } | null {

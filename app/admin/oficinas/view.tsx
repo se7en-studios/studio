@@ -29,6 +29,7 @@ import {
   type Who,
 } from "@/lib/admin/oficinas-shared";
 import { PEOPLE } from "@/lib/admin/people";
+import { brandFamilies, type BrandFont } from "@/lib/brand-fonts";
 import { PROJECT_STATUSES, type ProjectStatus } from "@/lib/admin/project-shared";
 import { dueLabel } from "@/lib/admin/task-shared";
 import { Face, Progress, StatusPill, btnPrimary, btnSecondary, cn } from "../kit";
@@ -37,6 +38,9 @@ import { createEngine, type Engine, type RoomLooks } from "./engine";
 
 type Visits = Record<Who, Record<string, string | null>>;
 type Dir = "up" | "down" | "left" | "right";
+
+/** Las capturas de /public pasan por el optimizador: en la sala ocupan menos de 100 px. */
+const coverSrc = (src: string | null) => (src?.startsWith("/") ? `/_next/image?url=${encodeURIComponent(src)}&w=256&q=75` : src);
 
 export function OficinasView({ data, font, fontClass }: { data: OficinasData; font: string; fontClass: string }) {
   const me = data.me, other = otherOf(me);
@@ -93,7 +97,8 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
     const info = Object.fromEntries(
       map.rooms.filter((r) => r.slug).map((r) => {
         const p = bySlug.get(r.slug as string) as OfiProject;
-        return [r.id, { name: p.name, accent: p.accent, status: p.status }];
+        const family = p.brand ? brandFamilies[p.brand.font as BrandFont] : undefined;
+        return [r.id, { name: p.name, accent: p.accent, status: p.status, cover: coverSrc(p.cover), brand: p.brand && family ? { ...p.brand, family } : null }];
       }),
     );
     const engine = createEngine(canvas, {

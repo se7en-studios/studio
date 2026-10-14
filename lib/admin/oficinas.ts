@@ -2,6 +2,7 @@
 // eventos y las visitas de cada uno. Usa la service role key: NUNCA importar
 // este archivo desde un componente de cliente (los tipos están en
 // oficinas-shared.ts).
+import { getProjectBySlug } from "@/data/projects";
 import { db } from "./db";
 import { PanelNotReady, caseProjects, client, fail, getProject, listProjects, type PanelProject } from "./panel";
 import { defaultState, type ProjectState } from "./project-shared";
@@ -14,6 +15,7 @@ import {
   salaMasApagada,
   zoneOf,
   type OficinasData,
+  type OfiBrand,
   type OfiEvent,
   type OfiProject,
   type OfiTask,
@@ -32,6 +34,12 @@ type EventRow = { id: string; created_at: string; actor: Who | null; text: strin
 const toTask = (t: TaskRow): OfiTask => ({ id: t.id, title: t.title, assignee: t.assignee, due: t.due, priority: t.priority, projectSlug: t.project_slug });
 const toEvent = (e: EventRow): OfiEvent => ({ id: e.id, createdAt: e.created_at, actor: e.actor, text: e.text, projectSlug: e.project_slug });
 
+/** La tipografía de la marca, sólo en los casos de la web. */
+function brandOf(slug: string): OfiBrand | null {
+  const b = getProjectBySlug(slug)?.brand;
+  return b ? { font: b.font, weight: b.weight ?? 400, uppercase: b.uppercase ?? false, highlight: b.highlight ?? "" } : null;
+}
+
 function toProject(p: PanelProject, s: ProjectState, tasks: OfiTask[], events: OfiEvent[], lastVisit: Record<Who, string | null>): OfiProject {
   return {
     slug: p.slug,
@@ -40,6 +48,8 @@ function toProject(p: PanelProject, s: ProjectState, tasks: OfiTask[], events: O
     tagline: p.tagline ?? "",
     client: s.client,
     accent: p.accent,
+    cover: p.cover,
+    brand: p.isCase ? brandOf(p.slug) : null,
     status: s.status,
     owner: s.owner,
     due: s.due,
