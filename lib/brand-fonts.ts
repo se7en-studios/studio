@@ -1,11 +1,11 @@
 import {
   Anton,
   Barlow_Condensed,
-  Bricolage_Grotesque,
   Outfit,
   Playfair_Display,
   Plus_Jakarta_Sans,
 } from "next/font/google";
+import localFont from "next/font/local";
 
 // Tipografías de marca de cada proyecto, las mismas que usan sus sitios.
 // Sólo las usa la rueda de Trabajo para el nombre y la frase del proyecto
@@ -13,9 +13,11 @@ import {
 // el proyecto que la usa, no en la primera carga de la página.
 
 const anton = Anton({ subsets: ["latin"], weight: "400", preload: false });
-const bricolage = Bricolage_Grotesque({
-  subsets: ["latin"],
-  weight: ["700", "800"],
+// Bricolage va desde el repo (lib/fonts): pedírsela a Google en cada build
+// hacía fallar el CI de vez en cuando. Es la variable latina de Google Fonts.
+const bricolage = localFont({
+  src: "./fonts/bricolage-grotesque-latin.woff2",
+  weight: "200 800",
   preload: false,
 });
 const playfair = Playfair_Display({

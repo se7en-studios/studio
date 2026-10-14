@@ -29,7 +29,8 @@ import {
   type Who,
 } from "@/lib/admin/oficinas-shared";
 import { PEOPLE } from "@/lib/admin/people";
-import { domainOf, roomInfoOf } from "@/lib/en-vivo";
+import { domainOf } from "@/lib/en-vivo";
+import { roomInfoOf } from "@/lib/en-vivo-sala";
 import { PROJECT_STATUSES, type ProjectStatus } from "@/lib/admin/project-shared";
 import { dueLabel } from "@/lib/admin/task-shared";
 import { Face, Progress, StatusPill, btnPrimary, btnSecondary, cn } from "../kit";

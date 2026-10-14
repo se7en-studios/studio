@@ -7,7 +7,8 @@ import { ArrowUpRight } from "lucide-react";
 import { createEngine, type ActorSpec, type Engine, type RoomLooks } from "@/app/admin/oficinas/engine";
 import type { EnVivoPublic } from "@/app/api/en-vivo/route";
 import { buildMap, hourIn, periodOf, themeOf, type MapModel, type Who } from "@/lib/admin/oficinas-shared";
-import { publicProjects, roomInfoOf, type PublicCapture } from "@/lib/en-vivo";
+import { publicProjects, type PublicCapture } from "@/lib/en-vivo";
+import { roomInfoOf } from "@/lib/en-vivo-sala";
 import { MapFrame } from "./en-vivo-frame";
 
 // El mismo mapa de «En vivo» del panel, en modo público: sin el panel de la
