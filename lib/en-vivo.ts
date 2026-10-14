@@ -13,12 +13,13 @@ import { brandFamilies, type BrandFont } from "@/lib/brand-fonts";
  */
 const M = "/admin/oficinas/marcas/";
 const MARCAS: Record<string, { logo?: string; mark?: string }> = {
+  "altum-sci": { logo: `${M}altum-sci-logo.png`, mark: `${M}altum-sci-mark.png` },
   "apex-ai": { logo: `${M}apex-ai-logo.png`, mark: `${M}apex-ai-mark.png` },
   muzzaga: { logo: `${M}muzzaga-logo.png`, mark: `${M}muzzaga-mark.png` },
   pravilo: { logo: `${M}pravilo-logo.png`, mark: `${M}pravilo-mark.png` },
   sentinel: { logo: `${M}sentinel-logo.png`, mark: `${M}sentinel-mark.png` },
   "pone-la-pava": { logo: `${M}pone-la-pava-mark.png`, mark: `${M}pone-la-pava-mark.png` },
-  takefyy: { mark: `${M}takefyy-mark.png` },
+  takefyy: { logo: `${M}takefyy-logo.png`, mark: `${M}takefyy-mark.png` },
   "iphone-vita": { mark: `${M}iphone-vita-mark.png` },
 };
 
