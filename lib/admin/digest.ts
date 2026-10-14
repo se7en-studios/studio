@@ -28,6 +28,8 @@ export type DigestInput = {
   renewals?: Renewal[];
   /** Primer día del mes: recuerda bajar la copia de seguridad. */
   backupDue?: boolean;
+  /** Cobros pendientes con la fecha ya pasada: cuántos y el total en USD, sin clientes. */
+  lateCharges?: { count: number; usd: number };
 };
 
 const plural = (n: number, one: string, many: string) =>
@@ -67,6 +69,9 @@ export function morningDigest(i: DigestInput): Notice | null {
     taskLine(i.overdueTasks, i.dueTodayTasks),
     i.newLeads
       ? `${plural(i.newLeads, "pedido", "pedidos")} sin responder`
+      : null,
+    i.lateCharges?.count
+      ? `${plural(i.lateCharges.count, "cobro vencido", "cobros vencidos")}: USD ${Math.round(i.lateCharges.usd).toLocaleString("es-AR")}`
       : null,
     ...renewalLines(i.renewals ?? []),
     i.backupDue ? "Toca bajar la copia de seguridad del mes (Avisos → Copia de seguridad)" : null,
