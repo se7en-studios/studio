@@ -36,7 +36,7 @@ import { dueLabel } from "@/lib/admin/task-shared";
 import { Face, Progress, StatusPill, btnPrimary, btnSecondary, cn } from "../kit";
 import { useToast } from "../overlay";
 import { setMapRoom } from "../presence";
-import { createEngine, type Engine, type RoomLooks } from "./engine";
+import { createEngine, type Engine, type RoomLooks } from "@/lib/oficinas/engine";
 
 type Visits = Record<Who, Record<string, string | null>>;
 type Dir = "up" | "down" | "left" | "right";

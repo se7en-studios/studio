@@ -1,6 +1,8 @@
 // Motor de «En vivo»: cámara, orden de dibujo, luz, caminar y tocar. Sin React:
-// view.tsx lo monta sobre un <canvas> y le avisa lo que cambia (visitas, hora,
-// quién es quién). El arte está en art.ts y el plano en oficinas-shared.ts.
+// el panel (app/admin/oficinas/view.tsx) y la landing (components/sections/
+// en-vivo-map.tsx) lo montan sobre un <canvas> y le avisan lo que cambia
+// (visitas, hora, quién es quién). El arte está en art.ts y el plano en
+// lib/admin/oficinas-shared.ts.
 import {
   DECALS,
   canStep,
