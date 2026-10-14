@@ -169,6 +169,70 @@ export function salaMasApagada(
   return best;
 }
 
+// --- Cartel LED de la recepción ------------------------------------------------------
+
+/** Un tramo del cartel con su color (null = el ámbar del cartel). */
+export type LedPart = { text: string; color: string | null };
+/** Un mensaje: el cartel lo deja quieto si entra entero y si no lo pasa de derecha a izquierda. */
+export type LedMsg = LedPart[];
+
+/** Lo que el cartel sabe escribir: mayúsculas de la letra pixel, sin flechas ni comillas españolas. */
+export const ledText = (s: string) =>
+  s
+    .toUpperCase()
+    .replace(/→/g, ">")
+    .replace(/[«»“”]/g, '"')
+    .replace(/\s+/g, " ")
+    .trim();
+
+/** El color de cada socio en el cartel. */
+export const LED_WHO: Record<Who, string> = { federico: "#ff7a52", franco: "#8fd3ff" };
+export const LED_DIM = "#9a8f80";
+export const LED_OK = "#5eea8a";
+export const LED_HOT = "#ff5b4a";
+
+/**
+ * Lo que pasa por el cartel, en orden: la hora, cómo están las salas, las
+ * novedades que te esperan y los últimos movimientos del estudio.
+ */
+export function ledMessages(o: {
+  me: Who;
+  now: number;
+  projects: Pick<OfiProject, "slug" | "name" | "status" | "accent" | "events">[];
+  visitOf: (slug: string) => string | null;
+  events: OfiEvent[];
+}): LedMsg[] {
+  const { me, now, projects } = o;
+  const bySlug = new Map(projects.map((p) => [p.slug, p]));
+  const time = new Date(now).toLocaleTimeString("es-AR", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false });
+  const out: LedMsg[] = [[{ text: time, color: null }]];
+  const worst = salaMasApagada(projects, o.visitOf, now);
+  if (worst && worst.fade === 0) out.push([{ text: `LAS ${projects.length} SALAS PRENDIDAS`, color: LED_OK }]);
+  else if (worst)
+    out.push([
+      { text: "SALA MÁS APAGADA: ", color: null },
+      { text: ledText(worst.name), color: bySlug.get(worst.slug)?.accent ?? null },
+      { text: ` · ${ledText(worst.days === null ? "nunca entraste" : daysLabel(worst.days))}`, color: LED_DIM },
+    ]);
+  const badges = projects.map((p) => newSince(p.events, me, o.visitOf(p.slug), now)).filter((n) => n > 0);
+  const total = badges.reduce((a, b) => a + b, 0);
+  if (total)
+    out.push([
+      { text: `${total} ${total === 1 ? "NOVEDAD" : "NOVEDADES"}`, color: LED_HOT },
+      { text: ` ${badges.length === 1 ? "EN 1 SALA" : `EN ${badges.length} SALAS`}`, color: null },
+    ]);
+  for (const ev of o.events) {
+    const p = ev.projectSlug ? bySlug.get(ev.projectSlug) : null;
+    out.push([
+      { text: ev.actor ? (ev.actor === "federico" ? "FEDERICO" : "FRANCO") : "PANEL", color: ev.actor ? LED_WHO[ev.actor] : LED_DIM },
+      { text: ` ${ledText(ev.text)}`, color: null },
+      ...(p ? [{ text: ` · ${ledText(p.name)}`, color: p.accent }] : []),
+      { text: ` · ${ledText(relTime(ev.createdAt, now))}`, color: LED_DIM },
+    ]);
+  }
+  return out;
+}
+
 // --- Tema de cada sala -------------------------------------------------------------
 
 /** Lo que cuenta cada sala sobre su proyecto: la pieza del centro y el cuadro de la pared. */
