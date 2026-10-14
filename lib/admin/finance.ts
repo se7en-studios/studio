@@ -1,7 +1,7 @@
 // Ingresos y costos (tabla panel_finance). Los cobros de los proyectos son
 // ingresos con proyecto; los viejos de panel_payments se leen hasta correr
 // finance-v4.sql. Usa la service role key: NUNCA importar desde un componente de cliente.
-import type { LeadOwner } from "./db";
+import { missingTable, type LeadOwner } from "./db";
 import type { Entry, EntryInput } from "./finance-shared";
 import { fetchRates, referenceRate } from "./fx";
 import { paymentToEntry, type Payment } from "./payment-shared";
@@ -13,7 +13,7 @@ const COLUMNS = `${LEGACY_COLUMNS}, owner, status`;
 const LIMIT = 5000;
 
 function fail(e: { code?: string; message: string }): never {
-  if (e.code === "PGRST205" || e.code === "42P01") {
+  if (missingTable(e)) {
     throw new PanelNotReady("Falta correr supabase/finance.sql en Supabase.");
   }
   // Columna inexistente: falta supabase/finance-v2.sql (socios y pendientes).
@@ -70,7 +70,7 @@ export async function listCobros(fx: number, slug?: string): Promise<Entry[]> {
   if (slug) q = q.eq("project_slug", slug);
   const { data, error } = await q.order("paid_on", { ascending: false }).limit(LIMIT);
   if (error) {
-    if (error.code === "PGRST205" || error.code === "42P01") return [];
+    if (missingTable(error)) return [];
     // Falta finance-v3.sql: se avisa (la página muestra el paso) en vez de perder los ingresos en silencio.
     if (error.code === "42703")
       throw new PanelNotReady("Falta correr supabase/finance-v3.sql en Supabase.");

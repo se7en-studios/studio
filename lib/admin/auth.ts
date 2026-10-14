@@ -175,6 +175,15 @@ export const getSession = cache(async function getSession(): Promise<Session | n
   return { who: who as LeadOwner };
 });
 
+const SESSION_EXPIRED = "Sesión vencida: volvé a entrar.";
+
+/** Para las acciones del panel: la sesión, o un error que la UI muestra tal cual. */
+export async function requireSession(): Promise<Session> {
+  const me = await getSession();
+  if (!me) throw new Error(SESSION_EXPIRED);
+  return me;
+}
+
 /**
  * Para las páginas del panel: siempre por pedido (la sesión y los datos no
  * pueden quedar congelados en el build) y con el chequeo de sesión en cada

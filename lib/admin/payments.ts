@@ -2,6 +2,7 @@
 // de Finanzas con proyecto; estos se pueden corregir o borrar hasta que
 // finance-v4.sql los pase a Finanzas. Usa la service role key: NUNCA importar
 // este archivo desde un componente de cliente.
+import { missingTable } from "./db";
 import { PanelNotReady, client } from "./panel";
 import type { Payment } from "./payment-shared";
 
@@ -9,7 +10,7 @@ const COLUMNS = "id, created_at, project_slug, paid_on, amount, note, created_by
 
 function failPayments(e: { code?: string; message: string }): never {
   // Sin la tabla vieja: finance-v4.sql ya pasó los cobros a Finanzas.
-  if (e.code === "PGRST205" || e.code === "42P01") {
+  if (missingTable(e)) {
     throw new PanelNotReady("Ese cobro ya pasó a Finanzas: recargá la página.");
   }
   // Columna inexistente: falta supabase/finance-v3.sql (quién cobró cada pago).

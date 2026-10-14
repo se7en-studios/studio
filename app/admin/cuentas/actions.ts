@@ -8,6 +8,7 @@ import { after } from "next/server";
 import {
   checkPassword,
   getSession,
+  requireSession,
   lockVault,
   unlockVault,
   vaultUnlocked,
@@ -38,8 +39,7 @@ type Fail = { error: string; needPassword?: boolean };
 export type VaultResult<T> = T | Fail;
 
 async function guard() {
-  const me = await getSession();
-  if (!me) throw new Error("Sesión vencida: volvé a entrar.");
+  const me = await requireSession();
   if (!vaultReady()) throw new Error("Falta cargar VAULT_KEY en Vercel.");
   return me;
 }

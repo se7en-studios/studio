@@ -3,7 +3,7 @@
 // de a una, cuando alguien las pide (ver app/admin/cuentas/actions.ts).
 import { randomUUID } from "node:crypto";
 import type { LeadOwner } from "./db";
-import { PanelNotReady, client } from "./panel";
+import { client, failMissing } from "./panel";
 import { decrypt, encrypt } from "./vault-crypto";
 import type { Account, CleanAccount } from "./vault-shared";
 
@@ -12,12 +12,7 @@ const COLUMNS =
 
 type Row = Omit<Account, "has_notes"> & { notes_enc: string | null };
 
-function fail(e: { code?: string; message: string }): never {
-  if (e.code === "PGRST205" || e.code === "42P01") {
-    throw new PanelNotReady("Falta correr supabase/vault.sql en Supabase.");
-  }
-  throw new Error(e.message);
-}
+const fail = failMissing("Falta correr supabase/vault.sql en Supabase.");
 
 const toAccount = ({ notes_enc, ...rest }: Row): Account => ({
   ...rest,

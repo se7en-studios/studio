@@ -36,6 +36,9 @@ export type Lead = {
 export type NewLead = Pick<Lead, "source" | "name"> &
   Partial<Pick<Lead, "channel" | "email" | "company" | "project_type" | "budget" | "timeline" | "idea" | "owner" | "phone" | "value">>;
 
+/** La tabla no existe: falta correr su archivo de supabase/ en la base. */
+export const missingTable = (e: { code?: string }) => e.code === "PGRST205" || e.code === "42P01";
+
 let client: SupabaseClient | null | undefined;
 
 /** null si faltan las variables de entorno (el panel muestra cómo activarlo). */

@@ -4,7 +4,7 @@
 // oficinas-shared.ts).
 import { caseBrand } from "@/lib/en-vivo";
 import { latestCaptures, type SiteCapture } from "./capturas";
-import { db } from "./db";
+import { db, missingTable } from "./db";
 import { kindOf, type EventKind } from "./event-shared";
 import { PanelNotReady, caseProjects, client, fail, getProject, listProjects, type PanelProject } from "./panel";
 import { defaultState, type ProjectState } from "./project-shared";
@@ -29,7 +29,6 @@ const SLUG = /^[a-z0-9-]{1,64}$/;
  * finanzas, cuentas, contenido, llamadas ni seguridad (no van en «En vivo»).
  */
 const EVENT_KINDS: EventKind[] = ["archivos", "proyecto", "tarea"];
-const missingTable = (e: { code?: string }) => e.code === "PGRST205" || e.code === "42P01";
 const key = (who: string, slug: string) => `${who}|${slug}`;
 
 type TaskRow = { id: string; title: string; assignee: Who | null; due: string | null; priority: OfiTask["priority"]; project_slug: string | null };

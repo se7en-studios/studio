@@ -3,7 +3,7 @@
 // Acciones del CRM de pedidos: alta manual, datos de contacto, monto acordado
 // e historial de contactos. Etapa, responsable y notas siguen en ../actions.ts.
 import { after } from "next/server";
-import { getSession } from "@/lib/admin/auth";
+import { requireSession } from "@/lib/admin/auth";
 import {
   OWNERS,
   createLeadRow,
@@ -36,11 +36,7 @@ const CONTACT_TEXT: Record<ActivityKind, string> = {
   nota: "una nota",
 };
 
-async function guard() {
-  const me = await getSession();
-  if (!me) throw new Error("Sesión vencida: volvé a entrar.");
-  return me;
-}
+const guard = requireSession;
 
 const UUID = /^[0-9a-f-]{36}$/i;
 function checkId(id: string) {

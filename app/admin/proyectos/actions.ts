@@ -2,7 +2,7 @@
 
 import { after } from "next/server";
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/admin/auth";
+import { requireSession } from "@/lib/admin/auth";
 import { OWNERS, db, type Lead } from "@/lib/admin/db";
 import { dateLabel, diff, usd } from "@/lib/admin/changes";
 import { PEOPLE } from "@/lib/admin/people";
@@ -39,11 +39,7 @@ import {
 
 type FileInfo = { name: string; size: number; type: string };
 
-async function guard() {
-  const me = await getSession();
-  if (!me) throw new Error("Sesión vencida: volvé a entrar.");
-  return me;
-}
+const guard = requireSession;
 
 function message(e: unknown) {
   return e instanceof PanelNotReady || e instanceof Error ? e.message : "Algo falló. Probá de nuevo.";

@@ -1,7 +1,7 @@
 // Panel de contenido de Instagram (tabla content_posts). Igual que panel.ts usa
 // la service role key: NUNCA importar este archivo desde un componente de cliente.
 import type { LeadOwner } from "./db";
-import { PanelNotReady, client, sign } from "./panel";
+import { client, failMissing, sign } from "./panel";
 import type { ContentFile, ContentPost } from "./content-shared";
 
 const COLUMNS = "id, post_date, kind, title, pinned, steps, tips, caption, files, done_at, done_by";
@@ -9,12 +9,7 @@ const COLUMNS = "id, post_date, kind, title, pinned, steps, tips, caption, files
 type StoredFile = { path: string; name: string; size: number; mime: string };
 type Row = Omit<ContentPost, "files"> & { files: StoredFile[] };
 
-function fail(e: { code?: string; message: string }): never {
-  if (e.code === "PGRST205" || e.code === "42P01") {
-    throw new PanelNotReady("Falta correr supabase/content.sql en Supabase.");
-  }
-  throw new Error(e.message);
-}
+const fail = failMissing("Falta correr supabase/content.sql en Supabase.");
 
 /** Todos los posts por fecha, con una URL firmada por archivo. */
 export async function listPosts(): Promise<ContentPost[]> {

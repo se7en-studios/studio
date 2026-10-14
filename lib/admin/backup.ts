@@ -1,6 +1,7 @@
 // Copia de seguridad de lo que el panel guarda en Supabase (tablas, no archivos). Usa la
 // service role key: NUNCA importar desde un componente de cliente. Las claves de Cuentas
 // salen cifradas, tal cual están en la base: sin VAULT_KEY no se pueden leer.
+import { missingTable } from "./db";
 import { client } from "./panel";
 
 /** Las tablas del panel y de los pedidos. Una que no exista (todavía) se anota y se sigue. */
@@ -45,9 +46,7 @@ async function dump(table: string): Promise<TableDump> {
       .order("created_at", { ascending: true, nullsFirst: true })
       .range(rows.length, rows.length + PAGE - 1);
     if (error) {
-      // 42P01 / PGRST205: la tabla todavía no existe en esa base.
-      if (error.code === "PGRST205" || error.code === "42P01")
-        return { missing: true };
+      if (missingTable(error)) return { missing: true };
       // Alguna tabla no tiene created_at: se reintenta sin orden.
       if (error.code === "42703") return dumpUnordered(table);
       return { error: error.message };

@@ -12,7 +12,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { after } from "next/server";
-import { checkPassword, checkTotp, endSession, getSession, hasTotp, startSession } from "@/lib/admin/auth";
+import { checkPassword, checkTotp, endSession, hasTotp, requireSession, startSession } from "@/lib/admin/auth";
 import { OWNERS, STATUSES, patchLead, removeLead, type LeadOwner, type LeadStatus } from "@/lib/admin/db";
 import { leadDiff, STATUS_LABEL } from "@/lib/admin/lead-changes";
 import { logEvent } from "@/lib/admin/panel";
@@ -66,11 +66,7 @@ export async function logout() {
   revalidatePath("/admin", "layout");
 }
 
-async function guard() {
-  const me = await getSession();
-  if (!me) throw new Error("Sesión vencida: volvé a entrar.");
-  return me;
-}
+const guard = requireSession;
 
 const UUID = /^[0-9a-f-]{36}$/i;
 function checkId(id: string) {
