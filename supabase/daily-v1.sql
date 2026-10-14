@@ -11,3 +11,14 @@ alter table panel_tasks add column if not exists recur text;
 alter table panel_tasks drop constraint if exists panel_tasks_recur_check;
 alter table panel_tasks add constraint panel_tasks_recur_check
   check (recur is null or recur in ('semanal', 'mensual'));
+
+-- Adjuntos de los mensajes: [{ "path", "name", "size", "mime" }]. Los archivos
+-- van al bucket «panel», en _chat/<canal>/, subidos directo desde el navegador.
+alter table panel_messages add column if not exists attachments jsonb not null default '[]'::jsonb;
+-- Un mensaje puede ser sólo un adjunto, sin texto.
+alter table panel_messages drop constraint if exists panel_messages_body_check;
+alter table panel_messages add constraint panel_messages_body_check
+  check (char_length(body) <= 4000 and (char_length(body) > 0 or jsonb_array_length(attachments) > 0));
+-- Para buscar dentro de los mensajes.
+create extension if not exists pg_trgm;
+create index if not exists panel_messages_body_trgm_idx on panel_messages using gin (body gin_trgm_ops);

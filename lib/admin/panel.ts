@@ -373,7 +373,7 @@ export async function countFiles(slug: string): Promise<number> {
   return count ?? 0;
 }
 
-function safeName(name: string) {
+export function safeName(name: string) {
   const clean = name
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
