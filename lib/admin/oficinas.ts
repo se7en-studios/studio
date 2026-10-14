@@ -66,6 +66,8 @@ function toProject(p: PanelProject, s: ProjectState, tasks: OfiTask[], events: O
     client: s.client,
     accent: p.accent,
     cover: p.cover,
+    url: p.url,
+    video: p.video,
     brand: p.isCase ? brandOf(p.slug) : null,
     status: s.status,
     owner: s.owner,

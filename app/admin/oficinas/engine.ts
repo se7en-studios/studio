@@ -56,8 +56,12 @@ export type RoomInfo = {
   name: string;
   accent: string;
   status: string;
-  /** Captura del sitio: va enmarcada en la pared y en el monitor. */
+  /** Captura del sitio: la tele la muestra desde afuera. */
   cover?: string | null;
+  /** Grabación del sitio: la tele la pasa mientras estás en la sala. */
+  video?: string | null;
+  /** Dominio del sitio, para la barra del navegador de la tele. */
+  domain?: string | null;
   /** La marca: tipografía (familia ya resuelta) y rutas del logo y el ícono. null = letra genérica. */
   brand?: (Brand & { logo: string | null; mark: string | null }) | null;
 };
@@ -335,7 +339,32 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     if ((r?.id ?? null) !== (current?.id ?? null)) {
       current = r;
       o.onRoom(r ? r.id : null);
+      tuneTv();
     }
+  }
+
+  // La tele de la sala donde estás pasa la grabación del sitio; las demás
+  // muestran la captura quieta. Un solo video a la vez, y nada con movimiento reducido.
+  let tv: { room: string; el: HTMLVideoElement } | null = null;
+  function tuneTv() {
+    const id = current?.kind === "project" ? current.id : null;
+    if (tv && tv.room === id) return;
+    if (tv) {
+      tv.el.pause();
+      tv.el.removeAttribute("src");
+      tv.el.load();
+      tv = null;
+    }
+    const src = id ? o.info[id]?.video : null;
+    if (!id || !src || reduced) return;
+    const el = document.createElement("video");
+    el.muted = true;
+    el.loop = true;
+    el.playsInline = true;
+    el.preload = "auto";
+    el.src = src;
+    el.play().catch(() => {});
+    tv = { room: id, el };
   }
 
   function update(dt: number, ts: number) {
@@ -498,8 +527,71 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       ctx.globalCompositeOperation = "source-over";
     }
   }
+  /** La tele: barra de navegador con el dominio y, abajo, el sitio. Apagada en una sala apagada. */
+  function tvScreen(gl: Extract<Glow, { t: "screen" }>, ts: number) {
+    const L = lightOf(gl.room);
+    const q = gl.quad, flip = q[1][0] < q[0][0];
+    const qq = flip ? [q[1], q[0], q[3], q[2]] : q;
+    const W = 64, H = 42.7, BAR = 4;
+    if (L <= 0.15) {
+      inQuad(qq, W, H, () => {
+        ctx.fillStyle = "#050507";
+        ctx.fillRect(0, 0, W, H);
+      });
+      return;
+    }
+    const vid = tv && tv.room === gl.room && tv.el.readyState >= 2 && L > 0.9 ? tv.el : null;
+    const still = artOf(gl.room)?.site ?? null;
+    const lerp = (p: XY, r: XY, t: number): XY => [p[0] + (r[0] - p[0]) * t, p[1] + (r[1] - p[1]) * t];
+    const src = vid ?? still;
+    if (src) {
+      setFade(vid ? 0 : fadeOfId(gl.room));
+      quadImage(src, lerp(qq[0], qq[3], BAR / H), lerp(qq[1], qq[2], BAR / H), qq[3], W / (H - BAR));
+      setFade(0);
+    }
+    const domain = gl.room ? o.info[gl.room]?.domain ?? "" : "";
+    inQuad(qq, W, H, () => {
+      if (!src) {
+        ctx.fillStyle = "#101016";
+        ctx.fillRect(0, BAR, W, H - BAR);
+      }
+      ctx.fillStyle = "#26252d";
+      ctx.fillRect(0, 0, W, BAR);
+      ["#ff5f57", "#febc2e", "#28c840"].forEach((col, i) => {
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.arc(1.8 + i * 1.9, BAR / 2, 0.65, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.fillStyle = "#3a3942";
+      ctx.beginPath();
+      ctx.roundRect(8.5, 0.8, W - 17, BAR - 1.6, 1.2);
+      ctx.fill();
+      if (domain) {
+        ctx.font = `2.3px ${o.font}`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "#d8d4cc";
+        ctx.fillText(domain, W / 2, BAR / 2 + 0.1);
+        ctx.textAlign = "left";
+      }
+      // Punto rojo mientras pasa la grabación
+      if (vid && Math.floor(ts / 700) % 2 === 0) {
+        ctx.fillStyle = "#ff3b30";
+        ctx.beginPath();
+        ctx.arc(W - 3.5, BAR / 2, 0.9, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
+    if (L > 0.5) {
+      ctx.globalCompositeOperation = "lighter";
+      fillPoly(ctx, gl.quad, `rgba(255,236,210,${0.05 * L})`);
+      ctx.globalCompositeOperation = "source-over";
+    }
+  }
   function screenGlow(gl: Extract<Glow, { t: "screen" }>, ts: number) {
     if (gl.kind === "status") return statusScreen(gl);
+    if (gl.kind === "live") return tvScreen(gl, ts);
     const L = lightOf(gl.room);
     const tick = reduced ? 0 : Math.floor(ts / 380);
     // Las pantallas «site» (el pedestal del archivo, los celulares) muestran el sitio de verdad, derecho aunque miren a +x
@@ -878,6 +970,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     resize,
     destroy() {
       dead = true;
+      current = null;
+      tuneTv();
       cancelAnimationFrame(raf);
       mq.removeEventListener("change", onMq);
       canvas.removeEventListener("pointerdown", onDown);

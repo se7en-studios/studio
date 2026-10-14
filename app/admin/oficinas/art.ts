@@ -133,10 +133,11 @@ function box(x: number, y: number, z: number, w: number, d: number, h: number, b
 
 // --- Imágenes: capturas de los sitios y texturas de marca ------------------------
 
-type Img = HTMLImageElement | HTMLCanvasElement;
+type Img = HTMLImageElement | HTMLCanvasElement | HTMLVideoElement;
 /** Largo de una baldosa medido sobre la pared o el piso, en px del mundo. */
 const TILE = Math.hypot(HW, HH);
-const sizeOf = (s: Img): [number, number] => (s instanceof HTMLImageElement ? [s.naturalWidth, s.naturalHeight] : [s.width, s.height]);
+const sizeOf = (s: Img): [number, number] =>
+  s instanceof HTMLImageElement ? [s.naturalWidth, s.naturalHeight] : s instanceof HTMLVideoElement ? [s.videoWidth, s.videoHeight] : [s.width, s.height];
 const fadedCache = new WeakMap<Img, Map<number, HTMLCanvasElement | null>>();
 /** La misma imagen apagada con la cuenta de fadeHex. Se arma una vez por escalón de 5 %. */
 function faded(src: Img, f: number): Img {
@@ -530,19 +531,6 @@ export function decor(dc: Decor, accent: string, period: Period, art: RoomArt | 
       R(0.27, 0.73, kindZ(dc).z0 + 3, kindZ(dc).z1 - 3, dark(accent, 0.1));
       R(0.33, 0.67, kindZ(dc).z1 - 10, kindZ(dc).z1 - 8, "#f2ede4");
       break;
-    case "frame":
-      // El sitio en vivo, enmarcado: la captura de verdad apenas carga
-      R(0.1, 0.9, 7, 31, "#c9a24a", OUT_SOFT);
-      R(0.14, 0.86, 10, 28, "#f2ede4");
-      if (art?.site) {
-        wallImage(dc, art.site, 0.17, 0.83, 12, 26);
-        break;
-      }
-      R(0.17, 0.83, 22, 26, accent);
-      R(0.22, 0.48, 13, 20, dark(accent, 0.25));
-      R(0.54, 0.76, 17, 18, "#9a948a");
-      R(0.54, 0.7, 14, 15, "#9a948a");
-      break;
     case "brand": {
       // El cartel con el nombre del proyecto en su letra
       const [z0, z1] = brandZ(dc);
@@ -648,8 +636,8 @@ export const SKY: Record<Period, string> = { manana: "#f3b48d", dia: "#93cbf3", 
 // --- Muebles --------------------------------------------------------------------
 
 /** Pantallas, luces y LEDs que el motor vuelve a pintar arriba de la oscuridad. */
-/** «status»: la compu de cada sala de proyecto, con los días sin entrar y las novedades. */
-export type ScreenKind = "code" | "review" | "map" | "site" | "status";
+/** «status»: la compu de cada sala, con los días sin entrar y las novedades. «live»: la tele con el sitio. */
+export type ScreenKind = "code" | "review" | "map" | "site" | "status" | "live";
 export type Glow =
   | { t: "screen"; quad: XY[]; kind: ScreenKind; accent: string; room: string | null }
   | { t: "lamp"; at: XY; room: string | null }
@@ -819,6 +807,24 @@ export function furni(f: Furni, ctx: FurniCtx) {
       box(x + 0.25, y + 0.25, 0, 0.5, 0.5, 30, "#e2dbcf");
       monitor(x + 0.5, y + 0.45, "y", "site", ctx, f.room, 30);
       break;
+    case "tvstand": {
+      // Mueble bajo con una tele grande: el motor le pone el sitio (la
+      // grabación si estás en la sala; si no, la captura). Pantalla 16:11.
+      const wd = face === "y" ? w : d;
+      const at = (u: number, v: number, z: number) => (face === "y" ? P(x + u, y + v, z) : P(x + v, y + u, z));
+      const bx = (u: number, v: number, z: number, lu: number, lv: number, h: number, col: string, o?: { top?: string }) =>
+        face === "y" ? box(x + u, y + v, z, lu, lv, h, col, o) : box(x + v, y + u, z, lv, lu, h, col, o);
+      bx(0.12, 0.18, 0, wd - 0.24, 0.5, 12, "#3b3238", { top: "#4b4047" });
+      bx(0.2, 0.62, 3, wd * 0.4 - 0.2, 0.06, 6, "#2e272c");
+      bx(wd * 0.6, 0.62, 3, wd * 0.4 - 0.2, 0.06, 6, "#2e272c");
+      bx(wd / 2 - 0.22, 0.3, 12, 0.44, 0.16, 2, METAL);
+      bx(wd / 2 - 0.04, 0.34, 14, 0.08, 0.06, 3, METAL);
+      bx(0.06, 0.32, 16, wd - 0.12, 0.08, 46, "#141418");
+      const quad: XY[] = [at(0.12, 0.405, 60), at(wd - 0.12, 0.405, 60), at(wd - 0.12, 0.405, 18), at(0.12, 0.405, 18)];
+      poly(quad, c("#08080b"));
+      ctx.glows.push({ t: "screen", quad, kind: "live", accent: acc, room: f.room });
+      break;
+    }
     case "vitrine":
       box(x + 0.15, y + 0.15, 0, 0.7, 0.55, 8, "#2a2830");
       box(x + 0.38, y + 0.35, 8, 0.24, 0.2, 6, "#c9a24a");

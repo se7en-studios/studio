@@ -80,6 +80,7 @@ for (const n of [0, 1, 4, 5, 8, 9, 18]) {
     const mats = m.furni.filter((f) => f.k === "doormat" && f.room === r.id);
     assert.equal(mats.length, 1, `${r.id}: un felpudo`);
     assert.deepEqual([mats[0].x, mats[0].y, mats[0].solid], [r.outside.x, r.outside.y, false], `${r.id}: el felpudo va afuera de la puerta`);
+    assert.equal(m.furni.filter((f) => f.k === "tvstand" && f.room === r.id).length, 1, `${r.id}: una tele`);
     const signs = m.decor.filter((d) => d.k === "brand" && d.room === r.id);
     assert.equal(signs.length, 1, `${r.id}: un cartel`);
     const s = signs[0];
