@@ -1,7 +1,8 @@
 // Cómo se cuentan en el registro los cambios de un pedido. Puro.
 import type { Lead, LeadPatch, LeadStatus } from "./db";
-import { diff, usd, type Change } from "./changes";
+import { dateLabel, diff, usd, type Change } from "./changes";
 import { PEOPLE } from "./people";
+import { lostReasonLabel } from "./sales-shared";
 
 export const STATUS_LABEL: Record<LeadStatus, string> = {
   nuevo: "Nuevo",
@@ -23,5 +24,8 @@ export function leadDiff(before: Lead, patch: LeadPatch): Change[] {
     { field: "email", label: "Email" },
     { field: "phone", label: "Teléfono" },
     { field: "notes", label: "Notas internas", long: true },
+    { field: "lost_reason", label: "Motivo de pérdida", format: (v) => lostReasonLabel(v as string) || "—" },
+    { field: "lost_note", label: "Detalle de la pérdida", long: true },
+    { field: "expected_close", label: "Cierre previsto", format: dateLabel },
   ]);
 }

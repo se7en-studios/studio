@@ -3,12 +3,14 @@
 // Ficha de un pedido: datos, etapa, responder, seguimiento, historial y notas,
 // más la conversación interna y el registro de cambios.
 import { useEffect, useState } from "react";
-import { ArrowRight, Copy, History, Inbox, MessagesSquare, Trash2 } from "lucide-react";
+import { ArrowRight, CalendarClock, ClipboardList, Copy, History, Inbox, MessagesSquare, Trash2, Video } from "lucide-react";
 import { WhatsAppLogo } from "@/components/icons/whatsapp-logo";
 import { nextStep, priority } from "@/lib/admin/brief";
 import type { Lead, LeadOwner, LeadStatus } from "@/lib/admin/db";
 import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
 import { leadChannel } from "@/lib/admin/message-shared";
+import { MEET_NEW } from "@/lib/admin/calls";
+import { meetingLabel } from "@/lib/admin/sales-shared";
 import type { PanelEvent } from "@/lib/admin/panel";
 import { compareTasks, dayKey, type TaskLinks } from "@/lib/admin/task-shared";
 import type { Activity, ActivityKind } from "@/lib/admin/activity-shared";
@@ -19,6 +21,7 @@ import { Drawer } from "../overlay";
 import { ActivityLog } from "./activity";
 import type { ContactFields } from "./actions";
 import { DealFields } from "./deal";
+import { LostReason } from "./lost";
 import { Reply } from "./reply";
 import { WonProject } from "./won-project";
 import { COLUMNS, STAGE } from "./stages";
@@ -30,6 +33,7 @@ type Tab = "ficha" | "chat" | "cambios";
 export function Detail({
   lead,
   me,
+  room,
   onClose,
   onStatus,
   onOwner,
@@ -44,7 +48,12 @@ export function Detail({
   /** undefined: no se puede crear proyecto (falta panel-v2.sql). */
   projectSlug?: string | null;
   followUp: { api: TasksApi; links: TaskLinks; me: LeadOwner } | null;
-  deal: { onContact: (f: ContactFields) => void; onValue: (v: number | null) => void };
+  deal: {
+    onContact: (f: ContactFields) => void;
+    onValue: (v: number | null) => void;
+    onExpectedClose: (d: string | null) => void;
+    onLost: (reason: string | null, note: string) => void;
+  };
   history: {
     items: Activity[];
     onLog: (kind: ActivityKind, text: string, day: string) => void;
@@ -52,6 +61,8 @@ export function Detail({
   } | null;
   lead: Lead;
   me: LeadOwner;
+  /** Sala fija de Meet de quien mira; null: se abre una nueva. */
+  room: string | null;
   onClose: () => void;
   onStatus: (s: LeadStatus) => void;
   onOwner: (o: LeadOwner | null) => void;
@@ -62,6 +73,9 @@ export function Detail({
   const [notes, setNotesDraft] = useState(lead.notes);
   const [confirm, setConfirm] = useState(false);
   const [tab, setTab] = useState<Tab>("ficha");
+  const [now] = useState(() => Date.now());
+  // Una hora de gracia: la reunión que está en curso sigue figurando como agendada.
+  const upcoming = !!lead.meeting_at && Date.parse(lead.meeting_at) >= now - 3_600_000;
 
   function copyAll() {
     const text = [
@@ -139,8 +153,22 @@ export function Detail({
 
           {lead.status === "ganado" && projectSlug !== undefined && <WonProject leadId={lead.id} slug={projectSlug} />}
 
-          {/* Responder */}
-          <Reply lead={lead} onSent={(kind, label) => history?.onLog(kind, `Plantilla «${label}»`, dayKey())} />
+          {lead.status === "perdido" && <LostReason key={lead.id} lead={lead} onSave={deal.onLost} />}
+
+          {lead.meeting_at && (
+            <p
+              className={cn(
+                "mt-3 flex items-center gap-2 rounded-lg border px-3.5 py-2.5 text-[13px]",
+                upcoming ? "border-sky-400/30 bg-sky-400/[0.06] text-sky-300" : "border-[var(--line)] text-muted",
+              )}
+            >
+              <CalendarClock size={14} className="shrink-0" />
+              {upcoming ? "Reunión agendada" : "Tuvo reunión"} · {meetingLabel(lead.meeting_at)}
+            </p>
+          )}
+
+          {/* Responder: el contacto se anota cuando se confirma que se mandó. */}
+          <Reply lead={lead} onSent={history ? (kind, label) => history.onLog(kind, `Plantilla «${label}»`, dayKey()) : null} />
 
           <div className="mt-3 flex flex-wrap gap-2">
             {lead.channel === "whatsapp" && (
@@ -151,6 +179,17 @@ export function Detail({
             <button onClick={copyAll} className={btnSecondary}>
               <Copy size={14} /> Copiar datos
             </button>
+            {/* La sala se abre en otra pestaña y la reunión queda en el historial del pedido. */}
+            <a
+              href={room ?? MEET_NEW}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => history?.onLog("reunion", "Reunión por Meet desde el panel", dayKey())}
+              title={history ? "Abre la sala de Meet y anota la reunión en el historial" : "Abre la sala de Meet"}
+              className={btnSecondary}
+            >
+              <Video size={14} /> Reunión por Meet
+            </a>
           </div>
 
           <div className="mt-6 grid gap-5 sm:grid-cols-2">
@@ -201,7 +240,18 @@ export function Detail({
               ))}
           </dl>
 
-          <DealFields lead={lead} onContact={deal.onContact} onValue={deal.onValue} />
+          {lead.kickoff && (
+            <>
+              <p className={cn(sectionLabel, "mt-6 flex items-center gap-1.5")}>
+                <ClipboardList size={12} /> Kickoff que mandó el cliente
+              </p>
+              <p className="rounded-lg border border-[var(--line)] bg-[var(--well-soft)] p-3.5 text-[13px] leading-relaxed whitespace-pre-wrap text-foreground/90">
+                {lead.kickoff}
+              </p>
+            </>
+          )}
+
+          <DealFields lead={lead} onContact={deal.onContact} onValue={deal.onValue} onExpectedClose={deal.onExpectedClose} />
 
           {followUp && <FollowUps lead={lead} {...followUp} />}
 

@@ -2,7 +2,9 @@
 
 // Responder a un pedido con una plantilla: se elige el texto (la etapa sugiere uno),
 // se ve completo con el nombre y el proyecto del cliente, y se manda por WhatsApp o
-// mail, o se copia. Mandarlo queda anotado en el historial de contactos.
+// mail, o se copia. Abrir WhatsApp o el mail no prueba que se haya mandado: se
+// pregunta, y recién al confirmar queda anotado en el historial (y cuenta para
+// «primera respuesta»).
 import { useState } from "react";
 import { Copy, Mail } from "lucide-react";
 import { WhatsAppLogo } from "@/components/icons/whatsapp-logo";
@@ -16,18 +18,22 @@ import {
   waLink,
   type TemplateId,
 } from "@/lib/admin/templates";
-import { Chip, btnPrimary, btnSecondary, label } from "../kit";
+import { Chip, btnGhost, btnPrimary, btnSecondary, label } from "../kit";
 import { useToast } from "../overlay";
 
 type Props = {
   lead: Pick<Lead, "name" | "email" | "phone" | "status" | "project_type">;
-  /** Se abrió WhatsApp o el mail con la plantilla: para anotar el contacto. */
-  onSent: (kind: "mail" | "whatsapp", templateLabel: string) => void;
+  /** Se confirmó que se mandó: para anotar el contacto. null si no hay historial. */
+  onSent: ((kind: "mail" | "whatsapp", templateLabel: string) => void) | null;
 };
+
+type Kind = "mail" | "whatsapp";
 
 export function Reply({ lead, onSent }: Props) {
   const flash = useToast();
   const [picked, setPicked] = useState<TemplateId | null>(null);
+  // Se abrió WhatsApp o el mail (o se copió): falta confirmar que se mandó.
+  const [pending, setPending] = useState<{ kind: Kind; label: string } | null>(null);
   const tpl =
     TEMPLATES.find(
       (t) => t.id === (picked ?? suggestedTemplate(lead.status)),
@@ -40,6 +46,7 @@ export function Reply({ lead, onSent }: Props) {
     try {
       await navigator.clipboard.writeText(body);
       flash("Mensaje copiado", "ok");
+      setPending({ kind: lead.phone ? "whatsapp" : "mail", label: tpl.label });
     } catch {
       flash("No se pudo copiar: seleccionalo a mano.", "error");
     }
@@ -69,7 +76,7 @@ export function Reply({ lead, onSent }: Props) {
             href={wa}
             target="_blank"
             rel="noreferrer"
-            onClick={() => onSent("whatsapp", tpl.label)}
+            onClick={() => setPending({ kind: "whatsapp", label: tpl.label })}
             className={btnPrimary}
           >
             <WhatsAppLogo size={14} /> WhatsApp
@@ -78,7 +85,7 @@ export function Reply({ lead, onSent }: Props) {
         {lead.email && (
           <a
             href={mailLink(lead.email, fill(tpl.subject, vars), body)}
-            onClick={() => onSent("mail", tpl.label)}
+            onClick={() => setPending({ kind: "mail", label: tpl.label })}
             className={wa ? btnSecondary : btnPrimary}
           >
             <Mail size={14} /> Mail
@@ -88,6 +95,24 @@ export function Reply({ lead, onSent }: Props) {
           <Copy size={14} /> Copiar mensaje
         </button>
       </div>
+      {pending && onSent && (
+        <div role="status" className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--well-soft)] px-3 py-2 text-[13px]">
+          <span className="text-muted">¿Lo mandaste por {pending.kind === "whatsapp" ? "WhatsApp" : "mail"}?</span>
+          <button
+            type="button"
+            onClick={() => {
+              onSent(pending.kind, pending.label);
+              setPending(null);
+            }}
+            className={btnSecondary}
+          >
+            Sí, anotarlo
+          </button>
+          <button type="button" onClick={() => setPending(null)} className={btnGhost}>
+            Todavía no
+          </button>
+        </div>
+      )}
       {lead.phone && !wa && (
         <p className="mt-1.5 text-[12px] text-muted">
           Con ese teléfono no se puede armar el link de WhatsApp. Copiá el

@@ -8,6 +8,34 @@ import { budgetValue } from "./brief";
 export const dealValue = (l: Pick<Lead, "value" | "budget">) =>
   l.value ?? budgetValue(l.budget);
 
+/** Valor en juego: lo que está en charla o con propuesta (los nuevos todavía no cuentan). */
+export const pipelineValue = (
+  leads: Pick<Lead, "status" | "value" | "budget">[],
+) =>
+  leads
+    .filter((l) => l.status === "contactado" || l.status === "propuesta")
+    .reduce((s, l) => s + dealValue(l), 0);
+
+// Chance de cierre por etapa, para el pipeline ponderado. Son supuestos propios, no historial:
+// ajustarlos cuando haya suficientes pedidos cerrados para medirlos de verdad.
+export const STAGE_ODDS: Partial<Record<LeadStatus, number>> = {
+  nuevo: 0.1,
+  contactado: 0.25,
+  propuesta: 0.5,
+};
+
+/** Pipeline ponderado: cada pedido abierto vale su monto por la chance de su etapa. */
+export const weightedPipeline = (
+  leads: Pick<Lead, "status" | "value" | "budget">[],
+) => leads.reduce((s, l) => s + dealValue(l) * (STAGE_ODDS[l.status] ?? 0), 0);
+
+/** Tasa de cierre: ganados sobre decididos (ganados + perdidos), de 0 a 1. null si no hay decididos. */
+export function winRate(leads: Pick<Lead, "status">[]): number | null {
+  const won = leads.filter((l) => l.status === "ganado").length;
+  const decided = won + leads.filter((l) => l.status === "perdido").length;
+  return decided ? won / decided : null;
+}
+
 const TZ = "America/Argentina/Buenos_Aires";
 /** "2026-10" en hora de Argentina. */
 export const monthKey = (iso: string) =>
@@ -157,11 +185,9 @@ export function computeMetrics(
     total: leads.length,
     won: won.length,
     lost,
-    winRate: won.length + lost ? won.length / (won.length + lost) : null,
+    winRate: winRate(leads),
     wonValue,
-    pipelineValue: leads
-      .filter((l) => l.status === "contactado" || l.status === "propuesta")
-      .reduce((s, l) => s + dealValue(l), 0),
+    pipelineValue: pipelineValue(leads),
     avgTicket: won.length ? wonValue / won.length : null,
     firstResponseHours: activities ? median(waits) : null,
     responded: waits.length,

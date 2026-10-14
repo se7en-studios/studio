@@ -1,23 +1,24 @@
 "use client";
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { CalendarClock, Database, Download, LayoutGrid, List, Search, Snowflake } from "lucide-react";
+import { CalendarClock, Database, Download, LayoutGrid, List, RotateCcw, Search, Snowflake } from "lucide-react";
 import type { Lead, LeadOwner, LeadStatus } from "@/lib/admin/db";
 import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
 import { compareTasks, dayKey, dueLabel, type Task, type TaskLinks } from "@/lib/admin/task-shared";
 import { coldDays, isContact, lastContacts, type Activity, type ActivityKind } from "@/lib/admin/activity-shared";
-import { dealValue } from "@/lib/admin/metrics";
+import { dealValue, pipelineValue, weightedPipeline, winRate } from "@/lib/admin/metrics";
+import { RETAKE_AFTER_DAYS, toRetake } from "@/lib/admin/sales-shared";
 import { deleteLead, setNotes, setOwner, setStatus } from "../actions";
 import { Kpi, PageHeader, Segmented, btnSecondary, cn, kpiRow, searchInput, usd, usdShort } from "../kit";
 import { useStoredChoice, useToast } from "../overlay";
 import { BulkBar } from "./bulk-bar";
-import { deleteActivity, logActivity, setContact, setValue } from "./actions";
+import { deleteActivity, logActivity, setContact, setExpectedClose, setLost, setValue } from "./actions";
 import { NewLeadButton } from "./new-lead";
 import { downloadCsv } from "./csv";
 import { Detail } from "./detail";
 import { LeadCard } from "./lead-card";
 import { LeadTable } from "./lead-table";
-import { COLD_HINT, COLUMNS, DRAG_TYPE, FOLLOW_UP, OPEN_STAGES, STAGE, STAGE_ODDS, rank } from "./stages";
+import { COLD_HINT, COLUMNS, DRAG_TYPE, FOLLOW_UP, OPEN_STAGES, STAGE, rank } from "./stages";
 import { useTasks } from "../tareas/use-tasks";
 
 // Tablero de pedidos: una columna por etapa (Nuevo → Ganado/Perdido), o una
@@ -37,6 +38,7 @@ export function Dashboard({
   activities: initialActivities,
   projectOf,
   me,
+  room,
   initialOpen = null,
   initialCold = false,
   initialNew = false,
@@ -51,6 +53,8 @@ export function Dashboard({
   /** pedido → slug de su proyecto. null si falta panel-v2.sql: la ficha no ofrece crear proyecto. */
   projectOf: Record<string, string> | null;
   me: LeadOwner;
+  /** Sala fija de Meet de quien mira (MEET_LINK_<NOMBRE>); null: se abre una nueva. */
+  room: string | null;
   /** Desde un link (?pedido=<id>): abre esa ficha. */
   initialOpen?: string | null;
   /** Desde un link (?frios=1): arranca filtrando los fríos. */
@@ -71,6 +75,7 @@ export function Dashboard({
   const [acts, setActs] = useState(initialActivities ?? []);
   const [coldOnly, setColdOnly] = useState(initialCold);
   const [noStepOnly, setNoStepOnly] = useState(false);
+  const [retakeOnly, setRetakeOnly] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [now] = useState(() => Date.now());
 
@@ -98,10 +103,11 @@ export function Dashboard({
       if (owner === "sin" ? l.owner : owner !== "todos" && l.owner !== owner) return false;
       if (coldOnly && coldOf(l) === null) return false;
       if (noStepOnly && !needsStep(l)) return false;
+      if (retakeOnly && !toRetake(l, now)) return false;
       if (!needle) return true;
       return [l.name, l.company, l.email, l.idea, l.project_type, l.phone ?? ""].some((v) => v.toLowerCase().includes(needle));
     });
-  }, [leads, q, owner, coldOnly, coldOf, noStepOnly, needsStep]);
+  }, [leads, q, owner, coldOnly, coldOf, noStepOnly, needsStep, retakeOnly, now]);
 
   const byStage = useMemo(() => {
     const out = Object.fromEntries(COLUMNS.map((c) => [c.id, [] as Lead[]])) as Record<LeadStatus, Lead[]>;
@@ -111,20 +117,19 @@ export function Dashboard({
   }, [visible]);
 
   const stats = useMemo(() => {
-    const active = leads.filter((l) => l.status === "contactado" || l.status === "propuesta");
-    const won = leads.filter((l) => l.status === "ganado");
-    const closed = won.length + leads.filter((l) => l.status === "perdido").length;
+    const rate = winRate(leads);
     return {
       fresh: leads.filter((l) => l.status === "nuevo").length,
-      active: active.length,
-      pipeline: active.reduce((sum, l) => sum + dealValue(l), 0),
-      won: won.reduce((sum, l) => sum + dealValue(l), 0),
+      active: leads.filter((l) => l.status === "contactado" || l.status === "propuesta").length,
+      pipeline: pipelineValue(leads),
+      won: leads.filter((l) => l.status === "ganado").reduce((sum, l) => sum + dealValue(l), 0),
       cold: leads.filter((l) => coldOf(l) !== null).length,
-      winRate: closed ? Math.round((won.length / closed) * 100) : null,
-      forecast: leads.reduce((sum, l) => sum + dealValue(l) * (STAGE_ODDS[l.status] ?? 0), 0),
+      winRate: rate === null ? null : Math.round(rate * 100),
+      forecast: weightedPipeline(leads),
       noStep: leads.filter(needsStep).length,
+      retake: leads.filter((l) => toRetake(l, now)).length,
     };
-  }, [leads, coldOf, needsStep]);
+  }, [leads, coldOf, needsStep, now]);
 
   /** Cambio optimista: se ve ya, se guarda después, se deshace si falla. */
   const leadsRef = useRef(leads);
@@ -169,6 +174,8 @@ export function Dashboard({
       const lead = leadsRef.current.find((l) => l.id === id);
       update(id, { status: s }, () => setStatus(id, s));
       if (lead && lead.status !== s) followUpRef.current(lead, s);
+      // Al perderlo se abre la ficha, que pide el motivo.
+      if (lead && lead.status !== s && s === "perdido") setOpenId(id);
     },
     [update],
   );
@@ -344,6 +351,16 @@ export function Dashboard({
             { id: "sin", label: "Sin asignar" },
           ]}
         />
+        {(stats.retake > 0 || retakeOnly) && (
+          <button
+            onClick={() => setRetakeOnly((v) => !v)}
+            aria-pressed={retakeOnly}
+            title={`Perdidos hace más de ${RETAKE_AFTER_DAYS} días, salvo los que no eran clientes. Tocá para filtrarlos.`}
+            className={cn(btnSecondary, retakeOnly && "border-accent/60 text-foreground")}
+          >
+            <RotateCcw size={14} /> Para retomar · {stats.retake}
+          </button>
+        )}
         <Segmented
           value={view}
           onChange={pickView}
@@ -403,6 +420,7 @@ export function Dashboard({
                         lastContact={lastContact.get(l.id)}
                         cold={coldOf(l)}
                         noStep={needsStep(l)}
+                        retake={toRetake(l, now)}
                         onOpen={openLead}
                         onMove={move}
                         onDragEnd={() => setDragOver(null)}
@@ -440,6 +458,7 @@ export function Dashboard({
           key={open.id}
           lead={open}
           me={me}
+          room={room}
           onClose={() => setOpenId(null)}
           onStatus={(s) => move(open.id, s)}
           onOwner={(o) => update(open.id, { owner: o }, () => setOwner(open.id, o))}
@@ -451,6 +470,8 @@ export function Dashboard({
           deal={{
             onContact: (f) => update(open.id, f, () => setContact(open.id, f)),
             onValue: (v) => update(open.id, { value: v }, () => setValue(open.id, v)),
+            onExpectedClose: (d) => update(open.id, { expected_close: d }, () => setExpectedClose(open.id, d)),
+            onLost: (reason, note) => update(open.id, { lost_reason: reason, lost_note: note }, () => setLost(open.id, reason, note)),
           }}
           history={
             initialActivities

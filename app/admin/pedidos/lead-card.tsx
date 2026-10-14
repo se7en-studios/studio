@@ -1,12 +1,13 @@
 "use client";
 
 import { memo } from "react";
-import { CalendarClock, Snowflake } from "lucide-react";
+import { CalendarClock, RotateCcw, Snowflake, Video } from "lucide-react";
 import { ago, headline, priority, tags } from "@/lib/admin/brief";
 import type { Lead, LeadStatus } from "@/lib/admin/db";
 import { bucket, dueLabel, type Task } from "@/lib/admin/task-shared";
+import { lostReasonLabel, meetingLabel } from "@/lib/admin/sales-shared";
 import { Face, cn, usd } from "../kit";
-import { COLUMNS, DRAG_TYPE, PRIORITY_DOT } from "./stages";
+import { COLUMNS, DRAG_TYPE, OPEN_STAGES, PRIORITY_DOT } from "./stages";
 
 // memo: al escribir en la búsqueda o mover una tarjeta, las demás no se
 // vuelven a dibujar.
@@ -16,6 +17,7 @@ export const LeadCard = memo(function LeadCard({
   lastContact,
   cold,
   noStep,
+  retake,
   onOpen,
   onMove,
   onDragEnd,
@@ -26,6 +28,8 @@ export const LeadCard = memo(function LeadCard({
   cold: number | null;
   /** En curso y sin tarea de seguimiento abierta. */
   noStep: boolean;
+  /** Perdido hace tiempo y vale la pena volver a escribirle. */
+  retake: boolean;
   onOpen: (id: string) => void;
   onMove: (id: string, s: LeadStatus) => void;
   onDragEnd: () => void;
@@ -68,6 +72,19 @@ export const LeadCard = memo(function LeadCard({
           </div>
         )}
         {task && <FollowUpBadge task={task} />}
+        {lead.meeting_at && OPEN_STAGES.includes(lead.status) && (
+          <span className="mt-2 flex items-center gap-1.5 rounded-md bg-sky-400/[0.07] px-2 py-1 text-[11px] text-sky-300">
+            <Video size={12} className="shrink-0" /> Reunión {meetingLabel(lead.meeting_at)}
+          </span>
+        )}
+        {lead.status === "perdido" && lead.lost_reason && !retake && (
+          <span className="mt-2 block text-[11px] text-muted">Motivo: {lostReasonLabel(lead.lost_reason).toLowerCase()}</span>
+        )}
+        {retake && (
+          <span className="mt-2 flex items-center gap-1.5 rounded-md bg-accent/[0.08] px-2 py-1 text-[11px] text-accent">
+            <RotateCcw size={12} className="shrink-0" /> Para retomar{lead.lost_reason ? ` · ${lostReasonLabel(lead.lost_reason).toLowerCase()}` : ""}
+          </span>
+        )}
         {noStep && (
           <span className="mt-2 flex items-center gap-1.5 rounded-md bg-white/[0.05] px-2 py-1 text-[11px] text-muted">
             <CalendarClock size={12} className="shrink-0" /> Sin próximo paso

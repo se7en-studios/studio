@@ -8,6 +8,7 @@ import { listActivity } from "@/lib/admin/activity";
 import { listStates } from "@/lib/admin/projects";
 import type { Activity } from "@/lib/admin/activity-shared";
 import { Dashboard } from "./board";
+import { parseMeetLink } from "@/lib/admin/calls";
 import { AdminGate } from "../ui";
 
 // Los pedidos que llegan por los formularios del sitio, en un tablero para
@@ -67,6 +68,7 @@ export default async function PedidosPage({
       error={leadsR.error}
       tasks={leadsR.error ? null : tasks}
       me={me.who}
+      room={parseMeetLink(process.env[`MEET_LINK_${me.who.toUpperCase()}`])}
     />
   );
 }

@@ -4,6 +4,7 @@
 import type { Lead } from "@/lib/admin/db";
 import { dealValue } from "@/lib/admin/metrics";
 import { PEOPLE } from "@/lib/admin/people";
+import { lostReasonLabel, meetingLabel } from "@/lib/admin/sales-shared";
 
 const COLUMNS: [string, (l: Lead) => string | number][] = [
   ["Fecha", (l) => new Date(l.created_at).toLocaleDateString("es-AR")],
@@ -19,6 +20,10 @@ const COLUMNS: [string, (l: Lead) => string | number][] = [
   ["Plazo", (l) => l.timeline],
   ["Monto acordado (USD)", (l) => l.value ?? ""],
   ["Valor estimado (USD)", (l) => Math.round(dealValue(l)) || ""],
+  ["Cierre previsto", (l) => l.expected_close ?? ""],
+  ["Reunión", (l) => (l.meeting_at ? meetingLabel(l.meeting_at) : "")],
+  ["Motivo de pérdida", (l) => (l.status === "perdido" ? lostReasonLabel(l.lost_reason) : "")],
+  ["Detalle de la pérdida", (l) => (l.status === "perdido" ? l.lost_note ?? "" : "")],
   ["Idea", (l) => l.idea],
   ["Notas", (l) => l.notes],
 ];

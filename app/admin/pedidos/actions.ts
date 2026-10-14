@@ -25,6 +25,7 @@ import {
 import { logEvent } from "@/lib/admin/panel";
 import { leadDiff } from "@/lib/admin/lead-changes";
 import { ACTIVITY_LABEL } from "@/lib/admin/activity-shared";
+import { LOST_NOTE_MAX, isLostReason, lostReasonLabel } from "@/lib/admin/sales-shared";
 
 const MAX_VALUE = 10_000_000;
 const CONTACT_TEXT: Record<ActivityKind, string> = {
@@ -171,6 +172,45 @@ export async function setValue(id: string, value: number | string | null) {
         clean !== null
           ? `fijó en USD ${clean.toLocaleString("es-AR")} el pedido de ${lead.name}`
           : `sacó el monto acordado del pedido de ${lead.name}`,
+      lead_id: id,
+      changes,
+    }),
+  );
+}
+
+/** Fecha de cierre prevista (YYYY-MM-DD) o null para sacarla. */
+export async function setExpectedClose(id: string, day: string | null) {
+  const me = await guard();
+  checkId(id);
+  if (day !== null && (!/^\d{4}-\d{2}-\d{2}$/.test(day) || Number.isNaN(Date.parse(day)))) throw new Error("Fecha inválida.");
+  const { before, after: lead } = await patchLead(id, { expected_close: day });
+  const changes = leadDiff(before, { expected_close: day });
+  if (!changes.length) return;
+  after(() =>
+    logEvent({
+      actor: me.who,
+      kind: "pedido",
+      text: day ? `puso cierre previsto al pedido de ${lead.name}` : `sacó el cierre previsto del pedido de ${lead.name}`,
+      lead_id: id,
+      changes,
+    }),
+  );
+}
+
+/** Motivo de pérdida (uno de LOST_REASONS, o null) y el detalle en texto libre. */
+export async function setLost(id: string, reason: string | null, note: string) {
+  const me = await guard();
+  checkId(id);
+  if (reason !== null && !isLostReason(reason)) throw new Error("Motivo inválido.");
+  const patch = { lost_reason: reason, lost_note: text(note, LOST_NOTE_MAX) };
+  const { before, after: lead } = await patchLead(id, patch);
+  const changes = leadDiff(before, patch);
+  if (!changes.length) return;
+  after(() =>
+    logEvent({
+      actor: me.who,
+      kind: "pedido",
+      text: reason ? `anotó por qué se perdió el pedido de ${lead.name}: ${lostReasonLabel(reason).toLowerCase()}` : `actualizó el motivo de pérdida del pedido de ${lead.name}`,
       lead_id: id,
       changes,
     }),
