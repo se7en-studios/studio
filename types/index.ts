@@ -33,6 +33,11 @@ export interface Project {
     mp4: string;
     webm: string;
   };
+  /**
+   * Capturas del producto por dentro (paneles, apps), para cuando el caso es más
+   * que el sitio de `url`. Opcional: sin esto el caso no muestra la sección.
+   */
+  gallery?: ProjectGallery;
   featured: boolean;
   order: number;
   size: "large" | "medium" | "small";
@@ -41,6 +46,27 @@ export interface Project {
    * y su frase, sacados del propio sitio. Opcional: sin esto usa los del estudio.
    */
   brand?: ProjectBrand;
+}
+
+export interface ProjectGallery {
+  /** Aclaración que va con las capturas, p. ej. que los datos son de muestra. */
+  note?: string;
+  /** Título de cada grupo de capturas en el caso. */
+  labels: { desktop: string; mobile: string };
+  shots: ProjectShot[];
+}
+
+export interface ProjectShot {
+  src: string;
+  alt: string;
+  caption: string;
+  /**
+   * `desktop`: la captura ya trae el marco del monitor dibujado.
+   * `mobile`: pantalla cruda de 390×844; el marco del teléfono lo pone el caso.
+   */
+  kind: "desktop" | "mobile";
+  width: number;
+  height: number;
 }
 
 export interface ProjectBrand {

@@ -12,3 +12,9 @@ Capturas de cada proyecto, tomadas del sitio en vivo a 1440×900 (@1.5x).
 Referenciadas desde `data/projects.ts` (campo `image`). Al actualizar una
 captura, cambiar el sufijo de fecha: next/image cachea por URL y con el mismo
 nombre seguiría sirviendo la versión vieja.
+
+`gallery/` tiene las capturas del producto por dentro (campo `gallery`), para
+los casos que son más que su sitio. Las de Apex salen de las muestras de
+marketing del repo de APEX (`marketing/`): el render real de la app con datos
+inventados, nunca de la app en producción. Escritorio a 2000 de ancho con el
+monitor dibujado; celular a 780×1688 (390×844 @2x), sin marco.

@@ -10,6 +10,7 @@ import { RevealText } from "@/components/ui/reveal-text";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Magnetic } from "@/components/ui/magnetic";
 import { ViewportSimulator } from "@/components/work/viewport-simulator";
+import { ProductGallery } from "@/components/work/product-gallery";
 import { getProjectBySlug, projects } from "@/data/projects";
 import { testimonials } from "@/data/team";
 import { SITE } from "@/data/site";
@@ -177,6 +178,8 @@ export default async function CaseStudyPage({
               )}
             </div>
           </div>
+
+          {project.gallery && <ProductGallery gallery={project.gallery} />}
 
           {/* Estructura del Caso: Sidebar + Contenido */}
           <div className="mt-20 grid grid-cols-1 gap-16 lg:grid-cols-12 lg:gap-16">

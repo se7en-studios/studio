@@ -141,21 +141,21 @@ export const projects: Project[] = [
     name: "Apex Performance",
     category: "Plataforma para Entrenadores",
     categoryGroup: "saas",
-    year: "2025",
+    year: "2026",
     shortDescription:
-      "Una plataforma para entrenadores: rutinas, seguimiento y comunicación con sus atletas en un solo lugar.",
+      "Software para entrenadores de fuerza: el coach define el mesociclo, la IA arma cada rutina dentro de esa fase y el atleta la sigue desde el celular.",
     description:
-      "Apex Performance es una plataforma para entrenadores que centraliza rutinas, seguimiento y comunicación con sus atletas, con IA para la periodización. Diseñamos y construimos el sitio.",
-    impactMetric: "Carga instantánea",
+      "Apex Performance es un producto para entrenadores de fuerza que hoy llevan a sus atletas con Excel y WhatsApp. Lo diseñamos y construimos entero: el panel del coach, la app del atleta y la landing, con la IA, las notificaciones y las suscripciones detrás.",
+    impactMetric: "IA dentro del mesociclo",
     challenge:
-      "Comunicar con claridad el valor de un producto de tecnología a una audiencia exigente.",
+      "Los entrenadores que llevan atletas online programan en planillas y corrigen por chat. Las apps que arman rutinas con IA resuelven la planilla, pero le sacan al coach lo que mejor sabe hacer: decidir la periodización.",
     approach:
-      "Construimos un sitio enfocado en comunicar la propuesta de valor con claridad técnica, sin la fricción de una demo o un llamado de ventas previo.",
+      "Separamos los roles. El coach marca la fase de cada semana (acumulación, descarga, pico) y la IA genera la rutina sin salirse de ese marco; la progresión, los récords y el volumen los calcula el código, no el modelo. Un catálogo de 260 ejercicios, con un solo nombre por ejercicio, hace que el historial de cada atleta no se corte nunca.",
     design:
-      "Una interfaz oscura y minimalista, con la jerarquía tipográfica por delante de cualquier elemento decorativo.",
-    technology: ["Next.js", "TypeScript", "Vercel"],
+      "Oscura y de estética militar, no de app de fitness: Bebas Neue para los títulos, JetBrains Mono para cada kg y cada RIR, un único acento amarillo y el celeste reservado a lo que hace la IA. En el gimnasio, el atleta carga el peso con una rueda o armando la barra disco por disco, con timer de descanso y el mapa muscular del día.",
+    technology: ["JavaScript", "Firebase", "Netlify Functions", "Claude API", "MercadoPago", "PWA"],
     outcome:
-      "Sitio en producción, presentando el producto con tiempos de carga instantáneos.",
+      "Las dos apps están en producción y las usan coaches y atletas reales todos los días. Cada cambio pasa antes por más de 4.000 verificaciones automáticas que corren el código real de la app.",
     url: "https://apexperformance.com.ar/",
     image: "/projects/apex-ai-2026-09-es.jpg",
     screens: {
@@ -165,6 +165,54 @@ export const projects: Project[] = [
     video: {
       mp4: "/projects/videos/apex-ai-2026-09c.mp4",
       webm: "/projects/videos/apex-ai-2026-09c.webm",
+    },
+    // Sacadas de las muestras de marketing de APEX: el render real de la app con
+    // datos inventados, sin tocar la base de producción.
+    gallery: {
+      note: "Capturas con datos de muestra: los atletas y las sesiones son inventados.",
+      labels: { desktop: "Panel del coach", mobile: "App del atleta" },
+      shots: [
+        {
+          src: "/projects/gallery/apex-ai-coach-rutina-2026-10.jpg",
+          alt: "Panel del coach de Apex con la cartera de atletas por carpetas y la rutina de cinco días de un atleta",
+          caption: "La cartera por carpetas, con la adherencia de cada atleta, y la rutina de la semana: generada con IA o armada a mano.",
+          kind: "desktop",
+          width: 2000,
+          height: 1529,
+        },
+        {
+          src: "/projects/gallery/apex-ai-coach-bloque-2026-10.jpg",
+          alt: "Pestaña Bloque del panel del coach con las cuatro semanas del mesociclo y el RIR y el volumen de cada una",
+          caption: "BLOQUE: el coach arma el mesociclo semana por semana, y la IA genera cada rutina respetando la fase en curso.",
+          kind: "desktop",
+          width: 2000,
+          height: 972,
+        },
+        {
+          src: "/projects/gallery/apex-ai-atleta-hoy-2026-10.jpg",
+          alt: "App del atleta con la rutina del día, el volumen, las series y el mapa muscular",
+          caption: "HOY: la rutina del día, el volumen y qué músculos trabaja.",
+          kind: "mobile",
+          width: 780,
+          height: 1688,
+        },
+        {
+          src: "/projects/gallery/apex-ai-atleta-discos-2026-10.jpg",
+          alt: "Selector de carga de la app del atleta en modo discos, armando 60 kg con la barra y un disco de 15 y otro de 5 por lado",
+          caption: "La carga se arma disco por disco, y la app suma el total.",
+          kind: "mobile",
+          width: 780,
+          height: 1688,
+        },
+        {
+          src: "/projects/gallery/apex-ai-atleta-progresion-2026-10.jpg",
+          alt: "Historial del atleta con el gráfico de progresión del press de banca de 82,5 a 102,5 kg",
+          caption: "La progresión de cada ejercicio, sesión por sesión.",
+          kind: "mobile",
+          width: 780,
+          height: 1688,
+        },
+      ],
     },
     featured: true,
     order: 2,
