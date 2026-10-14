@@ -86,29 +86,54 @@ function Wheel({ projects }: { projects: Project[] }) {
     update();
     window.addEventListener("resize", update);
     const el = sectionRef.current;
+    // En el celular, three.js (~1 MB) se baja recién cuando la persona empieza
+    // a bajar: la rueda está justo después del hero, así que cargarla al abrir
+    // la página trababa el teléfono más de un segundo mientras se leía el hero.
+    const phone = window.innerWidth < 768;
+    let scrolled = !phone || window.scrollY > 0;
+    let close = false;
+    const load = () => {
+      if (!scrolled || !close) return;
+      setNear(true);
+      io.disconnect();
+      window.removeEventListener("scroll", onScroll);
+    };
+    const onScroll = () => {
+      scrolled = true;
+      load();
+    };
     const io = new IntersectionObserver(
       ([e]) => {
-        if (e.isIntersecting) {
-          setNear(true);
-          io.disconnect();
-        }
+        close = e.isIntersecting;
+        load();
       },
       { rootMargin: "250% 0px" },
     );
     if (el) io.observe(el);
-    const vis = new IntersectionObserver(([e]) => setLive(e.isIntersecting));
+    if (!scrolled) window.addEventListener("scroll", onScroll, { passive: true });
+    const vis = new IntersectionObserver(([e]) => {
+      setLive(e.isIntersecting);
+      // Ya en pantalla sin haber bajado (entrar con #work): se arma igual.
+      if (e.isIntersecting) onScroll();
+    });
     if (el) vis.observe(el);
     // Además se precarga cuando la página ya terminó y el navegador está
     // libre: quien llega de golpe (el link "Casos" del menú) encuentra las
-    // pantallas con su imagen, no marcos vacíos.
+    // pantallas con su imagen, no marcos vacíos. En el celular sólo se baja el
+    // código, sin armar la escena (lo que más traba): al empezar a bajar, la
+    // rueda aparece antes.
     let idle = 0;
     const warm = () => {
-      idle = window.setTimeout(() => setNear(true), 1500);
+      idle = window.setTimeout(() => {
+        if (!phone) setNear(true);
+        else (window.requestIdleCallback ?? ((cb: () => void) => cb()))(() => void import("@/components/work/showcase-scene"));
+      }, 1500);
     };
     if (document.readyState === "complete") warm();
     else window.addEventListener("load", warm, { once: true });
     return () => {
       window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", onScroll);
       window.removeEventListener("load", warm);
       window.clearTimeout(idle);
       io.disconnect();
