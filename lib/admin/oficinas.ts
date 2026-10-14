@@ -34,10 +34,27 @@ type EventRow = { id: string; created_at: string; actor: Who | null; text: strin
 const toTask = (t: TaskRow): OfiTask => ({ id: t.id, title: t.title, assignee: t.assignee, due: t.due, priority: t.priority, projectSlug: t.project_slug });
 const toEvent = (e: EventRow): OfiEvent => ({ id: e.id, createdAt: e.created_at, actor: e.actor, text: e.text, projectSlug: e.project_slug });
 
-/** La tipografía de la marca, sólo en los casos de la web. */
+/**
+ * Logos de los casos, en public/admin/oficinas/marcas (de dónde sale cada uno,
+ * en el README de esa carpeta). El sello de Poné La Pava ya trae el nombre: es
+ * logo e ícono a la vez. Los que faltan van con el nombre en su letra.
+ */
+const M = "/admin/oficinas/marcas/";
+const MARCAS: Record<string, { logo?: string; mark?: string }> = {
+  "apex-ai": { logo: `${M}apex-ai-logo.png`, mark: `${M}apex-ai-mark.png` },
+  muzzaga: { logo: `${M}muzzaga-logo.png`, mark: `${M}muzzaga-mark.png` },
+  pravilo: { logo: `${M}pravilo-logo.png`, mark: `${M}pravilo-mark.png` },
+  sentinel: { logo: `${M}sentinel-logo.png`, mark: `${M}sentinel-mark.png` },
+  "pone-la-pava": { logo: `${M}pone-la-pava-mark.png`, mark: `${M}pone-la-pava-mark.png` },
+  takefyy: { mark: `${M}takefyy-mark.png` },
+  "iphone-vita": { mark: `${M}iphone-vita-mark.png` },
+};
+
+/** La marca, sólo en los casos de la web. */
 function brandOf(slug: string): OfiBrand | null {
   const b = getProjectBySlug(slug)?.brand;
-  return b ? { font: b.font, weight: b.weight ?? 400, uppercase: b.uppercase ?? false, highlight: b.highlight ?? "" } : null;
+  const k = MARCAS[slug];
+  return b ? { font: b.font, weight: b.weight ?? 400, uppercase: b.uppercase ?? false, highlight: b.highlight ?? "", logo: k?.logo ?? null, mark: k?.mark ?? null } : null;
 }
 
 function toProject(p: PanelProject, s: ProjectState, tasks: OfiTask[], events: OfiEvent[], lastVisit: Record<Who, string | null>): OfiProject {

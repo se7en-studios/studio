@@ -74,8 +74,12 @@ export type OfiTask = {
 
 export type OfiEvent = { id: string; createdAt: string; actor: Who | null; text: string; projectSlug: string | null };
 
-/** La tipografía de la marca de un caso (clave de lib/brand-fonts.ts): la alfombra, el felpudo y el cartel de la sala van con ella. */
-export type OfiBrand = { font: string; weight: number; uppercase: boolean; highlight: string };
+/**
+ * La marca de un caso: su tipografía (clave de lib/brand-fonts.ts), el logo
+ * completo y el ícono (rutas de /public; null si no hay). La alfombra, el
+ * felpudo, el cartel y la compu de la sala van con ella.
+ */
+export type OfiBrand = { font: string; weight: number; uppercase: boolean; highlight: string; logo: string | null; mark: string | null };
 
 export type OfiProject = {
   slug: string;

@@ -56,6 +56,7 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
   // Hora de referencia: la del servidor al armar la página; después avanza sola.
   const [now, setNow] = useState(() => Date.parse(data.generatedAt));
   const [roomId, setRoomId] = useState<string | null>(null);
+  const [hoverId, setHoverId] = useState<string | null>(null);
   const [prev, setPrev] = useState<string | null>(null);
   const visitsRef = useRef(visits);
   const lightUp = useRef<string | null>(null);
@@ -98,7 +99,7 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
       map.rooms.filter((r) => r.slug).map((r) => {
         const p = bySlug.get(r.slug as string) as OfiProject;
         const family = p.brand ? brandFamilies[p.brand.font as BrandFont] : undefined;
-        return [r.id, { name: p.name, accent: p.accent, status: p.status, cover: coverSrc(p.cover), brand: p.brand && family ? { ...p.brand, family } : null }];
+        return [r.id, { name: p.name, accent: p.accent, status: p.status, cover: coverSrc(p.cover), brand: p.brand && family ? { ...p.brand, family, tagline: p.tagline } : null }];
       }),
     );
     const engine = createEngine(canvas, {
@@ -106,8 +107,8 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
       info,
       me,
       font,
-      names: { federico: PEOPLE.federico.name, franco: PEOPLE.franco.name },
       onRoom: (id) => enterRef.current(id),
+      onHover: setHoverId,
     });
     engineRef.current = engine;
     const ro = new ResizeObserver(() => engine.resize());
@@ -147,20 +148,28 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
 
   const press = (d: Dir, on: boolean) => engineRef.current?.press(d, on);
   const goTo = (id: string) => engineRef.current?.goTo(id);
-  const look = room?.slug ? lookOf(bySlug.get(room.slug) as OfiProject, visits[me][room.slug] ?? null, me, now) : null;
-  const hud = !room
+  // Arriba a la izquierda va la sala bajo el mouse (sin carteles en el mapa) o, si no, donde estás.
+  const hovered = hoverId && hoverId !== roomId ? map.rooms.find((r) => r.id === hoverId) ?? null : null;
+  const shown = hovered ?? room;
+  const look = shown?.slug ? lookOf(bySlug.get(shown.slug) as OfiProject, visits[me][shown.slug] ?? null, me, now) : null;
+  const hud = !shown
     ? "Pasillo"
-    : room.slug
-      ? bySlug.get(room.slug)?.name ?? ""
-      : room.kind === "office"
-        ? room.who === me
+    : shown.slug
+      ? bySlug.get(shown.slug)?.name ?? ""
+      : shown.kind === "office"
+        ? shown.who === me
           ? "Tu oficina"
-          : `Oficina de ${PEOPLE[room.who as Who].name}`
-        : room.kind === "reception"
+          : `Oficina de ${PEOPLE[shown.who as Who].name}`
+        : shown.kind === "reception"
           ? "Recepción"
-          : room.kind === "kitchen"
+          : shown.kind === "kitchen"
             ? "Cocina"
             : "Depósito";
+  const hudSub = !look
+    ? null
+    : hovered
+      ? `${daysLabel(look.days)}${look.badge ? ` · ${look.badge} ${look.badge === 1 ? "novedad" : "novedades"}` : ""}`
+      : `luz ${Math.round((1 - look.fade) * 100)}%`;
 
   return (
     <div className="grid overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)] shadow-[var(--shadow-card)] lg:h-[calc(100dvh-190px)] lg:min-h-[560px] lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -175,7 +184,7 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
         />
         <div className="pointer-events-none absolute top-3 left-3 max-w-[calc(100%-24px)] rounded-lg border border-[rgba(255,255,255,0.09)] bg-[rgba(10,10,14,0.78)] px-2.5 py-2 text-[#f1ede6]">
           <p className={cn("truncate text-[16px] leading-none uppercase", fontClass)}>{hud}</p>
-          {look && <p className="mt-1.5 font-mono text-[11px] leading-none text-[#a39e95]">luz {Math.round((1 - look.fade) * 100)}%</p>}
+          {hudSub && <p className="mt-1.5 font-mono text-[11px] leading-none text-[#a39e95]">{hudSub}</p>}
         </div>
         <div className="absolute bottom-3 left-3 flex gap-1">
           {([[-1, Minus, "Alejar"], [1, Plus, "Acercar"]] as const).map(([step, Icon, label]) => (
