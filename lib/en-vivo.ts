@@ -1,10 +1,9 @@
-// «En vivo» por fuera del panel: lo que el mapa necesita de cada sala, armado
-// igual para el panel (/admin/oficinas) y para la landing. Sin servidor ni
-// datos internos: la landing usa sólo los casos de data/projects.ts.
-import type { RoomInfo } from "@/app/admin/oficinas/engine";
+// «En vivo» por fuera del panel: las marcas y los casos de cada sala, igual
+// para el panel (/admin/oficinas) y para la landing. Sin datos internos: la
+// landing usa sólo los casos de data/projects.ts. Lo usa también el servidor,
+// así que nada de tipografías acá (lo que las necesita está en en-vivo-sala.ts).
 import { getProjectBySlug, projects as cases } from "@/data/projects";
 import type { OfiBrand, OfiProject } from "@/lib/admin/oficinas-shared";
-import { brandFamilies, type BrandFont } from "@/lib/brand-fonts";
 
 /**
  * Logos de los casos, en public/admin/oficinas/marcas (de dónde sale cada uno,
@@ -67,9 +66,6 @@ export function publicProjects(captures: Record<string, PublicCapture> = {}): Of
     .sort((a, b) => a.name.localeCompare(b.name, "es"));
 }
 
-/** Las capturas de /public pasan por el optimizador: en la tele ocupan menos de 200 px. */
-const coverSrc = (src: string | null) => (src?.startsWith("/") ? `/_next/image?url=${encodeURIComponent(src)}&w=384&q=75` : src);
-
 /** «takefyy.com», para la barra del navegador de la tele. */
 export function domainOf(url: string | null) {
   try {
@@ -77,19 +73,4 @@ export function domainOf(url: string | null) {
   } catch {
     return null;
   }
-}
-
-/** Lo que el motor necesita de una sala de proyecto. */
-export function roomInfoOf(p: OfiProject): RoomInfo {
-  const family = p.brand ? brandFamilies[p.brand.font as BrandFont] : undefined;
-  return {
-    name: p.name,
-    accent: p.accent,
-    status: p.status,
-    cover: coverSrc(p.cover),
-    video: p.video,
-    page: p.capture?.url ?? null,
-    domain: domainOf(p.url),
-    brand: p.brand && family ? { ...p.brand, family, tagline: p.tagline } : null,
-  };
 }

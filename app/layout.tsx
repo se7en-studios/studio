@@ -1,19 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo, Chivo_Mono } from "next/font/google";
 import { SITE } from "@/data/site";
+import { archivo, chivoMono } from "@/lib/site-fonts";
 import "./globals.css";
-
-// Archivo y Chivo Mono: familias de Omnibus-Type (Buenos Aires), en lugar de la
-// Geist que trae por defecto create-next-app.
-const archivo = Archivo({
-  variable: "--font-archivo",
-  subsets: ["latin"],
-});
-
-const chivoMono = Chivo_Mono({
-  variable: "--font-chivo-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),

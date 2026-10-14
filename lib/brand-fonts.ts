@@ -1,41 +1,35 @@
-import {
-  Anton,
-  Barlow_Condensed,
-  Bricolage_Grotesque,
-  Outfit,
-  Playfair_Display,
-  Plus_Jakarta_Sans,
-} from "next/font/google";
+import localFont from "next/font/local";
 
 // Tipografías de marca de cada proyecto, las mismas que usan sus sitios.
 // Sólo las usa la rueda de Trabajo para el nombre y la frase del proyecto
 // activo. `preload: false`: el navegador baja cada una recién cuando aparece
 // el proyecto que la usa, no en la primera carga de la página.
+//
+// Van desde el repo (lib/fonts), no de Google Fonts: pedírselas a Google en
+// cada build hacía fallar el CI de vez en cuando. Son los mismos archivos
+// latinos que sirve Google, con los mismos pesos.
 
-const anton = Anton({ subsets: ["latin"], weight: "400", preload: false });
-const bricolage = Bricolage_Grotesque({
-  subsets: ["latin"],
-  weight: ["700", "800"],
+const anton = localFont({ src: "./fonts/anton-latin-400.woff2", weight: "400", preload: false });
+const bricolage = localFont({ src: "./fonts/bricolage-grotesque-latin.woff2", weight: "200 800", preload: false });
+const playfair = localFont({
+  src: [
+    { path: "./fonts/playfair-display-latin-600.woff2", weight: "600", style: "normal" },
+    { path: "./fonts/playfair-display-latin-italic-600.woff2", weight: "600", style: "italic" },
+  ],
+  preload: false,
+  adjustFontFallback: "Times New Roman",
+});
+const barlow = localFont({
+  src: [
+    { path: "./fonts/barlow-condensed-latin-800.woff2", weight: "800", style: "normal" },
+    { path: "./fonts/barlow-condensed-latin-900.woff2", weight: "900", style: "normal" },
+    { path: "./fonts/barlow-condensed-latin-italic-800.woff2", weight: "800", style: "italic" },
+    { path: "./fonts/barlow-condensed-latin-italic-900.woff2", weight: "900", style: "italic" },
+  ],
   preload: false,
 });
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  weight: ["600"],
-  style: ["normal", "italic"],
-  preload: false,
-});
-const barlow = Barlow_Condensed({
-  subsets: ["latin"],
-  weight: ["800", "900"],
-  style: ["normal", "italic"],
-  preload: false,
-});
-const jakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  weight: ["800"],
-  preload: false,
-});
-const outfit = Outfit({ subsets: ["latin"], weight: ["300", "500"], preload: false });
+const jakarta = localFont({ src: "./fonts/plus-jakarta-sans-latin-800.woff2", weight: "800", preload: false });
+const outfit = localFont({ src: "./fonts/outfit-latin.woff2", weight: "100 900", preload: false });
 
 export const brandFonts = {
   anton: anton.className,
