@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { createEngine, type ActorSpec, type Engine, type RoomLooks } from "@/lib/oficinas/engine";
 import type { EnVivoPublic } from "@/app/api/en-vivo/route";
-import { buildMap, hourIn, periodOf, themeOf, type MapModel, type Who } from "@/lib/admin/oficinas-shared";
+import { buildMap, hourIn, ledText, periodOf, themeOf, type MapModel, type Who } from "@/lib/admin/oficinas-shared";
 import { publicProjects, type PublicCapture } from "@/lib/en-vivo";
 import { roomInfoOf } from "@/lib/en-vivo-sala";
 import { pixel } from "@/lib/site-fonts";
@@ -86,7 +86,12 @@ export function EnVivoMap({ active }: { active: boolean }) {
     });
     const looks: RoomLooks = Object.fromEntries(map.rooms.filter((r) => r.slug).map((r) => [r.id, { fade: 0, days: null, badge: 0 }]));
     e.setLooks(looks);
-    e.setTicker(`SE7EN STUDIO   +   DISEÑO Y DESARROLLO DE PRODUCTOS DIGITALES   +   ${projects.map((p) => p.name.toUpperCase()).join("   +   ")}   +   ASÍ LABURAMOS, EN VIVO`);
+    e.setTicker([
+      [{ text: "SE7EN STUDIO", color: "#ff4d2e" }],
+      [{ text: "DISEÑO Y DESARROLLO DE PRODUCTOS DIGITALES", color: null }],
+      ...projects.map((p) => [{ text: ledText(p.name), color: p.accent }]),
+      [{ text: "ASÍ LABURAMOS, EN VIVO", color: null }],
+    ]);
     e.setPeriod(periodOf(hourIn(Date.now())));
     const ro = new ResizeObserver(() => e.resize());
     ro.observe(canvas);

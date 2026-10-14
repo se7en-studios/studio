@@ -12,6 +12,7 @@ import {
   otherOf,
   roomAt,
   walkable,
+  type LedMsg,
   type MapModel,
   type MapRoom,
   type Period,
@@ -54,6 +55,7 @@ import {
   type WallStyle,
   type XY,
 } from "./art";
+import type { Cue } from "./sound";
 
 export type RoomInfo = {
   name: string;
@@ -88,6 +90,8 @@ export type EngineOptions = {
    * onRoom sin caminar hasta ahí.
    */
   public?: boolean;
+  /** Para los sonidos (lib/oficinas/sound.ts): pasos, entrar a una sala, novedades, tubos. */
+  onCue?: (c: Cue) => void;
 };
 
 /** Qué hace un personaje de la landing: sentado en su escritorio, mirando la tele de una sala o recorriéndolas todas. */
@@ -97,7 +101,12 @@ export type Engine = {
   setMe: (me: Who) => void;
   /** `lightUp`: la sala a la que se acaba de entrar (titila y se prende). */
   setLooks: (looks: RoomLooks, lightUp?: string) => void;
-  setTicker: (text: string) => void;
+  /** Lo que pasa por el cartel LED de la recepción (ver ledMessages). */
+  setTicker: (msgs: LedMsg[]) => void;
+  /** Un globo arriba de tu muñeco, como en el chat de Habbo. `news` suena el ding. */
+  say: (text: string, tone?: "news" | "plain") => void;
+  /** El otro socio no está conectado: se queda dormido en su escritorio. */
+  setPartnerAway: (away: boolean) => void;
   setPeriod: (p: Period) => void;
   setPartnerLine: (text: string | null) => void;
   goTo: (roomId: string) => boolean;
@@ -136,12 +145,35 @@ const AMB: Record<Period, [number, number, number, number]> = { manana: [44, 20,
 /** Tubos que titilan al entrar: valores escalonados, no interpolados. 1 = como estaba. */
 const FLICK: [number, number][] = [[0, 1], [0.1, 0.12], [0.16, 0.9], [0.24, 0.08], [0.3, 0.7], [0.42, 0.04], [0.5, 0.35], [0.6, 0]];
 
+// El cartel LED: una grilla de puntos de 2 px del mundo, 12 de alto. Lo que
+// entra entero se queda quieto un rato; lo que no, pasa de derecha a izquierda
+// de a una columna, como un cartel de verdad.
+const LED_PITCH = 2;
+const LED_ROWS = 12;
+const LED_SPEED = 16; // columnas por segundo
+const LED_HOLD = 4000;
+const LED_AMBER = "#ffb347";
+/** Un mensaje ya pasado a puntos: qué filas se prenden en cada columna y de qué color. */
+type LedBake = { cols: number; mask: Uint16Array; color: string[] };
+/** Globo de chat arriba del muñeco. */
+type Bubble = { text: string; tone: "news" | "plain"; t0: number };
+const BUBBLE_MS = 4200;
+/** Motas de luz que suben cuando una sala apagada se vuelve a prender. */
+type Mote = { x: number; y: number; t0: number; col: string };
+
 type Item = { depth: number; order: number; x: number; ax: number; ay: number; draw: () => void };
 
 const rgba = (hex: string, a: number) => {
   const n = parseInt(hex.slice(1, 7), 16);
   return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
 };
+/** Los colores oscuros (un azul marino de marca) no se leen en el cartel: se aclaran hasta que se ven. */
+function ledColor(hex: string | null) {
+  if (!hex || !/^#[0-9a-f]{6}$/i.test(hex)) return LED_AMBER;
+  const n = parseInt(hex.slice(1), 16);
+  const lum = (0.3 * (n >> 16) + 0.59 * ((n >> 8) & 255) + 0.11 * (n & 255)) / 255;
+  return lum >= 0.55 ? hex : mix(hex, "#ffffff", Math.min(0.7, (0.55 - lum) / (1 - lum) + 0.1));
+}
 
 export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engine {
   const m = o.map;
@@ -159,9 +191,11 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
 
   let me = o.me;
   let looks: RoomLooks = {};
-  let ticker = "";
   let period: Period = "dia";
   let partnerLine: string | null = null;
+  let partnerAway = false;
+  let bubbles: Bubble[] = [];
+  let motes: Mote[] = [];
   let zi = ZOOMS.indexOf(canvas.clientWidth < 640 ? 0.65 : 1);
   let dpr = 1, scale = 1, offX = 0, offY = 0;
   const cam = { x: 0, y: 0, ready: false };
@@ -374,6 +408,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     player.to = { x: nx, y: ny };
     player.moving = true;
     player.t = 0;
+    o.onCue?.("step");
     return true;
   }
   function next() {
@@ -405,6 +440,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     const r = roomAt(m, player.x, player.y);
     if ((r?.id ?? null) !== (current?.id ?? null)) {
       current = r;
+      if (r) o.onCue?.("enter");
       o.onRoom(r ? r.id : null);
       tuneTv(r?.kind === "project" ? r.id : null);
     }
@@ -614,6 +650,9 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       if (player.moving || player.path.length || held.size || !seat) idleSince = 0;
       else if (!idleSince) idleSince = ts;
       else if (!sitting && ts - idleSince > 700 && Math.abs(player.x - seat.x) + Math.abs(player.y - seat.y) === 1) sitting = true;
+      // Quieto un rato en otro lado: mira para un costado y para el otro, como en Habbo
+      const still = player.moving || player.path.length || held.size ? 0 : (idleSince || ts);
+      if (!sitting && still && !reduced && ts - still > 6000) player.dir = Math.floor((ts - still - 6000) / 2400) % 2 ? "SE" : "SW";
       if (player.moving) {
         player.t += dt * SPEED;
         player.step += dt * SPEED;
@@ -994,22 +1033,118 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         ctx.globalAlpha = 1;
       }
     }
-    // Cartel LED de la recepción con lo último del estudio
-    const tk = m.decor.find((dc) => dc.k === "ticker");
-    if (tk && ticker) {
-      const q = tickerQuad(tk);
-      const len = Math.hypot(q[1][0] - q[0][0], q[1][1] - q[0][1]);
-      inQuad(q, len, 24, () => {
-        ctx.font = `8px ${o.font}`;
-        ctx.textBaseline = "middle";
-        const w = ctx.measureText(ticker).width + 60;
-        const off = reduced ? 0 : (ts * 0.025) % (w + len);
-        ctx.fillStyle = "#ffb347";
-        ctx.fillText(ticker, len - off, 12.5);
-        ctx.fillStyle = "rgba(14,14,18,0.45)";
-        for (let xx = 0; xx < len; xx += 2) ctx.fillRect(xx, 0, 1, 24);
-      });
+    ledBoard(ts);
+    for (const mo of motes) {
+      const k = (ts - mo.t0) / 1600;
+      if (k < 0 || k > 1) continue;
+      const [mx, my] = P(mo.x, mo.y, 6 + k * 52);
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha = Math.sin(k * Math.PI) * 0.9;
+      ctx.fillStyle = mo.col;
+      ctx.fillRect(mx - 0.9, my - 0.9 + Math.sin(k * 9 + mo.x) * 1.5, 1.8, 1.8);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = "source-over";
     }
+    if (motes.length && motes.every((mo) => ts - mo.t0 > 1600)) motes = [];
+  }
+
+  // --- Cartel LED -------------------------------------------------------------------
+  const ledCanvas = document.createElement("canvas");
+  const lctx = ledCanvas.getContext("2d", { willReadFrequently: true }) as CanvasRenderingContext2D;
+  let ledMsgs: LedMsg[] = [];
+  let ledBakes: LedBake[] = [];
+  let ledIdx = 0, ledT0 = -1;
+  /** Escribe el mensaje con la letra pixel en un canvas chico y se queda con los puntos prendidos. */
+  function bakeLed(msg: LedMsg): LedBake {
+    const font = `8px ${o.font}`;
+    lctx.font = font;
+    const spans: { x0: number; x1: number; color: string }[] = [];
+    let x = 0;
+    for (const part of msg) {
+      const w = Math.round(lctx.measureText(part.text).width);
+      spans.push({ x0: x, x1: x + w, color: ledColor(part.color) });
+      x += w;
+    }
+    const cols = Math.max(1, x + 1);
+    ledCanvas.width = cols;
+    ledCanvas.height = LED_ROWS;
+    lctx.font = font;
+    lctx.textBaseline = "alphabetic";
+    lctx.fillStyle = "#ffffff";
+    msg.forEach((part, i) => lctx.fillText(part.text, spans[i].x0, 9));
+    const px = lctx.getImageData(0, 0, cols, LED_ROWS).data;
+    const mask = new Uint16Array(cols);
+    const color = new Array<string>(cols).fill(LED_AMBER);
+    for (let c = 0; c < cols; c++) {
+      for (let r = 0; r < LED_ROWS; r++) if (px[(r * cols + c) * 4 + 3] > 110) mask[c] |= 1 << r;
+      color[c] = spans.find((sp) => c >= sp.x0 && c < sp.x1)?.color ?? LED_AMBER;
+    }
+    return { cols, mask, color };
+  }
+  const rebakeLed = () => {
+    ledBakes = ledMsgs.map(bakeLed);
+  };
+  function ledBoard(ts: number) {
+    const tk = m.decor.find((dc) => dc.k === "ticker");
+    if (!tk) return;
+    const q = tickerQuad(tk);
+    const len = Math.hypot(q[1][0] - q[0][0], q[1][1] - q[0][1]);
+    const board = Math.floor((len - 2) / LED_PITCH);
+    const pad = (len - board * LED_PITCH) / 2;
+    // Qué mensaje va y por dónde va
+    let cur = ledBakes.length ? ledBakes[ledIdx % ledBakes.length] : null;
+    if (cur && ledT0 < 0) ledT0 = ts;
+    const fits = cur ? cur.cols <= board : true;
+    const dur = !cur ? Infinity : fits ? LED_HOLD : reduced ? 6000 : ((cur.cols + board) / LED_SPEED) * 1000;
+    if (cur && ts - ledT0 > dur) {
+      ledIdx = (ledIdx + 1) % ledBakes.length;
+      ledT0 = ts;
+      cur = ledBakes[ledIdx];
+    }
+    const nowFits = cur ? cur.cols <= board : true;
+    const off = !cur ? 0 : nowFits ? -Math.floor((board - cur.cols) / 2) : reduced ? 0 : -board + Math.floor(((ts - ledT0) / 1000) * LED_SPEED);
+    const night = period === "noche" || period === "tarde";
+    inQuad(q, len, 24, () => {
+      // Los puntos apagados: una sola pasada
+      ctx.beginPath();
+      for (let c = 0; c < board; c++) for (let r = 0; r < LED_ROWS; r++) ctx.rect(pad + c * LED_PITCH + 0.45, r * LED_PITCH + 0.45, 1.1, 1.1);
+      ctx.fillStyle = "#2b1d16";
+      ctx.fill();
+      if (!cur) return;
+      // Los prendidos, agrupados por color: el punto y, encima, su brillo
+      const lit = new Map<string, [number, number][]>();
+      for (let c = 0; c < board; c++) {
+        const k = c + off;
+        if (k < 0 || k >= cur.cols || !cur.mask[k]) continue;
+        const col = cur.color[k];
+        let arr = lit.get(col);
+        if (!arr) lit.set(col, (arr = []));
+        for (let r = 0; r < LED_ROWS; r++) if (cur.mask[k] & (1 << r)) arr.push([pad + c * LED_PITCH + 1, r * LED_PITCH + 1]);
+      }
+      for (const [col, dots] of lit) {
+        ctx.beginPath();
+        for (const [x, y] of dots) {
+          ctx.moveTo(x + 0.75, y);
+          ctx.arc(x, y, 0.75, 0, Math.PI * 2);
+        }
+        ctx.fillStyle = col;
+        ctx.fill();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = night ? 0.32 : 0.2;
+        ctx.beginPath();
+        for (const [x, y] of dots) {
+          ctx.moveTo(x + 1.5, y);
+          ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+        }
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = "source-over";
+      }
+    });
+    // El cartel ilumina un poco la pared
+    ctx.globalCompositeOperation = "lighter";
+    fillPoly(ctx, q, `rgba(255,170,80,${night ? 0.07 : 0.035})`);
+    ctx.globalCompositeOperation = "source-over";
   }
 
   // --- Cuadro -----------------------------------------------------------------------
@@ -1086,6 +1221,19 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       fillPoly(ctx, [P(marker.x + 0.1, marker.y + 0.1), P(marker.x + 0.9, marker.y + 0.1), P(marker.x + 0.9, marker.y + 0.9), P(marker.x + 0.1, marker.y + 0.9)], `rgba(255,120,80,${0.18 + pulse * 0.2})`);
       ctx.strokeStyle = "#ffb199";
       ctx.stroke();
+      // Al tocar, una onda que se abre desde la baldosa
+      const k = (ts - marker.t0) / 450;
+      if (k < 1 && !reduced) {
+        const cx = marker.x + 0.5, cy = marker.y + 0.5, h = 0.3 + k * 0.6;
+        ctx.beginPath();
+        const pts = [P(cx - h, cy - h), P(cx + h, cy - h), P(cx + h, cy + h), P(cx - h, cy + h)];
+        ctx.moveTo(pts[0][0], pts[0][1]);
+        for (const pt of pts.slice(1)) ctx.lineTo(pt[0], pt[1]);
+        ctx.closePath();
+        ctx.strokeStyle = `rgba(255,177,153,${1 - k})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
     }
 
     // Personas, ordenadas con lo demás por profundidad
@@ -1118,7 +1266,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       if (po?.seat) {
         const seat = po.seat;
         const [sx, sy] = P(seat.x + 0.5, seat.y + 0.5);
-        people.push({ depth: seat.x + seat.y + 0.05, draw: () => avatar(otherOf(me), sx, sy, "SW", null, true, blink, typing) });
+        // Conectado, tipea; si no, duerme con los ojos cerrados
+        people.push({ depth: seat.x + seat.y + 0.05, draw: () => avatar(otherOf(me), sx, sy, "SW", null, true, partnerAway || blink, partnerAway ? null : typing) });
       }
     }
     people.sort((a, b) => a.depth - b.depth);
@@ -1164,6 +1313,70 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       ctx.fillStyle = "#16161b";
       ctx.textBaseline = "top";
       ctx.fillText(partnerLine, x + 7, y + 5);
+    }
+    // El otro socio, dormido: las zetas suben desde su cabeza
+    if (po?.seat && partnerAway) {
+      const [zx, zy] = toScreen(P(po.seat.x + 0.5, po.seat.y + 0.5, 58));
+      ctx.textBaseline = "alphabetic";
+      ctx.textAlign = "left";
+      for (let i = 0; i < 3; i++) {
+        const k = reduced ? 0.35 + i * 0.25 : ((ts / 2600 + i / 3) % 1);
+        ctx.globalAlpha = reduced ? 0.85 : Math.sin(k * Math.PI);
+        ctx.font = `${Math.round((9 + k * 7) * ZOOMS[zi])}px ${o.font}`;
+        const tx = zx + (8 + k * 12 + Math.sin(k * 6) * 2) * ZOOMS[zi], ty = zy - k * 28 * ZOOMS[zi];
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "rgba(16,16,24,0.85)";
+        ctx.strokeText("Z", tx, ty);
+        ctx.fillStyle = "#dfe6ff";
+        ctx.fillText("Z", tx, ty);
+      }
+      ctx.globalAlpha = 1;
+    }
+    // Los globos de chat arriba de tu muñeco: el más nuevo abajo y los demás suben
+    bubbles = bubbles.filter((b) => ts - b.t0 < BUBBLE_MS);
+    if (bubbles.length && !o.public) {
+      const seat = sitting ? ownSeat() : null;
+      const [hx, hy] = toScreen(seat ? P(seat.x + 0.5, seat.y + 0.5, 72) : P(pxT, pyT, 76));
+      ctx.font = `8px ${o.font}`;
+      ctx.textBaseline = "middle";
+      ctx.textAlign = "left";
+      let stackY = hy;
+      for (let i = bubbles.length - 1; i >= 0; i--) {
+        const b = bubbles[i], age = ts - b.t0;
+        const rise = reduced ? 1 : Math.min(1, age / 220);
+        const w = Math.ceil(ctx.measureText(b.text).width) + 26, h = 18;
+        const x = Math.round(hx - w / 2), y = Math.round(stackY - h - 6 + (1 - rise) * 8);
+        ctx.globalAlpha = Math.min(rise, (BUBBLE_MS - age) / 400, 1);
+        ctx.fillStyle = "#fbf8f2";
+        ctx.strokeStyle = "rgba(28,20,30,0.85)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(x + 0.5, y + 0.5, w, h, 6);
+        ctx.fill();
+        ctx.stroke();
+        if (i === bubbles.length - 1) {
+          ctx.beginPath();
+          ctx.moveTo(hx - 4, y + h);
+          ctx.lineTo(hx, y + h + 5);
+          ctx.lineTo(hx + 4, y + h);
+          ctx.fill();
+        }
+        // El ícono: un signo de admiración rojo para las novedades; el punto del estudio si no
+        ctx.fillStyle = b.tone === "news" ? "#ff3b30" : "#ff4d2e";
+        ctx.beginPath();
+        ctx.arc(x + 11, y + h / 2 + 0.5, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        if (b.tone === "news") {
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(x + 10.5, y + 6, 1.5, 4.5);
+          ctx.fillRect(x + 10.5, y + 11.5, 1.5, 1.5);
+        }
+        ctx.fillStyle = "#16161b";
+        ctx.fillText(b.text, x + 20, y + h / 2 + 1);
+        ctx.globalAlpha = 1;
+        stackY = y - 2;
+      }
     }
   }
 
@@ -1257,12 +1470,33 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         if (r.kind !== "project") continue;
         const target = next[r.id]?.fade ?? 1;
         const now = disp.get(r.id);
-        if (r.id === lightUp && now !== undefined && now > 0.12 && !reduced) anim.set(r.id, { t0: performance.now(), from: now });
-        else if (!anim.has(r.id)) disp.set(r.id, target);
+        if (r.id === lightUp && now !== undefined && now > 0.12 && !reduced) {
+          const t0 = performance.now();
+          anim.set(r.id, { t0, from: now });
+          o.onCue?.("flicker");
+          // Cuando terminan de titilar los tubos, suben motas de luz del color de la sala
+          const col = ledColor(accentOf(r.id));
+          motes.push(...Array.from({ length: 18 }, (_, i) => ({ x: r.x + 0.6 + hash(i, t0 | 0) * (r.w - 1.2), y: r.y + 0.6 + hash(t0 | 0, i) * (r.d - 1.2), t0: t0 + 450 + hash(i, 9) * 500, col: i % 3 ? col : "#fff1d6" })));
+        } else if (!anim.has(r.id)) disp.set(r.id, target);
       }
     },
-    setTicker(text) {
-      ticker = text;
+    setTicker(msgs) {
+      // Si el mensaje que pasa sigue estando, no se corta: cambian los textos y sigue
+      if (ledIdx >= msgs.length) {
+        ledIdx = 0;
+        ledT0 = -1;
+      }
+      ledMsgs = msgs;
+      rebakeLed();
+      document.fonts?.load(`8px ${o.font}`).then(() => !dead && rebakeLed(), () => {});
+    },
+    say(text, tone = "plain") {
+      bubbles.push({ text, tone, t0: performance.now() });
+      if (bubbles.length > 3) bubbles.shift();
+      if (tone === "news") o.onCue?.("news");
+    },
+    setPartnerAway(away) {
+      partnerAway = away;
     },
     setPeriod(p) {
       period = p;

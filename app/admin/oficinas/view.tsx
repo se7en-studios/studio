@@ -5,13 +5,14 @@
 // prende sin recargar.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowDownLeft, ArrowDownRight, ArrowUpLeft, ArrowUpRight, Minus, Plus } from "lucide-react";
+import { ArrowDownLeft, ArrowDownRight, ArrowUpLeft, ArrowUpRight, Minus, Plus, Volume2, VolumeX } from "lucide-react";
 import {
   buildMap,
   daysLabel,
   daysSince,
   dayKey,
   hourIn,
+  ledMessages,
   lookOf,
   newSince,
   otherOf,
@@ -34,12 +35,17 @@ import { roomInfoOf } from "@/lib/en-vivo-sala";
 import { PROJECT_STATUSES, type ProjectStatus } from "@/lib/admin/project-shared";
 import { dueLabel } from "@/lib/admin/task-shared";
 import { Face, Progress, StatusPill, btnPrimary, btnSecondary, cn } from "../kit";
-import { useToast } from "../overlay";
+import { useStoredChoice, useToast } from "../overlay";
 import { setMapRoom } from "../presence";
 import { createEngine, type Engine, type RoomLooks } from "@/lib/oficinas/engine";
+import { createSound, type Sound } from "@/lib/oficinas/sound";
+import type { EnVivoPublic } from "@/app/api/en-vivo/route";
 
 type Visits = Record<Who, Record<string, string | null>>;
 type Dir = "up" | "down" | "left" | "right";
+const SOUND = ["off", "on"] as const;
+/** Cada cuánto se pregunta si el otro socio está conectado (la señal de presencia es de a minuto). */
+const PRESENCE_MS = 60_000;
 
 export function OficinasView({ data, font, fontClass }: { data: OficinasData; font: string; fontClass: string }) {
   const me = data.me, other = otherOf(me);
@@ -61,6 +67,10 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
   const lightUp = useRef<string | null>(null);
   const warned = useRef(false);
   const room = roomId ? map.rooms.find((r) => r.id === roomId) ?? null : null;
+  const [sound, setSound] = useStoredChoice("oficinas-sonido", "off", SOUND);
+  const soundRef = useRef<Sound | null>(null);
+  // null = todavía no se sabe; mientras tanto el otro socio aparece trabajando
+  const [partnerOnline, setPartnerOnline] = useState<boolean | null>(null);
 
   const enter = useCallback(
     (id: string | null) => {
@@ -70,6 +80,14 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
       setMapRoom(r?.slug ?? null);
       if (!r?.slug) return;
       const slug = r.slug;
+      const p = bySlug.get(slug);
+      // Al entrar, tu muñeco dice cómo encontró la sala (antes de marcarla como visitada)
+      const before = p ? lookOf(p, visitsRef.current[me][slug] ?? null, me, Date.now()) : null;
+      if (before)
+        engineRef.current?.say(
+          before.badge ? `${before.badge} ${before.badge === 1 ? "NOVEDAD" : "NOVEDADES"}` : before.fade > 0.12 ? "VOLVIÓ LA LUZ" : "TODO AL DÍA",
+          before.badge ? "news" : "plain",
+        );
       setPrev(visitsRef.current[me][slug] ?? null);
       lightUp.current = r.id;
       const at = new Date().toISOString();
@@ -84,7 +102,7 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
         })
         .catch(() => {});
     },
-    [map, me, flash],
+    [map, bySlug, me, flash],
   );
   const enterRef = useRef(enter);
   useEffect(() => {
@@ -104,6 +122,7 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
       font,
       onRoom: (id) => enterRef.current(id),
       onHover: setHoverId,
+      onCue: (c) => soundRef.current?.play(c),
     });
     engineRef.current = engine;
     const ro = new ResizeObserver(() => engine.resize());
@@ -125,17 +144,44 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
     for (const r of map.rooms) if (r.slug) looks[r.id] = lookOf(bySlug.get(r.slug) as OfiProject, visits[me][r.slug] ?? null, me, now);
     e.setLooks(looks, lightUp.current ?? undefined);
     lightUp.current = null;
-    e.setTicker(
-      data.studioEvents
-        .map((ev) => `${ev.actor ? PEOPLE[ev.actor].name : "Panel"} ${ev.text}${ev.projectSlug && bySlug.get(ev.projectSlug) ? ` · ${bySlug.get(ev.projectSlug)?.name}` : ""} · ${relTime(ev.createdAt, now)}`)
-        .join("   +   ")
-        .toUpperCase()
-        .replace(/→/g, ">")
-        .replace(/[«»]/g, '"'),
-    );
+    e.setTicker(ledMessages({ me, now, projects: data.projects, visitOf: (s) => visits[me][s] ?? null, events: data.studioEvents }));
     e.setPartnerLine(partnerLine(visits[other], bySlug, now));
     e.setPeriod(periodOf(hourIn(now)));
-  }, [map, bySlug, visits, me, other, now, data.studioEvents]);
+  }, [map, bySlug, visits, me, other, now, data.studioEvents, data.projects]);
+
+  // Los sonidos: el contexto de audio se crea recién cuando se prenden (con un clic)
+  useEffect(() => {
+    const s = createSound();
+    soundRef.current = s;
+    return () => {
+      s.destroy();
+      soundRef.current = null;
+    };
+  }, []);
+  useEffect(() => {
+    soundRef.current?.setOn(sound === "on");
+  }, [sound]);
+
+  // Si el otro socio no tiene el panel abierto, se queda dormido en su escritorio
+  useEffect(() => {
+    let gone = false;
+    const load = () =>
+      fetch("/api/en-vivo")
+        .then((r) => (r.ok ? (r.json() as Promise<EnVivoPublic>) : null))
+        .then((d) => {
+          if (!gone && d) setPartnerOnline(d.online.some((o) => o.who === other));
+        })
+        .catch(() => {});
+    load();
+    const id = window.setInterval(load, PRESENCE_MS);
+    return () => {
+      gone = true;
+      window.clearInterval(id);
+    };
+  }, [other]);
+  useEffect(() => {
+    engineRef.current?.setPartnerAway(partnerOnline === false);
+  }, [partnerOnline, map, bySlug, me, font]);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 60_000);
@@ -193,8 +239,22 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
               <Icon size={14} />
             </button>
           ))}
+          <button
+            onClick={() => {
+              const next = sound === "on" ? "off" : "on";
+              setSound(next);
+              // Se prende en el mismo clic: el navegador sólo deja arrancar el audio con un gesto
+              soundRef.current?.setOn(next === "on");
+              if (next === "on") soundRef.current?.play("enter");
+            }}
+            aria-label={sound === "on" ? "Apagar el sonido" : "Prender el sonido"}
+            aria-pressed={sound === "on"}
+            className="focus-ring flex h-8 w-8 items-center justify-center rounded-lg border border-[rgba(255,255,255,0.09)] bg-[rgba(10,10,14,0.78)] text-[#f1ede6] hover:bg-[rgba(40,40,48,0.9)]"
+          >
+            {sound === "on" ? <Volume2 size={14} /> : <VolumeX size={14} />}
+          </button>
         </div>
-        <p className="pointer-events-none absolute bottom-[18px] left-[88px] hidden text-[12px] text-[#a39e95] [@media(hover:hover)_and_(pointer:fine)]:block">
+        <p className="pointer-events-none absolute bottom-[18px] left-[124px] hidden text-[12px] text-[#a39e95] [@media(hover:hover)_and_(pointer:fine)]:block">
           Clic en una sala para entrar · flechas o WASD para caminar
         </p>
         <div className="absolute right-3 bottom-3 hidden grid-cols-2 gap-1.5 [@media(pointer:coarse)]:grid" aria-label="Caminar">
@@ -230,7 +290,7 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
             onOut={() => engineRef.current?.goOut()}
           />
         )}
-        {room?.kind === "office" && <Office who={room.who as Who} me={me} data={data} bySlug={bySlug} visits={visits} now={now} />}
+        {room?.kind === "office" && <Office who={room.who as Who} me={me} data={data} bySlug={bySlug} visits={visits} now={now} online={room.who === me ? true : partnerOnline} />}
         {room?.kind === "reception" && <Reception events={data.studioEvents} bySlug={bySlug} now={now} />}
         {room && !room.slug && (room.kind === "kitchen" || room.kind === "storage") && (
           <div>
@@ -468,7 +528,7 @@ function ProjectRoom({ p, room, me, prev, otherVisit, now, onOut }: { p: OfiProj
   );
 }
 
-function Office({ who, me, data, bySlug, visits, now }: { who: Who; me: Who; data: OficinasData; bySlug: Map<string, OfiProject>; visits: Visits; now: number }) {
+function Office({ who, me, data, bySlug, visits, now, online }: { who: Who; me: Who; data: OficinasData; bySlug: Map<string, OfiProject>; visits: Visits; now: number; online: boolean | null }) {
   const mine = who === me, name = PEOPLE[who].name;
   const tasks = data.openTasks.filter((t) => t.assignee === who).sort((a, b) => (a.due ?? "9999").localeCompare(b.due ?? "9999"));
   const seen = Object.entries(visits[who])
@@ -486,6 +546,12 @@ function Office({ who, me, data, bySlug, visits, now }: { who: Who; me: Who; dat
           </span>
         </Title>
         <p className="mt-1 text-[13px] text-muted">{mine ? "Tus tareas abiertas en todos los proyectos, por vencimiento." : `Lo que tiene a cargo ${name} y por dónde anduvo.`}</p>
+        {!mine && online !== null && (
+          <p className="mt-2 flex items-center gap-1.5 font-mono text-[11px] tracking-[0.08em] text-muted uppercase">
+            <span className={cn("h-1.5 w-1.5 rounded-full", online ? "bg-emerald-400" : "bg-[var(--line-strong)]")} />
+            {online ? "Con el panel abierto" : "Sin el panel abierto"}
+          </p>
+        )}
       </div>
       <Section title="Pendientes" n={tasks.length}>
         {tasks.length ? tasks.map((t) => <TaskRow key={t.id} t={t} today={dayKey(now)} label={(t.projectSlug && bySlug.get(t.projectSlug)?.name) || "Sin proyecto"} />) : <Empty>Nada pendiente.</Empty>}
