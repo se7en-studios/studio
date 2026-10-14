@@ -7,7 +7,7 @@ import { listTasks, taskLinks } from "@/lib/admin/tasks";
 import { listActivity } from "@/lib/admin/activity";
 import { listStates } from "@/lib/admin/projects";
 import type { Activity } from "@/lib/admin/activity-shared";
-import { Dashboard } from "../dashboard";
+import { Dashboard } from "./board";
 import { AdminGate } from "../ui";
 
 // Los pedidos que llegan por los formularios del sitio, en un tablero para
