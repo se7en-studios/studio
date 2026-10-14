@@ -1,4 +1,4 @@
-import { Project } from "@/types";
+import type { Project } from "@/types";
 
 // ponytail: fuente de datos local para v1 — reemplazar por lectura de la tabla `projects` de Supabase cuando se aplique supabase/schema.sql.
 // Orden = lo que hoy más funciona: Takefyy, Apex, Poné La Pava y Pravilo.

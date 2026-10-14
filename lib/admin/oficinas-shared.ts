@@ -94,6 +94,12 @@ export type OfiProject = {
   /** El sitio publicado y la grabación recorriéndolo (sólo casos): la tele la pasa cuando estás adentro. */
   url: string | null;
   video: string | null;
+  /**
+   * La captura automática más nueva del sitio (la página entera, ver
+   * scripts/capturar-sitios.mjs). Si hay, la tele la recorre en lugar de la
+   * grabación y la muestra desde afuera en lugar de `cover`.
+   */
+  capture: { url: string; width: number; height: number; capturedAt: string } | null;
   /** null en los proyectos del panel: usan una letra genérica. */
   brand: OfiBrand | null;
   status: string;

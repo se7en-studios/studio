@@ -3,6 +3,7 @@
 // este archivo desde un componente de cliente (los tipos están en
 // oficinas-shared.ts).
 import { getProjectBySlug } from "@/data/projects";
+import { latestCaptures, type SiteCapture } from "./capturas";
 import { db } from "./db";
 import { PanelNotReady, caseProjects, client, fail, getProject, listProjects, type PanelProject } from "./panel";
 import { defaultState, type ProjectState } from "./project-shared";
@@ -57,7 +58,7 @@ function brandOf(slug: string): OfiBrand | null {
   return b ? { font: b.font, weight: b.weight ?? 400, uppercase: b.uppercase ?? false, highlight: b.highlight ?? "", logo: k?.logo ?? null, mark: k?.mark ?? null } : null;
 }
 
-function toProject(p: PanelProject, s: ProjectState, tasks: OfiTask[], events: OfiEvent[], lastVisit: Record<Who, string | null>): OfiProject {
+function toProject(p: PanelProject, s: ProjectState, tasks: OfiTask[], events: OfiEvent[], lastVisit: Record<Who, string | null>, capture: SiteCapture | null = null): OfiProject {
   return {
     slug: p.slug,
     name: p.name,
@@ -68,6 +69,7 @@ function toProject(p: PanelProject, s: ProjectState, tasks: OfiTask[], events: O
     cover: p.cover,
     url: p.url,
     video: p.video,
+    capture,
     brand: p.isCase ? brandOf(p.slug) : null,
     status: s.status,
     owner: s.owner,
@@ -96,7 +98,7 @@ export async function getOficinasData(me: Who): Promise<OficinasData> {
     };
   }
   const c = client();
-  const [projects, states, tasksRes, eventsRes, visitsRes, readsRes] = await Promise.all([
+  const [projects, states, tasksRes, eventsRes, visitsRes, readsRes, captures] = await Promise.all([
     listProjects(),
     listStates().catch((e) => {
       // Sin panel-v2.sql el mapa anda igual: todos con el estado por defecto.
@@ -107,6 +109,8 @@ export async function getOficinasData(me: Who): Promise<OficinasData> {
     c.from("panel_events").select("id, created_at, actor, kind, text, project_slug").in("kind", EVENT_KINDS).order("created_at", { ascending: false }).limit(400),
     c.from("panel_room_visits").select("who, project_slug, visited_at"),
     c.from("panel_reads").select("who, channel, last_read_at").like("channel", "p:%"),
+    // Sin capturas.sql, o si falla, la tele usa la captura fija: no corta el mapa.
+    latestCaptures().catch(() => new Map<string, SiteCapture>()),
   ]);
   if (tasksRes.error && !missingTable(tasksRes.error)) fail(tasksRes.error);
   if (eventsRes.error) fail(eventsRes.error);
@@ -123,7 +127,9 @@ export async function getOficinasData(me: Who): Promise<OficinasData> {
 
   const visitOf = (who: Who, slug: string) => resolveVisit(rows.get(key(who, slug)) ?? null, reads.get(key(who, slug)) ?? null, own.get(key(who, slug)) ?? null);
   const out = projects
-    .map((p) => toProject(p, states.get(p.slug) ?? defaultState(p.slug, p.isCase), tasks, events, { federico: visitOf("federico", p.slug), franco: visitOf("franco", p.slug) }))
+    .map((p) =>
+      toProject(p, states.get(p.slug) ?? defaultState(p.slug, p.isCase), tasks, events, { federico: visitOf("federico", p.slug), franco: visitOf("franco", p.slug) }, captures.get(p.slug) ?? null),
+    )
     // Orden fijo para que las salas no cambien de lugar con cada movimiento.
     .sort((a, b) => a.name.localeCompare(b.name, "es"));
 

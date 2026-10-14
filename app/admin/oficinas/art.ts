@@ -172,15 +172,16 @@ function faded(src: Img, f: number): Img {
 /**
  * Una imagen sobre un paralelogramo del mundo: `a` es la esquina de arriba a la
  * izquierda tal como se lee, `b` la de arriba a la derecha y `d` la de abajo a
- * la izquierda. Con `aspect` (ancho/alto real) recorta al centro en vez de deformar.
+ * la izquierda. Con `aspect` (ancho/alto real) recorta al centro en vez de
+ * deformar; con `top`, una imagen alta se muestra desde esa altura (en px de la imagen).
  */
-export function quadImage(src: Img, a: XY, b: XY, d: XY, aspect?: number) {
+export function quadImage(src: Img, a: XY, b: XY, d: XY, aspect?: number, top?: number) {
   const [w, h] = sizeOf(src);
   if (!w || !h) return;
   let sx = 0, sy = 0, sw = w, sh = h;
   if (aspect) {
     if (w / h > aspect) { sw = h * aspect; sx = (w - sw) / 2; }
-    else { sh = w / aspect; sy = (h - sh) / 2; }
+    else { sh = w / aspect; sy = top === undefined ? (h - sh) / 2 : Math.max(0, Math.min(h - sh, top)); }
   }
   g.save();
   g.imageSmoothingQuality = "high";
@@ -201,8 +202,19 @@ function wallImage(dc: Decor, src: Img, u0: number, u1: number, z0: number, z1: 
 export type Brand = { family: string; weight: number; uppercase: boolean; highlight: string; tagline?: string };
 /** El logo completo y el ícono de la marca, ya cargados (null mientras tanto o si no hay). */
 export type BrandImages = { logo: HTMLImageElement | null; mark: HTMLImageElement | null };
-/** Lo propio de cada sala: la captura del sitio, el ícono de la marca (cuando cargan) y las texturas horneadas. */
-export type RoomArt = BrandImages & { site: HTMLImageElement | null; rug: HTMLCanvasElement; mat: HTMLCanvasElement; poster: HTMLCanvasElement; court: HTMLCanvasElement };
+/**
+ * Lo propio de cada sala: la captura del sitio (`site`: la de arriba, la que se
+ * ve desde afuera; `page`: la página entera de la captura automática), el ícono
+ * de la marca (cuando cargan) y las texturas horneadas.
+ */
+export type RoomArt = BrandImages & {
+  site: HTMLImageElement | HTMLCanvasElement | null;
+  page: HTMLImageElement | null;
+  rug: HTMLCanvasElement;
+  mat: HTMLCanvasElement;
+  poster: HTMLCanvasElement;
+  court: HTMLCanvasElement;
+};
 
 const TEX = 96; // px de textura por baldosa: alcanza para el zoom más cercano en pantallas retina
 const BRAND_FALLBACK = "ui-sans-serif, system-ui, sans-serif";
@@ -278,7 +290,7 @@ function twoLines(s: string): string | string[] {
  * y su color. `posterAspect` es ancho/alto del cartel (la pared alta y la media
  * no miden lo mismo). Se vuelven a hornear cuando bajan la tipografía y los logos.
  */
-export function bakeBrand(name: string, accent: string, brand: Brand | null, posterAspect: number, imgs: BrandImages): Omit<RoomArt, "site" | "logo" | "mark"> {
+export function bakeBrand(name: string, accent: string, brand: Brand | null, posterAspect: number, imgs: BrandImages): Omit<RoomArt, "site" | "page" | "logo" | "mark"> {
   const family = brand?.family ?? BRAND_FALLBACK;
   // Las marcas de trazo fino (Outfit 300) no se leen chiquitas: mínimo 500.
   const font = (px: number) => `${Math.max(brand?.weight ?? 700, 500)} ${px}px ${family}`;

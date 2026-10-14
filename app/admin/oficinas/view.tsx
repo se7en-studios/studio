@@ -109,7 +109,16 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
         const family = p.brand ? brandFamilies[p.brand.font as BrandFont] : undefined;
         return [
           r.id,
-          { name: p.name, accent: p.accent, status: p.status, cover: coverSrc(p.cover), video: p.video, domain: domainOf(p.url), brand: p.brand && family ? { ...p.brand, family, tagline: p.tagline } : null },
+          {
+            name: p.name,
+            accent: p.accent,
+            status: p.status,
+            cover: coverSrc(p.cover),
+            video: p.video,
+            page: p.capture?.url ?? null,
+            domain: domainOf(p.url),
+            brand: p.brand && family ? { ...p.brand, family, tagline: p.tagline } : null,
+          },
         ];
       }),
     );
@@ -440,6 +449,17 @@ function ProjectRoom({ p, room, me, prev, otherVisit, now, onOut }: { p: OfiProj
           <Face who={other} size={22} alt="" />
           entró {daysLabel(daysSince(otherVisit, now))}
         </dd>
+        {p.url && (
+          <>
+            <dt className="text-muted">Sitio</dt>
+            <dd className="min-w-0 text-foreground">
+              <a href={p.url} target="_blank" rel="noopener noreferrer" className="focus-ring truncate rounded underline decoration-[var(--line)] underline-offset-2 hover:decoration-current">
+                {domainOf(p.url)}
+              </a>
+              <span className="text-muted"> · {p.capture ? `captura ${relTime(p.capture.capturedAt, now)}` : "sin captura automática"}</span>
+            </dd>
+          </>
+        )}
       </dl>
       <div>
         <div className="mb-1.5 flex justify-between text-[12px] text-muted">
