@@ -74,6 +74,9 @@ export type OfiTask = {
 
 export type OfiEvent = { id: string; createdAt: string; actor: Who | null; text: string; projectSlug: string | null };
 
+/** La tipografía de la marca de un caso (clave de lib/brand-fonts.ts): la alfombra, el felpudo y el cartel de la sala van con ella. */
+export type OfiBrand = { font: string; weight: number; uppercase: boolean; highlight: string };
+
 export type OfiProject = {
   slug: string;
   name: string;
@@ -82,6 +85,10 @@ export type OfiProject = {
   tagline: string;
   client: string;
   accent: string;
+  /** Captura del sitio (casos) o la última imagen subida al panel. Va enmarcada en la sala y en el monitor. */
+  cover: string | null;
+  /** null en los proyectos del panel: usan una letra genérica. */
+  brand: OfiBrand | null;
   status: string;
   owner: Who | null;
   due: string | null;
@@ -226,7 +233,7 @@ export type Furni = {
 };
 
 /** Lo que va pintado en el piso (alfombras, la cancha): no ocupa lugar y se dibuja antes que todo. */
-export const DECALS = new Set(["rug", "court", "yogamat"]);
+export const DECALS = new Set(["rug", "court", "yogamat", "doormat"]);
 
 /** Cuadros, pizarrones, ventanas: van pintados sobre una pared. */
 export type Decor = { id: string; k: string; side: Side; x: number; y: number; len: number; room: string | null };
@@ -405,11 +412,18 @@ function furnishRoom(r: MapRoom, left: boolean, put: Put, hang: Hang) {
     put(r, "plant", X + 5, Y);
     put(r, "lamp", X + 5, Y + 4);
   }
-  // El piso y el cuadro de la pared cuentan de qué es el proyecto
+  // La marca: el felpudo del lado del pasillo (cada puerta se reconoce al pasar)
+  // y el cartel con el nombre. Arriba de la ventana en las de la izquierda, en
+  // la pared de la puerta en las de la derecha.
+  put(r, "doormat", r.outside.x, r.outside.y, 1, 1, "x", false);
+  hang(r, "brand", "L", left ? 0 : X, left ? Y + 3 : Y, 2);
+  // El piso y el cuadro de la pared cuentan de qué es el proyecto. La alfombra
+  // con el nombre va contra el fondo y sin nada encima: lo de adelante de la
+  // sala (y lo alto de la sala de adelante) taparía las letras.
   const theme = r.theme ?? "studio";
   if (theme === "padel") put(r, "court", X + 1, Y + 2, 4, 2, "y", false);
-  else if (theme === "yoga") put(r, "yogamat", X + 2, Y + 2, 1, 2, "y", false);
-  else put(r, "rug", X + 2, Y + 2, 3, 2, "y", false);
+  else put(r, "rug", X + 2, Y + 1, 3, 2, "y", false);
+  if (theme === "yoga") put(r, "yogamat", X + 2, Y + 3, 1, 2, "y", false);
   const WALL_ART: Partial<Record<Theme, string>> = { padel: "rackets", gym: "plan", inmobiliaria: "blueprint", clima: "mapscreen", carta: "menuboard" };
   hang(r, WALL_ART[theme] ?? "poster", left ? "R" : "L", left ? X + 1 : X, left ? Y : Y + 3, 1);
   // Lo que identifica la etapa
@@ -417,7 +431,8 @@ function furnishRoom(r: MapRoom, left: boolean, put: Put, hang: Hang) {
   if (archive) {
     hang(r, "plaque", "R", a + 1, Y, 1);
     hang(r, "frame", "R", a - 1, Y, 1);
-    put(r, "pedestal", X + 3, Y + 2);
+    if (theme === "padel") put(r, "pedestal", X + 1, Y + 4); // fuera de la cancha
+    else put(r, "pedestal", X + 2, Y + 3);
     put(r, "vitrine", a + 1, Y, 1, 1, "y");
   } else if (st === "mantenimiento") {
     // El sitio en vivo colgado en la pared, el servidor que lo mantiene y, al
@@ -435,21 +450,23 @@ function furnishRoom(r: MapRoom, left: boolean, put: Put, hang: Hang) {
     put(r, "stool", a + 1, Y + 1);
   } else if (st === "revision") {
     hang(r, "tv", "R", a - 1, Y, 3);
-    put(r, "sofa", a, Y + 2, 2, 1, "y");
+    put(r, "sofa", a, Y + 3, 2, 1, "y");
   } else if (st === "descubrimiento") {
     hang(r, "whiteboard", "R", a - 1, Y, 3);
-    put(r, "table", a, Y + 1, 1, 1, "y");
-    put(r, "stool", a + 1, Y + 1);
+    put(r, "table", a, Y + 3, 1, 1, "y");
+    put(r, "stool", a + 1, Y + 3);
   } else {
     // Pausado: los muebles tapados con sábanas.
     put(r, "sofa", a, Y, 2, 1, "y");
   }
-  // La pieza del centro, según el tema (el archivo y la revisión ya tienen algo ahí)
-  if (archive || st === "revision") return;
+  // La pieza del centro, según el tema (el archivo, la revisión y el
+  // descubrimiento ya tienen algo ahí). Va adelante a la izquierda de la
+  // alfombra: lo alto tapa lo que tiene atrás en diagonal, y ahí no hay letras.
+  if (archive || st === "revision" || st === "descubrimiento") return;
   if (theme === "padel") put(r, "balls", X + 1, Y + 4);
-  else if (theme === "gym") put(r, "squatrack", X + 3, Y + 2, 2, 1, "y");
-  else if (theme === "yoga") put(r, "yogaprops", X + 3, Y + 3);
-  else if (theme !== "studio") put(r, theme === "mate" ? "matetable" : theme === "inmobiliaria" ? "maquette" : theme === "clima" ? "globe" : theme === "phones" ? "phonetable" : "cafetable", X + 3, Y + 2);
+  else if (theme === "gym") put(r, "squatrack", X + 1, left ? Y + 3 : Y + 4, 2, 1, "y"); // en las de la derecha, lejos de la puerta
+  else if (theme === "yoga") put(r, "yogaprops", X + 1, Y + 4);
+  else if (theme !== "studio") put(r, theme === "mate" ? "matetable" : theme === "inmobiliaria" ? "maquette" : theme === "clima" ? "globe" : theme === "phones" ? "phonetable" : "cafetable", X + 2, Y + 3);
 }
 
 // --- Caminar -----------------------------------------------------------------------

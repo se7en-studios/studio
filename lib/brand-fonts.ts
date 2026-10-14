@@ -47,3 +47,13 @@ export const brandFonts = {
 } as const;
 
 export type BrandFont = keyof typeof brandFonts;
+
+/** Las mismas por familia, para dibujarlas en un canvas (las salas de «En vivo»). */
+export const brandFamilies: Record<BrandFont, string> = {
+  anton: anton.style.fontFamily,
+  bricolage: bricolage.style.fontFamily,
+  playfair: playfair.style.fontFamily,
+  barlow: barlow.style.fontFamily,
+  jakarta: jakarta.style.fontFamily,
+  outfit: outfit.style.fontFamily,
+};

@@ -24,7 +24,9 @@ import {
   TALL,
   WALL,
   avatar,
+  bakeBrand,
   begin,
+  brandRug,
   decal,
   decay,
   decor,
@@ -34,6 +36,8 @@ import {
   hash,
   measureSign,
   mix,
+  posterAspect,
+  quadImage,
   rug,
   setFade,
   sign,
@@ -41,15 +45,25 @@ import {
   tickerQuad,
   viewOf,
   wallSegment,
+  type Brand,
   type Dir,
   type Glow,
   type Material,
+  type RoomArt,
   type SignSpec,
   type WallStyle,
   type XY,
 } from "./art";
 
-export type RoomInfo = { name: string; accent: string; status: string };
+export type RoomInfo = {
+  name: string;
+  accent: string;
+  status: string;
+  /** Captura del sitio: va enmarcada en la pared y en el monitor. */
+  cover?: string | null;
+  /** Tipografía de la marca (familia ya resuelta). null = letra genérica. */
+  brand?: Brand | null;
+};
 export type RoomLooks = Record<string, { fade: number; days: number | null; badge: number }>;
 export type EngineOptions = {
   map: MapModel;
@@ -131,6 +145,29 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   };
   const accentOf = (id: string | null | undefined) => (id ? o.info[id]?.accent : undefined) ?? "#ff4d2e";
 
+  // Lo propio de cada sala: las texturas con la marca y la captura del sitio.
+  // Se hornean ya con la letra de reserva y otra vez cuando baja la de la marca.
+  const arts = new Map<string, RoomArt>();
+  let dead = false;
+  for (const r of m.rooms) {
+    const inf = o.info[r.id];
+    if (r.kind !== "project" || !inf) continue;
+    const poster = m.decor.find((dc) => dc.room === r.id && dc.k === "brand");
+    const bake = () => arts.set(r.id, { ...bakeBrand(inf.name, inf.accent, inf.brand ?? null, poster ? posterAspect(poster) : 2), site: arts.get(r.id)?.site ?? null });
+    bake();
+    if (inf.brand) document.fonts?.load(`${Math.max(inf.brand.weight, 500)} 40px ${inf.brand.family}`).then(() => !dead && bake(), () => {});
+    if (inf.cover) {
+      const img = new Image();
+      img.decoding = "async";
+      img.onload = () => {
+        const a = arts.get(r.id);
+        if (a && !dead) a.site = img;
+      };
+      img.src = inf.cover;
+    }
+  }
+  const artOf = (id: string | null | undefined) => (id ? arts.get(id) ?? null : null);
+
   function matAt(x: number, y: number): Material {
     const id = m.region[y][x];
     if (id === "hall") return m.archiveY !== null && y >= m.archiveY && x >= m.spine.x0 && x < m.spine.x1 ? "gallery" : "hall";
@@ -188,7 +225,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
               ctx.clip();
               for (const dc of here) {
                 setFade(fadeOfId(dc.room));
-                decor(dc, accentOf(dc.room), period);
+                decor(dc, accentOf(dc.room), period, artOf(dc.room));
               }
               ctx.restore();
               // Las pantallas de pared (tele, mapa) se prenden por arriba de la oscuridad, una sola vez.
@@ -406,6 +443,14 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   function screenGlow(gl: Extract<Glow, { t: "screen" }>, ts: number) {
     const L = lightOf(gl.room);
     const tick = reduced ? 0 : Math.floor(ts / 380);
+    // El monitor de mantenimiento muestra el sitio de verdad (derecho, aunque la pantalla mire a +x)
+    const site = gl.kind === "site" && L > 0.5 ? artOf(gl.room)?.site : null;
+    if (site) {
+      const q = gl.quad, flip = q[1][0] < q[0][0];
+      setFade(fadeOfId(gl.room));
+      quadImage(site, flip ? q[1] : q[0], flip ? q[0] : q[1], flip ? q[2] : q[3], Math.hypot(q[1][0] - q[0][0], q[1][1] - q[0][1]) / Math.hypot(q[3][0] - q[0][0], q[3][1] - q[0][1]));
+      setFade(0);
+    }
     inQuad(gl.quad, 20, 12, () => {
       const R = (x: number, y: number, w: number, h: number, col: string) => {
         ctx.fillStyle = col;
@@ -417,6 +462,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         if (Math.floor(ts / 1000) % 2 === 0) R(17, 9, 1.5, 1.5, "#ff8a3d");
         return;
       }
+      if (gl.kind === "site" && site) return;
       switch (gl.kind) {
         case "code": {
           R(0, 0, 20, 12, "#0e1a2b");
@@ -581,9 +627,11 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       if (!DECALS.has(f.k)) continue;
       const r = f.room ? byId.get(f.room) : null;
       setFade(fadeOfId(f.room));
-      if (f.k !== "rug") decal(f, accentOf(f.room));
+      const art = artOf(f.room);
+      if (f.k !== "rug") decal(f, accentOf(f.room), art);
       else if (r?.kind === "office") rug(f, r.who === "franco" ? "#8f8257" : "#33333f", r.who === "franco" ? "#e2d5a3" : "#ff4d2e");
       else if (r?.kind === "reception") rug(f, "#b8442c", "#ffb199");
+      else if (art) brandRug(f, art.rug);
       else {
         const acc = accentOf(f.room);
         rug(f, mix(acc, "#2a2228", 0.4), mix(acc, "#f1ede6", 0.35));
@@ -853,6 +901,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     },
     resize,
     destroy() {
+      dead = true;
       cancelAnimationFrame(raf);
       mq.removeEventListener("change", onMq);
       canvas.removeEventListener("pointerdown", onDown);
