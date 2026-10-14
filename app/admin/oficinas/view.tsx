@@ -29,26 +29,16 @@ import {
   type Who,
 } from "@/lib/admin/oficinas-shared";
 import { PEOPLE } from "@/lib/admin/people";
-import { brandFamilies, type BrandFont } from "@/lib/brand-fonts";
+import { domainOf, roomInfoOf } from "@/lib/en-vivo";
 import { PROJECT_STATUSES, type ProjectStatus } from "@/lib/admin/project-shared";
 import { dueLabel } from "@/lib/admin/task-shared";
 import { Face, Progress, StatusPill, btnPrimary, btnSecondary, cn } from "../kit";
 import { useToast } from "../overlay";
+import { setMapRoom } from "../presence";
 import { createEngine, type Engine, type RoomLooks } from "./engine";
 
 type Visits = Record<Who, Record<string, string | null>>;
 type Dir = "up" | "down" | "left" | "right";
-
-/** Las capturas de /public pasan por el optimizador: en la tele ocupan menos de 200 px. */
-const coverSrc = (src: string | null) => (src?.startsWith("/") ? `/_next/image?url=${encodeURIComponent(src)}&w=384&q=75` : src);
-/** «takefyy.com», para la barra del navegador de la tele. */
-function domainOf(url: string | null) {
-  try {
-    return url ? new URL(url).hostname.replace(/^www\./, "") : null;
-  } catch {
-    return null;
-  }
-}
 
 export function OficinasView({ data, font, fontClass }: { data: OficinasData; font: string; fontClass: string }) {
   const me = data.me, other = otherOf(me);
@@ -75,6 +65,8 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
     (id: string | null) => {
       setRoomId(id);
       const r = id ? map.rooms.find((x) => x.id === id) : null;
+      // La landing muestra en qué sala estás (si es un caso de la web)
+      setMapRoom(r?.slug ?? null);
       if (!r?.slug) return;
       const slug = r.slug;
       setPrev(visitsRef.current[me][slug] ?? null);
@@ -103,25 +95,7 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const info = Object.fromEntries(
-      map.rooms.filter((r) => r.slug).map((r) => {
-        const p = bySlug.get(r.slug as string) as OfiProject;
-        const family = p.brand ? brandFamilies[p.brand.font as BrandFont] : undefined;
-        return [
-          r.id,
-          {
-            name: p.name,
-            accent: p.accent,
-            status: p.status,
-            cover: coverSrc(p.cover),
-            video: p.video,
-            page: p.capture?.url ?? null,
-            domain: domainOf(p.url),
-            brand: p.brand && family ? { ...p.brand, family, tagline: p.tagline } : null,
-          },
-        ];
-      }),
-    );
+    const info = Object.fromEntries(map.rooms.filter((r) => r.slug).map((r) => [r.id, roomInfoOf(bySlug.get(r.slug as string) as OfiProject)]));
     const engine = createEngine(canvas, {
       map,
       info,
@@ -138,6 +112,7 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
       ro.disconnect();
       engine.destroy();
       engineRef.current = null;
+      setMapRoom(null);
     };
   }, [map, bySlug, me, font]);
 

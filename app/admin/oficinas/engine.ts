@@ -42,6 +42,7 @@ import {
   tickerQuad,
   viewOf,
   wallSegment,
+  type ActorLook,
   type Brand,
   type BrandImages,
   type Dir,
@@ -78,7 +79,18 @@ export type EngineOptions = {
   onRoom: (id: string | null) => void;
   /** La sala que queda bajo el mouse (null al salir): su nombre va arriba, no flotando en el mapa. */
   onHover?: (id: string | null) => void;
+  /**
+   * Para la landing: sin jugador ni teclado (no se roba las flechas de la
+   * página), las salas siempre prendidas, la compu dice «en línea» en vez de
+   * los días y caminan los personajes de setActors. Tocar una sala avisa por
+   * onRoom sin caminar hasta ahí.
+   */
+  public?: boolean;
 };
+
+/** Qué hace un personaje de la landing: sentado en su escritorio, mirando la tele de una sala o recorriéndolas todas. */
+export type ActorGoal = { kind: "seat"; who: Who } | { kind: "room"; room: string } | { kind: "tour" };
+export type ActorSpec = { id: string; look: ActorLook; goal: ActorGoal };
 export type Engine = {
   setMe: (me: Who) => void;
   /** `lightUp`: la sala a la que se acaba de entrar (titila y se prende). */
@@ -90,6 +102,10 @@ export type Engine = {
   goOut: () => void;
   press: (dir: "up" | "down" | "left" | "right", on: boolean) => void;
   zoomBy: (step: number) => void;
+  /** Sólo en la landing: quiénes caminan por el mapa. Los que ya están siguen desde donde estaban. */
+  setActors: (specs: ActorSpec[]) => void;
+  /** Frena el dibujo (la sección de la landing quedó fuera de la pantalla) y lo retoma. */
+  setPaused: (paused: boolean) => void;
   resize: () => void;
   destroy: () => void;
 };
@@ -155,7 +171,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   let marker: (Pt & { t0: number }) | null = null;
   const held = new Set<string>();
   let hoverRoom: string | null = null;
-  let raf = 0, last = performance.now();
+  let raf = 0, last = performance.now(), paused = false;
 
   const fadeOfId = (id: string | null | undefined) => (id ? disp.get(id) ?? 0 : 0);
   const lightOf = (id: string | null | undefined) => {
@@ -377,18 +393,15 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     if ((r?.id ?? null) !== (current?.id ?? null)) {
       current = r;
       o.onRoom(r ? r.id : null);
-      tuneTv();
+      tuneTv(r?.kind === "project" ? r.id : null);
     }
   }
 
   // La tele de la sala donde estás pasa la grabación del sitio; las demás
   // muestran la captura quieta. Un solo video a la vez, y nada con movimiento reducido.
   let tv: { room: string; el: HTMLVideoElement } | null = null;
-  let tvSince = 0;
-  function tuneTv() {
-    const id = current?.kind === "project" ? current.id : null;
-    tvSince = performance.now();
-    if (tv && tv.room === id) return;
+  function tuneTv(id: string | null) {
+    if ((tv?.room ?? null) === id) return;
     if (tv) {
       tv.el.pause();
       tv.el.removeAttribute("src");
@@ -408,6 +421,167 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     tv = { room: id, el };
   }
 
+  // --- Personajes (landing) ----------------------------------------------------
+  // En la landing no hay jugador: caminan los socios conectados (a la sala del
+  // proyecto que tienen abierto, o se quedan sentados en su escritorio) o, si no
+  // hay nadie, el guía, que recorre las salas y se queda mirando cada tele.
+  type Actor = {
+    id: string;
+    look: ActorLook;
+    goal: ActorGoal;
+    x: number;
+    y: number;
+    from: Pt;
+    to: Pt;
+    t: number;
+    moving: boolean;
+    dir: Dir;
+    path: Pt[];
+    step: number;
+    /** Dónde está sentado (null = de pie). */
+    seat: Pt | null;
+    /** Hacia dónde mira cuando llega (la tele). */
+    face: Dir | null;
+    /** El guía: hasta cuándo se queda en esta sala y por qué parada del recorrido va. */
+    wait: number;
+    stop: number;
+    stuck: boolean;
+  };
+  const actors: Actor[] = [];
+  const DWELL = 7000;
+  const seatOf = (who: Who) => byId.get(`off-${who}`)?.seat ?? null;
+  // Dónde se para alguien a mirar la tele de cada sala, y hacia dónde mira
+  const tvSpots = new Map<string, { at: Pt; face: Dir }>();
+  for (const r of m.rooms) {
+    const tvf = r.kind === "project" ? m.furni.find((f) => f.k === "tvstand" && f.room === r.id) : null;
+    if (!tvf) continue;
+    const front = tvf.face === "y" ? { x: tvf.x + tvf.w / 2, y: tvf.y + 2.2 } : { x: tvf.x + 2.2, y: tvf.y + tvf.d / 2 };
+    let best: Pt | null = null, bd = Infinity;
+    for (let y = r.y; y < r.y + r.d; y++)
+      for (let x = r.x; x < r.x + r.w; x++) {
+        const d = Math.hypot(x + 0.5 - front.x, y + 0.5 - front.y);
+        if (walkable(m, x, y) && d < bd) {
+          bd = d;
+          best = { x, y };
+        }
+      }
+    if (best) tvSpots.set(r.id, { at: best, face: tvf.face === "y" ? "NE" : "NW" });
+  }
+  // El recorrido del guía: la recepción y después cada sala, en el orden del mapa
+  const reception = byId.get("recepcion");
+  const tourStops: { at: Pt; face: Dir }[] = [
+    ...(reception ? [{ at: { x: reception.x + 2, y: reception.y + 3 }, face: "NE" as Dir }] : []),
+    ...m.rooms.flatMap((r) => tvSpots.get(r.id) ?? []),
+  ];
+  function syncActors(specs: ActorSpec[]) {
+    for (let i = actors.length - 1; i >= 0; i--) if (!specs.some((sp) => sp.id === actors[i].id)) actors.splice(i, 1);
+    for (const sp of specs) {
+      const a = actors.find((x) => x.id === sp.id);
+      if (a) {
+        if (JSON.stringify(a.goal) !== JSON.stringify(sp.goal)) Object.assign(a, { goal: sp.goal, stuck: false, wait: 0, face: null });
+        a.look = sp.look;
+        continue;
+      }
+      // Los socios aparecen en su escritorio; el guía, en el pasillo
+      const seat = sp.look === "guia" ? null : seatOf(sp.look);
+      const at = sp.goal.kind === "tour" ? m.start : (seat ?? m.start);
+      actors.push({ id: sp.id, look: sp.look, goal: sp.goal, x: at.x, y: at.y, from: { ...at }, to: { ...at }, t: 0, moving: false, dir: "SW", path: [], step: 0, seat: sp.goal.kind === "seat" ? seat : null, face: null, wait: 0, stop: 0, stuck: false });
+    }
+  }
+  function headTo(a: Actor, to: Pt) {
+    const path = findPath(m, a.moving ? a.to : { x: a.x, y: a.y }, to);
+    if (!path) return false;
+    a.seat = null;
+    a.face = null;
+    // Con movimiento reducido, aparece directamente donde va
+    if (reduced) Object.assign(a, { x: to.x, y: to.y, from: { ...to }, to: { ...to }, moving: false, path: [] });
+    else a.path = path;
+    return true;
+  }
+  function settle(a: Actor, ts: number) {
+    const g = a.goal;
+    if (g.kind === "seat") {
+      const seat = seatOf(g.who);
+      if (a.seat || !seat) return;
+      if (a.stuck || Math.abs(a.x - seat.x) + Math.abs(a.y - seat.y) <= 1) {
+        Object.assign(a, { x: seat.x, y: seat.y, seat });
+        return;
+      }
+      const next = [[0, -1], [-1, 0], [1, 0], [0, 1]].map(([dx, dy]) => ({ x: seat.x + dx, y: seat.y + dy })).find((q) => walkable(m, q.x, q.y));
+      if (!next || !headTo(a, next)) a.stuck = true;
+      return;
+    }
+    const stop = g.kind === "room" ? tvSpots.get(g.room) : tourStops[a.stop % Math.max(1, tourStops.length)];
+    if (!stop) return;
+    if (a.x === stop.at.x && a.y === stop.at.y) {
+      a.face = stop.face;
+      if (g.kind !== "tour" || reduced) return;
+      if (!a.wait) a.wait = ts + DWELL;
+      else if (ts > a.wait) {
+        a.wait = 0;
+        a.stop++;
+      }
+      return;
+    }
+    if (a.stuck) return;
+    if (!headTo(a, stop.at)) {
+      if (g.kind === "tour") a.stop++;
+      else a.stuck = true;
+    }
+  }
+  function stepActor(a: Actor) {
+    const n = a.path.shift() as Pt;
+    a.dir = dirOf(n.x - a.x, n.y - a.y);
+    if (!canStep(m, a.x, a.y, n.x, n.y)) {
+      a.path = [];
+      return;
+    }
+    Object.assign(a, { from: { x: a.x, y: a.y }, to: n, moving: true, t: 0 });
+  }
+  function updateActors(dt: number, ts: number) {
+    for (const a of actors) {
+      if (!a.moving && a.path.length) stepActor(a);
+      if (a.moving) {
+        a.t += dt * SPEED;
+        a.step += dt * SPEED;
+        if (a.t >= 1) {
+          Object.assign(a, { x: a.to.x, y: a.to.y, moving: false });
+          if (a.path.length) stepActor(a);
+        }
+      }
+      if (!a.moving && !a.path.length) settle(a, ts);
+    }
+  }
+  const actorPos = (a: Actor): [number, number] => {
+    if (a.seat) return [a.seat.x + 0.5, a.seat.y + 0.5];
+    const k = a.moving ? Math.min(1, a.t) : 0;
+    const fx = a.moving ? a.from.x : a.x, fy = a.moving ? a.from.y : a.y;
+    const tx = a.moving ? a.to.x : a.x, ty = a.moving ? a.to.y : a.y;
+    return [fx + (tx - fx) * k + 0.5, fy + (ty - fy) * k + 0.5];
+  };
+  const actorDepth = (a: Actor) => (a.moving ? Math.max(a.from.x + a.from.y, a.to.x + a.to.y) : a.x + a.y) + 0.05;
+  /** A quién sigue la cámara: el guía, o el que camina, o el primero. */
+  const focusActor = () => actors.find((a) => a.goal.kind === "tour") ?? actors.find((a) => !a.seat) ?? actors[0] ?? null;
+
+  // Salas con alguien mirando la tele (o, en el panel, donde estás): ahí la
+  // tele recorre el sitio. `liveSince`: desde cuándo, para arrancar arriba.
+  const liveSince = new Map<string, number>();
+  function updateLive(ts: number) {
+    const live = new Set<string>();
+    if (o.public) {
+      for (const a of actors) {
+        const r = !a.moving && !a.seat && !a.path.length ? roomAt(m, a.x, a.y) : null;
+        if (r?.kind === "project") live.add(r.id);
+      }
+      // La grabación (si la sala no tiene captura) va en la del que sigue la cámara
+      const f = focusActor();
+      const fr = f && !f.moving && !f.seat && !f.path.length ? roomAt(m, f.x, f.y) : null;
+      tuneTv(fr?.kind === "project" ? fr.id : null);
+    } else if (current?.kind === "project") live.add(current.id);
+    for (const id of [...liveSince.keys()]) if (!live.has(id)) liveSince.delete(id);
+    for (const id of live) if (!liveSince.has(id)) liveSince.set(id, ts);
+  }
+
   function update(dt: number, ts: number) {
     for (const [id, a] of anim) {
       const t = (ts - a.t0) / 900;
@@ -419,18 +593,22 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       }
       disp.set(id, v);
     }
-    if (!player.moving) next();
-    if (player.moving) {
-      player.t += dt * SPEED;
-      player.step += dt * SPEED;
-      if (player.t >= 1) {
-        player.x = player.to.x;
-        player.y = player.to.y;
-        player.moving = false;
-        arrive();
-        next();
+    if (o.public) updateActors(dt, ts);
+    else {
+      if (!player.moving) next();
+      if (player.moving) {
+        player.t += dt * SPEED;
+        player.step += dt * SPEED;
+        if (player.t >= 1) {
+          player.x = player.to.x;
+          player.y = player.to.y;
+          player.moving = false;
+          arrive();
+          next();
+        }
       }
     }
+    updateLive(ts);
   }
   const playerPos = (): [number, number] => {
     const k = player.moving ? Math.min(1, player.t) : 0;
@@ -518,6 +696,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
    * ámbar: desde el pasillo se ve cuánto hace que nadie entra.
    */
   function statusScreen(gl: Extract<Glow, { t: "screen" }>) {
+    if (o.public) return publicScreen(gl);
     const L = lightOf(gl.room), on = L > 0.5;
     const lk = gl.room ? looks[gl.room] : undefined;
     const days = lk?.days ?? null, badge = lk?.badge ?? 0;
@@ -581,7 +760,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       });
       return;
     }
-    const here = current?.id === gl.room && L > 0.9;
+    const since = liveSince.get(gl.room ?? "");
+    const here = since !== undefined && L > 0.9;
     const art = artOf(gl.room);
     const vid = here && tv && tv.room === gl.room && tv.el.readyState >= 2 ? tv.el : null;
     const page = here && art?.page ? art.page : null;
@@ -592,7 +772,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     const shown = live ?? still;
     if (page) {
       setFade(0);
-      quadImage(page, a, b, qq[3], TV_ASPECT, reduced ? 0 : browse((ts - tvSince) / 1000, page.naturalHeight - page.naturalWidth / TV_ASPECT));
+      quadImage(page, a, b, qq[3], TV_ASPECT, reduced ? 0 : browse((ts - (since ?? ts)) / 1000, page.naturalHeight - page.naturalWidth / TV_ASPECT));
     } else if (shown) {
       setFade(vid ? 0 : fadeOfId(gl.room));
       quadImage(shown, a, b, qq[3], TV_ASPECT);
@@ -637,6 +817,35 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       fillPoly(ctx, gl.quad, `rgba(255,236,210,${0.05 * L})`);
       ctx.globalCompositeOperation = "source-over";
     }
+  }
+  /** La compu en la landing: el ícono de la marca y «en línea». Nada de días ni novedades: eso es del panel. */
+  function publicScreen(gl: Extract<Glow, { t: "screen" }>) {
+    const mark = artOf(gl.room)?.mark ?? null;
+    const q = gl.quad, flip = q[1][0] < q[0][0];
+    const W = 42, H = 30;
+    const blinkOn = reduced || Math.floor(performance.now() / 900) % 2 === 0;
+    inQuad(flip ? [q[1], q[0], q[3], q[2]] : q, W, H, () => {
+      ctx.fillStyle = "#121219";
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = gl.accent;
+      ctx.fillRect(0, 0, W, 1.4);
+      if (mark) {
+        const k = Math.min(15 / mark.naturalWidth, 13 / mark.naturalHeight);
+        ctx.drawImage(mark, W / 2 - (mark.naturalWidth * k) / 2, 13 - (mark.naturalHeight * k) / 2, mark.naturalWidth * k, mark.naturalHeight * k);
+      }
+      ctx.fillStyle = blinkOn ? "#34d27b" : "#1f6b43";
+      ctx.beginPath();
+      ctx.arc(W / 2 - 12.5, 25, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.font = `5px ${o.font}`;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#cfe9da";
+      ctx.fillText("EN LÍNEA", W / 2 - 9.5, 25.3);
+    });
+    ctx.globalCompositeOperation = "lighter";
+    fillPoly(ctx, gl.quad, "rgba(255,236,210,0.06)");
+    ctx.globalCompositeOperation = "source-over";
   }
   function screenGlow(gl: Extract<Glow, { t: "screen" }>, ts: number) {
     if (gl.kind === "status") return statusScreen(gl);
@@ -779,7 +988,9 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     ctx.fillStyle = "#07070a";
     ctx.fillRect(0, 0, W, H);
     scale = ZOOMS[zi] * dpr;
-    const [pxT, pyT] = playerPos();
+    const focus = o.public ? focusActor() : null;
+    // Sin nadie en el mapa, la cámara mira la recepción
+    const [pxT, pyT] = o.public ? (focus ? actorPos(focus) : [7.5, 3]) : playerPos();
     const [wx, wy] = P(pxT, pyT);
     const vw = W / scale, vh = H / scale;
     const tx = view.width <= vw ? view.width / 2 : Math.max(vw / 2, Math.min(view.width - vw / 2, wx));
@@ -850,17 +1061,30 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     glows = [];
     litDecor.clear();
     const [psx, psy] = P(pxT, pyT);
-    const pDepth = player.moving ? Math.max(player.from.x + player.from.y, player.to.x + player.to.y) + 0.05 : player.x + player.y + 0.05;
+    const pDepth = o.public ? (focus ? actorDepth(focus) : -1) : player.moving ? Math.max(player.from.x + player.from.y, player.to.x + player.to.y) + 0.05 : player.x + player.y + 0.05;
     Object.assign(playerBox, { x0: psx - 14, x1: psx + 14, y0: psy - 66, y1: psy, depth: pDepth });
-    const people: { depth: number; draw: () => void }[] = [
-      { depth: pDepth, draw: () => avatar(me, psx, psy, player.dir, player.moving && !reduced ? player.step % 1 : null) },
-    ];
+    const blink = !reduced && ts % 4300 < 140;
+    const typing = reduced ? null : (ts / 260) % 1;
+    const people: { depth: number; draw: () => void }[] = [];
     const po = byId.get(`off-${otherOf(me)}`);
-    if (po?.seat) {
-      const seat = po.seat;
-      const [sx, sy] = P(seat.x + 0.5, seat.y + 0.5);
-      const blink = !reduced && ts % 4300 < 140;
-      people.push({ depth: seat.x + seat.y + 0.05, draw: () => avatar(otherOf(me), sx, sy, "SW", null, true, blink) });
+    if (o.public) {
+      for (const a of actors) {
+        const [ax, ay] = P(...actorPos(a));
+        people.push({
+          depth: actorDepth(a),
+          draw: () =>
+            a.seat
+              ? avatar(a.look, ax, ay, "SW", null, true, blink, typing)
+              : avatar(a.look, ax, ay, a.moving ? a.dir : (a.face ?? a.dir), a.moving && !reduced ? a.step % 1 : null),
+        });
+      }
+    } else {
+      people.push({ depth: pDepth, draw: () => avatar(me, psx, psy, player.dir, player.moving && !reduced ? player.step % 1 : null) });
+      if (po?.seat) {
+        const seat = po.seat;
+        const [sx, sy] = P(seat.x + 0.5, seat.y + 0.5);
+        people.push({ depth: seat.x + seat.y + 0.05, draw: () => avatar(otherOf(me), sx, sy, "SW", null, true, blink, typing) });
+      }
     }
     people.sort((a, b) => a.depth - b.depth);
     let pi = 0;
@@ -917,7 +1141,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   }
 
   // --- Tocar y teclado -------------------------------------------------------------
-  function toTile(e: PointerEvent): Pt & { cx: number; cy: number } {
+  function toTile(e: MouseEvent): Pt & { cx: number; cy: number } {
     const b = canvas.getBoundingClientRect();
     const cx = e.clientX - b.left, cy = e.clientY - b.top;
     const wx = (cx * dpr - offX) / scale, wy = (cy * dpr - offY) / scale;
@@ -960,12 +1184,22 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     if (k) held.delete(k);
   }
   const onBlur = () => held.clear();
-  canvas.addEventListener("pointerdown", onDown);
+  // En la landing, un clic completo (no el primer toque): si no, empezar a
+  // scrollear la página con el dedo encima del mapa abriría un caso.
+  function onClick(e: MouseEvent) {
+    const t = toTile(e);
+    const r = inBounds(m, t.x, t.y) ? roomAt(m, t.x, t.y) : null;
+    if (r?.kind === "project") o.onRoom(r.id);
+  }
+  if (o.public) canvas.addEventListener("click", onClick);
+  else canvas.addEventListener("pointerdown", onDown);
   canvas.addEventListener("pointermove", onMove);
   canvas.addEventListener("pointerleave", onLeave);
-  window.addEventListener("keydown", onKey);
-  window.addEventListener("keyup", onKeyUp);
-  window.addEventListener("blur", onBlur);
+  if (!o.public) {
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+  }
 
   function resize() {
     dpr = Math.min(2.5, window.devicePixelRatio || 1);
@@ -1016,14 +1250,25 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       zi = Math.max(0, Math.min(ZOOMS.length - 1, zi + stepBy));
       cam.ready = false;
     },
+    setActors: syncActors,
+    setPaused(on) {
+      if (on === paused || dead) return;
+      paused = on;
+      cancelAnimationFrame(raf);
+      if (!on) {
+        last = performance.now();
+        raf = requestAnimationFrame(frame);
+      }
+    },
     resize,
     destroy() {
       dead = true;
       current = null;
-      tuneTv();
+      tuneTv(null);
       cancelAnimationFrame(raf);
       mq.removeEventListener("change", onMq);
       canvas.removeEventListener("pointerdown", onDown);
+      canvas.removeEventListener("click", onClick);
       canvas.removeEventListener("pointermove", onMove);
       canvas.removeEventListener("pointerleave", onLeave);
       window.removeEventListener("keydown", onKey);

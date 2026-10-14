@@ -4,6 +4,7 @@ import { SelectedWork } from "@/components/sections/selected-work";
 import { Proof } from "@/components/sections/proof";
 import { Services } from "@/components/sections/services";
 import { Process } from "@/components/sections/process";
+import { EnVivo } from "@/components/sections/en-vivo";
 import { About } from "@/components/sections/about";
 import { FAQ } from "@/components/sections/faq";
 import { Contact } from "@/components/sections/contact";
@@ -16,6 +17,7 @@ export default function Home() {
       <Proof />
       <Services />
       <Process />
+      <EnVivo />
       <About />
       <FAQ />
       <Contact />
