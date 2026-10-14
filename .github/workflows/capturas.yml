@@ -2,9 +2,10 @@
 # (/admin/oficinas): todas las mañanas abre cada sitio con Chrome, saca la
 # página entera y la sube al panel (scripts/capturar-sitios.mjs).
 #
-# Necesita el secreto CRON_SECRET en Settings → Secrets and variables → Actions,
-# con el mismo valor que en Vercel. Se puede correr a mano desde la pestaña
-# Actions («Run workflow»).
+# No necesita secretos: la tarea se identifica ante el panel con el token OIDC
+# que le firma GitHub (por eso id-token: write), y el panel sólo acepta el de
+# este workflow en master. Se puede correr a mano desde la pestaña Actions
+# («Run workflow»).
 name: Capturas de los sitios
 
 on:
@@ -15,6 +16,10 @@ on:
 concurrency:
   group: capturas
   cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   capturar:
@@ -31,5 +36,4 @@ jobs:
       - run: node scripts/capturar-sitios.mjs
         env:
           PANEL_URL: https://se7enstudio.vercel.app
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
           CHROME_PATH: /usr/bin/google-chrome

@@ -5,7 +5,8 @@
  * Lo corre .github/workflows/capturas.yml todas las mañanas. Pide la lista de
  * sitios al panel, abre cada uno con Chrome, baja por la página (para que
  * carguen las imágenes y las animaciones de entrada), saca la página entera a
- * 640 de ancho y la sube al panel. También se puede correr a mano:
+ * 640 de ancho y la sube al panel. En GitHub se identifica con el token OIDC
+ * de la tarea (no hace falta ningún secreto). También se puede correr a mano:
  *
  *   PANEL_URL=https://se7enstudio.vercel.app CRON_SECRET=… node scripts/capturar-sitios.mjs
  *   node scripts/capturar-sitios.mjs --local     (los casos de data/projects.ts, a .capturas/, sin subir)
@@ -45,10 +46,23 @@ async function listSites() {
     const { projects } = await import("../data/projects.ts");
     return projects.filter((p) => p.url).map((p) => ({ slug: p.slug, url: p.url }));
   }
-  if (!PANEL || !SECRET) throw new Error("Faltan PANEL_URL y CRON_SECRET (o correr con --local).");
-  const res = await fetch(`${PANEL}/api/cron/capturas`, { headers: { Authorization: `Bearer ${SECRET}` } });
+  if (!PANEL) throw new Error("Falta PANEL_URL (o correr con --local).");
+  const res = await fetch(`${PANEL}/api/cron/capturas`, { headers: { Authorization: await authorization() } });
   if (!res.ok) throw new Error(`El panel no dio la lista (${res.status}): ${await res.text()}`);
   return (await res.json()).sites;
+}
+
+/**
+ * Con CRON_SECRET, ése. En GitHub Actions (permissions: id-token: write), un
+ * token OIDC nuevo por pedido: vencen a los pocos minutos.
+ */
+async function authorization() {
+  if (SECRET) return `Bearer ${SECRET}`;
+  const url = process.env.ACTIONS_ID_TOKEN_REQUEST_URL, token = process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
+  if (!url || !token) throw new Error("Falta CRON_SECRET (o correrlo en GitHub Actions con permissions: id-token: write).");
+  const res = await fetch(`${url}&audience=se7en-capturas`, { headers: { Authorization: `bearer ${token}` } });
+  if (!res.ok) throw new Error(`GitHub no dio el token de la tarea (${res.status}).`);
+  return `Bearer ${(await res.json()).value}`;
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -118,7 +132,7 @@ async function upload(slug, shot) {
   const q = new URLSearchParams({ slug, w: String(shot.width), h: String(shot.height) });
   const res = await fetch(`${PANEL}/api/cron/capturas?${q}`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${SECRET}`, "Content-Type": "image/jpeg" },
+    headers: { Authorization: await authorization(), "Content-Type": "image/jpeg" },
     body: shot.jpeg,
   });
   if (!res.ok) throw new Error(`no se subió (${res.status}): ${await res.text()}`);
