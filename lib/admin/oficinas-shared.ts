@@ -89,8 +89,11 @@ export type OfiProject = {
   tagline: string;
   client: string;
   accent: string;
-  /** Captura del sitio (casos) o la última imagen subida al panel. Va enmarcada en la sala y en el monitor. */
+  /** Captura del sitio (casos) o la última imagen subida al panel. La tele de la sala la muestra desde afuera. */
   cover: string | null;
+  /** El sitio publicado y la grabación recorriéndolo (sólo casos): la tele la pasa cuando estás adentro. */
+  url: string | null;
+  video: string | null;
   /** null en los proyectos del panel: usan una letra genérica. */
   brand: OfiBrand | null;
   status: string;
@@ -421,6 +424,10 @@ function furnishRoom(r: MapRoom, left: boolean, put: Put, hang: Hang) {
   // la pared de la puerta en las de la derecha.
   put(r, "doormat", r.outside.x, r.outside.y, 1, 1, "x", false);
   hang(r, "brand", "L", left ? 0 : X, left ? Y + 3 : Y, 2);
+  // La tele con el sitio: contra el fondo en las de la izquierda, contra la
+  // pared de la puerta (más allá de la puerta) en las de la derecha.
+  if (left) put(r, "tvstand", X + 1, Y, 2, 1, "y");
+  else put(r, "tvstand", X, Y + 3, 1, 2, "x");
   // El piso y el cuadro de la pared cuentan de qué es el proyecto. La alfombra
   // con el nombre va contra el fondo y sin nada encima: lo de adelante de la
   // sala (y lo alto de la sala de adelante) taparía las letras.
@@ -428,20 +435,21 @@ function furnishRoom(r: MapRoom, left: boolean, put: Put, hang: Hang) {
   if (theme === "padel") put(r, "court", X + 1, Y + 2, 4, 2, "y", false);
   else put(r, "rug", X + 2, Y + 1, 3, 2, "y", false);
   if (theme === "yoga") put(r, "yogamat", X + 2, Y + 3, 1, 2, "y", false);
+  // El cuadro del rubro va en la esquina del fondo (atrás de la tele no se vería)
   const WALL_ART: Partial<Record<Theme, string>> = { padel: "rackets", gym: "plan", inmobiliaria: "blueprint", clima: "mapscreen", carta: "menuboard" };
-  hang(r, WALL_ART[theme] ?? "poster", left ? "R" : "L", left ? X + 1 : X, left ? Y : Y + 3, 1);
-  // Lo que identifica la etapa
+  hang(r, WALL_ART[theme] ?? "poster", left ? "L" : "R", X, Y, 1);
+  // Lo que identifica la etapa. Lo que se cuelga empieza después de la tele en
+  // las de la izquierda.
   const a = X + 3; // primera columna libre contra la pared de atrás
+  const wx = left ? a : a - 1;
   if (archive) {
     hang(r, "plaque", "R", a + 1, Y, 1);
-    hang(r, "frame", "R", a - 1, Y, 1);
     if (theme === "padel") put(r, "pedestal", X + 1, Y + 4); // fuera de la cancha
     else put(r, "pedestal", X + 2, Y + 3);
     put(r, "vitrine", a + 1, Y, 1, 1, "y");
   } else if (st === "mantenimiento") {
-    // El sitio en vivo colgado en la pared, el servidor que lo mantiene y, al
-    // lado, algo del rubro (así las salas en mantenimiento no son todas iguales)
-    hang(r, "frame", "R", a - 1, Y, 1);
+    // El servidor que mantiene el sitio y, al lado, algo del rubro (así las
+    // salas en mantenimiento no son todas iguales)
     put(r, "rack", a + 1, Y, 1, 1, "y");
     const SIDE: Partial<Record<Theme, string>> = { padel: "vitrine", gym: "dumbbells", inmobiliaria: "cabinet", phones: "boxes", carta: "espresso", yoga: "plant" };
     put(r, SIDE[theme] ?? "shelf", a, Y, 1, 1, "y");
@@ -449,14 +457,14 @@ function furnishRoom(r: MapRoom, left: boolean, put: Put, hang: Hang) {
     put(r, "desk2", a, Y, 2, 1, "y");
     put(r, "chair", a, Y + 1, 1, 1, "y");
   } else if (st === "diseno") {
-    hang(r, "moodboard", "R", a - 1, Y, 2);
+    hang(r, "moodboard", "R", wx, Y, 2);
     put(r, "drafting", a + 1, Y, 1, 1, "y");
     put(r, "stool", a + 1, Y + 1);
   } else if (st === "revision") {
-    hang(r, "tv", "R", a - 1, Y, 3);
+    hang(r, "tv", "R", wx, Y, 3);
     put(r, "sofa", a, Y + 3, 2, 1, "y");
   } else if (st === "descubrimiento") {
-    hang(r, "whiteboard", "R", a - 1, Y, 3);
+    hang(r, "whiteboard", "R", wx, Y, 3);
     put(r, "table", a, Y + 3, 1, 1, "y");
     put(r, "stool", a + 1, Y + 3);
   } else {

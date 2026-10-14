@@ -39,8 +39,16 @@ import { createEngine, type Engine, type RoomLooks } from "./engine";
 type Visits = Record<Who, Record<string, string | null>>;
 type Dir = "up" | "down" | "left" | "right";
 
-/** Las capturas de /public pasan por el optimizador: en la sala ocupan menos de 100 px. */
-const coverSrc = (src: string | null) => (src?.startsWith("/") ? `/_next/image?url=${encodeURIComponent(src)}&w=256&q=75` : src);
+/** Las capturas de /public pasan por el optimizador: en la tele ocupan menos de 200 px. */
+const coverSrc = (src: string | null) => (src?.startsWith("/") ? `/_next/image?url=${encodeURIComponent(src)}&w=384&q=75` : src);
+/** «takefyy.com», para la barra del navegador de la tele. */
+function domainOf(url: string | null) {
+  try {
+    return url ? new URL(url).hostname.replace(/^www\./, "") : null;
+  } catch {
+    return null;
+  }
+}
 
 export function OficinasView({ data, font, fontClass }: { data: OficinasData; font: string; fontClass: string }) {
   const me = data.me, other = otherOf(me);
@@ -99,7 +107,10 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
       map.rooms.filter((r) => r.slug).map((r) => {
         const p = bySlug.get(r.slug as string) as OfiProject;
         const family = p.brand ? brandFamilies[p.brand.font as BrandFont] : undefined;
-        return [r.id, { name: p.name, accent: p.accent, status: p.status, cover: coverSrc(p.cover), brand: p.brand && family ? { ...p.brand, family, tagline: p.tagline } : null }];
+        return [
+          r.id,
+          { name: p.name, accent: p.accent, status: p.status, cover: coverSrc(p.cover), video: p.video, domain: domainOf(p.url), brand: p.brand && family ? { ...p.brand, family, tagline: p.tagline } : null },
+        ];
       }),
     );
     const engine = createEngine(canvas, {
