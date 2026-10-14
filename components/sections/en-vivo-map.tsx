@@ -3,7 +3,7 @@
 import { Silkscreen } from "next/font/google";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, Minus, Plus } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { createEngine, type ActorSpec, type Engine, type RoomLooks } from "@/app/admin/oficinas/engine";
 import type { EnVivoPublic } from "@/app/api/en-vivo/route";
 import { buildMap, hourIn, periodOf, themeOf, type MapModel, type Who } from "@/lib/admin/oficinas-shared";
@@ -111,7 +111,7 @@ export function EnVivoMap({ active }: { active: boolean }) {
   const status = !online
     ? "Conectando…"
     : !online.length
-      ? "Ahora no estamos conectados · el guía recorre los proyectos"
+      ? "El guía recorre los proyectos"
       : online.map((o) => `${NAMES[o.who]} ${o.room ? `está en la sala de ${bySlug.get(o.room)?.name ?? o.room}` : "está en su escritorio"}`).join(" · ");
   const hovered = hover ? map.rooms.find((r) => r.id === hover) : null;
   const hp = hovered?.slug ? bySlug.get(hovered.slug) : null;
@@ -125,39 +125,26 @@ export function EnVivoMap({ active }: { active: boolean }) {
         className="block h-full w-full cursor-pointer"
         style={{ touchAction: "pan-y" }}
       />
-      <div className="pointer-events-none absolute top-3 left-3 max-w-[calc(100%-24px)] rounded-lg border border-white/10 bg-[rgba(10,10,14,0.78)] px-3 py-2 text-[#f1ede6]" aria-live="polite">
-        <p className={`flex items-center gap-2 text-[13px] leading-none uppercase ${pixel.className}`}>
-          <span className="relative flex h-2 w-2">
+      <div className="pointer-events-none absolute top-2 left-2 max-w-[calc(100%-16px)] rounded-md border border-white/10 bg-[rgba(10,10,14,0.78)] px-2 py-1.5 text-[#f1ede6]" aria-live="polite">
+        <p className={`flex items-center gap-1.5 text-[11px] leading-none uppercase ${pixel.className}`}>
+          <span className="relative flex h-1.5 w-1.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#ff4d2e] opacity-60 motion-reduce:animate-none" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-[#ff4d2e]" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#ff4d2e]" />
           </span>
           En vivo
         </p>
-        <p className="mt-1.5 font-mono text-[11px] leading-snug text-[#a39e95]">{status}</p>
+        <p className="mt-1 truncate font-mono text-[10px] leading-snug text-[#a39e95]">{status}</p>
       </div>
       {hp && (
-        <div className="pointer-events-none absolute bottom-3 left-3 max-w-[calc(100%-110px)] rounded-lg border border-white/10 bg-[rgba(10,10,14,0.82)] px-3 py-2 text-[#f1ede6]">
-          <p className={`truncate text-[14px] leading-none uppercase ${pixel.className}`} style={{ color: hp.accent }}>
+        <div className="pointer-events-none absolute bottom-2 left-2 max-w-[calc(100%-16px)] rounded-md border border-white/10 bg-[rgba(10,10,14,0.82)] px-2 py-1.5 text-[#f1ede6]">
+          <p className={`truncate text-[11px] leading-none uppercase ${pixel.className}`} style={{ color: hp.accent }}>
             {hp.name}
           </p>
-          <p className="mt-1.5 flex items-center gap-1 font-mono text-[11px] leading-none text-[#a39e95]">
-            {hp.category} · ver el caso <ArrowUpRight size={12} aria-hidden />
+          <p className="mt-1 flex items-center gap-1 font-mono text-[10px] leading-none text-[#a39e95]">
+            ver el caso <ArrowUpRight size={11} aria-hidden />
           </p>
         </div>
       )}
-      <div className="absolute right-3 bottom-3 flex gap-1">
-        {([[-1, Minus, "Alejar"], [1, Plus, "Acercar"]] as const).map(([step, Icon, label]) => (
-          <button
-            key={label}
-            type="button"
-            onClick={() => engine?.zoomBy(step)}
-            aria-label={label}
-            className="focus-ring flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-[rgba(10,10,14,0.78)] text-[#f1ede6] hover:bg-[rgba(40,40,48,0.9)]"
-          >
-            <Icon size={14} />
-          </button>
-        ))}
-      </div>
     </MapFrame>
   );
 }
