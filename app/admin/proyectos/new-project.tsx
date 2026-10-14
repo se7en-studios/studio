@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { btnGhost, btnPrimary, input, label } from "../kit";
 import { Dialog } from "../overlay";
+import { TASK_TEMPLATES } from "@/lib/admin/task-shared";
 import { createProject, type NewProjectState } from "./actions";
 
 /** Proyectos que no son casos de la web: clientes en curso, pruebas, cosas internas. */
@@ -51,6 +52,19 @@ function NewProjectDialog({ onClose }: { onClose: () => void }) {
               Sitio (opcional)
             </label>
             <input id="np-url" name="url" maxLength={300} placeholder="cliente.com.ar" className={input} />
+          </div>
+          <div className="sm:col-span-2">
+            <label htmlFor="np-template" className={label}>
+              Plantilla de tareas
+            </label>
+            <select id="np-template" name="template" defaultValue="" className={input}>
+              <option value="">Sin plantilla</option>
+              {Object.entries(TASK_TEMPLATES).map(([id, t]) => (
+                <option key={id} value={id}>
+                  {t.label} · {t.steps.length} tareas, con kickoff
+                </option>
+              ))}
+            </select>
           </div>
           <div className="sm:col-span-2">
             <label htmlFor="np-accent" className={label}>

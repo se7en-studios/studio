@@ -12,6 +12,8 @@ import { currentFx, insertEntry, removeEntry } from "@/lib/admin/finance";
 import { cleanEntry, fmt, type Entry, type Owner } from "@/lib/admin/finance-shared";
 import { removePayment } from "@/lib/admin/payments";
 import { stateForLead, upsertState } from "@/lib/admin/projects";
+import { TASK_TEMPLATES, isTemplate, templateTasks } from "@/lib/admin/task-shared";
+import { insertTasks } from "@/lib/admin/tasks";
 import {
   PROJECT_STATUS,
   cleanStateInput,
@@ -166,6 +168,20 @@ export async function createProject(_: NewProjectState, form: FormData): Promise
       created_by: me.who,
     });
     await logEvent({ actor: me.who, kind: "proyecto", text: "creó el proyecto", project_slug: slug });
+    const template = form.get("template");
+    if (isTemplate(template)) {
+      // El proyecto ya está creado: si las tareas fallan (falta tasks.sql), se sigue igual.
+      const n = await insertTasks(templateTasks(template, slug), me.who).catch(() => 0);
+      if (n)
+        after(() =>
+          logEvent({
+            actor: me.who,
+            kind: "tarea",
+            text: `cargó ${n} tareas de la plantilla ${TASK_TEMPLATES[template].label}`,
+            project_slug: slug,
+          }),
+        );
+    }
   } catch (e) {
     return { error: message(e) };
   }
