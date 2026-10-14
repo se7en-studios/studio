@@ -17,7 +17,7 @@ export async function GET() {
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "seguridad",
         text: "descargó una copia de seguridad",
       }),
     );

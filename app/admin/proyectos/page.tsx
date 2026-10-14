@@ -1,19 +1,21 @@
 import type { Metadata } from "next";
 import { panelSession } from "@/lib/admin/auth";
 import { PanelNotReady, caseProjects, listProjects, type PanelProject } from "@/lib/admin/panel";
-import type { ProjectState } from "@/lib/admin/project-shared";
+import { PROJECT_STATUSES, type ProjectState } from "@/lib/admin/project-shared";
 import { listStates } from "@/lib/admin/projects";
 import { PageHeader } from "../kit";
 import { AdminGate, SetupNotice } from "../ui";
 import { NewProject } from "./new-project";
-import { ProjectsView } from "./view";
+import { ProjectsView, type Scope } from "./view";
 
 export const metadata: Metadata = { title: "Proyectos" };
 
-export default async function ProyectosPage({ searchParams }: { searchParams: Promise<{ nuevo?: string }> }) {
+export default async function ProyectosPage({ searchParams }: { searchParams: Promise<{ nuevo?: string; etapa?: string }> }) {
   const me = await panelSession();
   if (!me) return <AdminGate />;
-  const { nuevo } = await searchParams;
+  const { nuevo, etapa } = await searchParams;
+  // Desde Inicio: «?etapa=activos» o una etapa («?etapa=mantenimiento»).
+  const scope = etapa === "activos" || PROJECT_STATUSES.some((s) => s === etapa) ? (etapa as Scope) : "todos";
 
   let projects: PanelProject[] = caseProjects();
   let states = new Map<string, ProjectState>();
@@ -33,7 +35,7 @@ export default async function ProyectosPage({ searchParams }: { searchParams: Pr
         Todos los proyectos del estudio: en qué etapa está cada uno, quién lo lleva, cuánto falta y para cuándo.
       </PageHeader>
       {(setup || stateSetup) && <SetupNotice reason={(setup ?? stateSetup) as string} />}
-      <ProjectsView projects={projects} states={Object.fromEntries(states)} editable={!stateSetup && !setup} />
+      <ProjectsView projects={projects} states={Object.fromEntries(states)} editable={!stateSetup && !setup} initialScope={scope} />
     </div>
   );
 }

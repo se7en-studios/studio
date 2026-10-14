@@ -1,7 +1,9 @@
-// Ingresos y costos (tabla panel_finance) y los cobros de proyectos que entran
-// como ingresos. Usa la service role key: NUNCA importar desde un componente de cliente.
+// Ingresos y costos (tabla panel_finance). Los cobros de los proyectos son
+// ingresos con proyecto; los viejos de panel_payments se leen hasta correr
+// finance-v4.sql. Usa la service role key: NUNCA importar desde un componente de cliente.
 import type { LeadOwner } from "./db";
 import type { Entry, EntryInput } from "./finance-shared";
+import { fetchRates, referenceRate } from "./fx";
 import { paymentToEntry, type Payment } from "./payment-shared";
 import { PanelNotReady, client } from "./panel";
 
@@ -38,32 +40,35 @@ const toEntry = (r: Row): Entry => ({
   source: "manual",
 });
 
-const select = (columns: string) =>
-  client()
-    .from("panel_finance")
-    .select(columns)
+const select = (columns: string, slug?: string) => {
+  let q = client().from("panel_finance").select(columns);
+  if (slug) q = q.eq("project_slug", slug);
+  return q
     .order("occurred_on", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(LIMIT);
+};
 
-export async function listEntries(): Promise<Entry[]> {
-  let res = await select(COLUMNS);
+/** Todos los movimientos, o los de un proyecto. */
+export async function listEntries(slug?: string): Promise<Entry[]> {
+  let res = await select(COLUMNS, slug);
   // Sin finance-v2.sql sigue andando como antes (todo «ambos» y pagado), hasta que se corra.
-  if (res.error?.code === "42703") res = await select(LEGACY_COLUMNS);
+  if (res.error?.code === "42703") res = await select(LEGACY_COLUMNS, slug);
   if (res.error) fail(res.error);
   return (res.data as unknown as Row[]).map(toEntry);
 }
 
 /**
- * Los cobros de los proyectos (USD) como ingresos. No guardan cotización: el
- * equivalente en pesos se calcula con la de hoy. Sin la tabla de cobros, no hay ingresos de este tipo.
+ * Los cobros viejos de los proyectos (USD, tabla panel_payments) como ingresos.
+ * No guardan cotización: el equivalente en pesos se calcula con la de hoy.
+ * Después de finance-v4.sql la tabla ya no está y no hay ninguno.
  */
-export async function listCobros(fx: number): Promise<Entry[]> {
-  const { data, error } = await client()
+export async function listCobros(fx: number, slug?: string): Promise<Entry[]> {
+  let q = client()
     .from("panel_payments")
-    .select("id, created_at, project_slug, paid_on, amount, note, created_by, owner")
-    .order("paid_on", { ascending: false })
-    .limit(LIMIT);
+    .select("id, created_at, project_slug, paid_on, amount, note, created_by, owner");
+  if (slug) q = q.eq("project_slug", slug);
+  const { data, error } = await q.order("paid_on", { ascending: false }).limit(LIMIT);
   if (error) {
     if (error.code === "PGRST205" || error.code === "42P01") return [];
     // Falta finance-v3.sql: se avisa (la página muestra el paso) en vez de perder los ingresos en silencio.
@@ -74,6 +79,24 @@ export async function listCobros(fx: number): Promise<Entry[]> {
   return (data as (Omit<Payment, "amount"> & { amount: string | number })[]).map((p) =>
     paymentToEntry({ ...p, amount: Number(p.amount) }, fx),
   );
+}
+
+/**
+ * Pesos por dólar para un cobro cargado desde la ficha de un proyecto: la de
+ * referencia de hoy o, si no responde, la del último movimiento. 0 si no hay ninguna.
+ */
+export async function currentFx(): Promise<number> {
+  const today = referenceRate(await fetchRates());
+  if (today) return today;
+  const { data, error } = await client()
+    .from("panel_finance")
+    .select("fx")
+    .order("occurred_on", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) fail(error);
+  return data ? Number((data as { fx: string | number }).fx) : 0;
 }
 
 export async function insertEntry(
@@ -116,21 +139,17 @@ export async function settleEntry(
   return data ? toEntry(data as Row) : null;
 }
 
-export async function removeEntry(id: string): Promise<{
-  kind: Entry["kind"];
-  description: string;
-  category: string;
-} | null> {
+type Removed = Pick<Entry, "kind" | "description" | "category" | "currency" | "occurred_on" | "project_slug"> & { amount: number };
+
+export async function removeEntry(id: string): Promise<Removed | null> {
   const { data, error } = await client()
     .from("panel_finance")
     .delete()
     .eq("id", id)
-    .select("kind, description, category")
+    .select("kind, description, category, currency, amount, occurred_on, project_slug")
     .maybeSingle();
   if (error) fail(error);
-  return data as {
-    kind: Entry["kind"];
-    description: string;
-    category: string;
-  } | null;
+  if (!data) return null;
+  const row = data as Omit<Removed, "amount"> & { amount: string | number };
+  return { ...row, amount: Number(row.amount) };
 }

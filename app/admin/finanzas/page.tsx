@@ -2,19 +2,19 @@ import type { Metadata } from "next";
 import { panelSession } from "@/lib/admin/auth";
 import { listCobros, listEntries } from "@/lib/admin/finance";
 import type { Entry } from "@/lib/admin/finance-shared";
-import { fetchRates, type Rates } from "@/lib/admin/fx";
+import { fetchRates, referenceRate } from "@/lib/admin/fx";
 import {
   PanelNotReady,
   caseProjects,
   listProjects,
   type PanelProject,
 } from "@/lib/admin/panel";
-import { paidBySlug } from "@/lib/admin/payments";
-import { balance } from "@/lib/admin/payment-shared";
+import { withLegacy } from "@/lib/admin/payment-shared";
+import { defaultState } from "@/lib/admin/project-shared";
 import { listStates } from "@/lib/admin/projects";
 import { listTools } from "@/lib/admin/tools";
 import { dayKey } from "@/lib/admin/task-shared";
-import { AdminGate, PageHeader } from "../ui";
+import { AdminGate, PageHeader, SetupNotice } from "../ui";
 import { FinanceSetup } from "./setup";
 import { FinanceView } from "./view";
 
@@ -30,9 +30,6 @@ async function optional<T>(p: Promise<T>, fallback: T): Promise<T> {
     return fallback;
   }
 }
-
-/** Cotización de referencia: MEP, después oficial, después blue; 0 si no hay ninguna. */
-const referenceRate = (r: Rates) => r.mep ?? r.oficial ?? r.blue ?? 0;
 
 export default async function FinanzasPage({
   searchParams,
@@ -56,26 +53,19 @@ export default async function FinanzasPage({
   // Sin cotización del día, los cobros se convierten con la del último movimiento cargado a mano.
   const fx =
     referenceRate(rates) || (manual.find((m) => m.currency === "ARS")?.fx ?? 0);
-  const [cobros, projects, states, paid, tools] = await Promise.all([
+  const [cobros, projects, states, tools] = await Promise.all([
     optional(listCobros(fx), [] as Entry[]),
     optional(listProjects(), caseProjects() as PanelProject[]),
     optional(listStates(), null),
-    optional(paidBySlug(), null),
     optional(listTools(), null),
   ]);
 
-  // Proyectos con monto acordado y saldo por cobrar (en USD), igual que en Inicio.
-  const owed =
-    states && paid
-      ? projects.flatMap((p) => {
-          const s = states.get(p.slug);
-          const left =
-            s && s.status !== "pausado"
-              ? balance(s.budget, paid.get(p.slug) ?? 0)
-              : null;
-          return left ? [{ slug: p.slug, name: p.name, balance: left }] : [];
-        })
-      : null;
+  // Monto acordado y etapa de cada proyecto: con eso y los ingresos, la vista
+  // calcula lo que falta cobrar igual que Inicio y la ficha.
+  const billable = projects.map((p) => {
+    const s = states?.get(p.slug) ?? defaultState(p.slug, p.isCase);
+    return { slug: p.slug, name: p.name, budget: s.budget, status: s.status };
+  });
 
   return (
     <div className="space-y-6">
@@ -84,15 +74,20 @@ export default async function FinanzasPage({
         pesos o en dólares y siempre con el equivalente en la otra moneda. Los
         cobros que cargás en cada proyecto entran solos.
       </PageHeader>
+      {!setup && cobros.length > 0 && (
+        <SetupNotice
+          reason={`Falta correr supabase/finance-v4.sql en Supabase: hay ${cobros.length === 1 ? "un cobro de proyecto" : `${cobros.length} cobros de proyectos`} en la tabla vieja.`}
+        />
+      )}
       {setup ? (
         <FinanceSetup />
       ) : (
         <FinanceView
-          entries={[...manual, ...cobros]}
+          entries={withLegacy(manual, cobros)}
           rates={rates}
           fx={fx}
           projects={projects.map((p) => ({ slug: p.slug, name: p.name }))}
-          owed={owed}
+          billable={billable}
           tools={tools}
           today={dayKey()}
           me={me.who}

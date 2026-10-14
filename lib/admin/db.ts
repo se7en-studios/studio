@@ -29,6 +29,8 @@ export type Lead = {
   phone?: string;
   /** Monto acordado en USD. */
   value?: number | null;
+  /** Cuándo pasó a ganado; null si no está ganado. Opcional hasta correr supabase/crm-v2.sql. */
+  won_at?: string | null;
 };
 
 export type NewLead = Pick<Lead, "source" | "name"> &
@@ -85,20 +87,27 @@ export async function listLeads(): Promise<Lead[]> {
 
 export type LeadPatch = Partial<Pick<Lead, "status" | "owner" | "notes" | "name" | "company" | "email" | "phone" | "value">>;
 
-/** Devuelve el pedido antes y después del cambio, para el registro de cambios. */
+/**
+ * Devuelve el pedido antes y después del cambio, para el registro de cambios.
+ * Al pasar a ganado guarda la fecha de cierre (won_at); al salir de ganado, la borra.
+ */
 export async function patchLead(id: string, patch: LeadPatch): Promise<{ before: Lead; after: Lead }> {
   const c = db();
   if (!c) throw new Error("Base de datos no configurada");
   const cur = await c.from("leads").select("*").eq("id", id).single();
   if (cur.error) throw new Error(cur.error.message);
-  const { data, error } = await c
-    .from("leads")
-    .update({ ...patch, updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .select("*")
-    .single();
+  const before = cur.data as Lead;
+  const now = new Date().toISOString();
+  const closing =
+    patch.status !== undefined && patch.status !== before.status
+      ? { won_at: patch.status === "ganado" ? now : null }
+      : {};
+  const update = (row: object) => c.from("leads").update(row).eq("id", id).select("*").single();
+  let { data, error } = await update({ ...patch, ...closing, updated_at: now });
+  // Sin crm-v2.sql no hay won_at: se guarda igual y «Ganado este mes» usa updated_at.
+  if (error && "won_at" in closing && /won_at/.test(error.message)) ({ data, error } = await update({ ...patch, updated_at: now }));
   if (error) throw new Error(missingColumn(error.message) ?? error.message);
-  return { before: cur.data as Lead, after: data as Lead };
+  return { before, after: data as Lead };
 }
 
 export async function removeLead(id: string): Promise<string> {

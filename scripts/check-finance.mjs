@@ -164,4 +164,45 @@ assert.equal(ps.cleanPayment({ ...pay, project_slug: '' }).ok, false);
 assert.equal(ps.cleanPayment({ ...pay, owner: 'nadie', note: '  hola  ' }).value.owner, 'ambos');
 assert.equal(ps.cleanPayment({ ...pay, note: '  hola  ' }).value.note, 'hola');
 
+// Un cobro viejo que finance-v4.sql ya copió (mismo id) no se cuenta dos veces.
+const merged = ps.withLegacy([entry({ id: 'abc', kind: 'ingreso' })], [pe, ps.paymentToEntry({ ...pay, id: 'def' }, 0)]);
+assert.deepEqual(merged.map((e) => e.id), ['abc', 'cobro-def']);
+
+// «Por cobrar»: la misma cuenta en Inicio, Finanzas y la ficha.
+const TODAY = '2026-10-14';
+const inc = (over) => entry({ kind: 'ingreso', currency: 'USD', status: 'pagado', owner: 'ambos', ...over });
+const muzzaga = { slug: 'muzzaga', name: 'Muzzaga', budget: null, status: 'mantenimiento' };
+// Como en producción: 983 cobrados (dos recurrentes desde octubre) y 1.816 en cuotas pendientes, sin monto acordado.
+const real = [
+  inc({ id: 'm1', project_slug: 'muzzaga', amount: 833, occurred_on: '2026-10-13', recurring: true }),
+  inc({ id: 'm2', project_slug: 'muzzaga', amount: 150, occurred_on: '2026-10-13', recurring: true }),
+  inc({ id: 'm3', project_slug: 'muzzaga', amount: 833, occurred_on: '2026-11-13', status: 'pendiente' }),
+  inc({ id: 'm4', project_slug: 'muzzaga', amount: 150, occurred_on: '2026-11-13', status: 'pendiente' }),
+  inc({ id: 'm5', project_slug: 'muzzaga', amount: 833, occurred_on: '2026-12-13', status: 'pendiente' }),
+  inc({ id: 'pp', project_slug: 'pone-la-pava', currency: 'ARS', amount: 600_000, fx: 1538.7, occurred_on: '2026-09-13' }),
+  entry({ id: 'c1', kind: 'costo', amount: 35 }),
+];
+const mz = ps.projectMoney(muzzaga, real, TODAY);
+assert.deepEqual([mz.paid, mz.pending, mz.owed, mz.uncovered, mz.late, mz.done], [983, 1816, 1816, 0, 0, true]);
+const all = ps.receivables([muzzaga, { slug: 'pone-la-pava', name: 'Poné La Pava', budget: null, status: 'mantenimiento' }], real, TODAY);
+assert.equal(all.total, 1816);
+assert.deepEqual(all.projects.map((p) => p.slug), ['muzzaga']);
+// Un recurrente cobrado cuenta una vez por mes hasta hoy: en noviembre ya van dos.
+assert.equal(ps.projectMoney(muzzaga, real, '2026-11-02').paid, 1966);
+// Con monto acordado: el saldo, o los pendientes si son más; un pendiente es una cuota del saldo, no se suma aparte.
+const deal = { slug: 'apex', name: 'Apex', budget: 3000, status: 'desarrollo' };
+const apex = [inc({ id: 'a1', project_slug: 'apex', amount: 1000 }), inc({ id: 'a2', project_slug: 'apex', amount: 500, status: 'pendiente', occurred_on: '2026-10-01' })];
+const ax = ps.projectMoney(deal, apex, TODAY);
+assert.deepEqual([ax.paid, ax.pending, ax.owed, ax.uncovered, ax.late, ax.done], [1000, 500, 2000, 1500, 500, false]);
+assert.equal(ps.projectMoney(deal, [...apex, inc({ id: 'a3', project_slug: 'apex', amount: 2500, status: 'pendiente' })], TODAY).owed, 3000);
+// Cobrado de más: no queda saldo negativo.
+assert.equal(ps.projectMoney(deal, [inc({ id: 'a4', project_slug: 'apex', amount: 3500 })], TODAY).owed, 0);
+// Pausado: no debe su saldo, pero lo anotado como pendiente sí.
+assert.equal(ps.projectMoney({ ...deal, status: 'pausado' }, apex, TODAY).owed, 500);
+// Los costos y los ingresos de otros proyectos no cuentan; los pendientes sin proyecto suman aparte.
+const loose = ps.receivables([deal], [...apex, inc({ id: 'x', amount: 200, status: 'pendiente' }), inc({ id: 'y', project_slug: 'borrado', amount: 100, status: 'pendiente' }), entry({ id: 'z', kind: 'costo', project_slug: 'apex', amount: 999, status: 'pendiente' })], TODAY);
+assert.deepEqual([loose.total, loose.loose], [2300, 300]);
+// Un pendiente en pesos va a dólares con su cotización.
+assert.equal(ps.receivables([], [inc({ id: 'ars', currency: 'ARS', amount: 150_000, fx: 1500, status: 'pendiente' })], TODAY).total, 100);
+
 console.log("finance OK");

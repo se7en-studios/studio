@@ -16,7 +16,7 @@ export async function markPublished(id: string, done: boolean): Promise<{ error?
     const post = await setPostDone(id, done ? me.who : null);
     if (!post) return { error: "Ese post no existe." };
     after(() =>
-      logEvent({ actor: me.who, kind: "proyecto", text: `${done ? "publicó" : "desmarcó"} «${post.title}» en Instagram` }),
+      logEvent({ actor: me.who, kind: "contenido", text: `${done ? "publicó" : "desmarcó"} «${post.title}» en Instagram` }),
     );
     return {};
   } catch (e) {

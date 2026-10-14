@@ -4,6 +4,7 @@
 import { projects as cases } from "@/data/projects";
 import { db, type LeadOwner } from "./db";
 import type { Change } from "./changes";
+import { LEGACY_KINDS, kindOf, type EventKind } from "./event-shared";
 
 export const BUCKET = "panel";
 /** Máximo por archivo del plan Free de Supabase. panel.sql lo repite en el bucket. */
@@ -59,7 +60,7 @@ export type PanelFile = {
   url: string | null;
 };
 
-export type EventKind = "archivos" | "proyecto" | "pedido" | "tarea";
+export type { EventKind } from "./event-shared";
 
 export type PanelEvent = {
   id: string;
@@ -326,9 +327,13 @@ export async function removeProject(slug: string): Promise<{ name: string; files
   // Si panel-v2.sql todavía no corrió no hay nada que limpiar.
   const state = await c.from("panel_project_state").delete().eq("slug", slug);
   if (state.error && state.error.code !== "PGRST205" && state.error.code !== "42P01") fail(state.error);
-  // Lo mismo con los cobros (payments.sql): sin FK, quedarían colgados del slug.
+  // Lo mismo con los cobros viejos (payments.sql): sin FK, quedarían colgados del slug.
   const paid = await c.from("panel_payments").delete().eq("project_slug", slug);
   if (paid.error && paid.error.code !== "PGRST205" && paid.error.code !== "42P01") fail(paid.error);
+  // Los movimientos de Finanzas no se borran (la plata entró igual): quedan sin
+  // proyecto, para que uno nuevo con el mismo slug no herede sus cobros.
+  const money = await c.from("panel_finance").update({ project_slug: null }).eq("project_slug", slug);
+  if (money.error && money.error.code !== "PGRST205" && money.error.code !== "42P01") fail(money.error);
   // Y las visitas de «En vivo» (oficinas.sql): un proyecto nuevo con el mismo slug arranca apagado.
   const seen = await c.from("panel_room_visits").delete().eq("project_slug", slug);
   if (seen.error && seen.error.code !== "PGRST205" && seen.error.code !== "42P01") fail(seen.error);
@@ -449,8 +454,16 @@ export async function logEvent(e: NewEvent) {
   if (!c) return;
   const { lead_id = null, changes = [], ...base } = e;
   const row = { ...base, paths: e.paths ?? [] };
-  let { error } = await c.from("panel_events").insert({ ...row, lead_id, changes });
-  if (error && missingCol(error)) ({ error } = await c.from("panel_events").insert(row));
+  const insert = (r: object) => c.from("panel_events").insert(r);
+  let extra: object = { lead_id, changes };
+  let { error } = await insert({ ...row, ...extra });
+  if (error && missingCol(error)) {
+    extra = {};
+    ({ error } = await insert(row));
+  }
+  // Tipo nuevo sin panel-v3.sql: va como «proyecto», el tipo de antes, y al
+  // leerlo kindOf lo reconoce por el texto. La migración lo deja bien guardado.
+  if (error?.code === "23514" && !LEGACY_KINDS.includes(row.kind)) ({ error } = await insert({ ...row, ...extra, kind: "proyecto" }));
   if (error) console.error("[panel] feed:", error.message);
 }
 
@@ -485,11 +498,15 @@ export async function listEvents({ limit = 50, kind, actor, projectSlug, leadId,
     res = await run(EVENT_COLUMNS, false);
   }
   if (res.error) fail(res.error);
-  const rows = (res.data as unknown as Omit<PanelEvent, "thumbs">[]).map((r) => ({
-    ...r,
-    lead_id: r.lead_id ?? null,
-    changes: Array.isArray(r.changes) ? r.changes : [],
-  }));
+  const rows = (res.data as unknown as Omit<PanelEvent, "thumbs">[])
+    .map((r) => ({
+      ...r,
+      kind: kindOf(r.kind, r.text),
+      lead_id: r.lead_id ?? null,
+      changes: Array.isArray(r.changes) ? r.changes : [],
+    }))
+    // Sin panel-v3.sql, «Proyectos» trae también lo de Finanzas, Cuentas… anotado con el tipo viejo.
+    .filter((r) => !kind || r.kind === kind);
   const thumbPaths = (r: Omit<PanelEvent, "thumbs">) => r.paths.filter((p) => isImage(p)).slice(0, 4);
   const urls = await sign(rows.flatMap(thumbPaths));
   return rows.map((r) => ({

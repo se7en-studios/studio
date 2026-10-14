@@ -44,7 +44,7 @@ export async function createEntry(
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "finanzas",
         text: `cargó ${entry.kind === "costo" ? "un costo" : "un ingreso"}: ${what}`,
         project_slug: entry.project_slug,
       }),
@@ -72,7 +72,7 @@ export async function editEntry(
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "finanzas",
         text: `editó ${entry.kind === "costo" ? "un costo" : "un ingreso"}: ${what}`,
         project_slug: entry.project_slug,
       }),
@@ -94,7 +94,7 @@ export async function deleteEntry(id: string): Promise<{ error?: string }> {
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "finanzas",
         text: `borró ${gone.kind === "costo" ? "un costo" : "un ingreso"}: ${what}`,
       }),
     );
@@ -118,7 +118,7 @@ export async function settleEntry(
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "finanzas",
         text: `marcó como ${entry.kind === "costo" ? "pagado" : "cobrado"}: ${what}`,
         project_slug: entry.project_slug,
       }),
@@ -146,7 +146,7 @@ export async function saveTool(
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "finanzas",
         text: `${id ? "actualizó" : "agregó"} la herramienta ${tool.name}`,
       }),
     );
@@ -166,7 +166,7 @@ export async function deleteTool(id: string): Promise<{ error?: string }> {
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "finanzas",
         text: `quitó la herramienta ${name}`,
       }),
     );
@@ -192,7 +192,7 @@ export async function editPayment(
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "finanzas",
         text: "editó un cobro",
         project_slug: payment.project_slug,
       }),
@@ -212,7 +212,7 @@ export async function deleteCobro(id: string): Promise<{ error?: string }> {
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "finanzas",
         text: "borró un cobro",
         project_slug: gone.project_slug,
       }),

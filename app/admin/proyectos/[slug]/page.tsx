@@ -23,9 +23,10 @@ import {
 import { PEOPLE } from "@/lib/admin/people";
 import { defaultState, type ProjectState } from "@/lib/admin/project-shared";
 import { getState } from "@/lib/admin/projects";
-import { listPayments } from "@/lib/admin/payments";
-import type { Payment } from "@/lib/admin/payment-shared";
-import type { Task, TaskLinks } from "@/lib/admin/task-shared";
+import { listCobros, listEntries } from "@/lib/admin/finance";
+import type { Entry } from "@/lib/admin/finance-shared";
+import { withLegacy } from "@/lib/admin/payment-shared";
+import { dayKey, type Task, type TaskLinks } from "@/lib/admin/task-shared";
 import { listTasks, taskLinks } from "@/lib/admin/tasks";
 import { EventList } from "../../feed";
 import { Card, CardLink, Face, Progress, StatusPill, TabLinks, btnPrimary, btnSecondary, usd } from "../../kit";
@@ -94,7 +95,13 @@ export default async function ProjectPage({ params, searchParams }: Props) {
     // que pedirla. Va un count sin filas y no listFiles, que firmaría una URL
     // por archivo para terminar usando nada más que el largo.
     tab !== "archivos" ? optional<number>(countFiles(slug), 0) : null,
-    tab === "resumen" ? optional<Payment[]>(listPayments(slug), []) : null,
+    // Los cobros son los ingresos del proyecto en Finanzas (más los viejos, hasta finance-v4.sql).
+    tab === "resumen"
+      ? optional<Entry[]>(
+          Promise.all([listEntries(slug), listCobros(0, slug)]).then(([a, b]) => withLegacy(a, b).filter((e) => e.kind === "ingreso")),
+          [],
+        )
+      : null,
   ]);
   const state = stateR.value;
   // No sale de project.files: getProject arma la ficha sin estadísticas y ese
@@ -208,7 +215,13 @@ export default async function ProjectPage({ params, searchParams }: Props) {
               {paymentsR?.missing ? (
                 <SetupNotice reason={paymentsR.missing} />
               ) : (
-                <Payments slug={project.slug} budget={state.budget} initial={paymentsR?.value ?? []} me={me.who} accent={project.accent} />
+                <Payments
+                  project={{ slug: project.slug, name: project.name, budget: state.budget, status: state.status }}
+                  initial={paymentsR?.value ?? []}
+                  me={me.who}
+                  accent={project.accent}
+                  today={dayKey()}
+                />
               )}
               {tasksR?.value ? (
                 <ProjectTasks slug={project.slug} tasks={tasksR.value} links={linksR?.value ?? { leads: [], projects: [] }} me={me.who} owner={state.owner} />

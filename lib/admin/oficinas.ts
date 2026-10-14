@@ -5,6 +5,7 @@
 import { caseBrand } from "@/lib/en-vivo";
 import { latestCaptures, type SiteCapture } from "./capturas";
 import { db } from "./db";
+import { kindOf, type EventKind } from "./event-shared";
 import { PanelNotReady, caseProjects, client, fail, getProject, listProjects, type PanelProject } from "./panel";
 import { defaultState, type ProjectState } from "./project-shared";
 import { listStates } from "./projects";
@@ -23,13 +24,16 @@ import {
 } from "./oficinas-shared";
 
 const SLUG = /^[a-z0-9-]{1,64}$/;
-/** Lo que se muestra en el mapa: sin pedidos (no van en «En vivo»). */
-const EVENT_KINDS = ["archivos", "proyecto", "tarea"];
+/**
+ * Lo que se muestra en el mapa: el trabajo en los proyectos. Sin pedidos,
+ * finanzas, cuentas, contenido, llamadas ni seguridad (no van en «En vivo»).
+ */
+const EVENT_KINDS: EventKind[] = ["archivos", "proyecto", "tarea"];
 const missingTable = (e: { code?: string }) => e.code === "PGRST205" || e.code === "42P01";
 const key = (who: string, slug: string) => `${who}|${slug}`;
 
 type TaskRow = { id: string; title: string; assignee: Who | null; due: string | null; priority: OfiTask["priority"]; project_slug: string | null };
-type EventRow = { id: string; created_at: string; actor: Who | null; text: string; project_slug: string | null };
+type EventRow = { id: string; created_at: string; actor: Who | null; kind: EventKind; text: string; project_slug: string | null };
 
 const toTask = (t: TaskRow): OfiTask => ({ id: t.id, title: t.title, assignee: t.assignee, due: t.due, priority: t.priority, projectSlug: t.project_slug });
 const toEvent = (e: EventRow): OfiEvent => ({ id: e.id, createdAt: e.created_at, actor: e.actor, text: e.text, projectSlug: e.project_slug });
@@ -94,7 +98,8 @@ export async function getOficinasData(me: Who): Promise<OficinasData> {
   if (readsRes.error && !missingTable(readsRes.error)) fail(readsRes.error);
 
   const tasks = ((tasksRes.data ?? []) as TaskRow[]).map(toTask);
-  const events = ((eventsRes.data ?? []) as EventRow[]).map(toEvent);
+  // Sin panel-v3.sql, lo de Cuentas o Finanzas viene anotado como «proyecto»: se reconoce por el texto.
+  const events = ((eventsRes.data ?? []) as EventRow[]).filter((e) => EVENT_KINDS.includes(kindOf(e.kind, e.text))).map(toEvent);
   const rows = new Map(((visitsRes.data ?? []) as { who: string; project_slug: string; visited_at: string }[]).map((v) => [key(v.who, v.project_slug), v.visited_at]));
   const reads = new Map(((readsRes.data ?? []) as { who: string; channel: string; last_read_at: string }[]).map((r) => [key(r.who, r.channel.slice(2)), r.last_read_at]));
   // Mi último cambio en cada proyecto: los eventos ya vienen del más nuevo al más viejo.

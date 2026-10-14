@@ -8,9 +8,9 @@ import { dateLabel, diff, usd } from "@/lib/admin/changes";
 import { PEOPLE } from "@/lib/admin/people";
 import { paymentNotice } from "@/lib/admin/digest";
 import { notifyPartner } from "@/lib/admin/notify";
-import { insertPayment, removePayment } from "@/lib/admin/payments";
-import type { Payment } from "@/lib/admin/payment-shared";
-import { OWNERS as PAYMENT_OWNERS, type Owner } from "@/lib/admin/finance-shared";
+import { currentFx, insertEntry, removeEntry } from "@/lib/admin/finance";
+import { cleanEntry, fmt, type Entry, type Owner } from "@/lib/admin/finance-shared";
+import { removePayment } from "@/lib/admin/payments";
 import { stateForLead, upsertState } from "@/lib/admin/projects";
 import {
   PROJECT_STATUS,
@@ -264,48 +264,66 @@ export async function updateProjectInfo(
 
 // --- Cobros ----------------------------------------------------------------
 
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-f-]{36}$/i;
-const MAX_AMOUNT = 10_000_000;
 
-/** Registra un cobro (seña, saldo, cuota) y lo cuenta en el feed del proyecto. */
+/**
+ * Registra un cobro (seña, saldo, cuota, abono) como ingreso de Finanzas con el
+ * proyecto: es el mismo número que suman Inicio, Finanzas y la ficha. Va en
+ * dólares con la cotización de hoy, para tener el equivalente en pesos.
+ */
 export async function addPayment(
   slug: string,
-  input: { amount: number | string; paid_on: string; note?: string; owner?: Owner },
-): Promise<Payment> {
+  input: { amount: number | string; paid_on: string; note?: string; owner?: Owner; category?: string },
+): Promise<Entry> {
   const me = await guard();
-  const amount = Math.round(Number(input.amount) * 100) / 100;
-  if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_AMOUNT) throw new Error("Monto inválido.");
-  if (!DAY.test(input.paid_on) || Number.isNaN(new Date(`${input.paid_on}T12:00:00`).getTime())) {
-    throw new Error("Fecha inválida.");
-  }
   if (!(await getProject(slug))) throw new Error("Ese proyecto no existe.");
-  const note = String(input.note ?? "").trim().slice(0, 200);
-  // Quién cobró la plata: de ahí sale quién le debe a quién (todo se divide 50/50).
-  const owner = PAYMENT_OWNERS.find((o) => o === input.owner) ?? "ambos";
-  const row = await insertPayment({ project_slug: slug, paid_on: input.paid_on, amount, note, owner }, me.who);
+  const fx = await currentFx();
+  if (!fx) throw new Error("No pude traer la cotización del dólar: cargá el cobro desde Finanzas, con la cotización a mano.");
+  const cleaned = cleanEntry({
+    kind: "ingreso",
+    currency: "USD",
+    amount: Number(input.amount),
+    fx,
+    occurred_on: input.paid_on,
+    category: input.category === "mantenimiento" ? "mantenimiento" : "proyecto",
+    description: input.note ?? "",
+    project_slug: slug,
+    recurring: false,
+    until: null,
+    // Quién cobró la plata: de ahí sale quién le debe a quién (todo se divide 50/50).
+    owner: input.owner,
+    status: "pagado",
+  });
+  if (!cleaned.ok) throw new Error(cleaned.error);
+  const entry = await insertEntry(cleaned.value, me.who);
   after(() =>
     logEvent({
       actor: me.who,
-      kind: "proyecto",
-      text: `registró un cobro de ${usd(amount)}${note ? ` (${note})` : ""}`,
+      kind: "finanzas",
+      text: `registró un cobro de ${usd(entry.amount)}${entry.description ? ` (${entry.description})` : ""}`,
       project_slug: slug,
     }),
   );
   after(() => notifyPartner(me.who, paymentNotice(PEOPLE[me.who].name)));
-  return row;
+  return entry;
 }
 
+/** Borra un cobro: un ingreso de Finanzas o, si es de antes de finance-v4.sql, uno de la tabla vieja («cobro-<id>»). */
 export async function deletePayment(id: string): Promise<void> {
   const me = await guard();
-  if (!UUID.test(id)) throw new Error("Cobro inválido.");
-  const gone = await removePayment(id);
+  const legacy = id.startsWith("cobro-");
+  const raw = legacy ? id.slice("cobro-".length) : id;
+  if (!UUID.test(raw)) throw new Error("Cobro inválido.");
+  const gone = legacy
+    ? await removePayment(raw).then((p) => ({ amount: fmt(p.amount, "USD"), day: p.paid_on, slug: p.project_slug }))
+    : await removeEntry(raw).then((e) => e && { amount: fmt(e.amount, e.currency), day: e.occurred_on, slug: e.project_slug });
+  if (!gone) throw new Error("Ese cobro ya no existe.");
   after(() =>
     logEvent({
       actor: me.who,
-      kind: "proyecto",
-      text: `borró un cobro de ${usd(gone.amount)} del ${dateLabel(gone.paid_on)}`,
-      project_slug: gone.project_slug,
+      kind: "finanzas",
+      text: `borró un cobro de ${gone.amount} del ${dateLabel(gone.day)}`,
+      project_slug: gone.slug,
     }),
   );
 }

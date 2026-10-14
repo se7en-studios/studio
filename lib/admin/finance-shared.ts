@@ -63,7 +63,7 @@ export type Entry = {
   /** «pendiente»: todavía no se cobró o pagó, no cuenta en los totales. */
   status: EntryStatus;
   created_by: LeadOwner | null;
-  /** «cobro» viene de los cobros de proyectos y «herramienta» de las suscripciones: no se editan acá y su cotización es la de hoy. */
+  /** «cobro»: un cobro viejo de panel_payments (hasta correr finance-v4.sql); «herramienta»: una suscripción. No se editan como movimiento y su cotización es la de hoy. */
   source: "manual" | "cobro" | "herramienta";
   /** Es la mitad de un movimiento de la cuenta del estudio, vista desde un socio: el monto ya viene partido. */
   studio?: boolean;

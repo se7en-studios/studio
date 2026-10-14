@@ -14,6 +14,11 @@ export const KIND_LABEL: Record<EventKind, string> = {
   proyecto: "Proyectos",
   pedido: "Pedidos",
   tarea: "Tareas",
+  finanzas: "Finanzas",
+  cuentas: "Cuentas",
+  contenido: "Contenido",
+  llamadas: "Llamadas",
+  seguridad: "Seguridad",
 };
 
 const KIND_DOT: Record<EventKind, string> = {
@@ -21,6 +26,11 @@ const KIND_DOT: Record<EventKind, string> = {
   proyecto: "bg-violet-400",
   pedido: "bg-accent",
   tarea: "bg-emerald-400",
+  finanzas: "bg-amber-400",
+  cuentas: "bg-zinc-400",
+  contenido: "bg-pink-400",
+  llamadas: "bg-teal-400",
+  seguridad: "bg-red-400",
 };
 
 const TZ = "America/Argentina/Buenos_Aires";

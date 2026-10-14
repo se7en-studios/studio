@@ -46,13 +46,16 @@ export type ProjectStateInput = Partial<
   Pick<ProjectState, "status" | "owner" | "client" | "lead_id" | "start_date" | "due" | "progress" | "budget" | "notes">
 >;
 
-/** Sin fila guardada: los casos de la web ya están entregados; los nuevos arrancan en descubrimiento. */
+/**
+ * Sin fila guardada: los casos de la web están publicados y el estudio los sigue
+ * manteniendo (no van al Archivo de «entregados»); los nuevos arrancan en descubrimiento.
+ */
 export function defaultState(slug: string, isCase: boolean): ProjectState {
   return {
     slug,
     updated_at: null,
     updated_by: null,
-    status: isCase ? "entregado" : "descubrimiento",
+    status: isCase ? "mantenimiento" : "descubrimiento",
     owner: null,
     client: "",
     lead_id: null,

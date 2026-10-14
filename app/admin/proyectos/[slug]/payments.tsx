@@ -1,22 +1,22 @@
 "use client";
 
 // Cobros del proyecto: monto acordado, lo cobrado y lo que falta, con el
-// detalle de cada pago. Alta y baja optimistas; si el servidor falla, se deshace.
+// detalle de cada ingreso. Son los ingresos de Finanzas con este proyecto: lo
+// que se carga acá aparece allá y al revés, y las cuentas son las mismas que
+// usan Inicio y Finanzas. Alta y baja optimistas; si el servidor falla, se deshace.
 import { useState, useTransition } from "react";
 import { Trash2, Wallet } from "lucide-react";
 import type { LeadOwner } from "@/lib/admin/db";
-import type { Owner } from "@/lib/admin/finance-shared";
+import { fmt, otherCurrency, type Entry, type Owner } from "@/lib/admin/finance-shared";
 import { PEOPLE } from "@/lib/admin/people";
-import { balance, type Payment } from "@/lib/admin/payment-shared";
-import { Card, Progress, btnPrimary, cn, input, usd } from "../../kit";
+import { projectMoney, type Billable } from "@/lib/admin/payment-shared";
+import { Card, CardLink, Progress, Segmented, btnPrimary, cn, input, usd } from "../../kit";
 import { useToast } from "../../overlay";
 import { OWNER_LABEL, OwnerPicker } from "../../finanzas/owner";
 import { addPayment, deletePayment } from "../actions";
 
-const today = () =>
-  new Date().toLocaleDateString("en-CA", {
-    timeZone: "America/Argentina/Buenos_Aires",
-  });
+type Category = "proyecto" | "mantenimiento";
+
 const day = (d: string) =>
   new Date(`${d}T12:00:00`)
     .toLocaleDateString("es-AR", {
@@ -27,17 +27,19 @@ const day = (d: string) =>
     .replace(/\./g, "");
 
 export function Payments({
-  slug,
-  budget,
+  project,
   initial,
   me,
   accent,
+  today,
 }: {
-  slug: string;
-  budget: number | null;
-  initial: Payment[];
+  project: Billable;
+  /** Ingresos del proyecto (cobrados y pendientes). */
+  initial: Entry[];
   me: LeadOwner;
   accent: string;
+  /** YYYY-MM-DD en Argentina. */
+  today: string;
 }) {
   const flash = useToast();
   const [items, setItems] = useState(initial);
@@ -45,64 +47,65 @@ export function Payments({
   const [paidOn, setPaidOn] = useState(today);
   const [note, setNote] = useState("");
   const [owner, setOwner] = useState<Owner>(me);
+  // Un sitio en mantenimiento cobra el abono; uno en curso, el proyecto.
+  const [category, setCategory] = useState<Category>(project.status === "mantenimiento" ? "mantenimiento" : "proyecto");
   const [pending, start] = useTransition();
 
-  const paid = items.reduce((s, p) => s + p.amount, 0);
-  const left = balance(budget, paid);
-  const pct = budget ? Math.min(100, Math.round((paid / budget) * 100)) : 0;
+  const { budget } = project;
+  const money = projectMoney(project, items, today);
+  const pct = budget ? Math.min(100, Math.round((money.paid / budget) * 100)) : 0;
+  const sorted = [...items].sort((a, b) => b.occurred_on.localeCompare(a.occurred_on));
 
   function add(e: React.FormEvent) {
     e.preventDefault();
     const n = Number(amount);
     if (!(n > 0)) return flash("Poné un monto.", "error");
-    const temp: Payment = {
+    const temp: Entry = {
       id: `tmp-${Date.now()}`,
-      created_at: new Date().toISOString(),
-      project_slug: slug,
-      paid_on: paidOn,
+      kind: "ingreso",
+      occurred_on: paidOn,
+      currency: "USD",
       amount: n,
-      note: note.trim(),
-      created_by: me,
+      fx: 0,
+      category,
+      description: note.trim(),
+      project_slug: project.slug,
+      recurring: false,
+      until: null,
       owner,
+      status: "pagado",
+      created_by: me,
+      source: "manual",
     };
-    setItems((xs) =>
-      [temp, ...xs].sort((a, b) => b.paid_on.localeCompare(a.paid_on)),
-    );
+    setItems((xs) => [temp, ...xs]);
     setAmount("");
     setNote("");
     start(async () => {
       try {
-        const saved = await addPayment(slug, {
+        const saved = await addPayment(project.slug, {
           amount: n,
           paid_on: paidOn,
-          note: temp.note,
+          note: temp.description,
           owner,
+          category,
         });
         setItems((xs) => xs.map((x) => (x.id === temp.id ? saved : x)));
       } catch (err) {
         setItems((xs) => xs.filter((x) => x.id !== temp.id));
-        flash(
-          err instanceof Error ? err.message : "No se pudo guardar el cobro.",
-          "error",
-        );
+        flash(err instanceof Error ? err.message : "No se pudo guardar el cobro.", "error");
       }
     });
   }
 
-  function remove(p: Payment) {
+  function remove(p: Entry) {
     if (p.id.startsWith("tmp-")) return;
     setItems((xs) => xs.filter((x) => x.id !== p.id));
     start(async () => {
       try {
         await deletePayment(p.id);
       } catch (err) {
-        setItems((xs) =>
-          [...xs, p].sort((a, b) => b.paid_on.localeCompare(a.paid_on)),
-        );
-        flash(
-          err instanceof Error ? err.message : "No se pudo borrar el cobro.",
-          "error",
-        );
+        setItems((xs) => [...xs, p]);
+        flash(err instanceof Error ? err.message : "No se pudo borrar el cobro.", "error");
       }
     });
   }
@@ -112,24 +115,15 @@ export function Payments({
       title="Cobros"
       icon={<Wallet size={14} />}
       count={items.length || undefined}
+      action={<CardLink href="/admin/finanzas">Finanzas →</CardLink>}
     >
       <div className="grid grid-cols-3 gap-3 px-4 pt-4">
         <Stat label="Acordado" value={usd(budget)} />
-        <Stat
-          label="Cobrado"
-          value={paid ? usd(paid) : "—"}
-          tone={paid ? "text-emerald-300" : undefined}
-        />
+        <Stat label="Cobrado" value={money.paid ? usd(money.paid) : "—"} tone={money.paid ? "text-emerald-300" : undefined} />
         <Stat
           label="Falta"
-          value={left === null ? "—" : left === 0 ? "Nada" : usd(left)}
-          tone={
-            left
-              ? "text-amber-300"
-              : left === 0
-                ? "text-emerald-300"
-                : undefined
-          }
+          value={money.owed ? usd(money.owed) : budget ? "Nada" : "—"}
+          tone={money.owed ? "text-amber-300" : budget ? "text-emerald-300" : undefined}
         />
       </div>
       <div className="px-4 pt-3 pb-4">
@@ -137,7 +131,9 @@ export function Payments({
           <Progress value={pct} accent={accent} />
         ) : (
           <p className="text-[12px] text-muted">
-            Cargá el monto en el estado del proyecto para ver cuánto falta.
+            {money.pending
+              ? "«Falta» son los pendientes cargados. Con el monto acordado en el estado del proyecto se ve el saldo total."
+              : "Cargá el monto en el estado del proyecto para ver cuánto falta."}
           </p>
         )}
       </div>
@@ -161,7 +157,7 @@ export function Payments({
         <input
           type="date"
           value={paidOn}
-          max={today()}
+          max={today}
           onChange={(e) => setPaidOn(e.target.value)}
           aria-label="Fecha del cobro"
           className={input}
@@ -175,76 +171,80 @@ export function Payments({
           aria-label="Nota del cobro"
           className={cn(input, "col-span-2 sm:col-span-1")}
         />
-        <button
-          type="submit"
-          disabled={pending}
-          className={cn(btnPrimary, "col-span-2 justify-center sm:col-span-1")}
-        >
+        <button type="submit" disabled={pending} className={cn(btnPrimary, "col-span-2 justify-center sm:col-span-1")}>
           Registrar
         </button>
-        <div className="col-span-2 sm:col-span-4">
-          <span className="mb-1.5 block text-[11px] font-medium tracking-wide text-muted uppercase">
-            Quién lo cobró
-          </span>
-          <OwnerPicker value={owner} onChange={setOwner} legend="Quién cobró" />
+        <div className="col-span-2 flex flex-wrap items-end gap-x-4 gap-y-2 sm:col-span-4">
+          <div>
+            <span className="mb-1.5 block text-[11px] font-medium tracking-wide text-muted uppercase">Quién lo cobró</span>
+            <OwnerPicker value={owner} onChange={setOwner} legend="Quién cobró" />
+          </div>
+          <div>
+            <span className="mb-1.5 block text-[11px] font-medium tracking-wide text-muted uppercase">Es de</span>
+            <Segmented
+              value={category}
+              onChange={setCategory}
+              label="Qué se cobró"
+              options={[
+                { id: "proyecto", label: "Proyecto" },
+                { id: "mantenimiento", label: "Mantenimiento" },
+              ]}
+            />
+          </div>
         </div>
       </form>
 
-      {items.length > 0 && (
+      {sorted.length > 0 && (
         <ul className="divide-y divide-[var(--line)] border-t border-[var(--line)]">
-          {items.map((p) => (
-            <li
-              key={p.id}
-              className="group flex items-center gap-3 px-4 py-2.5 text-[13px]"
-            >
-              <span className="w-24 shrink-0 font-medium tabular-nums">
-                {usd(p.amount)}
-              </span>
-              <span className="min-w-0 flex-1 truncate text-muted">
-                {[
-                  day(p.paid_on),
-                  p.note,
-                  p.created_by && PEOPLE[p.created_by].name,
-                  `cobró: ${OWNER_LABEL[p.owner]}`,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </span>
-              <button
-                onClick={() => remove(p)}
-                aria-label={`Borrar cobro de ${usd(p.amount)}`}
-                className="focus-ring rounded p-1 text-muted opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-400 focus-visible:opacity-100 max-md:opacity-100"
-              >
-                <Trash2 size={14} />
-              </button>
-            </li>
-          ))}
+          {sorted.map((p) => {
+            const due = p.status === "pendiente";
+            const late = due && p.occurred_on < today;
+            const usdValue = p.currency === "USD" ? null : otherCurrency(p);
+            return (
+              <li key={p.id} className="group flex items-center gap-3 px-4 py-2.5 text-[13px]">
+                <span className={cn("w-24 shrink-0 font-medium tabular-nums", due && "text-muted")}>
+                  {fmt(p.amount, p.currency)}
+                  {usdValue && usdValue.amount > 0 && (
+                    <span className="block text-[11px] font-normal text-muted">≈ {fmt(usdValue.amount, usdValue.currency)}</span>
+                  )}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-muted">
+                  {[
+                    due ? `${late ? "Venció el" : "Para el"} ${day(p.occurred_on)}` : day(p.occurred_on),
+                    p.recurring && "todos los meses",
+                    p.description,
+                    p.created_by && PEOPLE[p.created_by].name,
+                    `cobró: ${OWNER_LABEL[p.owner]}`,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
+                {due && (
+                  <span className={cn("shrink-0 rounded px-1.5 py-px text-[11px]", late ? "bg-amber-400/10 text-amber-300" : "bg-white/[0.06] text-muted")}>
+                    Pendiente
+                  </span>
+                )}
+                <button
+                  onClick={() => remove(p)}
+                  aria-label={`Borrar cobro de ${fmt(p.amount, p.currency)}`}
+                  className="focus-ring rounded p-1 text-muted opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-400 focus-visible:opacity-100 max-md:opacity-100"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </Card>
   );
 }
 
-function Stat({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone?: string;
-}) {
+function Stat({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
     <div className="min-w-0">
       <p className="text-[11px] text-muted">{label}</p>
-      <p
-        className={cn(
-          "mt-1 truncate text-[14px] font-semibold tabular-nums",
-          tone,
-        )}
-      >
-        {value}
-      </p>
+      <p className={cn("mt-1 truncate text-[14px] font-semibold tabular-nums", tone)}>{value}</p>
     </div>
   );
 }

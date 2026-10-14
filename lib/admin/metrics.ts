@@ -13,6 +13,19 @@ const TZ = "America/Argentina/Buenos_Aires";
 export const monthKey = (iso: string) =>
   new Date(iso).toLocaleDateString("en-CA", { timeZone: TZ }).slice(0, 7);
 
+/**
+ * Cuándo se ganó un pedido: la fecha de cierre (won_at, desde crm-v2.sql). Sin
+ * ella, el último cambio, que es lo mejor que hay pero se mueve con cualquier edición.
+ */
+export const wonAt = (l: Pick<Lead, "won_at" | "updated_at" | "created_at">) =>
+  l.won_at ?? l.updated_at ?? l.created_at;
+
+/** Lo ganado en un mes ("2026-10"), en USD. */
+export const wonInMonth = (leads: Lead[], month: string) =>
+  leads
+    .filter((l) => l.status === "ganado" && monthKey(wonAt(l)) === month)
+    .reduce((s, l) => s + dealValue(l), 0);
+
 /** Las últimas `n` claves de mes, de la más vieja a la actual. */
 export function lastMonths(n: number, now = Date.now()): string[] {
   const cur = monthKey(new Date(now).toISOString());

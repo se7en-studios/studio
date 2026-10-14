@@ -34,8 +34,8 @@ export function Attention({
   content = [],
   renewals = [],
 }: {
-  /** Proyectos entregados (o en mantenimiento) con saldo sin cobrar. */
-  unpaid?: { slug: string; name: string; left: number }[];
+  /** Proyectos con una cuota vencida, o entregados (o en mantenimiento) con saldo sin cobrar. */
+  unpaid?: { slug: string; name: string; left: number; late: boolean }[];
   /** Herramientas que renuevan en los próximos 7 días. */
   renewals?: { id: string; name: string; days: number; price: string }[];
   /** Posts de Instagram de hoy o atrasados, sin publicar. */
@@ -78,7 +78,7 @@ export function Attention({
       href: `/admin/proyectos/${x.slug}`,
       icon: <Wallet size={14} />,
       title: x.name,
-      detail: `Entregado · falta cobrar ${usd(x.left)}`,
+      detail: `${x.late ? "Cobro vencido" : "Entregado"} · falta cobrar ${usd(x.left)}`,
       tone: "text-amber-300",
     })),
     ...fresh.map((l) => ({

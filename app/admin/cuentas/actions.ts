@@ -104,7 +104,7 @@ export async function saveAccount(
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "cuentas",
         text: `${id ? (v.secret ? "cambió la clave de" : "editó") : "guardó la cuenta"} ${name(account)} en Cuentas`,
       }),
     );
@@ -128,7 +128,7 @@ export async function revealAccount(
     if (!found) return { error: "Esa cuenta ya no existe." };
     await logEvent({
       actor: me.who,
-      kind: "proyecto",
+      kind: "cuentas",
       text: `abrió la clave de ${name(found)} en Cuentas`,
     });
     return { secret: found.secret, notes: found.notes };
@@ -151,7 +151,7 @@ export async function deleteAccount(
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "cuentas",
         text: `borró la cuenta ${name(gone)} de Cuentas`,
       }),
     );

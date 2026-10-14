@@ -44,6 +44,7 @@ const SQL_WHAT: Record<string, React.ReactNode> = {
   "panel-v2.sql": "Crea el estado de los proyectos, los mensajes y el detalle del registro de cambios.",
   "content.sql": "Crea la tabla del calendario de contenido de Instagram.",
   "payments.sql": "Crea la tabla de cobros de los proyectos.",
+  "finance-v4.sql": "Pasa los cobros de los proyectos a Finanzas, como ingresos con proyecto: así todo el panel suma lo mismo.",
 };
 
 /** Falta la base o faltan las tablas del panel: cómo activarlo, sin romper la página. */

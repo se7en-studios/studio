@@ -1,8 +1,9 @@
 "use client";
 
 // Pagos pendientes: lo que falta cobrar o pagar. Los cargados a mano no cuentan
-// en los totales hasta que se marcan como cobrados. Debajo, el saldo de los
-// proyectos con monto acordado, que se cobra desde la ficha de cada proyecto.
+// en los totales hasta que se marcan como cobrados. Debajo, lo que queda del
+// monto acordado de cada proyecto sin un pendiente cargado (se cobra desde la
+// ficha del proyecto). Los ingresos de la lista suman el «Por cobrar».
 import Link from "next/link";
 import { Check, Clock, Pencil, Plus } from "lucide-react";
 import {
@@ -14,7 +15,8 @@ import {
 import { Card, btnGhost, btnSecondary, cn } from "../kit";
 import { OwnerFaces } from "./owner";
 
-export type OwedProject = { slug: string; name: string; balance: number };
+/** `partial`: el proyecto ya tiene pendientes cargados y esto es lo que queda del acordado. */
+export type OwedProject = { slug: string; name: string; balance: number; partial?: boolean };
 
 const dayLabel = (day: string) =>
   new Date(`${day}T12:00:00Z`).toLocaleDateString("es-AR", {
@@ -119,7 +121,7 @@ export function Pending({
                   {p.name}
                 </p>
                 <p className="mt-0.5 text-[12px] text-muted">
-                  Saldo del monto acordado
+                  {p.partial ? "Resto del monto acordado, sin cuota cargada" : "Saldo del monto acordado"}
                 </p>
               </div>
               <p className="shrink-0 text-[13px] font-medium tabular-nums">

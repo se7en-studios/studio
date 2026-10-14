@@ -30,7 +30,7 @@ import {
   type Period,
 } from "@/lib/admin/finance-shared";
 import type { LeadOwner } from "@/lib/admin/db";
-import { paymentToEntry, type Payment } from "@/lib/admin/payment-shared";
+import { paymentToEntry, receivables, type Billable, type Payment } from "@/lib/admin/payment-shared";
 import { toolEntries, type Tool } from "@/lib/admin/tool-shared";
 import type { Rates } from "@/lib/admin/fx";
 import {
@@ -69,8 +69,8 @@ type Props = {
   /** Cotización de referencia (pesos por dólar); 0 si no hay ninguna. */
   fx: number;
   projects: Project[];
-  /** Proyectos con saldo por cobrar (USD); null si falta la base. */
-  owed: OwedProject[] | null;
+  /** Monto acordado y etapa de cada proyecto, para calcular lo que falta cobrar. */
+  billable: Billable[];
   /** Herramientas con renovación; null si falta la tabla. */
   tools: Tool[] | null;
   today: string;
@@ -85,7 +85,7 @@ export function FinanceView({
   rates,
   fx,
   projects,
-  owed,
+  billable,
   tools,
   today,
   me,
@@ -123,7 +123,9 @@ export function FinanceView({
     [items, toolList, fx],
   );
 
-  // Sin cotización, los cobros de proyectos (en dólares) no tienen equivalente en pesos: se muestra sólo en dólares.
+  // Cobros de antes de finance-v4.sql: no guardan cotización y usan la de hoy.
+  const legacy = items.some((e) => e.source === "cobro");
+  // Sin cotización, esos cobros (y las herramientas) no tienen equivalente en pesos: se muestra sólo en dólares.
   const arsReliable = fx > 0 || !all.some((e) => e.source !== "manual");
   const currency: Currency = arsReliable ? stored : "USD";
   const other: Currency = currency === "USD" ? "ARS" : "USD";
@@ -168,11 +170,21 @@ export function FinanceView({
   const evenSplit = Math.abs(split.franco.in - split.federico.in) < 1;
   const result = ingreso - costo;
   const pendingItems = scoped.filter((e) => e.status === "pendiente");
-  // El saldo de un proyecto no es de nadie en particular: sólo se ve en «todos».
-  const owedShown = (owed ?? []).filter(
-    (p) => who === "todos" && (project === "todos" || project === p.slug),
-  );
-  const receivable = owed ? owedShown.reduce((s, p) => s + p.balance, 0) : null;
+  // Lo que falta cobrar, con la misma cuenta que Inicio y la ficha del proyecto.
+  // Se calcula sobre los movimientos sin filtrar: cobrar no es de un socio en particular.
+  const owing = useMemo(() => receivables(billable, items, today), [billable, items, today]);
+  const receivable =
+    who !== "todos"
+      ? null
+      : project === "todos"
+        ? owing.total
+        : project === NO_PROJECT
+          ? owing.loose
+          : (owing.projects.find((p) => p.slug === project)?.owed ?? 0);
+  // El saldo del acordado que no cubre ningún pendiente cargado: los pendientes ya están en la lista.
+  const owedShown: OwedProject[] = owing.projects
+    .filter((p) => p.uncovered > 0 && who === "todos" && (project === "todos" || project === p.slug))
+    .map((p) => ({ slug: p.slug, name: p.name, balance: p.uncovered, partial: p.pending > 0 }));
   const fixed = fixedCosts(scoped, monthOf(today));
   const inPeriod = useMemo(() => {
     const ids = new Set(occ.map((o) => o.entry.id));
@@ -358,11 +370,11 @@ export function FinanceView({
               .filter(([, v]) => v)
               .map(([n, v]) => `${n} ${fmt(v ?? 0, "ARS")}`)
               .join(" · ") || `${fmt(fx, "ARS")} (la del último movimiento)`}
-            . Los cobros de proyectos se convierten con esa cotización; los
-            movimientos cargados a mano, con la que les pusiste.
+            . Cada movimiento se convierte con la cotización que tiene
+            cargada{legacy && "; los cobros que siguen en la tabla vieja, con esta"}.
           </>
         ) : (
-          "No pude traer la cotización del dólar. Los cobros de proyectos se ven sólo en dólares; cargá a mano la cotización en cada movimiento."
+          `No pude traer la cotización del dólar.${legacy ? " Los cobros que siguen en la tabla vieja se ven sólo en dólares;" : ""} cargá a mano la cotización en cada movimiento.`
         )}
       </p>
 
@@ -413,7 +425,7 @@ export function FinanceView({
                 : fmt(receivable * fx, "ARS")
             }
             tone={receivable > 0 ? "amber" : undefined}
-            hint="Saldo de proyectos con monto acordado"
+            hint="Pendientes y saldo de lo acordado"
           />
         )}
       </div>
@@ -427,7 +439,7 @@ export function FinanceView({
           { id: "movimientos", label: `Movimientos (${inPeriod.length})` },
           {
             id: "pendientes",
-            label: `Pendientes (${pendingItems.length + owedShown.filter((p) => p.balance > 0).length})`,
+            label: `Pendientes (${pendingItems.length + owedShown.length})`,
           },
           { id: "herramientas", label: `Herramientas (${toolList.length})` },
         ]}
@@ -473,7 +485,7 @@ export function FinanceView({
       {tab === "pendientes" && (
         <Pending
           entries={pendingItems}
-          owed={owedShown.filter((p) => p.balance > 0)}
+          owed={owedShown}
           today={today}
           projectName={projectName}
           onSettle={settle}
