@@ -589,6 +589,41 @@ export function furni(f: Furni, ctx: FurniCtx) {
       faceRect("y", y + 0.755, x + 0.15, 0.55, 0.6, 30, 44, c("#9a948a"));
       faceRect("y", y + 0.755, x + 0.15, 0.1, 0.2, 48, 52, c("#ff4d2e"));
       break;
+    // --- Al lado del rack, algo propio de cada proyecto ---
+    case "dumbbells": {
+      // Rack bajo con mancuernas de a pares
+      box(x + 0.12, y + 0.22, 0, 0.76, 0.46, 16, "#2a2830");
+      for (let i = 0; i < 3; i++) {
+        for (const dy of [0.32, 0.56]) {
+          const [cx, cy] = P(x + 0.24 + i * 0.26, y + dy, 18);
+          ellipse(cx - 4, cy, 2.6, 3.2, c(i === 1 ? acc : "#3a3a44"), OUT_SOFT);
+          ellipse(cx + 4, cy, 2.6, 3.2, c(i === 1 ? acc : "#3a3a44"), OUT_SOFT);
+          line([cx - 3, cy], [cx + 3, cy], c("#c9ccd2"), 1.4);
+        }
+      }
+      break;
+    }
+    case "cabinet": {
+      // Archivero de tres cajones
+      box(x + 0.2, y + 0.18, 0, 0.6, 0.5, 46, "#9aa0a8", { top: "#b8bdc4", right: "#7f858d" });
+      for (let i = 0; i < 3; i++) {
+        faceRect("y", y + 0.685, x + 0.2, 0.05, 0.55, 4 + i * 14, 5 + i * 14, c("#6f757d"));
+        faceRect("y", y + 0.685, x + 0.2, 0.24, 0.36, 10 + i * 14, 12 + i * 14, c("#e2e5e9"));
+      }
+      faceRect("y", y + 0.685, x + 0.2, 0.08, 0.2, 38, 42, c(acc));
+      break;
+    }
+    case "espresso": {
+      // Mueble con la cafetera y dos tazas
+      box(x + 0.1, y + 0.15, 0, 0.8, 0.6, 26, "#3a2f2a", { top: "#c9a26e" });
+      box(x + 0.22, y + 0.2, 26, 0.36, 0.32, 18, "#c9ccd2", { top: "#e6e9ec", right: "#a9adb3" });
+      faceRect("y", y + 0.52, x + 0.22, 0.08, 0.28, 30, 34, c("#2a2830"));
+      ctx.glows.push({ t: "steam", at: P(x + 0.4, y + 0.3, 46), room: f.room });
+      ctx.glows.push({ t: "led", at: onFace("y", y + 0.525, x + 0.22, 0.3, 40), i: -1, room: f.room });
+      box(x + 0.66, y + 0.4, 26, 0.12, 0.12, 5, "#f4f1ea");
+      box(x + 0.66, y + 0.58, 26, 0.12, 0.12, 5, acc);
+      break;
+    }
     // --- Piezas del centro, según el tema del proyecto ---
     case "balls": {
       // Canasto de pelotas de pádel y dos paletas apoyadas
@@ -912,6 +947,13 @@ function hair(who: Who, back: boolean, by: number) {
 
 export type SignSpec = { name: string; sub?: string; badge?: number; fade: number; accent: string; gold?: boolean; warm?: boolean };
 /** Dibuja un cartel con la base centrada en (x, y) en px de pantalla. Devuelve su caja para tocarlo. */
+/** Lo que ocupa un cartel (con el lugar del globito de novedades arriba), para acomodarlos sin que se pisen. */
+export function measureSign(ctx: CanvasRenderingContext2D, font: string, s: SignSpec) {
+  ctx.font = `8px ${font}`;
+  const w = Math.max(Math.ceil(ctx.measureText(s.name).width), s.sub ? Math.ceil(ctx.measureText(s.sub).width) : 0) + 14;
+  return { w, h: (s.sub ? 27 : 17) + 6 };
+}
+
 export function sign(ctx: CanvasRenderingContext2D, font: string, sx: number, sy: number, s: SignSpec) {
   ctx.font = `8px ${font}`;
   const nameW = Math.ceil(ctx.measureText(s.name).width);
