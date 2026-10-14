@@ -4,7 +4,7 @@ import { Silkscreen } from "next/font/google";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
-import { createEngine, type ActorSpec, type Engine, type RoomLooks } from "@/app/admin/oficinas/engine";
+import { createEngine, type ActorSpec, type Engine, type RoomLooks } from "@/lib/oficinas/engine";
 import type { EnVivoPublic } from "@/app/api/en-vivo/route";
 import { buildMap, hourIn, periodOf, themeOf, type MapModel, type Who } from "@/lib/admin/oficinas-shared";
 import { publicProjects, type PublicCapture } from "@/lib/en-vivo";

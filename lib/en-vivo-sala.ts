@@ -1,7 +1,7 @@
 // Lo que el motor de «En vivo» necesita de cada sala de proyecto, con la
 // tipografía de su marca. Sólo para el navegador (el mapa del panel y el de la
 // landing): las tipografías de next/font no se pueden cargar en una ruta de API.
-import type { RoomInfo } from "@/app/admin/oficinas/engine";
+import type { RoomInfo } from "@/lib/oficinas/engine";
 import type { OfiProject } from "@/lib/admin/oficinas-shared";
 import { brandFamilies, type BrandFont } from "@/lib/brand-fonts";
 import { domainOf } from "@/lib/en-vivo";
