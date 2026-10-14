@@ -30,6 +30,8 @@ import { EventList } from "./feed";
 import { Card, CardLink, Empty, Face, Kpi, PageHeader, Progress, StatusPill, btnPrimary, btnSecondary, cn, kpiRow, usdShort } from "./kit";
 import { MyTasks } from "./tareas/my-tasks";
 import { FinanceCard } from "./finance-card";
+import { getSalaMasApagada, type SalaMasApagada } from "@/lib/admin/oficinas";
+import { EnVivoCard } from "./oficinas/home-card";
 import { AdminGate, SetupNotice } from "./ui";
 
 export const metadata: Metadata = { title: "Inicio" };
@@ -53,7 +55,7 @@ const TZ = "America/Argentina/Buenos_Aires";
  */
 async function loadHome(who: LeadOwner) {
   const hasDb = db() !== null;
-  const [leadsR, actsR, projectsR, statesR, eventsR, tasksR, linksR, chatsR, paidR, contentR, financeR, toolsR, rates] = await Promise.all([
+  const [leadsR, actsR, projectsR, statesR, eventsR, tasksR, linksR, chatsR, paidR, contentR, financeR, toolsR, rates, salaR] = await Promise.all([
     safe<Lead[]>(hasDb ? listLeads() : Promise.resolve([]), []),
     safe<Activity[] | null>(listActivity(), null),
     safe<PanelProject[]>(listProjects(), caseProjects()),
@@ -69,6 +71,8 @@ async function loadHome(who: LeadOwner) {
     safe<Tool[]>(listTools(), []),
     // Para pasar a dólares las herramientas en pesos; sin cotización, Inicio las deja afuera.
     fetchRates(),
+    // «En vivo»: la sala más apagada, con las mismas reglas que el mapa.
+    safe<SalaMasApagada | null>(getSalaMasApagada(who), null),
   ]);
 
   const leads = leadsR.value;
@@ -112,7 +116,7 @@ async function loadHome(who: LeadOwner) {
   const hour = Number(new Date().toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit" }));
   const hello = hour < 13 ? "Buen día" : hour < 20 ? "Buenas tardes" : "Buenas noches";
 
-  return { renewals, unpaid, hasDb, fresh, active, projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now, actsR, eventsR, linksR, content: contentR.value, finance: financeR.value && [...financeR.value, ...toolEntries(toolsR.value, rates.mep ?? rates.oficial ?? rates.blue ?? 0)] };
+  return { sala: salaR.value, renewals, unpaid, hasDb, fresh, active, projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now, actsR, eventsR, linksR, content: contentR.value, finance: financeR.value && [...financeR.value, ...toolEntries(toolsR.value, rates.mep ?? rates.oficial ?? rates.blue ?? 0)] };
 }
 
 // Lo primero que se ve al entrar: qué está pendiente, cómo vienen los
@@ -240,6 +244,8 @@ export default async function AdminHome() {
         </div>
 
         <div className="min-w-0 space-y-4">
+          {d.sala && <EnVivoCard sala={d.sala} />}
+
           {tasks && <MyTasks tasks={tasks} links={linksR.value} me={me.who} />}
 
           {finance && <FinanceCard entries={finance} today={today} />}

@@ -78,6 +78,8 @@ export type OfiProject = {
   slug: string;
   name: string;
   category: string;
+  /** La frase de marca del caso (vacía en los proyectos del panel). Ayuda a elegir el tema de la sala. */
+  tagline: string;
   client: string;
   accent: string;
   status: string;
@@ -147,6 +149,28 @@ export function salaMasApagada(
   return best;
 }
 
+// --- Tema de cada sala -------------------------------------------------------------
+
+/** Lo que cuenta cada sala sobre su proyecto: la pieza del centro y el cuadro de la pared. */
+export type Theme = "padel" | "mate" | "gym" | "yoga" | "inmobiliaria" | "clima" | "phones" | "carta" | "studio";
+
+/** Sale del nombre, la categoría y la frase del proyecto. Sin pistas, «studio» (la sala de siempre). */
+export function themeOf(p: { name: string; category: string; tagline?: string }): Theme {
+  const t = `${p.name} ${p.category} ${p.tagline ?? ""}`
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+  if (/padel/.test(t)) return "padel";
+  if (/\bmate\b|pava|yerba/.test(t)) return "mate";
+  if (/entrenador|gimnasio|\bgym\b/.test(t)) return "gym";
+  if (/movilidad|entrenamiento|yoga|pilates/.test(t)) return "yoga";
+  if (/inmobiliari|inversion|propiedad/.test(t)) return "inmobiliaria";
+  if (/clim|satelit|incendio/.test(t)) return "clima";
+  if (/iphone|celular|smartphone/.test(t)) return "phones";
+  if (/carta|restaurant|pedidos|menu/.test(t)) return "carta";
+  return "studio";
+}
+
 // --- El plano ------------------------------------------------------------------
 //
 // Grilla isométrica: x baja hacia la derecha, y baja hacia la izquierda. Las
@@ -175,6 +199,7 @@ export type MapRoom = {
   who?: Who;
   zone?: Zone;
   status?: string;
+  theme?: Theme;
   /** Lado del pasillo central (sólo salas de proyecto). */
   column?: "left" | "right";
   /** La puerta es el borde `side` de la baldosa (x, y). */
@@ -199,6 +224,9 @@ export type Furni = {
   face: Facing;
   solid: boolean;
 };
+
+/** Lo que va pintado en el piso (alfombras, la cancha): no ocupa lugar y se dibuja antes que todo. */
+export const DECALS = new Set(["rug", "court", "yogamat"]);
 
 /** Cuadros, pizarrones, ventanas: van pintados sobre una pared. */
 export type Decor = { id: string; k: string; side: Side; x: number; y: number; len: number; room: string | null };
@@ -226,13 +254,13 @@ export type MapModel = {
 export const MAP = { W: 15, TOP: 5, HALL: 2, ROOM_W: 6, ROOM_D: 5, SPINE_X0: 6, SPINE_X1: 9 } as const;
 const doorKey = (x: number, y: number, side: Side) => `${x},${y},${side}`;
 
-export type MapInput = { slug: string; status: string }[];
+export type MapInput = { slug: string; status: string; theme?: Theme }[];
 
 export function buildMap(projects: MapInput): MapModel {
   const { W, TOP, HALL, ROOM_W, ROOM_D, SPINE_X0, SPINE_X1 } = MAP;
   const active = projects.filter((p) => zoneOf(p.status) === "active");
   const archive = projects.filter((p) => zoneOf(p.status) === "archive");
-  type Slot = { p: { slug: string; status: string } | null; filler: RoomKind; zone: Zone };
+  type Slot = { p: { slug: string; status: string; theme?: Theme } | null; filler: RoomKind; zone: Zone };
   const slots: Slot[] = [
     ...active.map((p) => ({ p, filler: "project" as RoomKind, zone: "active" as Zone })),
     ...(active.length % 2 ? [{ p: null, filler: "kitchen" as RoomKind, zone: "active" as Zone }] : []),
@@ -304,7 +332,7 @@ export function buildMap(projects: MapInput): MapModel {
     const id = s.p ? `p-${s.p.slug}` : `${kind}-${i}`;
     const door = left ? { x: SPINE_X0, y: y + 2, side: "L" as Side } : { x: SPINE_X1, y: y + 2, side: "L" as Side };
     const r = addRoom({
-      id, kind, x, y, w: ROOM_W, d: ROOM_D, slug: s.p?.slug, zone: s.zone, status: s.p?.status, column: left ? "left" : "right",
+      id, kind, x, y, w: ROOM_W, d: ROOM_D, slug: s.p?.slug, zone: s.zone, status: s.p?.status, theme: s.p?.theme ?? "studio", column: left ? "left" : "right",
       door, inside: left ? { x: SPINE_X0 - 1, y: y + 2 } : { x: SPINE_X1, y: y + 2 }, outside: left ? { x: SPINE_X0, y: y + 2 } : { x: SPINE_X1 - 1, y: y + 2 },
     });
     furnishRoom(r, left, put, hang);
@@ -377,10 +405,15 @@ function furnishRoom(r: MapRoom, left: boolean, put: Put, hang: Hang) {
     put(r, "plant", X + 5, Y);
     put(r, "lamp", X + 5, Y + 4);
   }
-  put(r, "rug", X + 2, Y + 2, 3, 2, "y", false);
-  hang(r, "poster", left ? "R" : "L", left ? X + 1 : X, left ? Y : Y + 3, 1);
+  // El piso y el cuadro de la pared cuentan de qué es el proyecto
+  const theme = r.theme ?? "studio";
+  if (theme === "padel") put(r, "court", X + 1, Y + 2, 4, 2, "y", false);
+  else if (theme === "yoga") put(r, "yogamat", X + 2, Y + 2, 1, 2, "y", false);
+  else put(r, "rug", X + 2, Y + 2, 3, 2, "y", false);
+  const WALL_ART: Partial<Record<Theme, string>> = { padel: "rackets", gym: "plan", inmobiliaria: "blueprint", clima: "mapscreen", carta: "menuboard" };
+  hang(r, WALL_ART[theme] ?? "poster", left ? "R" : "L", left ? X + 1 : X, left ? Y : Y + 3, 1);
   // Lo que identifica la etapa
-  const a = left ? X + 3 : X + 3; // primera columna libre contra la pared de atrás
+  const a = X + 3; // primera columna libre contra la pared de atrás
   if (archive) {
     hang(r, "plaque", "R", a + 1, Y, 1);
     hang(r, "frame", "R", a - 1, Y, 1);
@@ -409,6 +442,12 @@ function furnishRoom(r: MapRoom, left: boolean, put: Put, hang: Hang) {
     // Pausado: los muebles tapados con sábanas.
     put(r, "sofa", a, Y, 2, 1, "y");
   }
+  // La pieza del centro, según el tema (el archivo y la revisión ya tienen algo ahí)
+  if (archive || st === "revision") return;
+  if (theme === "padel") put(r, "balls", X + 1, Y + 4);
+  else if (theme === "gym") put(r, "squatrack", X + 3, Y + 2, 2, 1, "y");
+  else if (theme === "yoga") put(r, "yogaprops", X + 3, Y + 3);
+  else if (theme !== "studio") put(r, theme === "mate" ? "matetable" : theme === "inmobiliaria" ? "maquette" : theme === "clima" ? "globe" : theme === "phones" ? "phonetable" : "cafetable", X + 3, Y + 2);
 }
 
 // --- Caminar -----------------------------------------------------------------------

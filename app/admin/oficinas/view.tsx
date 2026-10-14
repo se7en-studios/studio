@@ -19,6 +19,7 @@ import {
   plantStage,
   relTime,
   salaMasApagada,
+  themeOf,
   zoneOf,
   type MapRoom,
   type OficinasData,
@@ -42,7 +43,7 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
   const flash = useToast();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<Engine | null>(null);
-  const map = useMemo(() => buildMap(data.projects.map((p) => ({ slug: p.slug, status: p.status }))), [data.projects]);
+  const map = useMemo(() => buildMap(data.projects.map((p) => ({ slug: p.slug, status: p.status, theme: themeOf(p) }))), [data.projects]);
   const bySlug = useMemo(() => new Map(data.projects.map((p) => [p.slug, p])), [data.projects]);
   const [visits, setVisits] = useState<Visits>(() => ({
     federico: Object.fromEntries(data.projects.map((p) => [p.slug, p.lastVisit.federico])),
@@ -95,7 +96,14 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
         return [r.id, { name: p.name, accent: p.accent, status: p.status }];
       }),
     );
-    const engine = createEngine(canvas, { map, info, me, font, onRoom: (id) => enterRef.current(id) });
+    const engine = createEngine(canvas, {
+      map,
+      info,
+      me,
+      font,
+      names: { federico: PEOPLE.federico.name, franco: PEOPLE.franco.name },
+      onRoom: (id) => enterRef.current(id),
+    });
     engineRef.current = engine;
     const ro = new ResizeObserver(() => engine.resize());
     ro.observe(canvas);
@@ -320,12 +328,19 @@ function Hall({ data, bySlug, map, visits, me, now, onGo }: { data: OficinasData
           Falta correr <code className="text-foreground">supabase/oficinas.sql</code> en Supabase: el mapa anda, pero las visitas no se guardan.
         </p>
       )}
-      {worst && (
+      {worst && worst.fade === 0 && (
+        <div className="rounded-xl border border-[var(--line)] bg-[var(--panel-2)] p-4 shadow-[var(--shadow-card)]">
+          <p className="font-mono text-[11px] tracking-[0.14em] text-muted uppercase">Todas prendidas</p>
+          <p className="mt-1 text-[18px] font-semibold text-foreground">Las {rows.length} salas tienen la luz prendida</p>
+          <p className="mt-0.5 text-[13px] text-muted">A los tres días sin pasar por una, empieza a apagarse.</p>
+        </div>
+      )}
+      {worst && worst.fade > 0 && (
         <div className="rounded-xl border border-[var(--line)] bg-[var(--panel-2)] p-4 shadow-[var(--shadow-card)]">
           <p className="font-mono text-[11px] tracking-[0.14em] text-muted uppercase">Sala más apagada</p>
           <p className="mt-1 text-[18px] font-semibold text-foreground">{worst.name}</p>
           <p className="mt-0.5 text-[13px] text-muted">
-            No entrás {daysLabel(worst.days)}; {plant}.
+            {worst.days === null ? "Nunca entraste" : `No entrás ${daysLabel(worst.days)}`}; {plant}.
           </p>
           <button className={cn(btnPrimary, "mt-3")} onClick={() => onGo(`p-${worst.slug}`)}>
             Ir a la sala

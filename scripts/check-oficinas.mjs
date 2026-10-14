@@ -49,10 +49,24 @@ const two = [{ slug: "b", name: "Beta", status: "mantenimiento" }, { slug: "a", 
 assert.equal(S.salaMasApagada(two, () => null, nowMs)?.slug, "a");
 assert.equal(S.salaMasApagada(two, (s) => (s === "a" ? "2026-10-11T12:00:00Z" : null), nowMs)?.slug, "b");
 
-// Se llega caminando a todas las salas (y a cada oficina), con cualquier cantidad de proyectos.
+// El tema de cada sala, con los datos reales de los casos de la web.
+const themes = [
+  ["Muzzaga Pádel", "Club de Pádel / Reservas Online", "Canchas de pádel en Catriel. Pádel de verdad.", "padel"],
+  ["Poné La Pava", "E-commerce / Experiencia de Marca", "El ritual del mate es tuyo.", "mate"],
+  ["Apex Performance", "Plataforma para Entrenadores", "Programación seria, no plantillas.", "gym"],
+  ["Pravilo", "Entrenamiento y Movilidad", "Explorá tu cuerpo a otro nivel.", "yoga"],
+  ["Altum Sci", "Inmobiliaria / Sitio Corporativo", "Tu inversión, en el corazón de la Patagonia.", "inmobiliaria"],
+  ["Sentinel", "Tecnología Climática y Datos Satelitales", "Detectamos incendios en minutos, no en horas.", "clima"],
+  ["iPhone Vita", "E-commerce / Tecnología", "Tu próxima tecnología.", "phones"],
+  ["Takefyy", "Plataforma Digital", "Tu carta digital. Tus pedidos sin apps.", "carta"],
+  ["Barbería Centro", "Landing", "", "studio"],
+];
+for (const [name, category, tagline, theme] of themes) assert.equal(S.themeOf({ name, category, tagline }), theme, name);
+
+// Se llega caminando a todas las salas (y a cada oficina), con cualquier cantidad de proyectos y con todos los temas.
 const statuses = ["mantenimiento", "desarrollo", "entregado", "diseno", "pausado", "entregado", "revision", "mantenimiento", "descubrimiento"];
-for (const n of [0, 1, 4, 5, 8, 9]) {
-  const projects = Array.from({ length: n }, (_, i) => ({ slug: `p${i}`, status: statuses[i % statuses.length] }));
+for (const n of [0, 1, 4, 5, 8, 9, 18]) {
+  const projects = Array.from({ length: n }, (_, i) => ({ slug: `p${i}`, status: statuses[i % statuses.length], theme: themes[i % themes.length][3] }));
   const m = S.buildMap(projects);
   assert.equal(m.rooms.filter((r) => r.kind === "project").length, n, `salas para ${n}`);
   for (const r of m.rooms) {

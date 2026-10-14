@@ -6,7 +6,19 @@ import { db } from "./db";
 import { PanelNotReady, caseProjects, client, fail, getProject, listProjects, type PanelProject } from "./panel";
 import { defaultState, type ProjectState } from "./project-shared";
 import { listStates } from "./projects";
-import { WHO, resolveVisit, type OficinasData, type OfiEvent, type OfiProject, type OfiTask, type Who } from "./oficinas-shared";
+import {
+  WHO,
+  daysSince,
+  fadeOf,
+  resolveVisit,
+  salaMasApagada,
+  zoneOf,
+  type OficinasData,
+  type OfiEvent,
+  type OfiProject,
+  type OfiTask,
+  type Who,
+} from "./oficinas-shared";
 
 const SLUG = /^[a-z0-9-]{1,64}$/;
 /** Lo que se muestra en el mapa: sin pedidos (no van en «En vivo»). */
@@ -25,6 +37,7 @@ function toProject(p: PanelProject, s: ProjectState, tasks: OfiTask[], events: O
     slug: p.slug,
     name: p.name,
     category: p.category,
+    tagline: p.tagline ?? "",
     client: s.client,
     accent: p.accent,
     status: s.status,
@@ -93,6 +106,23 @@ export async function getOficinasData(me: Who): Promise<OficinasData> {
     studioEvents: events.slice(0, 6),
     openTasks: tasks,
   };
+}
+
+export type SalaMasApagada = { slug: string; name: string; accent: string; days: number | null; fade: number; lit: number; total: number };
+
+/**
+ * Para la tarjeta de Inicio: la sala más apagada de `who` con las mismas reglas
+ * y la misma semilla que el mapa, y cuántas siguen prendidas. null sin proyectos.
+ */
+export async function getSalaMasApagada(who: Who): Promise<SalaMasApagada | null> {
+  const data = await getOficinasData(who);
+  const now = Date.now();
+  const visitOf = (slug: string) => data.projects.find((p) => p.slug === slug)?.lastVisit[who] ?? null;
+  const worst = salaMasApagada(data.projects, visitOf, now);
+  if (!worst) return null;
+  const lit = data.projects.filter((p) => fadeOf(daysSince(p.lastVisit[who], now), zoneOf(p.status)) === 0).length;
+  const accent = data.projects.find((p) => p.slug === worst.slug)?.accent ?? "#ff4d2e";
+  return { ...worst, accent, lit, total: data.projects.length };
 }
 
 /** Guarda que `who` entró a la sala. Devuelve la hora guardada. */
