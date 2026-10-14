@@ -3,6 +3,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { after } from "next/server";
 import { notifyNewLead } from "./notify";
+import { allRows } from "./paged";
 
 export const STATUSES = ["nuevo", "contactado", "propuesta", "ganado", "perdido"] as const;
 export type LeadStatus = (typeof STATUSES)[number];
@@ -79,13 +80,12 @@ export function missingColumn(message: string): string | null {
 export async function listLeads(): Promise<Lead[]> {
   const c = db();
   if (!c) return [];
-  const { data, error } = await c
-    .from("leads")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(500);
+  // Todos: antes se cortaban en 500 sin avisar.
+  const { data, error } = await allRows<Lead>((from, to) =>
+    c.from("leads").select("*").order("created_at", { ascending: false }).order("id").range(from, to),
+  );
   if (error) throw new Error(error.message);
-  return (data ?? []) as Lead[];
+  return data;
 }
 
 export type LeadPatch = Partial<Pick<Lead, "status" | "owner" | "notes" | "name" | "company" | "email" | "phone" | "value">>;

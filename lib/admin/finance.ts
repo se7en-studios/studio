@@ -5,12 +5,12 @@ import { missingTable, type LeadOwner } from "./db";
 import type { Entry, EntryInput } from "./finance-shared";
 import { fetchRates, referenceRate } from "./fx";
 import { paymentToEntry, type Payment } from "./payment-shared";
+import { allRows } from "./paged";
 import { PanelNotReady, client } from "./panel";
 
 const LEGACY_COLUMNS =
   "id, kind, occurred_on, currency, amount, fx, category, description, project_slug, recurring, until, created_by";
 const COLUMNS = `${LEGACY_COLUMNS}, owner, status`;
-const LIMIT = 5000;
 
 function fail(e: { code?: string; message: string }): never {
   if (missingTable(e)) {
@@ -40,14 +40,16 @@ const toEntry = (r: Row): Entry => ({
   source: "manual",
 });
 
-const select = (columns: string, slug?: string) => {
-  let q = client().from("panel_finance").select(columns);
-  if (slug) q = q.eq("project_slug", slug);
-  return q
-    .order("occurred_on", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(LIMIT);
-};
+const select = (columns: string, slug?: string) =>
+  allRows<Row>((from, to) => {
+    let q = client().from("panel_finance").select(columns);
+    if (slug) q = q.eq("project_slug", slug);
+    return q
+      .order("occurred_on", { ascending: false })
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(from, to);
+  });
 
 /** Todos los movimientos, o los de un proyecto. */
 export async function listEntries(slug?: string): Promise<Entry[]> {
@@ -55,7 +57,7 @@ export async function listEntries(slug?: string): Promise<Entry[]> {
   // Sin finance-v2.sql sigue andando como antes (todo «ambos» y pagado), hasta que se corra.
   if (res.error?.code === "42703") res = await select(LEGACY_COLUMNS, slug);
   if (res.error) fail(res.error);
-  return (res.data as unknown as Row[]).map(toEntry);
+  return res.data.map(toEntry);
 }
 
 /**
@@ -64,11 +66,13 @@ export async function listEntries(slug?: string): Promise<Entry[]> {
  * Después de finance-v4.sql la tabla ya no está y no hay ninguno.
  */
 export async function listCobros(fx: number, slug?: string): Promise<Entry[]> {
-  let q = client()
-    .from("panel_payments")
-    .select("id, created_at, project_slug, paid_on, amount, note, created_by, owner");
-  if (slug) q = q.eq("project_slug", slug);
-  const { data, error } = await q.order("paid_on", { ascending: false }).limit(LIMIT);
+  const { data, error } = await allRows<Omit<Payment, "amount"> & { amount: string | number }>((from, to) => {
+    let q = client()
+      .from("panel_payments")
+      .select("id, created_at, project_slug, paid_on, amount, note, created_by, owner");
+    if (slug) q = q.eq("project_slug", slug);
+    return q.order("paid_on", { ascending: false }).order("id").range(from, to);
+  });
   if (error) {
     if (missingTable(error)) return [];
     // Falta finance-v3.sql: se avisa (la página muestra el paso) en vez de perder los ingresos en silencio.
@@ -76,7 +80,7 @@ export async function listCobros(fx: number, slug?: string): Promise<Entry[]> {
       throw new PanelNotReady("Falta correr supabase/finance-v3.sql en Supabase.");
     throw new Error(error.message);
   }
-  return (data as (Omit<Payment, "amount"> & { amount: string | number })[]).map((p) =>
+  return data.map((p) =>
     paymentToEntry({ ...p, amount: Number(p.amount) }, fx),
   );
 }

@@ -2,6 +2,7 @@
 // service role key: NUNCA importar desde un componente de cliente. Las claves de Cuentas
 // salen cifradas, tal cual están en la base: sin VAULT_KEY no se pueden leer.
 import { missingTable } from "./db";
+import { allRows } from "./paged";
 import { client } from "./panel";
 
 /** Las tablas del panel y de los pedidos. Una que no exista (todavía) se anota y se sigue. */
@@ -22,9 +23,6 @@ export const BACKUP_TABLES = [
   "panel_vault",
 ] as const;
 
-const PAGE = 1000;
-/** Tope por tabla: evita una respuesta gigante si alguna crece mucho. */
-const MAX_ROWS = 20_000;
 
 export type TableDump =
   | { rows: unknown[]; truncated?: boolean }
@@ -38,38 +36,16 @@ export type Backup = {
 
 async function dump(table: string): Promise<TableDump> {
   const c = client();
-  const rows: unknown[] = [];
-  while (rows.length < MAX_ROWS) {
-    const { data, error } = await c
-      .from(table)
-      .select("*")
-      .order("created_at", { ascending: true, nullsFirst: true })
-      .range(rows.length, rows.length + PAGE - 1);
-    if (error) {
-      if (missingTable(error)) return { missing: true };
-      // Alguna tabla no tiene created_at: se reintenta sin orden.
-      if (error.code === "42703") return dumpUnordered(table);
-      return { error: error.message };
-    }
-    rows.push(...data);
-    if (data.length < PAGE) return { rows };
-  }
-  return { rows, truncated: true };
-}
-
-async function dumpUnordered(table: string): Promise<TableDump> {
-  const c = client();
-  const rows: unknown[] = [];
-  while (rows.length < MAX_ROWS) {
-    const { data, error } = await c
-      .from(table)
-      .select("*")
-      .range(rows.length, rows.length + PAGE - 1);
-    if (error) return { error: error.message };
-    rows.push(...data);
-    if (data.length < PAGE) return { rows };
-  }
-  return { rows, truncated: true };
+  const ordered = await allRows<unknown>((from, to) =>
+    c.from(table).select("*").order("created_at", { ascending: true, nullsFirst: true }).range(from, to),
+  );
+  // Alguna tabla no tiene created_at: se reintenta sin orden.
+  const res =
+    ordered.error && (ordered.error as { code?: string }).code === "42703"
+      ? await allRows<unknown>((from, to) => c.from(table).select("*").range(from, to))
+      : ordered;
+  if (res.error) return missingTable(res.error) ? { missing: true } : { error: res.error.message };
+  return res.truncated ? { rows: res.data, truncated: true } : { rows: res.data };
 }
 
 export async function backupAll(): Promise<Backup> {
