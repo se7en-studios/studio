@@ -37,6 +37,7 @@ import type { Pulse } from "./api/pulse/route";
 import { logout } from "./actions";
 import { CallListener } from "./call-listener";
 import { CommandPalette } from "./command";
+import { mapRoom, onMapRoom } from "./presence";
 import { Face, Kbd, cn } from "./kit";
 import { ToastProvider } from "./overlay";
 
@@ -111,6 +112,24 @@ export function AdminShell({
       document.removeEventListener("visibilitychange", tick);
     };
   }, [refresh]);
+
+  // Señal de presencia para «En vivo» de la landing: cada minuto (también con
+  // la pestaña de fondo: estar en el panel es estar trabajando), al navegar y
+  // al cambiar de sala en el mapa. Lleva el proyecto abierto, si hay uno.
+  useEffect(() => {
+    const fromPath = pathname.match(/^\/admin\/proyectos\/([a-z0-9-]+)/)?.[1] ?? null;
+    const beat = () => {
+      const slug = pathname.startsWith("/admin/oficinas") ? mapRoom() : fromPath;
+      fetch("/admin/api/presencia", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug }), keepalive: true }).catch(() => {});
+    };
+    beat();
+    const id = window.setInterval(beat, 60_000);
+    const off = onMapRoom(beat);
+    return () => {
+      window.clearInterval(id);
+      off();
+    };
+  }, [pathname]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

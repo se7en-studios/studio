@@ -2,7 +2,7 @@
 // eventos y las visitas de cada uno. Usa la service role key: NUNCA importar
 // este archivo desde un componente de cliente (los tipos están en
 // oficinas-shared.ts).
-import { getProjectBySlug } from "@/data/projects";
+import { caseBrand } from "@/lib/en-vivo";
 import { latestCaptures, type SiteCapture } from "./capturas";
 import { db } from "./db";
 import { PanelNotReady, caseProjects, client, fail, getProject, listProjects, type PanelProject } from "./panel";
@@ -16,7 +16,6 @@ import {
   salaMasApagada,
   zoneOf,
   type OficinasData,
-  type OfiBrand,
   type OfiEvent,
   type OfiProject,
   type OfiTask,
@@ -35,29 +34,6 @@ type EventRow = { id: string; created_at: string; actor: Who | null; text: strin
 const toTask = (t: TaskRow): OfiTask => ({ id: t.id, title: t.title, assignee: t.assignee, due: t.due, priority: t.priority, projectSlug: t.project_slug });
 const toEvent = (e: EventRow): OfiEvent => ({ id: e.id, createdAt: e.created_at, actor: e.actor, text: e.text, projectSlug: e.project_slug });
 
-/**
- * Logos de los casos, en public/admin/oficinas/marcas (de dónde sale cada uno,
- * en el README de esa carpeta). El sello de Poné La Pava ya trae el nombre: es
- * logo e ícono a la vez. Los que faltan van con el nombre en su letra.
- */
-const M = "/admin/oficinas/marcas/";
-const MARCAS: Record<string, { logo?: string; mark?: string }> = {
-  "apex-ai": { logo: `${M}apex-ai-logo.png`, mark: `${M}apex-ai-mark.png` },
-  muzzaga: { logo: `${M}muzzaga-logo.png`, mark: `${M}muzzaga-mark.png` },
-  pravilo: { logo: `${M}pravilo-logo.png`, mark: `${M}pravilo-mark.png` },
-  sentinel: { logo: `${M}sentinel-logo.png`, mark: `${M}sentinel-mark.png` },
-  "pone-la-pava": { logo: `${M}pone-la-pava-mark.png`, mark: `${M}pone-la-pava-mark.png` },
-  takefyy: { mark: `${M}takefyy-mark.png` },
-  "iphone-vita": { mark: `${M}iphone-vita-mark.png` },
-};
-
-/** La marca, sólo en los casos de la web. */
-function brandOf(slug: string): OfiBrand | null {
-  const b = getProjectBySlug(slug)?.brand;
-  const k = MARCAS[slug];
-  return b ? { font: b.font, weight: b.weight ?? 400, uppercase: b.uppercase ?? false, highlight: b.highlight ?? "", logo: k?.logo ?? null, mark: k?.mark ?? null } : null;
-}
-
 function toProject(p: PanelProject, s: ProjectState, tasks: OfiTask[], events: OfiEvent[], lastVisit: Record<Who, string | null>, capture: SiteCapture | null = null): OfiProject {
   return {
     slug: p.slug,
@@ -70,7 +46,7 @@ function toProject(p: PanelProject, s: ProjectState, tasks: OfiTask[], events: O
     url: p.url,
     video: p.video,
     capture,
-    brand: p.isCase ? brandOf(p.slug) : null,
+    brand: p.isCase ? caseBrand(p.slug) : null,
     status: s.status,
     owner: s.owner,
     due: s.due,

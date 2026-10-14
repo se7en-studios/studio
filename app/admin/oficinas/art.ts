@@ -1077,17 +1077,24 @@ export function decay(r: MapRoom, f: number) {
 // --- Muñecos ------------------------------------------------------------------------
 
 export type Dir = "SE" | "SW" | "NE" | "NW";
+/** Quién se dibuja: uno de los dos socios o el guía que recorre las salas en la landing. */
+export type ActorLook = Who | "guia";
 type Look = { hair: string; hair2: string; skin: string; skin2: string; main: string; shade: string; collar: string; tie: string | null; pants: string; shoes: string };
-export const LOOKS: Record<Who, Look> = {
+export const LOOKS: Record<ActorLook, Look> = {
   // Federico: pelo castaño con flequillo de costado, camisa blanca y corbata negra.
   federico: { hair: "#3d2718", hair2: "#6b4630", skin: "#e8bb93", skin2: "#cf9a73", main: "#f1efea", shade: "#cfcbc2", collar: "#ffffff", tie: "#17171c", pants: "#25252d", shoes: "#121216" },
   // Franco: pelo negro texturado con flequillo recto, sweater beige y cuello blanco.
   franco: { hair: "#151517", hair2: "#34343d", skin: "#d6a07a", skin2: "#b9815c", main: "#cdbd83", shade: "#ae9f66", collar: "#f7f4ec", tie: null, pants: "#2d3039", shoes: "#121216" },
+  // El guía: remera naranja del estudio, gorra negra y zapatillas blancas.
+  guia: { hair: "#17171c", hair2: "#ff4d2e", skin: "#c98f6b", skin2: "#ad7552", main: "#ff4d2e", shade: "#d33d22", collar: "#ff4d2e", tie: null, pants: "#2b2f3a", shoes: "#f1efea" },
 };
 const LINE = "rgba(32,20,26,0.92)";
 
-/** Dibuja a `who` parado en (sx, sy) (los pies). `phase` 0–1 es el paso; null = quieto. */
-export function avatar(who: Who, sx: number, sy: number, dir: Dir, phase: number | null, sitting = false, blink = false) {
+/**
+ * Dibuja a `who` parado en (sx, sy) (los pies). `phase` 0–1 es el paso; null =
+ * quieto. `typing` 0–1: sentado, mueve las manos sobre el teclado.
+ */
+export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: number | null, sitting = false, blink = false, typing: number | null = null) {
   const L = LOOKS[who];
   const mirror = dir === "SW" || dir === "NW";
   const back = dir === "NE" || dir === "NW";
@@ -1104,10 +1111,19 @@ export function avatar(who: Who, sx: number, sy: number, dir: Dir, phase: number
     rrect(1 + s * 2, -19, 6, 17, 2, L.pants, LINE);
     rrect(1 + s * 2, -4 + (s < 0 ? -1 : 0), 8, 4, 2, L.shoes, LINE);
   }
-  // brazo de atrás, torso, brazo de adelante
-  rrect(-13, -34 + by + s * 1.5, 5, 15, 2.5, L.shade, LINE);
-  ellipse(-10.5, -18.5 + by + s * 1.5, 2.6, 2.6, L.skin2, LINE);
+  // brazo de atrás, torso, brazo de adelante (tipeando, las manos suben y bajan a destiempo)
+  const tap = typing === null ? 0 : Math.sin(typing * Math.PI * 2) * 1.1;
+  rrect(-13, -34 + by + s * 1.5 + tap, 5, 15, 2.5, L.shade, LINE);
+  ellipse(-10.5, -18.5 + by + s * 1.5 + tap, 2.6, 2.6, L.skin2, LINE);
   rrect(-9, -36 + by, 18, 19, 5, L.main, LINE);
+  if (who === "guia" && !back) {
+    // La credencial del estudio colgada del cuello
+    line([-1, -36 + by], [1, -27 + by], "#17171c", 0.8);
+    line([4, -36 + by], [2, -27 + by], "#17171c", 0.8);
+    rrect(-0.5, -28 + by, 4.5, 5.5, 1, "#f4efe6", LINE);
+    g.fillStyle = "#ff4d2e";
+    g.fillRect(0.6, -26.6 + by, 2.3, 1.2);
+  }
   if (!back) {
     if (L.tie) {
       poly([[-3, -36 + by], [1, -36 + by], [-1, -32 + by]], L.collar, LINE, 0.8);
@@ -1123,8 +1139,8 @@ export function avatar(who: Who, sx: number, sy: number, dir: Dir, phase: number
     g.fillStyle = L.collar;
     g.fillRect(-5, -36 + by, 11, 2);
   }
-  rrect(8, -34 + by - s * 1.5, 5, 15, 2.5, L.main, LINE);
-  ellipse(10.5, -18.5 + by - s * 1.5, 2.6, 2.6, L.skin, LINE);
+  rrect(8, -34 + by - s * 1.5 - tap, 5, 15, 2.5, L.main, LINE);
+  ellipse(10.5, -18.5 + by - s * 1.5 - tap, 2.6, 2.6, L.skin, LINE);
   // cabeza
   g.fillStyle = L.skin2;
   g.fillRect(-2.5, -39 + by, 6, 4);
@@ -1156,8 +1172,22 @@ export function avatar(who: Who, sx: number, sy: number, dir: Dir, phase: number
   g.restore();
 }
 
-function hair(who: Who, back: boolean, by: number) {
+function hair(who: ActorLook, back: boolean, by: number) {
   const L = LOOKS[who];
+  if (who === "guia") {
+    // Gorra negra con la visera hacia adelante y el punto naranja del estudio
+    rrect(-11.5, -63 + by, 24, 13, 7, L.hair, LINE);
+    if (back) {
+      g.fillStyle = "#2a2a31";
+      g.fillRect(-6, -52 + by, 13, 1.6);
+      return;
+    }
+    poly([[4, -52 + by], [17, -51 + by], [16, -48.5 + by], [3, -49.5 + by]], "#101014", LINE, 0.8);
+    ellipse(3, -58 + by, 2.2, 2.2, L.hair2, null);
+    g.fillStyle = "#3d2718";
+    g.fillRect(-11, -51 + by, 3, 4);
+    return;
+  }
   if (who === "federico") {
     if (back) {
       rrect(-11, -62 + by, 23, 18, 8, L.hair, LINE);
