@@ -7,6 +7,7 @@ import { ago } from "@/lib/admin/brief";
 import type { Change } from "@/lib/admin/changes";
 import type { EventKind, PanelEvent } from "@/lib/admin/panel";
 import { PEOPLE } from "@/lib/admin/people";
+import { TZ, dayLabel, timeLabel } from "@/lib/admin/tz";
 import { Empty, Face, cn } from "./kit";
 
 export const KIND_LABEL: Record<EventKind, string> = {
@@ -33,18 +34,6 @@ const KIND_DOT: Record<EventKind, string> = {
   seguridad: "bg-red-400",
 };
 
-const TZ = "America/Argentina/Buenos_Aires";
-const dayKey = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: TZ });
-
-function dayLabel(iso: string) {
-  const d = new Date(iso);
-  if (dayKey(d) === dayKey(new Date())) return "Hoy";
-  if (dayKey(d) === dayKey(new Date(Date.now() - 86_400_000))) return "Ayer";
-  return d.toLocaleDateString("es-AR", { timeZone: TZ, weekday: "long", day: "numeric", month: "long" });
-}
-
-const timeLabel = (iso: string) =>
-  new Date(iso).toLocaleTimeString("es-AR", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
 
 export function EventList({
   events,

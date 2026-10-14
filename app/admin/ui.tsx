@@ -71,22 +71,7 @@ export function SetupNotice({ reason }: { reason: string }) {
   );
 }
 
-const TZ = "America/Argentina/Buenos_Aires";
-const dayKey = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: TZ });
-
-/** «Hoy», «Ayer» o «martes 6 de octubre», en hora de Argentina. */
-export function dayLabel(iso: string) {
-  const d = new Date(iso);
-  const today = new Date();
-  const yesterday = new Date(Date.now() - 86_400_000);
-  if (dayKey(d) === dayKey(today)) return "Hoy";
-  if (dayKey(d) === dayKey(yesterday)) return "Ayer";
-  return d.toLocaleDateString("es-AR", { timeZone: TZ, weekday: "long", day: "numeric", month: "long" });
-}
-
-export function timeLabel(iso: string) {
-  return new Date(iso).toLocaleTimeString("es-AR", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
-}
+export { dayLabel, timeLabel } from "@/lib/admin/tz";
 
 export function bytes(n: number) {
   if (n < 1024 * 1024) return `${Math.max(1, Math.round(n / 1024))} KB`;

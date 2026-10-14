@@ -12,6 +12,7 @@ import { currentFx, insertEntry, removeEntry } from "@/lib/admin/finance";
 import { cleanEntry, fmt, type Entry, type Owner } from "@/lib/admin/finance-shared";
 import { removePayment } from "@/lib/admin/payments";
 import { stateForLead, upsertState } from "@/lib/admin/projects";
+import { dayIn } from "@/lib/admin/tz";
 import {
   PROJECT_STATUS,
   cleanStateInput,
@@ -368,7 +369,7 @@ export async function projectFromLead(leadId: string): Promise<{ slug?: string; 
           client: lead.company ? `${lead.name} · ${lead.company}` : lead.name,
           lead_id: lead.id,
           budget: lead.value ?? null,
-          start_date: new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }),
+          start_date: dayIn(Date.now()),
           notes: lead.idea ?? "",
         },
         OWNERS,

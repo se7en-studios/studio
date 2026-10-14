@@ -23,6 +23,7 @@ import {
   type ActivityKind,
 } from "@/lib/admin/activity-shared";
 import { logEvent } from "@/lib/admin/panel";
+import { dayIn } from "@/lib/admin/tz";
 import { leadDiff } from "@/lib/admin/lead-changes";
 import { ACTIVITY_LABEL } from "@/lib/admin/activity-shared";
 
@@ -205,9 +206,7 @@ export async function logActivity(
       throw new Error("Fecha inválida.");
     if (
       day !==
-      new Date().toLocaleDateString("en-CA", {
-        timeZone: "America/Argentina/Buenos_Aires",
-      })
+      dayIn(Date.now())
     )
       at = when.toISOString();
   }

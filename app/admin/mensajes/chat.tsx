@@ -10,23 +10,18 @@ import type { LeadOwner } from "@/lib/admin/db";
 import { PEOPLE } from "@/lib/admin/people";
 import { MESSAGE_MAX, type Message } from "@/lib/admin/message-shared";
 import { Empty, Face, cn } from "../kit";
+import { dayIn, dayLabel, timeLabel } from "@/lib/admin/tz";
 import { useToast } from "../overlay";
 import { usePulse } from "../shell";
 import { deleteMessage, sendMessage, updateMessage } from "./actions";
 
 const POLL_MS = 4000;
-const TZ = "America/Argentina/Buenos_Aires";
 /** Mensajes seguidos del mismo autor dentro de este rango van en un solo bloque. */
 const GROUP_MS = 5 * 60_000;
 
-const dayKey = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: TZ });
-const time = (iso: string) => new Date(iso).toLocaleTimeString("es-AR", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
-function dayTitle(iso: string) {
-  const k = dayKey(iso);
-  if (k === dayKey(new Date().toISOString())) return "Hoy";
-  if (k === dayKey(new Date(Date.now() - 86_400_000).toISOString())) return "Ayer";
-  return new Date(iso).toLocaleDateString("es-AR", { timeZone: TZ, weekday: "long", day: "numeric", month: "long" });
-}
+const dayKey = dayIn;
+const time = timeLabel;
+const dayTitle = dayLabel;
 
 const signature = (ms: Message[]) => ms.map((m) => `${m.id}:${m.edited_at ?? ""}`).join("|");
 

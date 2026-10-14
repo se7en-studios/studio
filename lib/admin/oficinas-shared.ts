@@ -3,6 +3,7 @@
 // mapa (app/admin/oficinas) y scripts/check-oficinas.mjs, que lo importa directo
 // con Node. Por eso acá sólo hay imports de tipos.
 import type { LeadOwner } from "./db";
+import { TZ, dayIn } from "./tz";
 
 export type Who = LeadOwner;
 export const WHO: readonly Who[] = ["federico", "franco"];
@@ -10,11 +11,11 @@ export const otherOf = (w: Who): Who => (w === "federico" ? "franco" : "federico
 
 // --- Tiempo ------------------------------------------------------------------
 
-export const TZ = "America/Argentina/Buenos_Aires";
+export { TZ };
 const DAY = 86_400_000;
 
 /** YYYY-MM-DD en hora de Argentina. */
-export const dayKey = (ms: number) => new Date(ms).toLocaleDateString("en-CA", { timeZone: TZ });
+export const dayKey = (ms: number) => dayIn(ms);
 const keyMs = (k: string) => Date.parse(`${k}T00:00:00Z`);
 
 /** Días calendario (en Argentina) desde `at` hasta `now`. null = nunca. Pasar la medianoche no da −1. */
