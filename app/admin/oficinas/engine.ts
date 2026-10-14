@@ -58,8 +58,10 @@ export type RoomInfo = {
   status: string;
   /** Captura del sitio: la tele la muestra desde afuera. */
   cover?: string | null;
-  /** Grabación del sitio: la tele la pasa mientras estás en la sala. */
+  /** Grabación del sitio: la tele la pasa mientras estás en la sala (si no hay captura automática). */
   video?: string | null;
+  /** La página entera de la captura automática: la tele la recorre mientras estás en la sala. */
+  page?: string | null;
   /** Dominio del sitio, para la barra del navegador de la tele. */
   domain?: string | null;
   /** La marca: tipografía (familia ya resuelta) y rutas del logo y el ícono. null = letra genérica. */
@@ -93,6 +95,22 @@ export type Engine = {
 };
 
 const ZOOMS = [0.5, 0.65, 0.8, 1, 1.25, 1.5];
+/** Ancho/alto de lo que muestra la tele (abajo de la barra del navegador). */
+const TV_ASPECT = 64 / 38.7;
+/**
+ * Cuánto bajó la tele por la página a los `t` segundos de entrar: un rato
+ * arriba, baja despacio como alguien leyendo, espera al final y vuelve arriba.
+ * `travel`: lo que se puede bajar, en px de la imagen.
+ */
+function browse(t: number, travel: number) {
+  if (travel <= 0) return 0;
+  const HOLD = 3, DOWN = travel / 70, END = 2.5, UP = travel / 600;
+  const k = t % (HOLD + DOWN + END + UP);
+  if (k < HOLD) return 0;
+  if (k < HOLD + DOWN) return ((k - HOLD) / DOWN) * travel;
+  if (k < HOLD + DOWN + END) return travel;
+  return (1 - (k - HOLD - DOWN - END) / UP) * travel;
+}
 const SPEED = 4.2; // baldosas por segundo
 const DIRS: Record<string, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const KEYS: Record<string, string> = { ArrowUp: "up", w: "up", W: "up", ArrowDown: "down", s: "down", S: "down", ArrowLeft: "left", a: "left", A: "left", ArrowRight: "right", d: "right", D: "right" };
@@ -155,19 +173,39 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     if (r.kind !== "project" || !inf) continue;
     const poster = m.decor.find((dc) => dc.room === r.id && dc.k === "brand");
     const imgs: BrandImages = { logo: null, mark: null };
-    const bake = () => arts.set(r.id, { ...bakeBrand(inf.name, inf.accent, inf.brand ?? null, poster ? posterAspect(poster) : 2, imgs), ...imgs, site: arts.get(r.id)?.site ?? null });
+    const bake = () => {
+      const prev = arts.get(r.id);
+      arts.set(r.id, { ...bakeBrand(inf.name, inf.accent, inf.brand ?? null, poster ? posterAspect(poster) : 2, imgs), ...imgs, site: prev?.site ?? null, page: prev?.page ?? null });
+    };
     bake();
     if (inf.brand) document.fonts?.load(`${Math.max(inf.brand.weight, 500)} 40px ${inf.brand.family}`).then(() => !dead && bake(), () => {});
     load(inf.brand?.logo, (img) => ((imgs.logo = img), bake()));
     load(inf.brand?.mark, (img) => ((imgs.mark = img), bake()));
     load(inf.cover, (img) => {
       const a = arts.get(r.id);
-      if (a) a.site = img;
+      if (a && !a.page) a.site = img;
     });
+    // La captura automática: desde afuera se ve su parte de arriba (recortada
+    // una vez, así apagarla no copia la página entera) y adentro se recorre.
+    load(
+      inf.page,
+      (img) => {
+        const a = arts.get(r.id);
+        if (!a) return;
+        const top = document.createElement("canvas");
+        top.width = img.naturalWidth;
+        top.height = Math.min(img.naturalHeight, Math.round(img.naturalWidth / TV_ASPECT));
+        top.getContext("2d")?.drawImage(img, 0, 0);
+        Object.assign(a, { page: img, site: top });
+      },
+      true,
+    );
   }
-  function load(src: string | null | undefined, done: (img: HTMLImageElement) => void) {
+  function load(src: string | null | undefined, done: (img: HTMLImageElement) => void, cors = false) {
     if (!src) return;
     const img = new Image();
+    // Las capturas automáticas vienen de otro dominio (Supabase): sin esto no se podrían apagar
+    if (cors) img.crossOrigin = "anonymous";
     img.decoding = "async";
     img.onload = () => !dead && done(img);
     img.src = src;
@@ -346,8 +384,10 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   // La tele de la sala donde estás pasa la grabación del sitio; las demás
   // muestran la captura quieta. Un solo video a la vez, y nada con movimiento reducido.
   let tv: { room: string; el: HTMLVideoElement } | null = null;
+  let tvSince = 0;
   function tuneTv() {
     const id = current?.kind === "project" ? current.id : null;
+    tvSince = performance.now();
     if (tv && tv.room === id) return;
     if (tv) {
       tv.el.pause();
@@ -355,7 +395,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       tv.el.load();
       tv = null;
     }
-    const src = id ? o.info[id]?.video : null;
+    // Con captura automática la tele recorre la página: no hace falta la grabación
+    const src = id && !artOf(id)?.page ? o.info[id]?.video : null;
     if (!id || !src || reduced) return;
     const el = document.createElement("video");
     el.muted = true;
@@ -540,18 +581,26 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       });
       return;
     }
-    const vid = tv && tv.room === gl.room && tv.el.readyState >= 2 && L > 0.9 ? tv.el : null;
-    const still = artOf(gl.room)?.site ?? null;
+    const here = current?.id === gl.room && L > 0.9;
+    const art = artOf(gl.room);
+    const vid = here && tv && tv.room === gl.room && tv.el.readyState >= 2 ? tv.el : null;
+    const page = here && art?.page ? art.page : null;
+    const still = art?.site ?? null;
     const lerp = (p: XY, r: XY, t: number): XY => [p[0] + (r[0] - p[0]) * t, p[1] + (r[1] - p[1]) * t];
-    const src = vid ?? still;
-    if (src) {
+    const a = lerp(qq[0], qq[3], BAR / H), b = lerp(qq[1], qq[2], BAR / H);
+    const live = page ?? vid;
+    const shown = live ?? still;
+    if (page) {
+      setFade(0);
+      quadImage(page, a, b, qq[3], TV_ASPECT, reduced ? 0 : browse((ts - tvSince) / 1000, page.naturalHeight - page.naturalWidth / TV_ASPECT));
+    } else if (shown) {
       setFade(vid ? 0 : fadeOfId(gl.room));
-      quadImage(src, lerp(qq[0], qq[3], BAR / H), lerp(qq[1], qq[2], BAR / H), qq[3], W / (H - BAR));
+      quadImage(shown, a, b, qq[3], TV_ASPECT);
       setFade(0);
     }
     const domain = gl.room ? o.info[gl.room]?.domain ?? "" : "";
     inQuad(qq, W, H, () => {
-      if (!src) {
+      if (!shown) {
         ctx.fillStyle = "#101016";
         ctx.fillRect(0, BAR, W, H - BAR);
       }
@@ -575,8 +624,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         ctx.fillText(domain, W / 2, BAR / 2 + 0.1);
         ctx.textAlign = "left";
       }
-      // Punto rojo mientras pasa la grabación
-      if (vid && Math.floor(ts / 700) % 2 === 0) {
+      // Punto rojo mientras la tele recorre el sitio
+      if (live && Math.floor(ts / 700) % 2 === 0) {
         ctx.fillStyle = "#ff3b30";
         ctx.beginPath();
         ctx.arc(W - 3.5, BAR / 2, 0.9, 0, Math.PI * 2);

@@ -1,0 +1,35 @@
+# Capturas de los sitios de cada proyecto para la tele de «En vivo»
+# (/admin/oficinas): todas las mañanas abre cada sitio con Chrome, saca la
+# página entera y la sube al panel (scripts/capturar-sitios.mjs).
+#
+# Necesita el secreto CRON_SECRET en Settings → Secrets and variables → Actions,
+# con el mismo valor que en Vercel. Se puede correr a mano desde la pestaña
+# Actions («Run workflow»).
+name: Capturas de los sitios
+
+on:
+  schedule:
+    - cron: "30 9 * * *" # 06:30 en Argentina
+  workflow_dispatch:
+
+concurrency:
+  group: capturas
+  cancel-in-progress: false
+
+jobs:
+  capturar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # El runner ya trae Google Chrome: no hace falta bajar otro.
+      - run: node scripts/capturar-sitios.mjs
+        env:
+          PANEL_URL: https://se7enstudio.vercel.app
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          CHROME_PATH: /usr/bin/google-chrome
