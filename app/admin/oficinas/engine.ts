@@ -354,7 +354,18 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
 
   // --- Caminar ----------------------------------------------------------------
   const dirOf = (dx: number, dy: number): Dir => (dx > 0 ? "SE" : dx < 0 ? "NW" : dy > 0 ? "SW" : "NE");
+  // Llegar al propio escritorio y quedarse quieto: te sentás y tipeás. Al
+  // moverte, te levantás. `idleSince`: desde cuándo estás quieto.
+  let sitting = false, idleSince = 0;
+  const ownSeat = () => byId.get(`off-${me}`)?.seat ?? null;
+  /** La baldosa al lado de tu silla desde donde te sentás. */
+  function seatApproach(): Pt | null {
+    const seat = ownSeat();
+    if (!seat) return null;
+    return [[-1, 0], [1, 0], [0, -1], [0, 1]].map(([dx, dy]) => ({ x: seat.x + dx, y: seat.y + dy })).find((q) => walkable(m, q.x, q.y)) ?? null;
+  }
   function step(nx: number, ny: number) {
+    sitting = false;
     player.dir = dirOf(nx - player.x, ny - player.y);
     if (!canStep(m, player.x, player.y, nx, ny)) return false;
     player.from = { x: player.x, y: player.y };
@@ -596,6 +607,11 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     if (o.public) updateActors(dt, ts);
     else {
       if (!player.moving) next();
+      // Quieto al lado de tu silla un momento: te sentás
+      const seat = ownSeat();
+      if (player.moving || player.path.length || held.size || !seat) idleSince = 0;
+      else if (!idleSince) idleSince = ts;
+      else if (!sitting && ts - idleSince > 700 && Math.abs(player.x - seat.x) + Math.abs(player.y - seat.y) === 1) sitting = true;
       if (player.moving) {
         player.t += dt * SPEED;
         player.step += dt * SPEED;
@@ -951,6 +967,19 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         else if (L > 0.15) col = Math.floor(ts / 1500) % 2 ? "#e8a33d" : "#1c1c22";
         ctx.fillStyle = col;
         ctx.fillRect(gl.at[0] - 1, gl.at[1] - 1, 2.4, 1.8);
+      } else if (gl.t === "bubble" && !reduced) {
+        // De vez en cuando sube una tanda de burbujas por el bidón, como cuando alguien se sirve
+        const cycle = (ts / 1000) % 9;
+        if (cycle < 2.4)
+          for (let k = 0; k < 3; k++) {
+            const ph = (cycle / 2.4 + k * 0.27) % 1;
+            ctx.globalAlpha = 0.75 * (1 - ph * 0.6);
+            ctx.fillStyle = "#eaf6ff";
+            ctx.beginPath();
+            ctx.arc(gl.at[0] + Math.sin(ph * 9 + k * 2) * 1.6 + (k - 1) * 1.8, gl.at[1] - ph * 13, 0.8 + k * 0.25, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        ctx.globalAlpha = 1;
       } else if (gl.t === "steam" && !reduced && lightOf(gl.room) > 0.3) {
         for (let k = 0; k < 3; k++) {
           const ph = (ts / 1700 + k / 3) % 1;
@@ -1079,7 +1108,11 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         });
       }
     } else {
-      people.push({ depth: pDepth, draw: () => avatar(me, psx, psy, player.dir, player.moving && !reduced ? player.step % 1 : null) });
+      const seat = sitting ? ownSeat() : null;
+      if (seat) {
+        const [sx, sy] = P(seat.x + 0.5, seat.y + 0.5);
+        people.push({ depth: seat.x + seat.y + 0.05, draw: () => avatar(me, sx, sy, "SW", null, true, blink, typing) });
+      } else people.push({ depth: pDepth, draw: () => avatar(me, psx, psy, player.dir, player.moving && !reduced ? player.step % 1 : null) });
       if (po?.seat) {
         const seat = po.seat;
         const [sx, sy] = P(seat.x + 0.5, seat.y + 0.5);
@@ -1237,7 +1270,10 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     },
     goTo(id) {
       const r = byId.get(id);
-      return r ? walkTo(r.inside) : false;
+      if (!r) return false;
+      // Tu oficina: hasta tu silla, para sentarte
+      const near = r.kind === "office" && r.who === me ? seatApproach() : null;
+      return walkTo(near ?? r.inside);
     },
     goOut() {
       if (current) walkTo(current.outside);

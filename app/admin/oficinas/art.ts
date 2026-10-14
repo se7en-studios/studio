@@ -517,9 +517,22 @@ export function decor(dc: Decor, accent: string, period: Period, art: RoomArt | 
   switch (dc.k) {
     case "window": {
       const sky = SKY[period];
+      const city = CITY[period];
       for (let i = 0; i < L; i++) {
         R(i + 0.12, i + 0.88, 44, 100, "#f3ede3", OUT_SOFT);
         R(i + 0.18, i + 0.82, 50, 94, sky);
+        // La ciudad de afuera: edificios de alturas distintas y, de noche, las ventanas prendidas
+        let u = i + 0.18;
+        for (let k = 0; u < i + 0.82; k++) {
+          const seed = hash(dc.x * 7 + dc.y * 13 + i, k);
+          const w = Math.min(0.1 + seed * 0.14, i + 0.82 - u);
+          const h = 8 + hash(k, dc.x + dc.y * 3 + i) * 20;
+          R(u, u + w, 50, 50 + h, k % 2 ? city.far : city.near);
+          for (let fy = 53; fy < 48 + h; fy += 4)
+            for (let fx = u + 0.025; fx < u + w - 0.035; fx += 0.05)
+              if (hash(Math.round(fx * 97), fy + k * 31) < city.lit) R(fx, fx + 0.022, fy, fy + 1.6, "#ffd88a");
+          u += w;
+        }
         R(i + 0.18, i + 0.82, 70, 72, "#f3ede3");
         R(i + 0.49, i + 0.51, 50, 94, "#f3ede3");
         R(i + 0.24, i + 0.34, 78, 90, lite(sky, period === "noche" ? 0.15 : 0.35));
@@ -644,6 +657,13 @@ export function tickerQuad(dc: Decor): XY[] {
 }
 
 export const SKY: Record<Period, string> = { manana: "#f3b48d", dia: "#93cbf3", tarde: "#ea8c62", noche: "#1a2346" };
+/** Los edificios de afuera según la hora, y qué parte de sus ventanas está prendida. */
+const CITY: Record<Period, { near: string; far: string; lit: number }> = {
+  manana: { near: "#b98a7a", far: "#cf9f8a", lit: 0.04 },
+  dia: { near: "#8fa9c2", far: "#a9c1d8", lit: 0 },
+  tarde: { near: "#7a4848", far: "#93585a", lit: 0.18 },
+  noche: { near: "#0d1229", far: "#141b38", lit: 0.42 },
+};
 
 // --- Muebles --------------------------------------------------------------------
 
@@ -654,7 +674,8 @@ export type Glow =
   | { t: "screen"; quad: XY[]; kind: ScreenKind; accent: string; room: string | null }
   | { t: "lamp"; at: XY; room: string | null }
   | { t: "led"; at: XY; i: number; room: string | null }
-  | { t: "steam"; at: XY; room: string | null };
+  | { t: "steam"; at: XY; room: string | null }
+  | { t: "bubble"; at: XY; room: string | null };
 
 export type FurniCtx = { accent: string; status: string; covered: boolean; kind: string; glows: Glow[] };
 
@@ -809,6 +830,8 @@ export function furni(f: Furni, ctx: FurniCtx) {
       box(x + 0.3, y + 0.3, 0, 0.4, 0.4, 32, "#e9e4da");
       box(x + 0.34, y + 0.34, 32, 0.32, 0.32, 16, "#8cc3ef", { top: "#b6dcff", right: "#6fa9d6" });
       faceRect("y", y + 0.705, x + 0.3, 0.16, 0.24, 20, 23, c("#c9473a"));
+      // Las burbujas que suben por el bidón (las anima el motor)
+      ctx.glows.push({ t: "bubble", at: P(x + 0.5, y + 0.67, 33), room: f.room });
       break;
     case "bench":
       box(x + 0.1, y + 0.32, 0, 0.06, 0.06, 12, "#2a2830", { line: null });
