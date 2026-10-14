@@ -1,6 +1,5 @@
 "use client";
 
-import { Silkscreen } from "next/font/google";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
@@ -9,6 +8,7 @@ import type { EnVivoPublic } from "@/app/api/en-vivo/route";
 import { buildMap, hourIn, periodOf, themeOf, type MapModel, type Who } from "@/lib/admin/oficinas-shared";
 import { publicProjects, type PublicCapture } from "@/lib/en-vivo";
 import { roomInfoOf } from "@/lib/en-vivo-sala";
+import { pixel } from "@/lib/site-fonts";
 import { MapFrame } from "./en-vivo-frame";
 
 // El mismo mapa de «En vivo» del panel, en modo público: sin el panel de la
@@ -17,7 +17,6 @@ import { MapFrame } from "./en-vivo-frame";
 // sala del proyecto que tiene abierto); si no, el guía recorre las salas y se
 // queda mirando la tele de cada una.
 
-const pixel = Silkscreen({ weight: "400", subsets: ["latin"], display: "swap", fallback: ["monospace"], preload: false });
 const NAMES: Record<Who, string> = { federico: "Federico", franco: "Franco" };
 const POLL_MS = 30_000;
 

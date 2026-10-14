@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { Silkscreen } from "next/font/google";
 import { panelSession } from "@/lib/admin/auth";
 import { getOficinasData } from "@/lib/admin/oficinas";
 import type { OficinasData } from "@/lib/admin/oficinas-shared";
 import { PanelNotReady } from "@/lib/admin/panel";
+import { pixel } from "@/lib/site-fonts";
 import { PageHeader } from "../kit";
 import { AdminGate, SetupNotice } from "../ui";
 import { OficinasView } from "./view";
@@ -11,8 +11,6 @@ import { OficinasView } from "./view";
 export const metadata: Metadata = { title: "En vivo" };
 
 // Letras pixel para los carteles del mapa y el cartel LED. Sólo se bajan acá.
-const pixel = Silkscreen({ weight: "400", subsets: ["latin"], display: "swap", fallback: ["monospace"], preload: false });
-
 // «En vivo»: el estudio como un mapa. Cada proyecto es una sala que se va
 // apagando con los días sin entrar; entrar la vuelve a prender.
 export default async function OficinasPage() {
