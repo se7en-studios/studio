@@ -185,51 +185,17 @@ export const ledText = (s: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
-/** El color de cada socio en el cartel. */
-export const LED_WHO: Record<Who, string> = { federico: "#ff7a52", franco: "#8fd3ff" };
-export const LED_DIM = "#9a8f80";
-export const LED_OK = "#5eea8a";
-export const LED_HOT = "#ff5b4a";
-
 /**
- * Lo que pasa por el cartel, en orden: la hora, cómo están las salas, las
- * novedades que te esperan y los últimos movimientos del estudio.
+ * Lo que pasa por el cartel: la hora (si se pasa `now`), la marca y el nombre
+ * de cada proyecto en su color. Nada más: el cartel es una pared y se ve de
+ * afuera (la landing, una pantalla compartida). Ni movimientos, ni mensajes,
+ * ni cuánto hace que no entramos a una sala.
  */
-export function ledMessages(o: {
-  me: Who;
-  now: number;
-  projects: Pick<OfiProject, "slug" | "name" | "status" | "accent" | "events">[];
-  visitOf: (slug: string) => string | null;
-  events: OfiEvent[];
-}): LedMsg[] {
-  const { me, now, projects } = o;
-  const bySlug = new Map(projects.map((p) => [p.slug, p]));
-  const time = new Date(now).toLocaleTimeString("es-AR", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false });
-  const out: LedMsg[] = [[{ text: time, color: null }]];
-  const worst = salaMasApagada(projects, o.visitOf, now);
-  if (worst && worst.fade === 0) out.push([{ text: `LAS ${projects.length} SALAS PRENDIDAS`, color: LED_OK }]);
-  else if (worst)
-    out.push([
-      { text: "SALA MÁS APAGADA: ", color: null },
-      { text: ledText(worst.name), color: bySlug.get(worst.slug)?.accent ?? null },
-      { text: ` · ${ledText(worst.days === null ? "nunca entraste" : daysLabel(worst.days))}`, color: LED_DIM },
-    ]);
-  const badges = projects.map((p) => newSince(p.events, me, o.visitOf(p.slug), now)).filter((n) => n > 0);
-  const total = badges.reduce((a, b) => a + b, 0);
-  if (total)
-    out.push([
-      { text: `${total} ${total === 1 ? "NOVEDAD" : "NOVEDADES"}`, color: LED_HOT },
-      { text: ` ${badges.length === 1 ? "EN 1 SALA" : `EN ${badges.length} SALAS`}`, color: null },
-    ]);
-  for (const ev of o.events) {
-    const p = ev.projectSlug ? bySlug.get(ev.projectSlug) : null;
-    out.push([
-      { text: ev.actor ? (ev.actor === "federico" ? "FEDERICO" : "FRANCO") : "PANEL", color: ev.actor ? LED_WHO[ev.actor] : LED_DIM },
-      { text: ` ${ledText(ev.text)}`, color: null },
-      ...(p ? [{ text: ` · ${ledText(p.name)}`, color: p.accent }] : []),
-      { text: ` · ${ledText(relTime(ev.createdAt, now))}`, color: LED_DIM },
-    ]);
-  }
+export function ledMessages(projects: Pick<OfiProject, "name" | "accent">[], now?: number): LedMsg[] {
+  const out: LedMsg[] = [];
+  if (now !== undefined) out.push([{ text: new Date(now).toLocaleTimeString("es-AR", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }), color: null }]);
+  out.push([{ text: "SE7EN STUDIO", color: "#ff4d2e" }]);
+  for (const p of projects) out.push([{ text: ledText(p.name), color: p.accent }]);
   return out;
 }
 

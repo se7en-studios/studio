@@ -100,26 +100,18 @@ for (const n of [0, 1, 4, 5, 8, 9, 18]) {
   }
 }
 
-// Cartel LED: la hora primero, después cómo están las salas, las novedades y los movimientos.
+// Cartel LED: sólo la hora, la marca y los nombres de los proyectos (se ve de afuera).
 {
   const now = Date.parse("2026-10-14T17:32:00Z"); // 14:32 en Buenos Aires
-  const ev = (id, actor, slug, at) => ({ id, createdAt: at, actor, text: "Cambió el estado → «Revisión»", projectSlug: slug });
   const projects = [
-    { slug: "a", name: "Apex", status: "mantenimiento", accent: "#ff0000", events: [ev("1", "franco", "a", "2026-10-14T15:00:00Z")] },
-    { slug: "b", name: "Bo", status: "mantenimiento", accent: "#00ff00", events: [] },
+    { name: "Apex «Pro»", accent: "#ff0000", events: [{ id: "1", createdAt: "2026-10-14T15:00:00Z", actor: "franco", text: "secreto", projectSlug: "a" }] },
+    { name: "Bo", accent: "#00ff00", events: [] },
   ];
-  const visits = { a: "2026-10-01T12:00:00Z", b: "2026-10-14T12:00:00Z" };
-  const msgs = S.ledMessages({ me: "federico", now, projects, visitOf: (s) => visits[s] ?? null, events: projects[0].events });
-  const flat = msgs.map((m) => m.map((p) => p.text).join(""));
-  assert.equal(flat[0], "14:32");
-  assert.equal(flat[1], "SALA MÁS APAGADA: APEX · HACE 13 DÍAS");
-  assert.equal(msgs[1][1].color, "#ff0000", "el nombre va en el color del proyecto");
-  assert.equal(flat[2], "1 NOVEDAD EN 1 SALA");
-  assert.equal(flat[3], 'FRANCO CAMBIÓ EL ESTADO > "REVISIÓN" · APEX · HACE 2 H');
-  assert.equal(msgs[3][0].color, S.LED_WHO.franco);
-  // Todas prendidas y sin novedades: la hora y una sola línea de estado.
-  const fresh = S.ledMessages({ me: "franco", now, projects, visitOf: () => "2026-10-14T12:00:00Z", events: [] });
-  assert.deepEqual(fresh.map((m) => m.map((p) => p.text).join("")), ["14:32", "LAS 2 SALAS PRENDIDAS"]);
+  const msgs = S.ledMessages(projects, now);
+  assert.deepEqual(msgs.map((m) => m.map((p) => p.text).join("")), ["14:32", "SE7EN STUDIO", 'APEX "PRO"', "BO"]);
+  assert.equal(msgs[2][0].color, "#ff0000", "cada nombre en el color de su proyecto");
+  assert.ok(!JSON.stringify(msgs).includes("SECRETO"), "nada de movimientos ni mensajes");
+  assert.deepEqual(S.ledMessages(projects).map((m) => m[0].text), ["SE7EN STUDIO", 'APEX "PRO"', "BO"], "sin hora en la landing");
 }
 
 console.log("oficinas OK");

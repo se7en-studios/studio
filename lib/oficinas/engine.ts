@@ -101,7 +101,7 @@ export type Engine = {
   setMe: (me: Who) => void;
   /** `lightUp`: la sala a la que se acaba de entrar (titila y se prende). */
   setLooks: (looks: RoomLooks, lightUp?: string) => void;
-  /** Lo que pasa por el cartel LED de la recepción (ver ledMessages). */
+  /** Lo que pasa por el cartel LED de la recepción: la hora, la marca y los proyectos (ver ledMessages). */
   setTicker: (msgs: LedMsg[]) => void;
   /** Un globo arriba de tu muñeco, como en el chat de Habbo. `news` suena el ding. */
   say: (text: string, tone?: "news" | "plain") => void;

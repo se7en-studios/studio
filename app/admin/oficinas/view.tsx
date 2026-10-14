@@ -144,7 +144,7 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
     for (const r of map.rooms) if (r.slug) looks[r.id] = lookOf(bySlug.get(r.slug) as OfiProject, visits[me][r.slug] ?? null, me, now);
     e.setLooks(looks, lightUp.current ?? undefined);
     lightUp.current = null;
-    e.setTicker(ledMessages({ me, now, projects: data.projects, visitOf: (s) => visits[me][s] ?? null, events: data.studioEvents }));
+    e.setTicker(ledMessages(data.projects, now));
     e.setPartnerLine(partnerLine(visits[other], bySlug, now));
     e.setPeriod(periodOf(hourIn(now)));
   }, [map, bySlug, visits, me, other, now, data.studioEvents, data.projects]);
@@ -578,7 +578,7 @@ function Reception({ events, bySlug, now }: { events: OfiEvent[]; bySlug: Map<st
       <div>
         <Eyebrow>Recepción</Eyebrow>
         <Title>Lo último en el estudio</Title>
-        <p className="mt-1 text-[13px] text-muted">Lo mismo que pasa por el cartel de la pared.</p>
+        <p className="mt-1 text-[13px] text-muted">Sólo para ustedes: el cartel de la pared muestra los proyectos, no esto.</p>
       </div>
       <Section title="Movimientos">
         {events.length ? events.map((e) => <EventRow key={e.id} e={e} now={now} extra={e.projectSlug ? bySlug.get(e.projectSlug)?.name : undefined} />) : <Empty>Todavía no hay movimientos.</Empty>}
