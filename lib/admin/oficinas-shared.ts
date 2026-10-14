@@ -420,14 +420,13 @@ function furnishRoom(r: MapRoom, left: boolean, put: Put, hang: Hang) {
     put(r, "lamp", X + 5, Y + 4);
   }
   // La marca: el felpudo del lado del pasillo (cada puerta se reconoce al pasar)
-  // y el cartel con el nombre. Arriba de la ventana en las de la izquierda, en
-  // la pared de la puerta en las de la derecha.
+  // y, en las de la izquierda, el cartel con el nombre arriba de la lámpara.
   put(r, "doormat", r.outside.x, r.outside.y, 1, 1, "x", false);
-  hang(r, "brand", "L", left ? 0 : X, left ? Y + 3 : Y, 2);
-  // La tele con el sitio: contra el fondo en las de la izquierda, contra la
-  // pared de la puerta (más allá de la puerta) en las de la derecha.
+  if (left) hang(r, "brand", "L", 0, Y + 3, 2);
+  // La tele con el sitio: contra el fondo en las de la izquierda; en las de la
+  // derecha, contra la pared de la puerta, al lado del escritorio.
   if (left) put(r, "tvstand", X + 1, Y, 2, 1, "y");
-  else put(r, "tvstand", X, Y + 3, 1, 2, "x");
+  else put(r, "tvstand", X, Y, 1, 2, "x");
   // El piso y el cuadro de la pared cuentan de qué es el proyecto. La alfombra
   // con el nombre va contra el fondo y sin nada encima: lo de adelante de la
   // sala (y lo alto de la sala de adelante) taparía las letras.
@@ -435,9 +434,10 @@ function furnishRoom(r: MapRoom, left: boolean, put: Put, hang: Hang) {
   if (theme === "padel") put(r, "court", X + 1, Y + 2, 4, 2, "y", false);
   else put(r, "rug", X + 2, Y + 1, 3, 2, "y", false);
   if (theme === "yoga") put(r, "yogamat", X + 2, Y + 3, 1, 2, "y", false);
-  // El cuadro del rubro va en la esquina del fondo (atrás de la tele no se vería)
+  // El cuadro del rubro: en la pared alta, en la esquina del fondo (las de la
+  // izquierda); pasando la puerta (las de la derecha). Nunca atrás de la tele.
   const WALL_ART: Partial<Record<Theme, string>> = { padel: "rackets", gym: "plan", inmobiliaria: "blueprint", clima: "mapscreen", carta: "menuboard" };
-  hang(r, WALL_ART[theme] ?? "poster", left ? "L" : "R", X, Y, 1);
+  hang(r, WALL_ART[theme] ?? "poster", "L", X, left ? Y : Y + 3, 1);
   // Lo que identifica la etapa. Lo que se cuelga empieza después de la tele en
   // las de la izquierda.
   const a = X + 3; // primera columna libre contra la pared de atrás
