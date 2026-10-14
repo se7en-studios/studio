@@ -8,6 +8,11 @@ export interface LeadPayload {
   idea?: string;
   /** De qué formulario viene, para el panel /admin. */
   source?: string;
+  phone?: string;
+  /** Texto libre con nombre y contacto (kickoff): de ahí salen email y teléfono. */
+  contact?: string;
+  /** Fecha y hora de la reunión pedida (ISO), para la reserva. */
+  meetingAt?: string;
 }
 
 export type LeadResult = { ok: true } | { ok: false; error: string };

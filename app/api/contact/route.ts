@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { SITE } from "@/data/site";
-import { insertLead } from "@/lib/admin/db";
+import { insertLead, type NewLead } from "@/lib/admin/db";
+import { intakeLead } from "@/lib/admin/intake";
+import { cleanPublicPhone, contactFrom, meetingLabel, parseMeeting } from "@/lib/admin/sales-shared";
 import { allowRequest, clientIp } from "@/lib/rate-limit";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -9,7 +11,7 @@ const MAX_IDEA = 5000;
 const RATE_LIMIT = 5;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 // Formularios que llaman a /api/contact (vía lib/send-lead.ts). Otro valor → "web".
-const SOURCES = new Set(["auditoría", "kickoff", "start", "reserva"]);
+const SOURCES = new Set(["auditoría", "kickoff", "start", "reserva", "cotizador"]);
 
 function escapeHtml(value: string): string {
   return value
@@ -37,15 +39,35 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true }, { status: 200 });
   }
 
-  const name = field(body.name, "");
+  const source = typeof body.source === "string" && SOURCES.has(body.source) ? body.source : "web";
+  // El kickoff trae el contacto en un solo campo libre («Ana · +54 9 299…»): de ahí
+  // salen el nombre, el email y el teléfono para engancharlo al pedido que ya existe.
+  const fromText = source === "kickoff" ? contactFrom(field(body.contact, "")) : null;
+
+  const name = (fromText?.rest || field(body.name, "")).slice(0, MAX_FIELD);
   if (!name) {
     return NextResponse.json({ error: "El nombre es obligatorio." }, { status: 400 });
   }
 
   // Email opcional (el kickoff no lo pide), pero si viene tiene que ser válido.
-  const rawEmail = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-  if (rawEmail && !EMAIL_RE.test(rawEmail)) {
+  const rawEmail = typeof body.email === "string" ? body.email.trim().toLowerCase() : fromText?.email ?? "";
+  if (rawEmail && (rawEmail.length > MAX_FIELD || !EMAIL_RE.test(rawEmail))) {
     return NextResponse.json({ error: "Ingresá un email válido." }, { status: 400 });
+  }
+  // Teléfono opcional, con el mismo criterio: si viene, tiene que parecer un teléfono.
+  const typedPhone = typeof body.phone === "string" ? body.phone.trim() : "";
+  const phone = typedPhone ? cleanPublicPhone(typedPhone) : fromText?.phone ?? "";
+  if (typedPhone && !phone) {
+    return NextResponse.json({ error: "Revisá el teléfono: con código de área, sólo números." }, { status: 400 });
+  }
+  // El cotizador sólo registra si dejaron cómo contactarlos.
+  if (source === "cotizador" && !rawEmail && !phone) {
+    return NextResponse.json({ error: "Dejanos un email o un WhatsApp para escribirte." }, { status: 400 });
+  }
+  // La reserva trae la fecha y hora de la llamada; si viene, tiene que ser una fecha posible.
+  const meetingAt = body.meetingAt === undefined ? null : parseMeeting(body.meetingAt, Date.now());
+  if (body.meetingAt !== undefined && !meetingAt) {
+    return NextResponse.json({ error: "Ese horario ya no está disponible: elegí otro." }, { status: 400 });
   }
 
   if (!(await allowRequest("contact", clientIp(request.headers), RATE_LIMIT, RATE_WINDOW_MS))) {
@@ -68,8 +90,8 @@ export async function POST(request: Request) {
 
   // El pedido se guarda para el panel /admin. Con eso solo ya no se pierde:
   // el mail es un aviso extra.
-  const stored = await insertLead({
-    source: typeof body.source === "string" && SOURCES.has(body.source) ? body.source : "web",
+  const row: NewLead = {
+    source,
     channel: "email",
     name: lead.name,
     email: lead.email,
@@ -78,7 +100,26 @@ export async function POST(request: Request) {
     budget: lead.budget,
     timeline: lead.timeline,
     idea: lead.idea,
-  });
+  };
+  if (phone) row.phone = phone;
+  // Kickoff y reserva se enganchan al pedido de esa persona si ya existe (sin
+  // disparar «pedido nuevo»); lo demás crea un pedido como siempre.
+  const stored =
+    source === "kickoff"
+      ? await intakeLead({
+          lead: row,
+          extra: { kickoff: lead.idea },
+          note: "Mandó la ficha de kickoff desde el sitio.",
+          notice: { title: "Kickoff recibido", message: "Un cliente mandó su ficha de kickoff." },
+        })
+      : source === "reserva" && meetingAt
+        ? await intakeLead({
+            lead: row,
+            extra: { meeting_at: meetingAt },
+            note: `Agendó una llamada desde el sitio para el ${meetingLabel(meetingAt)}.`,
+            notice: { title: "Llamada agendada", message: `Pidieron una llamada para el ${meetingLabel(meetingAt)}.` },
+          })
+        : await insertLead(row);
 
   const resendApiKey = process.env.RESEND_API_KEY;
   if (!resendApiKey) {
@@ -110,6 +151,8 @@ export async function POST(request: Request) {
       <p><strong>Tipo de Proyecto:</strong> ${e.projectType}</p>
       <p><strong>Presupuesto:</strong> ${e.budget}</p>
       <p><strong>Plazo deseado:</strong> ${e.timeline}</p>
+      ${phone ? `<p><strong>Teléfono:</strong> ${escapeHtml(phone)}</p>` : ""}
+      ${meetingAt ? `<p><strong>Reunión pedida:</strong> ${escapeHtml(meetingLabel(meetingAt))} (hora de Argentina)</p>` : ""}
       <div style="margin-top: 20px; padding: 16px; background-color: #f9f9f9; border-radius: 8px;">
         <strong>Detalle:</strong>
         <p style="white-space: pre-wrap; margin-top: 8px;">${e.idea || "Sin detalle adicional"}</p>

@@ -17,25 +17,41 @@ import { sendLead } from "@/lib/send-lead";
 import { WhatsAppLogo } from "@/components/icons/whatsapp-logo";
 import { LeadError } from "@/components/ui/lead-error";
 
+// Horarios en hora de Argentina (GMT-3, sin horario de verano).
 const availableSlots = [
-  "10:00 AM (GMT-3)",
-  "11:30 AM (GMT-3)",
-  "02:00 PM (GMT-3)",
-  "04:30 PM (GMT-3)",
-  "06:00 PM (GMT-3)",
+  { label: "10:00 AM (GMT-3)", hm: "10:00" },
+  { label: "11:30 AM (GMT-3)", hm: "11:30" },
+  { label: "02:00 PM (GMT-3)", hm: "14:00" },
+  { label: "04:30 PM (GMT-3)", hm: "16:30" },
+  { label: "06:00 PM (GMT-3)", hm: "18:00" },
 ];
 
-const meetingDays = [
-  "Mañana",
-  "En 2 días",
-  "Esta semana",
-  "Próxima semana",
-];
+const TZ = "America/Argentina/Buenos_Aires";
+const DAYS_SHOWN = 5;
+
+/**
+ * Los próximos días hábiles desde mañana, en hora de Argentina: fechas concretas
+ * para que la reunión quede con día y hora, no como «esta semana».
+ */
+function nextWorkdays(n: number, now = Date.now()) {
+  const out: { key: string; label: string }[] = [];
+  for (let i = 1; out.length < n && i < 15; i++) {
+    const key = new Date(now + i * 86_400_000).toLocaleDateString("en-CA", { timeZone: TZ });
+    const noon = new Date(`${key}T12:00:00-03:00`);
+    const dow = noon.getUTCDay();
+    if (dow === 0 || dow === 6) continue;
+    const label = noon.toLocaleDateString("es-AR", { timeZone: TZ, weekday: "short", day: "numeric", month: "short" }).replace(/\./g, "");
+    out.push({ key, label: i === 1 ? `Mañana · ${label}` : label });
+  }
+  return out;
+}
 
 export function BookingModal() {
   const [open, setOpen] = useState(false);
+  const [meetingDays] = useState(() => nextWorkdays(DAYS_SHOWN));
   const [selectedDay, setSelectedDay] = useState(meetingDays[0]);
   const [selectedSlot, setSelectedSlot] = useState(availableSlots[0]);
+  const when = `${selectedDay.label} — ${selectedSlot.label}`;
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [projectIdea, setProjectIdea] = useState("");
@@ -65,7 +81,8 @@ export function BookingModal() {
       email,
       projectType: "Discovery Call (15 min)",
       budget: "Llamada inicial",
-      timeline: `${selectedDay} — ${selectedSlot}`,
+      // Fecha y hora de la reunión en su propio campo (el panel la muestra como reunión agendada).
+      meetingAt: new Date(`${selectedDay.key}T${selectedSlot.hm}:00-03:00`).toISOString(),
       idea: `Solicitud de reunión de 15 min: ${projectIdea || "Revisión general de proyecto"}`,
     });
     setLoading(false);
@@ -77,7 +94,7 @@ export function BookingModal() {
   }
 
   const whatsappBooking = `${SITE.whatsapp}?text=${encodeURIComponent(
-    `Hola Se7en Studio! Me gustaría coordinar una Discovery Call de 15 min (${selectedDay} - ${selectedSlot}) para charlar sobre un proyecto.`
+    `Hola Se7en Studio! Me gustaría coordinar una Discovery Call de 15 min (${when}) para charlar sobre un proyecto.`
   )}`;
 
   return (
@@ -133,7 +150,7 @@ export function BookingModal() {
                   ¡Solicitud de llamada enviada!
                 </h4>
                 <p className="mx-auto mt-2 max-w-sm text-sm text-muted">
-                  Te responderemos a <strong>{email}</strong> en menos de 2 horas con el enlace de Google Meet para confirmar el horario ({selectedDay}, {selectedSlot}).
+                  Te responderemos a <strong>{email}</strong> en menos de 2 horas con el enlace de Google Meet para confirmar el horario ({when}).
                 </p>
 
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
@@ -186,16 +203,17 @@ export function BookingModal() {
                   <div className="flex flex-wrap gap-2">
                     {meetingDays.map((day) => (
                       <button
-                        key={day}
+                        key={day.key}
                         type="button"
                         onClick={() => setSelectedDay(day)}
+                        aria-pressed={selectedDay.key === day.key}
                         className={`focus-ring rounded-lg border px-3 py-1.5 font-mono text-xs transition-all ${
-                          selectedDay === day
+                          selectedDay.key === day.key
                             ? "border-accent bg-accent text-background font-medium"
                             : "border-border bg-background text-muted hover:text-foreground"
                         }`}
                       >
-                        {day}
+                        {day.label}
                       </button>
                     ))}
                   </div>
@@ -208,16 +226,17 @@ export function BookingModal() {
                   <div className="flex flex-wrap gap-2">
                     {availableSlots.map((slot) => (
                       <button
-                        key={slot}
+                        key={slot.hm}
                         type="button"
                         onClick={() => setSelectedSlot(slot)}
+                        aria-pressed={selectedSlot.hm === slot.hm}
                         className={`focus-ring rounded-lg border px-3 py-1.5 font-mono text-xs transition-all ${
-                          selectedSlot === slot
+                          selectedSlot.hm === slot.hm
                             ? "border-accent bg-accent text-background font-medium"
                             : "border-border bg-background text-muted hover:text-foreground"
                         }`}
                       >
-                        {slot}
+                        {slot.label}
                       </button>
                     ))}
                   </div>

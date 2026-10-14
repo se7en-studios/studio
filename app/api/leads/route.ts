@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { insertLead } from "@/lib/admin/db";
 import { allowRequest, clientIp } from "@/lib/rate-limit";
+import { cleanPublicPhone } from "@/lib/admin/sales-shared";
 
 // Registro de un pedido del formulario de la home, que sigue la charla por
 // WhatsApp o mail (no manda nada desde el servidor). Sólo guarda el pedido
@@ -25,6 +26,11 @@ export async function POST(request: Request) {
   const idea = field(body.idea, 5000);
   const email = field(body.email).toLowerCase();
   if (!name || !idea) return NextResponse.json({ error: "Faltan datos." }, { status: 400 });
+  // Por WhatsApp la charla sigue en el teléfono del visitante: sin guardar su
+  // número, el pedido no tenía cómo contactarlo desde el panel.
+  const typedPhone = field(body.phone, 40);
+  const phone = cleanPublicPhone(typedPhone);
+  if (typedPhone && !phone) return NextResponse.json({ error: "Revisá el teléfono." }, { status: 400 });
 
   if (!(await allowRequest("leads", clientIp(request.headers), 10, 10 * 60 * 1000))) {
     return NextResponse.json(
@@ -43,6 +49,7 @@ export async function POST(request: Request) {
     project_type: field(body.projectType),
     budget: field(body.budget),
     idea,
+    ...(phone ? { phone } : {}),
   });
   return NextResponse.json({ ok });
 }

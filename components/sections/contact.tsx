@@ -47,6 +47,7 @@ type Values = {
   idea: string;
   name: string;
   email: string;
+  phone: string;
   company: string;
 };
 type FieldName = keyof Values;
@@ -59,6 +60,7 @@ const EMPTY: Values = {
   idea: "",
   name: "",
   email: "",
+  phone: "",
   company: "",
 };
 
@@ -66,7 +68,7 @@ const EMPTY: Values = {
 const STEP_FIELDS: FieldName[][] = [
   ["projectType", "budget"],
   ["idea"],
-  ["name", "email"],
+  ["name", "email", "phone"],
 ];
 
 function validateField(field: FieldName, v: Values): string | undefined {
@@ -89,6 +91,14 @@ function validateField(field: FieldName, v: Values): string | undefined {
       return v.email.trim() && !EMAIL_RE.test(v.email.trim())
         ? "Revisá el email: parece incompleto (ej: vos@empresa.com)."
         : undefined;
+    case "phone": {
+      // Opcional; si viene, que se pueda usar: 8 a 20 dígitos, con código de área.
+      const p = v.phone.trim();
+      const digits = p.replace(/\D/g, "").length;
+      return p && (!/^[0-9+()\s.-]+$/.test(p) || digits < 8 || digits > 20)
+        ? "Revisá el número: con código de área (ej: 299 412-3456)."
+        : undefined;
+    }
     default:
       return undefined;
   }
@@ -112,6 +122,7 @@ function buildMessage(v: Values): string {
     `Proyecto: ${v.projectType}`,
     `Presupuesto: ${v.budget}`,
     v.email.trim() ? `Email: ${v.email.trim()}` : null,
+    v.phone.trim() ? `WhatsApp: ${v.phone.trim()}` : null,
     "",
     v.idea.trim(),
   ]
@@ -441,25 +452,42 @@ export function Contact() {
                           />
                         )}
                       </Field>
-                      <div className="sm:col-span-2">
-                        <Field
-                          name="company"
-                          label="Empresa o marca (opcional)"
-                        >
-                          {(a11y) => (
-                            <input
-                              {...a11y}
-                              type="text"
-                              autoComplete="organization"
-                              value={values.company}
-                              onChange={(e) =>
-                                update("company", e.target.value)
-                              }
-                              className={inputClass}
-                            />
-                          )}
-                        </Field>
-                      </div>
+                      <Field
+                        name="phone"
+                        label="WhatsApp (opcional)"
+                        error={errors.phone}
+                      >
+                        {(a11y) => (
+                          <input
+                            {...a11y}
+                            type="tel"
+                            inputMode="tel"
+                            autoComplete="tel"
+                            maxLength={40}
+                            value={values.phone}
+                            onChange={(e) => update("phone", e.target.value)}
+                            placeholder="299 412-3456"
+                            className={inputClass}
+                          />
+                        )}
+                      </Field>
+                      <Field
+                        name="company"
+                        label="Empresa o marca (opcional)"
+                      >
+                        {(a11y) => (
+                          <input
+                            {...a11y}
+                            type="text"
+                            autoComplete="organization"
+                            value={values.company}
+                            onChange={(e) =>
+                              update("company", e.target.value)
+                            }
+                            className={inputClass}
+                          />
+                        )}
+                      </Field>
                     </div>
                   )}
                 </div>

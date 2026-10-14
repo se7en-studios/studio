@@ -26,6 +26,7 @@ import { Reveal } from "@/components/ui/reveal";
 import { useSoundFx } from "@/components/providers/sound-provider";
 import { WhatsAppLogo } from "@/components/icons/whatsapp-logo";
 import { SITE } from "@/data/site";
+import { SaveQuote } from "./save-quote";
 
 interface ProductBase {
   id: string;
@@ -494,6 +495,17 @@ export function PricingClient() {
                     <span>Agendar 15 min</span>
                   </button>
                 </div>
+
+                <SaveQuote
+                  whatsappUrl={whatsappUrl}
+                  quote={{
+                    projectType: selectedBase.name,
+                    // En USD siempre, aunque se esté mirando en pesos: el panel lo usa como monto estimado.
+                    budget: `USD ${calculation.finalPriceUSD.toLocaleString("es-AR")} (cotizador)`,
+                    timeline: `~${calculation.finalDays} días hábiles${deliveryPace === "express" ? " (express)" : ""}`,
+                    idea: proposalSummary,
+                  }}
+                />
               </div>
             </div>
           </div>
