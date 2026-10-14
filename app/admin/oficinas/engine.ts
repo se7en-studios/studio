@@ -32,6 +32,7 @@ import {
   floorTile,
   furni,
   hash,
+  measureSign,
   mix,
   rug,
   setFade,
@@ -43,6 +44,7 @@ import {
   type Dir,
   type Glow,
   type Material,
+  type SignSpec,
   type WallStyle,
   type XY,
 } from "./art";
@@ -84,6 +86,11 @@ const AMB: Record<Period, [number, number, number, number]> = { manana: [44, 20,
 const FLICK: [number, number][] = [[0, 1], [0.1, 0.12], [0.16, 0.9], [0.24, 0.08], [0.3, 0.7], [0.42, 0.04], [0.5, 0.35], [0.6, 0]];
 
 type Item = { depth: number; order: number; x: number; ax: number; ay: number; draw: () => void };
+
+const rgba = (hex: string, a: number) => {
+  const n = parseInt(hex.slice(1, 7), 16);
+  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
+};
 
 export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engine {
   const m = o.map;
@@ -585,6 +592,15 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     setFade(0);
     for (const r of m.rooms) if (r.kind === "project") decay(r, fadeOfId(r.id));
     slab(m, matAt);
+    // Al pasar el mouse por una sala se marca su contorno, para saber a dónde vas
+    const hovered = hover ? roomAt(m, hover.x, hover.y) : null;
+    if (hovered && hovered.kind !== "storage") {
+      const r = hovered, acc = r.kind === "project" ? accentOf(r.id) : "#ff4d2e";
+      fillPoly(ctx, [P(r.x, r.y), P(r.x + r.w, r.y), P(r.x + r.w, r.y + r.d), P(r.x, r.y + r.d)], rgba(acc, 0.08));
+      ctx.strokeStyle = rgba(acc, 0.8);
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
     if (hover && walkable(m, hover.x, hover.y)) {
       fillPoly(ctx, [P(hover.x, hover.y), P(hover.x + 1, hover.y), P(hover.x + 1, hover.y + 1), P(hover.x, hover.y + 1)], "rgba(255,255,255,0.12)");
       ctx.strokeStyle = "rgba(255,255,255,0.6)";
@@ -631,13 +647,32 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     drawDark();
     emissives(ts);
 
-    // Carteles, en px de pantalla
+    // Carteles y nombres, en px de pantalla. Se acomodan para no pisarse:
+    // primero los nombres de las personas, después la sala donde estás y las
+    // más cercanas. Si un cartel no entra, se achica; si tampoco, no se dibuja.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const toScreen = (p: XY): XY => [(p[0] * scale + offX) / dpr, (p[1] * scale + offY) / dpr];
     signBoxes = [];
+    type Box = { x: number; y: number; w: number; h: number };
+    const taken: Box[] = [];
+    const hits = (b: Box) => taken.some((t) => b.x < t.x + t.w && b.x + b.w > t.x && b.y < t.y + t.h && b.y + b.h > t.y);
+    const nameOf = (w: Who) => (o.names?.[w] ?? w).toUpperCase();
+    const near = !!po?.seat && current?.id === po.id && Math.abs(player.x - po.seat.x) + Math.abs(player.y - po.seat.y) <= 3;
+    const playerScreen = toScreen([psx, psy - 66]);
+    const tags: { text: string; at: XY }[] = [{ text: nameOf(me), at: playerScreen }];
+    if (po?.seat && !(near && partnerLine)) {
+      const [sx, sy] = P(po.seat.x + 0.5, po.seat.y + 0.5);
+      tags.push({ text: nameOf(otherOf(me)), at: toScreen([sx, sy - 54]) });
+    }
+    ctx.font = `8px ${o.font}`;
+    for (const t of tags) {
+      const w = Math.ceil(ctx.measureText(t.text).width) + 10;
+      taken.push({ x: t.at[0] - w / 2 - 2, y: t.at[1] - 15, w: w + 4, h: 17 });
+    }
+    const cands: { id: string | null; at: XY; spec: SignSpec; prio: number }[] = [];
     for (const r of m.rooms) {
       if (r.kind === "storage") continue;
-      let at: XY, spec;
+      let at: XY, spec: SignSpec;
       if (r.kind === "project" || r.kind === "kitchen") {
         const lk = looks[r.id];
         const f = r.kind === "project" ? fadeOfId(r.id) : 0;
@@ -652,34 +687,42 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         at = P(r.door.x + 0.5, r.door.y, 44);
         spec = { name: "RECEPCIÓN", fade: 0, accent: "#ff4d2e" };
       }
-      const [sx, sy] = toScreen(at);
-      if (sx < -120 || sy < -60 || sx > canvas.width / dpr + 120 || sy > canvas.height / dpr + 60) continue;
-      const b = sign(ctx, o.font, sx, sy, spec);
-      signBoxes.push({ id: r.id, ...b });
+      const s = toScreen(at);
+      if (s[0] < -120 || s[1] < -60 || s[0] > canvas.width / dpr + 120 || s[1] > canvas.height / dpr + 60) continue;
+      cands.push({ id: r.id, at: s, spec, prio: r.id === current?.id ? -1 : Math.hypot(s[0] - playerScreen[0], s[1] - playerScreen[1]) });
     }
     if (m.archiveY !== null) {
-      const [sx, sy] = toScreen(P((m.spine.x0 + m.spine.x1) / 2, m.archiveY, 118));
-      sign(ctx, o.font, sx, sy, { name: "ARCHIVO", fade: 0, accent: "#c9a24a", gold: true });
+      const s = toScreen(P((m.spine.x0 + m.spine.x1) / 2, m.archiveY, 118));
+      cands.push({ id: null, at: s, spec: { name: "ARCHIVO", fade: 0, accent: "#c9a24a", gold: true }, prio: Math.hypot(s[0] - playerScreen[0], s[1] - playerScreen[1]) });
+    }
+    cands.sort((a, b) => a.prio - b.prio);
+    const far = ZOOMS[zi] < 0.8;
+    for (const c of cands) {
+      const short = { ...c.spec, sub: undefined };
+      const variants = far || !c.spec.sub ? [short] : [c.spec, short];
+      place: for (const spec of variants)
+        for (const dy of [0, -14, 14, -28]) {
+          const sz = measureSign(ctx, o.font, spec);
+          const box = { x: c.at[0] - sz.w / 2, y: c.at[1] + dy - sz.h, w: sz.w, h: sz.h };
+          if (hits(box)) continue;
+          const b = sign(ctx, o.font, c.at[0], c.at[1] + dy, spec);
+          taken.push(box);
+          if (c.id) signBoxes.push({ id: c.id, ...b });
+          break place;
+        }
     }
     // Nombres arriba de las cabezas, como en los hoteles pixelados
-    const nameOf = (w: Who) => (o.names?.[w] ?? w).toUpperCase();
-    const tag = (text: string, at: XY) => {
-      const [sx, sy] = toScreen(at);
+    for (const t of tags) {
+      const [sx, sy] = t.at;
       ctx.font = `8px ${o.font}`;
-      const w = Math.ceil(ctx.measureText(text).width) + 10, x = Math.round(sx - w / 2), y = Math.round(sy - 13);
+      const w = Math.ceil(ctx.measureText(t.text).width) + 10, x = Math.round(sx - w / 2), y = Math.round(sy - 13);
       ctx.fillStyle = "rgba(12,12,16,0.72)";
       ctx.beginPath();
       ctx.roundRect(x, y, w, 13, 4);
       ctx.fill();
       ctx.fillStyle = "#f1ede6";
       ctx.textBaseline = "top";
-      ctx.fillText(text, x + 5, y + 3);
-    };
-    const near = !!po?.seat && current?.id === po.id && Math.abs(player.x - po.seat.x) + Math.abs(player.y - po.seat.y) <= 3;
-    tag(nameOf(me), [psx, psy - 66]);
-    if (po?.seat && !(near && partnerLine)) {
-      const [sx, sy] = P(po.seat.x + 0.5, po.seat.y + 0.5);
-      tag(nameOf(otherOf(me)), [sx, sy - 54]);
+      ctx.fillText(t.text, x + 5, y + 3);
     }
     // Globo del otro socio cuando te acercás a su escritorio
     if (po?.seat && partnerLine && near) {

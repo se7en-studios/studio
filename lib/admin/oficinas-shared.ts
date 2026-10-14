@@ -420,10 +420,12 @@ function furnishRoom(r: MapRoom, left: boolean, put: Put, hang: Hang) {
     put(r, "pedestal", X + 3, Y + 2);
     put(r, "vitrine", a + 1, Y, 1, 1, "y");
   } else if (st === "mantenimiento") {
-    // El sitio en vivo colgado en la pared y el servidor que lo mantiene
+    // El sitio en vivo colgado en la pared, el servidor que lo mantiene y, al
+    // lado, algo del rubro (así las salas en mantenimiento no son todas iguales)
     hang(r, "frame", "R", a - 1, Y, 1);
     put(r, "rack", a + 1, Y, 1, 1, "y");
-    put(r, "shelf", a, Y, 1, 1, "y");
+    const SIDE: Partial<Record<Theme, string>> = { padel: "vitrine", gym: "dumbbells", inmobiliaria: "cabinet", phones: "boxes", carta: "espresso", yoga: "plant" };
+    put(r, SIDE[theme] ?? "shelf", a, Y, 1, 1, "y");
   } else if (st === "desarrollo") {
     put(r, "desk2", a, Y, 2, 1, "y");
     put(r, "chair", a, Y + 1, 1, 1, "y");
