@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { Task, TaskInput } from "@/lib/admin/task-shared";
+import { dueLabel, type Task, type TaskInput } from "@/lib/admin/task-shared";
 import { createTask, deleteTask, setTaskDone, updateTask } from "./actions";
 import type { Flash } from "../overlay";
 
@@ -51,6 +51,8 @@ export function useTasks(initial: Task[], flash: Flash) {
         updated_at: now,
         done_at: null,
         created_by: me,
+        waiting: input.waiting ?? false,
+        recur: input.recur ?? null,
       };
       run(
         (ts) => [temp, ...ts],
@@ -69,8 +71,15 @@ export function useTasks(initial: Task[], flash: Flash) {
       if (pending(id)) return;
       const done_at = done ? new Date().toISOString() : null;
       run(
-        (ts) => ts.map((t) => (t.id === id ? { ...t, done_at } : t)),
-        () => setTaskDone(id, done),
+        (ts) => ts.map((t) => (t.id === id ? { ...t, done_at, waiting: done ? false : t.waiting } : t)),
+        async () => {
+          const { task, next } = await setTaskDone(id, done);
+          if (next) {
+            setTasks((ts) => [next, ...ts]);
+            flash(`Se repite: la próxima vence ${next.due ? dueLabel(next.due) : "sin fecha"}`, "ok");
+          }
+          return task;
+        },
       );
     },
     remove(id: string) {

@@ -29,6 +29,7 @@ export function TasksBoard({
   me,
   initialOpen = null,
   autoFocus = false,
+  initialProject = null,
 }: {
   tasks: Task[];
   links: TaskLinks;
@@ -37,6 +38,8 @@ export function TasksBoard({
   initialOpen?: string | null;
   /** Desde un link (?nueva=1): el alta arranca enfocada. */
   autoFocus?: boolean;
+  /** ?proyecto=<slug>: sólo las tareas de ese proyecto. */
+  initialProject?: string | null;
 }) {
   const flash = useToast();
   const api = useTasks(initial, flash);
@@ -45,6 +48,18 @@ export function TasksBoard({
   const [query, setQuery] = useState("");
   const [showDone, setShowDone] = useState(startsDone);
   const [openId, setOpenId] = useState<string | null>(initialOpen);
+  const [project, setProjectState] = useState<string | null>(initialProject);
+  // El filtro va en la dirección, para poder mandar el link.
+  function setProject(slug: string | null) {
+    setProjectState(slug);
+    const url = new URL(window.location.href);
+    if (slug) url.searchParams.set("proyecto", slug);
+    else url.searchParams.delete("proyecto");
+    window.history.replaceState(null, "", url);
+  }
+  const taskProjects = links.projects.filter(
+    (p) => p.slug === project || api.tasks.some((t) => t.project_slug === p.slug),
+  );
   const today = dayKey();
 
   const matchesWho = (t: Task, w: Who) =>
@@ -58,6 +73,7 @@ export function TasksBoard({
     const q = query.trim().toLowerCase();
     return api.tasks
       .filter((t) => matchesWho(t, who))
+      .filter((t) => !project || t.project_slug === project)
       .filter(
         (t) =>
           !q ||
@@ -66,7 +82,7 @@ export function TasksBoard({
       )
       .sort(compareTasks);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api.tasks, who, query, me]);
+  }, [api.tasks, who, query, me, project]);
 
   const groups = useMemo(() => {
     const by = new Map<Bucket, Task[]>();
@@ -86,7 +102,7 @@ export function TasksBoard({
   };
 
   const openCount = (w: Who) =>
-    api.tasks.filter((t) => !t.done_at && matchesWho(t, w)).length;
+    api.tasks.filter((t) => !t.done_at && matchesWho(t, w) && (!project || t.project_slug === project)).length;
   const chips: { id: Who; label: string }[] = [
     { id: "mias", label: "Mías" },
     ...PEOPLE_IDS.filter((o) => o !== me).map((o) => ({
@@ -114,10 +130,11 @@ export function TasksBoard({
         me={me}
         links={links}
         onAdd={(input) => api.add(input, me)}
+        fixed={project ? { lead_id: null, project_slug: project } : undefined}
         defaultAssignee={
           who === "sin" ? null : who === "mias" || who === "todas" ? me : who
         }
-        key={who}
+        key={`${who}:${project ?? ""}`}
         autoFocus={autoFocus}
       />
 
@@ -141,6 +158,24 @@ export function TasksBoard({
             </button>
           ))}
         </div>
+        {taskProjects.length > 0 && (
+          <select
+            value={project ?? ""}
+            onChange={(e) => setProject(e.target.value || null)}
+            aria-label="Filtrar por proyecto"
+            className={cn(
+              "focus-ring max-w-[220px] rounded-lg border bg-[var(--panel)] px-3 py-2 text-[13px]",
+              project ? "border-accent/60 text-foreground" : "border-[var(--line)] text-muted",
+            )}
+          >
+            <option value="">Todos los proyectos</option>
+            {taskProjects.map((p) => (
+              <option key={p.slug} value={p.slug}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        )}
         <label className="relative flex min-w-[200px] flex-1 items-center">
           <Search
             size={14}

@@ -9,8 +9,10 @@ import {
   Check,
   FileText,
   FolderOpen,
+  Hourglass,
   Inbox,
   Plus,
+  Repeat,
   Trash2,
 } from "lucide-react";
 import { Chip, Face, btnDanger, btnGhost, cn, input, label } from "../kit";
@@ -19,6 +21,7 @@ import type { LeadOwner } from "@/lib/admin/db";
 import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
 import {
   PRIORITIES,
+  RECURS,
   TITLE_MAX,
   bucket,
   dayKey,
@@ -27,6 +30,7 @@ import {
   type TaskInput,
   type TaskLinks,
   type TaskPriority,
+  type TaskRecur,
 } from "@/lib/admin/task-shared";
 
 const PRIORITY_DOT: Record<TaskPriority, string> = {
@@ -115,6 +119,16 @@ export function TaskRow({
               {link.name}
             </span>
           )}
+          {task.waiting && !done && (
+            <span className="inline-flex items-center gap-1 text-amber-300">
+              <Hourglass size={11} /> esperando al cliente
+            </span>
+          )}
+          {task.recur && (
+            <span className="inline-flex items-center gap-1">
+              <Repeat size={11} /> {task.recur}
+            </span>
+          )}
           {task.notes && <FileText size={11} aria-label="Tiene notas" />}
         </span>
       </button>
@@ -196,6 +210,29 @@ export function PriorityPicker({
         <Chip key={p} on={value === p} onClick={() => onChange(p)}>
           <span className={`h-1.5 w-1.5 rounded-full ${PRIORITY_DOT[p]}`} />{" "}
           {PRIORITY_LABEL[p]}
+        </Chip>
+      ))}
+    </div>
+  );
+}
+
+const RECUR_LABEL: Record<TaskRecur, string> = { semanal: "Cada semana", mensual: "Cada mes" };
+
+export function RecurPicker({
+  value,
+  onChange,
+}: {
+  value: TaskRecur | null;
+  onChange: (v: TaskRecur | null) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5" role="group" aria-label="Se repite">
+      <Chip on={value === null} onClick={() => onChange(null)}>
+        No se repite
+      </Chip>
+      {RECURS.map((r) => (
+        <Chip key={r} on={value === r} onClick={() => onChange(r)}>
+          <Repeat size={12} /> {RECUR_LABEL[r]}
         </Chip>
       ))}
     </div>
@@ -352,6 +389,10 @@ export function QuickAdd({
               onChange={(priority) => set({ priority })}
             />
           </div>
+          <div>
+            <Label>Se repite</Label>
+            <RecurPicker value={draft.recur ?? null} onChange={(recur) => set({ recur })} />
+          </div>
           {!fixed && (
             <div>
               <Label>Vinculada a</Label>
@@ -435,6 +476,26 @@ export function TaskDrawer({
               value={task.priority}
               onChange={(priority) => onPatch({ priority })}
             />
+          </div>
+          {!done && (
+            <div>
+              <Label>Estado</Label>
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Estado">
+                <Chip on={!task.waiting} onClick={() => task.waiting && onPatch({ waiting: false })}>
+                  Pendiente
+                </Chip>
+                <Chip on={task.waiting} onClick={() => !task.waiting && onPatch({ waiting: true })}>
+                  <Hourglass size={12} /> Esperando al cliente
+                </Chip>
+              </div>
+            </div>
+          )}
+          <div>
+            <Label>Se repite</Label>
+            <RecurPicker value={task.recur} onChange={(recur) => onPatch({ recur })} />
+            {task.recur && (
+              <p className="mt-1.5 text-[12px] text-muted">Al completarla se crea la siguiente con la fecha corrida.</p>
+            )}
           </div>
           <div>
             <Label>Vinculada a</Label>

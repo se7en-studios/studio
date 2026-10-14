@@ -9,11 +9,11 @@ import { TasksSetup } from "./setup";
 
 export const metadata: Metadata = { title: "Tareas" };
 
-export default async function TareasPage({ searchParams }: { searchParams: Promise<{ tarea?: string; nueva?: string }> }) {
+export default async function TareasPage({ searchParams }: { searchParams: Promise<{ tarea?: string; nueva?: string; proyecto?: string }> }) {
   const me = await panelSession();
   if (!me) return <AdminGate />;
 
-  const { tarea, nueva } = await searchParams;
+  const { tarea, nueva, proyecto } = await searchParams;
   let tasks: Task[] = [];
   let links: TaskLinks = { leads: [], projects: [] };
   let setup: string | null = null;
@@ -33,7 +33,9 @@ export default async function TareasPage({ searchParams }: { searchParams: Promi
       {setup ? (
         <TasksSetup reason={setup} />
       ) : (
-        <TasksBoard tasks={tasks} links={links} me={me.who} initialOpen={tarea ?? null} autoFocus={nueva === "1"} />
+        <TasksBoard tasks={tasks} links={links} me={me.who} initialOpen={tarea ?? null} autoFocus={nueva === "1"}
+          initialProject={proyecto && /^[a-z0-9-]{1,64}$/.test(proyecto) ? proyecto : null}
+        />
       )}
     </div>
   );
