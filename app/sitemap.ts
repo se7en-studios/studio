@@ -15,22 +15,22 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/audit",
     "/testimonials",
     "/kickoff",
-    "/#estimator",
-    "/#about",
-    "/#contact",
   ].map((path) => ({
     url: `${SITE.url}${path}`,
-    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: path === "" ? 1 : 0.7,
   }));
 
   const workRoutes = projects.map((p) => ({
     url: `${SITE.url}/work/${p.slug}`,
-    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.8,
   }));
 
   const blogRoutes = blogPosts.map((b) => ({
     url: `${SITE.url}/blog/${b.slug}`,
-    lastModified: new Date(),
+    changeFrequency: "yearly" as const,
+    priority: 0.6,
   }));
 
   return [...staticRoutes, ...workRoutes, ...blogRoutes];
