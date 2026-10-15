@@ -37,6 +37,9 @@ assert.equal(morningDigest({ ...base, posts: [{ title: "x", date: "2026-10-01" }
 assert.equal(morningDigest({ ...base, lateCharges: { count: 1, usd: 450.4 } }).message, "• 1 cobro vencido: USD 450");
 assert.equal(morningDigest({ ...base, lateCharges: { count: 3, usd: 1200 } }).message, "• 3 cobros vencidos: USD 1.200");
 assert.equal(morningDigest({ ...base, lateCharges: { count: 0, usd: 0 } }), null);
+// Sitios: contados, nunca cuáles.
+assert.equal(morningDigest({ ...base, siteAlerts: [{ slug: "a", kind: "visual", pct: 62 }] }).message, "• 1 sitio que se ve distinto");
+assert.equal(morningDigest({ ...base, siteAlerts: [{ slug: "a", kind: "visual", pct: 100 }, { slug: "b", kind: "visual", pct: 40 }] }).message, "• 2 sitios que se ven distinto");
 
 // Tarde: título según cantidad, y abre Contenido.
 const one = eveningReminder([{ title: "Carrusel: Takefyy", date: today }], today);
