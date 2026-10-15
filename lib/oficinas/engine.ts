@@ -94,9 +94,14 @@ export type EngineOptions = {
   onCue?: (c: Cue) => void;
 };
 
-/** Qué hace un personaje de la landing: sentado en su escritorio, mirando la tele de una sala o recorriéndolas todas. */
-export type ActorGoal = { kind: "seat"; who: Who } | { kind: "room"; room: string } | { kind: "tour" };
-export type ActorSpec = { id: string; look: ActorLook; goal: ActorGoal };
+/**
+ * Qué hace un personaje de la landing: sentado en su escritorio, mirando la
+ * tele de una sala, recorriéndolas todas (el guía) o paseando de sala en sala
+ * a su aire (las visitas).
+ */
+export type ActorGoal = { kind: "seat"; who: Who } | { kind: "room"; room: string } | { kind: "tour" } | { kind: "wander" };
+/** `you`: la visita que está mirando; la cámara la sigue y lleva el cartelito «VOS». */
+export type ActorSpec = { id: string; look: ActorLook; goal: ActorGoal; you?: boolean };
 export type Engine = {
   setMe: (me: Who) => void;
   /** `lightUp`: la sala a la que se acaba de entrar (titila y se prende). */
@@ -495,6 +500,10 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     wait: number;
     stop: number;
     stuck: boolean;
+    /** Las visitas: a qué baldosa van ahora y de qué número salen sus elecciones. */
+    dest: Pt | null;
+    seed: number;
+    you: boolean;
   };
   const actors: Actor[] = [];
   const DWELL = 7000;
@@ -522,6 +531,32 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     ...(reception ? [{ at: { x: reception.x + 2, y: reception.y + 3 }, face: "NE" as Dir }] : []),
     ...m.rooms.flatMap((r) => tvSpots.get(r.id) ?? []),
   ];
+  // Por dónde pasean las visitas: las salas de proyectos, la recepción y la cocina
+  const wanderRooms = m.rooms.filter((r) => r.kind === "project" || r.kind === "reception" || r.kind === "kitchen");
+  const freeTiles = new Map(wanderRooms.map((r) => {
+    const tiles: Pt[] = [];
+    for (let y = r.y; y < r.y + r.d; y++) for (let x = r.x; x < r.x + r.w; x++) if (walkable(m, x, y)) tiles.push({ x, y });
+    return [r.id, tiles];
+  }));
+  /** La próxima baldosa de una visita: una sala elegida con su número y un lugar libre adentro. */
+  function wanderSpot(a: Actor): Pt | null {
+    if (!wanderRooms.length) return null;
+    const r = wanderRooms[Math.floor(hash(a.seed, a.stop * 13 + 1) * wanderRooms.length)];
+    const tiles = freeTiles.get(r.id) ?? [];
+    // Mejor una baldosa donde no haya otra visita parada
+    const taken = (q: Pt) => actors.some((o) => o !== a && (o.dest ? o.dest.x === q.x && o.dest.y === q.y : o.x === q.x && o.y === q.y));
+    const start = Math.floor(hash(a.stop * 7 + 3, a.seed) * tiles.length);
+    for (let i = 0; i < tiles.length; i++) {
+      const q = tiles[(start + i) % tiles.length];
+      if (!taken(q)) return q;
+    }
+    return tiles[start] ?? null;
+  }
+  const seedOf = (id: string) => {
+    let n = 0;
+    for (let i = 0; i < id.length; i++) n = (Math.imul(n, 31) + id.charCodeAt(i)) | 0;
+    return n;
+  };
   function syncActors(specs: ActorSpec[]) {
     for (let i = actors.length - 1; i >= 0; i--) if (!specs.some((sp) => sp.id === actors[i].id)) actors.splice(i, 1);
     for (const sp of specs) {
@@ -529,12 +564,14 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       if (a) {
         if (JSON.stringify(a.goal) !== JSON.stringify(sp.goal)) Object.assign(a, { goal: sp.goal, stuck: false, wait: 0, face: null });
         a.look = sp.look;
+        a.you = !!sp.you;
         continue;
       }
-      // Los socios aparecen en su escritorio; el guía, en el pasillo
-      const seat = sp.look === "guia" ? null : seatOf(sp.look);
-      const at = sp.goal.kind === "tour" ? m.start : (seat ?? m.start);
-      actors.push({ id: sp.id, look: sp.look, goal: sp.goal, x: at.x, y: at.y, from: { ...at }, to: { ...at }, t: 0, moving: false, dir: "SW", path: [], step: 0, seat: sp.goal.kind === "seat" ? seat : null, face: null, wait: 0, stop: 0, stuck: false });
+      // Los socios aparecen en su escritorio; el guía y las visitas, en el pasillo frente a la recepción
+      const seat = sp.goal.kind === "seat" ? seatOf(sp.goal.who) : null;
+      const at = seat ?? m.start;
+      const seed = seedOf(sp.id);
+      actors.push({ id: sp.id, look: sp.look, goal: sp.goal, x: at.x, y: at.y, from: { ...at }, to: { ...at }, t: 0, moving: false, dir: "SW", path: [], step: 0, seat, face: null, wait: 0, stop: sp.goal.kind === "wander" ? Math.abs(seed) % 97 : 0, stuck: false, dest: null, seed, you: !!sp.you });
     }
   }
   function headTo(a: Actor, to: Pt) {
@@ -549,6 +586,19 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   }
   function settle(a: Actor, ts: number) {
     const g = a.goal;
+    if (g.kind === "wander") {
+      // Llega, se queda un rato mirando (4 a 10 s) y elige otra sala
+      if (a.dest && a.x === a.dest.x && a.y === a.dest.y) {
+        if (!a.wait) {
+          a.wait = ts + 4000 + hash(a.seed, a.stop) * 6000;
+          a.face = (["NE", "NW", "SE", "SW"] as Dir[])[Math.floor(hash(a.stop, a.seed) * 4)];
+        } else if (ts > a.wait) Object.assign(a, { wait: 0, dest: null, stop: a.stop + 1 });
+        return;
+      }
+      if (!a.dest) a.dest = wanderSpot(a);
+      if (!a.dest || !headTo(a, a.dest)) Object.assign(a, { dest: null, stop: a.stop + 1 });
+      return;
+    }
     if (g.kind === "seat") {
       const seat = seatOf(g.who);
       if (a.seat || !seat) return;
@@ -609,8 +659,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     return [fx + (tx - fx) * k + 0.5, fy + (ty - fy) * k + 0.5];
   };
   const actorDepth = (a: Actor) => (a.moving ? Math.max(a.from.x + a.from.y, a.to.x + a.to.y) : a.x + a.y) + 0.05;
-  /** A quién sigue la cámara: el guía, o el que camina, o el primero. */
-  const focusActor = () => actors.find((a) => a.goal.kind === "tour") ?? actors.find((a) => !a.seat) ?? actors[0] ?? null;
+  /** A quién sigue la cámara: la visita que mira, o el guía, o el que camina, o el primero. */
+  const focusActor = () => actors.find((a) => a.you) ?? actors.find((a) => a.goal.kind === "tour") ?? actors.find((a) => !a.seat) ?? actors[0] ?? null;
 
   // Salas con alguien mirando la tele (o, en el panel, donde estás): ahí la
   // tele recorre el sitio. `liveSince`: desde cuándo, para arrancar arriba.
@@ -1313,6 +1363,28 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       ctx.fillStyle = "#16161b";
       ctx.textBaseline = "top";
       ctx.fillText(partnerLine, x + 7, y + 5);
+    }
+    // En la landing, tu muñeco lleva un cartelito con una flecha, como en Habbo
+    const mine = o.public ? actors.find((a) => a.you) : null;
+    if (mine) {
+      const [ax, ay] = actorPos(mine);
+      const [tx, ty] = toScreen(P(ax, ay, 74));
+      const bob = reduced ? 0 : Math.sin(ts / 260) * 1.5;
+      ctx.font = `8px ${o.font}`;
+      ctx.textBaseline = "middle";
+      ctx.textAlign = "center";
+      const w = Math.ceil(ctx.measureText("VOS").width) + 10, h = 13;
+      const x = Math.round(tx - w / 2), y = Math.round(ty - h - 6 + bob);
+      ctx.fillStyle = "#ff4d2e";
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, 3);
+      ctx.moveTo(tx - 3.5, y + h);
+      ctx.lineTo(tx, y + h + 4);
+      ctx.lineTo(tx + 3.5, y + h);
+      ctx.fill();
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText("VOS", tx, y + h / 2 + 0.5);
+      ctx.textAlign = "left";
     }
     // El otro socio, dormido: las zetas suben desde su cabeza
     if (po?.seat && partnerAway) {
