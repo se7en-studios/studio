@@ -114,4 +114,20 @@ for (const n of [0, 1, 4, 5, 8, 9, 18]) {
   assert.deepEqual(S.ledMessages(projects).map((m) => m[0].text), ["SE7EN STUDIO", 'APEX "PRO"', "BO"], "sin hora en la landing");
 }
 
+// Muñecos en pixel art: cada mapa tiene el ancho que le toca y cada combinación entra en la grilla.
+{
+  const SP = await import("../lib/oficinas/sprites.ts");
+  for (const m of SP.SPRITE_MAPS) m.rows.forEach((r, i) => assert.equal(r.length, m.width, `${m.name}, fila ${i}`));
+  const look = { style: "federico", hair: "#000000", hair2: "#111111", skin: "#222222", skin2: "#333333", main: "#444444", shade: "#555555", collar: "#666666", tie: "#777777", pants: "#888888", shoes: "#999999" };
+  for (const style of ["federico", "franco", "cap", "long", "bun", "afro", "buzz"])
+    for (const back of [false, true])
+      for (const pose of [{ walk: 0 }, { walk: 1 }, { wave: 0 }, { wave: 1 }, { phone: true }, { sit: true, type: 1 }, { blink: true }]) {
+        const m = SP.composeSprite({ ...look, style, glasses: true, beard: true, phones: "#aaaaaa", pack: "#bbbbbb", stripes: "#cccccc", badge: true }, { back, walk: 0, wave: null, phone: false, sit: false, type: null, blink: false, ...pose });
+        assert.equal(m.length, SP.SPRITE_H);
+        assert.ok(m.every((row) => row.length === SP.SPRITE_W), `${style} ${back} ${JSON.stringify(pose)}`);
+        assert.ok(m.flat().filter(Boolean).length > 150, `${style}: el muñeco tiene cuerpo`);
+      }
+  for (const f of [0, 1, "sleep"]) assert.ok(SP.catSprite(f).every((row) => row.length === SP.CAT_W), `gato ${f}`);
+}
+
 console.log("oficinas OK");

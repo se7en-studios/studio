@@ -5,6 +5,7 @@
 // (engine.ts) pone la escala y decide el orden.
 import type { Decor, Facing, Furni, MapModel, MapRoom, Period, Who } from "@/lib/admin/oficinas-shared";
 import { plantStage } from "@/lib/admin/oficinas-shared";
+import { CAT_W, SPRITE_H, SPRITE_W, catSprite, composeSprite, type SpritePose } from "./sprites";
 
 export const HW = 32;
 export const HH = 16;
@@ -103,17 +104,6 @@ function line(a: XY, b: XY, color: string, lw = 1) {
 function ellipse(cx: number, cy: number, rx: number, ry: number, fill: string, stroke: string | null = null) {
   g.beginPath();
   g.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-  g.fillStyle = fill;
-  g.fill();
-  if (stroke) {
-    g.strokeStyle = stroke;
-    g.lineWidth = 1;
-    g.stroke();
-  }
-}
-function rrect(x: number, y: number, w: number, h: number, r: number, fill: string, stroke: string | null = null) {
-  g.beginPath();
-  g.roundRect(x, y, w, h, r);
   g.fillStyle = fill;
   g.fill();
   if (stroke) {
@@ -1127,6 +1117,8 @@ type Look = {
   pack?: string;
   /** Remera a rayas: el color de las rayas. */
   stripes?: string;
+  /** La credencial del estudio colgada del cuello (el guía). */
+  badge?: boolean;
 };
 const LOOKS: Record<Who | "guia", Look> = {
   // Federico: pelo castaño con flequillo de costado, camisa blanca y corbata negra.
@@ -1134,9 +1126,8 @@ const LOOKS: Record<Who | "guia", Look> = {
   // Franco: pelo negro texturado con flequillo recto, sweater beige y cuello blanco.
   franco: { style: "franco", hair: "#151517", hair2: "#34343d", skin: "#d6a07a", skin2: "#b9815c", main: "#cdbd83", shade: "#ae9f66", collar: "#f7f4ec", tie: null, pants: "#2d3039", shoes: "#121216" },
   // El guía: remera naranja del estudio, gorra negra y zapatillas blancas.
-  guia: { style: "cap", hair: "#17171c", hair2: "#ff4d2e", skin: "#c98f6b", skin2: "#ad7552", main: "#ff4d2e", shade: "#d33d22", collar: "#ff4d2e", tie: null, pants: "#2b2f3a", shoes: "#f1efea" },
+  guia: { style: "cap", hair: "#17171c", hair2: "#ff4d2e", skin: "#c98f6b", skin2: "#ad7552", main: "#ff4d2e", shade: "#d33d22", collar: "#ff4d2e", tie: null, pants: "#2b2f3a", shoes: "#f1efea", badge: true },
 };
-const LINE = "rgba(32,20,26,0.92)";
 
 // Las visitas: piel, pelo, remera y pantalón salen del id, así cada una se ve
 // distinta y la misma persona se ve igual en cada señal.
@@ -1177,335 +1168,75 @@ function visitorLook(id: string): Look {
 }
 export const lookFor = (who: ActorLook): Look => (who.startsWith("v:") ? visitorLook(who) : LOOKS[who as Who | "guia"]);
 
+// Los muñecos son pixel art (lib/oficinas/sprites.ts): cada combinación de
+// persona, vista y pose se pinta una vez en un canvas chico y después se
+// estira sin suavizar, así los puntos quedan nítidos con cualquier zoom.
+/** Cuántos px del mundo mide cada punto del muñeco. */
+const PIX = 2.7;
+const sprites = new Map<string, HTMLCanvasElement>();
+function spriteOf(key: string, build: () => (string | null)[][]): HTMLCanvasElement {
+  let c = sprites.get(key);
+  if (c) return c;
+  const m = build();
+  c = document.createElement("canvas");
+  c.width = m[0].length;
+  c.height = m.length;
+  const x = c.getContext("2d") as CanvasRenderingContext2D;
+  m.forEach((row, y) =>
+    row.forEach((col, i) => {
+      if (!col) return;
+      x.fillStyle = col;
+      x.fillRect(i, y, 1, 1);
+    }),
+  );
+  sprites.set(key, c);
+  return c;
+}
+
 /**
  * Dibuja a `who` parado en (sx, sy) (los pies). `phase` 0–1 es el paso; null =
  * quieto. `typing` 0–1: sentado, mueve las manos sobre el teclado. `wave` 0–1:
  * saluda con la mano levantada. `phone`: mira el celular.
  */
 export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: number | null, sitting = false, blink = false, typing: number | null = null, wave: number | null = null, phone = false) {
-  const L = lookFor(who);
   const mirror = dir === "SW" || dir === "NW";
   const back = dir === "NE" || dir === "NW";
-  const s = phase === null ? 0 : Math.sin(phase * Math.PI * 2);
-  const bob = phase === null ? 0 : -Math.abs(s) * 1.2;
+  // Dos pasos por baldosa: piernas abiertas y juntas
+  const walk: 0 | 1 = phase !== null && Math.floor(phase * 4) % 2 === 0 ? 1 : 0;
+  const pose: SpritePose = {
+    back,
+    walk,
+    wave: wave === null ? null : ((Math.floor(wave * 8) % 2) as 0 | 1),
+    phone,
+    sit: sitting,
+    type: typing === null ? null : typing < 0.5 ? 0 : 1,
+    blink,
+  };
+  const key = `${who}|${+back}${walk}${pose.wave ?? "-"}${+phone}${+sitting}${pose.type ?? "-"}${+blink}`;
+  const img = spriteOf(key, () => composeSprite(lookFor(who), pose));
   g.save();
   g.translate(Math.round(sx), Math.round(sy));
   if (mirror) g.scale(-1, 1);
   if (!sitting) ellipse(0, 0, 13, 5.5, "rgba(0,0,0,0.26)");
-  const by = (sitting ? 11 : 0) + bob;
-  if (!sitting) {
-    rrect(-7 - s * 2, -19, 6, 17, 2, L.pants, LINE);
-    rrect(-8 - s * 2, -4 + (s > 0 ? -1 : 0), 8, 4, 2, L.shoes, LINE);
-    rrect(1 + s * 2, -19, 6, 17, 2, L.pants, LINE);
-    rrect(1 + s * 2, -4 + (s < 0 ? -1 : 0), 8, 4, 2, L.shoes, LINE);
-  }
-  // brazo de atrás, torso, brazo de adelante (tipeando, las manos suben y bajan a destiempo)
-  const tap = typing === null ? 0 : Math.sin(typing * Math.PI * 2) * 1.1;
-  rrect(-13, -34 + by + s * 1.5 + tap, 5, 15, 2.5, L.shade, LINE);
-  ellipse(-10.5, -18.5 + by + s * 1.5 + tap, 2.6, 2.6, L.skin2, LINE);
-  rrect(-9, -36 + by, 18, 19, 5, L.main, LINE);
-  if (L.stripes) {
-    g.fillStyle = L.stripes;
-    for (let k = 0; k < 3; k++) g.fillRect(-8.3, -31 + k * 4.5 + by, 16.6, 1.6);
-  }
-  if (L.pack) {
-    // La mochila: entera de espaldas; de frente, las tiras sobre los hombros
-    if (back) {
-      rrect(-7, -35 + by, 14, 15, 4, L.pack, LINE);
-      rrect(-4.5, -28 + by, 9, 5, 2, mix(L.pack, "#000000", 0.2), LINE);
-    } else {
-      g.fillStyle = mix(L.pack, "#000000", 0.15);
-      g.fillRect(-7, -36 + by, 2.4, 12);
-      g.fillRect(5.6, -36 + by, 2.4, 12);
-    }
-  }
-  if (who === "guia" && !back) {
-    // La credencial del estudio colgada del cuello
-    line([-1, -36 + by], [1, -27 + by], "#17171c", 0.8);
-    line([4, -36 + by], [2, -27 + by], "#17171c", 0.8);
-    rrect(-0.5, -28 + by, 4.5, 5.5, 1, "#f4efe6", LINE);
-    g.fillStyle = "#ff4d2e";
-    g.fillRect(0.6, -26.6 + by, 2.3, 1.2);
-  }
-  if (!back) {
-    if (L.tie) {
-      poly([[-3, -36 + by], [1, -36 + by], [-1, -32 + by]], L.collar, LINE, 0.8);
-      poly([[2, -36 + by], [6, -36 + by], [4, -32 + by]], L.collar, LINE, 0.8);
-      poly([[0.6, -34.5 + by], [3, -34.5 + by], [3.4, -23 + by], [1.8, -20 + by], [0.2, -23 + by]], L.tie);
-    } else {
-      poly([[-4, -36.5 + by], [1, -36.5 + by], [-1.5, -32 + by]], L.collar, LINE, 0.8);
-      poly([[2, -36.5 + by], [7, -36.5 + by], [4.5, -32 + by]], L.collar, LINE, 0.8);
-      g.fillStyle = L.shade;
-      g.fillRect(-8.5, -20 + by, 17, 2.5);
-    }
-  } else if (!L.tie) {
-    g.fillStyle = L.collar;
-    g.fillRect(-5, -36 + by, 11, 2);
-  }
-  if (phone && !back && wave === null) {
-    // El brazo doblado y el celular frente a la cara, con la pantalla prendida
-    rrect(5, -33 + by, 5, 11, 2.5, L.main, LINE);
-    rrect(5.5, -33 + by, 9, 4.5, 2.2, L.main, LINE);
-    rrect(10.5, -38 + by, 4, 6.5, 1, "#1b1b22", LINE);
-    g.fillStyle = "#9fd3ff";
-    g.fillRect(11.1, -37.3 + by, 2.8, 4.6);
-    ellipse(12.5, -31.5 + by, 2.4, 2.4, L.skin, LINE);
-  } else if (wave === null) {
-    rrect(8, -34 + by - s * 1.5 - tap, 5, 15, 2.5, L.main, LINE);
-    ellipse(10.5, -18.5 + by - s * 1.5 - tap, 2.6, 2.6, L.skin, LINE);
-  } else {
-    // El brazo arriba, moviendo la mano de un lado al otro
-    g.save();
-    g.translate(10.5, -32 + by);
-    g.rotate(Math.PI + 0.45 + Math.sin(wave * Math.PI * 7) * 0.22);
-    rrect(-2.5, 0, 5, 15, 2.5, L.main, LINE);
-    ellipse(0, 15.5, 2.6, 2.6, L.skin, LINE);
-    g.restore();
-  }
-  // cabeza
-  g.fillStyle = L.skin2;
-  g.fillRect(-2.5, -39 + by, 6, 4);
-  rrect(-10.5, -60 + by, 22, 22, 8, L.skin, LINE);
-  if (!back) {
-    ellipse(-10, -48 + by, 2.4, 3.4, L.skin2, LINE);
-    if (blink) {
-      g.fillStyle = "#2a1d1a";
-      g.fillRect(1, -49 + by, 3, 1);
-      g.fillRect(6.5, -49 + by, 3, 1);
-    } else {
-      rrect(1.5, -51 + by, 2.4, 3.6, 1, "#2a1d1a");
-      rrect(7, -51 + by, 2.4, 3.6, 1, "#2a1d1a");
-      g.fillStyle = "#ffffff";
-      g.fillRect(2.3, -50.6 + by, 0.9, 0.9);
-      g.fillRect(7.8, -50.6 + by, 0.9, 0.9);
-    }
-    g.fillStyle = L.skin2;
-    g.fillRect(9.5, -47 + by, 1.5, 2);
-    if (L.beard) {
-      g.beginPath();
-      g.moveTo(-6, -47 + by);
-      g.lineTo(-4, -41 + by);
-      g.quadraticCurveTo(4, -36.5 + by, 11.2, -41 + by);
-      g.lineTo(11.4, -46 + by);
-      g.quadraticCurveTo(5, -42.5 + by, -6, -47 + by);
-      g.fillStyle = L.hair;
-      g.fill();
-    }
-    g.beginPath();
-    g.arc(5, -45 + by, 2.6, 0.15 * Math.PI, 0.85 * Math.PI);
-    g.strokeStyle = L.beard ? "#e9c3a5" : "#9a5442";
-    g.lineWidth = 1;
-    g.stroke();
-    if (L.glasses) {
-      g.strokeStyle = "#17171c";
-      g.lineWidth = 0.9;
-      g.strokeRect(0.4, -52 + by, 4.6, 5.2);
-      g.strokeRect(5.9, -52 + by, 4.6, 5.2);
-      line([5, -50 + by], [5.9, -50 + by], "#17171c", 0.9);
-      line([0.4, -50 + by], [-8, -50 + by], "#17171c", 0.9);
-      g.fillStyle = "rgba(190,225,255,0.25)";
-      g.fillRect(0.8, -51.6 + by, 3.8, 4.4);
-      g.fillRect(6.3, -51.6 + by, 3.8, 4.4);
-    }
-  } else {
-    ellipse(10.5, -48 + by, 2.4, 3.4, L.skin2, LINE);
-  }
-  hair(who, back, by);
-  if (L.phones) {
-    // Auriculares: la vincha por arriba y el parlante sobre la oreja
-    rrect(-11.5, -64.5 + by, 24, 3.4, 1.7, L.phones, LINE);
-    const ex = back ? 10.5 : -10;
-    rrect(ex - 3, -52 + by, 6, 8, 3, L.phones, LINE);
-  }
+  // Al dar el paso el cuerpo sube un punto; sentado, baja hasta la silla
+  const dy = (sitting ? 11 : 0) - (walk ? PIX : 0);
+  g.imageSmoothingEnabled = false;
+  g.drawImage(img, -10 * PIX, -SPRITE_H * PIX + dy, SPRITE_W * PIX, SPRITE_H * PIX);
   g.restore();
-}
-
-function hair(who: ActorLook, back: boolean, by: number) {
-  const L = lookFor(who);
-  if (L.style === "cap") {
-    // Gorra negra con la visera hacia adelante y el punto naranja del estudio
-    rrect(-11.5, -63 + by, 24, 10.5, 7, L.hair, LINE);
-    if (back) {
-      g.fillStyle = "#2a2a31";
-      g.fillRect(-6, -52 + by, 13, 1.6);
-      return;
-    }
-    // La visera, arriba de los ojos (no se los tapa)
-    poly([[4, -55.5 + by], [17, -54.5 + by], [16, -52.3 + by], [3, -53 + by]], "#101014", LINE, 0.8);
-    ellipse(3, -58 + by, 2.2, 2.2, L.hair2, null);
-    g.fillStyle = "#3d2718";
-    g.fillRect(-11, -51 + by, 3, 4);
-    return;
-  }
-  if (L.style === "federico") {
-    if (back) {
-      rrect(-11, -62 + by, 23, 18, 8, L.hair, LINE);
-      poly([[-6, -60 + by], [4, -61 + by], [0, -56 + by]], L.hair2);
-      return;
-    }
-    g.beginPath();
-    g.moveTo(-11.5, -45 + by);
-    g.lineTo(-11.5, -55 + by);
-    g.quadraticCurveTo(-11.5, -63 + by, -3, -63 + by);
-    g.lineTo(5, -63 + by);
-    g.quadraticCurveTo(12.5, -63 + by, 12.5, -55 + by);
-    g.lineTo(12, -52 + by);
-    g.lineTo(7, -52.5 + by);
-    g.lineTo(2, -54 + by);
-    g.lineTo(-3, -52 + by);
-    g.lineTo(-7, -50 + by);
-    g.lineTo(-8.5, -45 + by);
-    g.closePath();
-    g.fillStyle = L.hair;
-    g.fill();
-    g.strokeStyle = LINE;
-    g.lineWidth = 1;
-    g.stroke();
-    poly([[-5, -61 + by], [5, -61.5 + by], [9, -58 + by], [2, -58 + by]], L.hair2);
-    return;
-  }
-  if (L.style === "long") {
-    // Pelo largo: cae por detrás hasta los hombros y un mechón al costado de la cara
-    if (back) {
-      rrect(-12, -62 + by, 25, 27, 8, L.hair, LINE);
-      g.fillStyle = L.hair2;
-      g.fillRect(-2, -60 + by, 2, 22);
-      return;
-    }
-    rrect(-12.5, -58 + by, 10, 22, 4, L.hair, LINE);
-    rrect(-11.5, -62.5 + by, 24.5, 10, 6, L.hair, LINE);
-    poly([[8, -56 + by], [13, -55 + by], [13, -44 + by], [10.5, -46 + by]], L.hair, LINE, 0.8);
-    poly([[-6, -61 + by], [4, -61.5 + by], [7, -58 + by], [-2, -58 + by]], L.hair2);
-    return;
-  }
-  if (L.style === "bun") {
-    // Rodete arriba
-    ellipse(-3, -64 + by, 5.5, 4.5, L.hair, LINE);
-    if (back) {
-      rrect(-11, -62 + by, 23, 17, 8, L.hair, LINE);
-      return;
-    }
-    rrect(-11.5, -62 + by, 24, 9.5, 6, L.hair, LINE);
-    rrect(-12, -57 + by, 5, 12, 2.5, L.hair, LINE);
-    poly([[-5, -60.5 + by], [5, -61 + by], [8, -58.5 + by], [0, -58.5 + by]], L.hair2);
-    return;
-  }
-  if (L.style === "afro") {
-    // Rulos grandes: una nube de círculos alrededor de la cabeza
-    const puffs: [number, number, number][] = back
-      ? [[-8, -54, 6], [0, -64, 7], [9, -60, 6], [-6, -62, 6.5], [7, -52, 5.5], [0, -54, 7]]
-      : [[-8, -57, 6], [-3, -64, 6.5], [5, -64, 6.5], [11, -58, 5], [-11, -50, 4.5]];
-    for (const [dx, dy, r] of puffs) ellipse(dx, dy + by, r, r * 0.9, L.hair, LINE);
-    for (const [dx, dy, r] of puffs) ellipse(dx, dy + by, r - 1.4, (r - 1.4) * 0.9, L.hair, null);
-    for (const [dx, dy] of [[-4, -64], [5, -63], [-8, -57]]) {
-      g.fillStyle = L.hair2;
-      g.fillRect(dx, dy + by, 1.6, 1.2);
-    }
-    return;
-  }
-  if (L.style === "buzz") {
-    // Rapado: una sombra de pelo pegada a la cabeza
-    g.save();
-    g.globalAlpha = 0.85;
-    if (back) rrect(-10.5, -60.5 + by, 22, 14, 8, L.hair, null);
-    else {
-      rrect(-10.5, -60.5 + by, 22, 7, 6, L.hair, null);
-      g.fillStyle = L.hair;
-      g.fillRect(-10.5, -55 + by, 4, 6);
-    }
-    g.restore();
-    return;
-  }
-  // Franco
-  if (back) {
-    rrect(-11.5, -62 + by, 24, 15, 7, L.hair, LINE);
-    g.fillStyle = L.hair2;
-    g.fillRect(-10, -48 + by, 21, 3);
-  } else {
-    // El flequillo recto termina justo arriba de los ojos
-    rrect(-11.5, -62 + by, 24, 10, 6, L.hair, LINE);
-    g.fillStyle = L.hair;
-    g.fillRect(-10, -55 + by, 22, 2.8);
-    g.strokeStyle = LINE;
-    g.lineWidth = 1;
-    g.beginPath();
-    g.moveTo(-10, -52.2 + by);
-    g.lineTo(12, -52.2 + by);
-    g.stroke();
-    g.fillStyle = L.hair2;
-    g.fillRect(-11.5, -52 + by, 2.5, 5);
-  }
-  for (const [dx, dy] of [[-8, -61], [-3, -62.5], [2, -62.5], [7, -61]]) ellipse(dx, dy + by, 3.2, 2.6, L.hair, null);
-  for (const [dx, dy] of [[-5, -60], [1, -61], [6, -59]]) {
-    g.fillStyle = L.hair2;
-    g.fillRect(dx, dy + by, 1.5, 1);
-  }
 }
 
 // --- El gato del estudio -------------------------------------------------------------
 
-/**
- * El gato naranja que vive en el estudio, parado en (sx, sy). `phase` 0–1 es
- * el paso (null = quieto); dormido, se hace un ovillo. `t`: el reloj, para la cola.
- */
-export function studioCat(sx: number, sy: number, dir: Dir, phase: number | null, sleeping: boolean, t: number) {
-  const fur = "#e08a3c", dark = "#b8662a", belly = "#f6dcb8";
+/** El gato naranja que vive en el estudio, parado en (sx, sy), en pixel art. `phase` 0–1 es el paso (null = quieto); dormido, se hace un ovillo. */
+export function studioCat(sx: number, sy: number, dir: Dir, phase: number | null, sleeping: boolean) {
+  const frame: 0 | 1 | "sleep" = sleeping ? "sleep" : phase !== null && Math.floor(phase * 4) % 2 === 0 ? 1 : 0;
+  const img = spriteOf(`cat|${frame}`, () => catSprite(frame));
+  const C = 2.2;
   g.save();
   g.translate(Math.round(sx), Math.round(sy));
   if (dir === "SW" || dir === "NW") g.scale(-1, 1);
-  ellipse(0, 0, 10, 3.6, "rgba(0,0,0,0.22)");
-  if (sleeping) {
-    // Ovillo: el cuerpo redondo, la cola alrededor y la cabeza apoyada
-    ellipse(-1, -5, 9, 5.5, fur, LINE);
-    g.fillStyle = dark;
-    for (const x of [-5, -1.5, 2]) g.fillRect(x, -10, 1.6, 3.5);
-    g.beginPath();
-    g.moveTo(-8, -2);
-    g.quadraticCurveTo(0, 2, 7, -1.5);
-    g.strokeStyle = LINE;
-    g.lineWidth = 3.4;
-    g.stroke();
-    g.strokeStyle = fur;
-    g.lineWidth = 2.2;
-    g.stroke();
-    ellipse(6, -5.5, 4.4, 3.6, fur, LINE);
-    poly([[3.5, -8], [4.5, -11.5], [6.5, -8.6]], fur, LINE, 0.8);
-    poly([[6.5, -8.8], [8.6, -11.5], [9, -7.6]], fur, LINE, 0.8);
-    line([5.6, -5.6], [7.4, -5.4], "#3a2418", 0.8);
-    g.restore();
-    return;
-  }
-  const s = phase === null ? 0 : Math.sin(phase * Math.PI * 2);
-  // Cola: se mueve sola, aunque esté quieto
-  const sway = Math.sin(t / 420) * 2.5;
-  g.beginPath();
-  g.moveTo(-7.5, -8);
-  g.quadraticCurveTo(-13, -10, -12 + sway, -18);
-  g.strokeStyle = LINE;
-  g.lineWidth = 3.6;
-  g.lineCap = "round";
-  g.stroke();
-  g.strokeStyle = fur;
-  g.lineWidth = 2.3;
-  g.stroke();
-  g.lineCap = "butt";
-  // Patas de atrás y de adelante, a destiempo al caminar
-  for (const [x, k] of [[-6, 1], [-3, -1], [3, -1], [6, 1]] as const) rrect(x - 1.2 + s * k * 1.2, -6, 2.6, 6, 1.2, k > 0 ? dark : fur, LINE);
-  rrect(-9, -13, 17, 8.5, 4.2, fur, LINE);
-  g.fillStyle = belly;
-  g.fillRect(-5, -6.5, 10, 1.6);
-  g.fillStyle = dark;
-  for (const x of [-5.5, -2, 1.5]) g.fillRect(x, -12.6, 1.6, 3.6);
-  // Cabeza, orejas, ojos y nariz
-  ellipse(8.5, -14, 5.2, 4.6, fur, LINE);
-  poly([[5, -16.5], [5.8, -21], [8.4, -17.6]], fur, LINE, 0.8);
-  poly([[9, -17.8], [11.6, -21], [12.6, -16]], fur, LINE, 0.8);
-  g.fillStyle = "#f2a0a0";
-  g.fillRect(6.2, -18.6, 1.2, 1.4);
-  g.fillStyle = "#26301c";
-  g.fillRect(8.6, -15.6, 1.4, 2);
-  g.fillRect(11.4, -15.6, 1.2, 2);
-  g.fillStyle = "#e07a7a";
-  g.fillRect(12.6, -13.2, 1.3, 1);
+  ellipse(0, 0, 11, 4, "rgba(0,0,0,0.22)");
+  g.imageSmoothingEnabled = false;
+  g.drawImage(img, -(CAT_W / 2) * C, -img.height * C + 2, img.width * C, img.height * C);
   g.restore();
 }

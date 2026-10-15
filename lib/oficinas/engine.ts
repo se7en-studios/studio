@@ -1435,7 +1435,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       const [cx, cy] = catPos();
       const [csx, csy] = P(cx, cy);
       const cd = (cat.moving ? Math.max(cat.from.x + cat.from.y, cat.to.x + cat.to.y) : cat.x + cat.y) + 0.04;
-      people.push({ depth: cd, draw: () => studioCat(csx, csy, cat.dir, cat.moving ? cat.step % 1 : null, cat.sleeping, ts) });
+      people.push({ depth: cd, draw: () => studioCat(csx, csy, cat.dir, cat.moving ? cat.step % 1 : null, cat.sleeping) });
     }
     people.sort((a, b) => a.depth - b.depth);
     let pi = 0;
