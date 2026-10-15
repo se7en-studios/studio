@@ -164,7 +164,8 @@ export default async function AdminHome() {
     <div className="space-y-6">
       <PageHeader
         eyebrow={date.charAt(0).toUpperCase() + date.slice(1)}
-        title={`${hello}, ${PEOPLE[me.who].name}`}
+        title={`${hello},`}
+        accent={`${PEOPLE[me.who].name}.`}
         right={
           <>
             <Link href="/admin/mensajes" className={btnSecondary}>

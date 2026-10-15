@@ -459,6 +459,33 @@ body:has(.admin-app)::after {
   display: none;
 }
 
+/* Voz de marca del panel, la misma de la landing: títulos en Archivo ancha,
+   cifras en Archivo condensada y el acento en Instrument Serif. */
+.admin-app .adm-display {
+  font-family: var(--font-wide), var(--font-sans), system-ui, sans-serif;
+  font-variation-settings: "wdth" 118;
+  text-transform: uppercase;
+  letter-spacing: -0.03em;
+  font-weight: 800;
+  line-height: 0.95;
+}
+.admin-app .adm-num {
+  font-family: var(--font-wide), var(--font-sans), system-ui, sans-serif;
+  font-variation-settings: "wdth" 62;
+  letter-spacing: -0.01em;
+  font-weight: 800;
+}
+.admin-app .adm-serif {
+  font-family: var(--font-serif), Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: -0.01em;
+  font-size: 1.12em;
+  line-height: 0.8;
+  color: var(--accent);
+}
+
 /* Superficies del panel, de abajo hacia arriba: fondo → sidebar → tarjeta →
    hover/realce → lo que flota (toasts, menús). `--well` es lo hundido
    (campos, citas). Todo color de fondo del panel sale de acá. */
@@ -576,20 +603,20 @@ body:has(.admin-app)::after {
    fijas (bg-white/…, text-red-400, …) están en app/admin/admin-light.css. */
 .admin-app[data-theme="light"] {
   color-scheme: light;
-  --background: #f7f7f5;
+  --background: #f2eee6;
   --foreground: #15151a;
   --muted: #62626b;
   --border: rgba(15, 18, 30, 0.1);
-  --surface: #ffffff;
-  --surface-2: #f6f6f3;
+  --surface: #fbf9f4;
+  --surface-2: #ebe5d9;
   --accent: #d1371a;
   --accent-soft: rgba(209, 55, 26, 0.1);
   --accent-hover: #bb3017;
-  --bg: #f1f1ee;
-  --panel-0: #e9e9e5;
-  --panel: #ffffff;
-  --panel-2: #f5f5f2;
-  --panel-3: #ffffff;
+  --bg: #ece7dc;
+  --panel-0: #e4ded1;
+  --panel: #fbf9f4;
+  --panel-2: #f4f0e8;
+  --panel-3: #fbf9f4;
   --well: rgba(15, 18, 30, 0.045);
   --well-soft: rgba(15, 18, 30, 0.03);
   --line: rgba(15, 18, 30, 0.09);
@@ -607,7 +634,7 @@ body:has(.admin-app)::after {
   color-scheme: light;
 }
 body:has(.admin-app[data-theme="light"]) {
-  background: #f1f1ee;
+  background: #ece7dc;
 }
 .admin-app[data-theme="light"] .admin-scroll {
   scrollbar-color: rgba(15, 18, 30, 0.22) transparent;
