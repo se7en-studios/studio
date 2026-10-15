@@ -3,19 +3,17 @@
 // Marco del panel: barra lateral con contadores, barra superior en mobile y
 // la paleta de comandos (⌘K). Los contadores salen de /admin/api/pulse, que se
 // consulta al entrar, al navegar y cada 30 s con la pestaña visible.
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, useTransition } from "react";
 import Image from "next/image";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ArrowUpRight,
   BarChart3,
-  Bell,
   Clapperboard,
   CalendarRange,
   CheckSquare,
   FolderKanban,
-  History,
   Home,
   Inbox,
   KeyRound,
@@ -26,9 +24,11 @@ import {
   Moon,
   Palette,
   Search,
-  ShieldCheck,
+  Settings,
   Sun,
+  Users,
   Wallet,
+  Wrench,
 } from "lucide-react";
 import type { LeadOwner } from "@/lib/admin/db";
 import { otherTheme, themeCookie, type Theme } from "@/lib/admin/theme";
@@ -39,37 +39,56 @@ import { CallListener } from "./call-listener";
 import { CommandPalette } from "./command";
 import { mapRoom, onMapRoom } from "./presence";
 import { Face, Kbd, cn } from "./kit";
-import { ToastProvider, useModKey } from "./overlay";
+import { ToastProvider, useModKey, useToast } from "./overlay";
+import { ringPerson } from "./llamadas/actions";
 
 type NavItem = { href: string; label: string; icon: React.ReactNode; badge?: keyof Pulse; tone?: "accent" | "red" };
 
-const NAV: { title: string; items: NavItem[] }[] = [
+// Ordenado por el ciclo del cliente: vender → entregar → cobrar. Lo que se
+// configura una vez (Avisos, Seguridad, Registro, Llamadas) vive en Ajustes, al pie.
+const NAV: { title: string | null; items: NavItem[] }[] = [
   {
-    title: "Trabajo",
+    title: null,
     items: [
       { href: "/admin", label: "Inicio", icon: <Home size={16} /> },
-      { href: "/admin/llamadas", label: "Llamadas", icon: <Phone size={16} /> },
       { href: "/admin/mensajes", label: "Mensajes", icon: <MessagesSquare size={16} />, badge: "unread", tone: "accent" },
+    ],
+  },
+  {
+    title: "Clientes",
+    items: [
       { href: "/admin/pedidos", label: "Pedidos", icon: <Inbox size={16} />, badge: "newLeads", tone: "accent" },
-      { href: "/admin/proyectos", label: "Proyectos", icon: <FolderKanban size={16} /> },
+      { href: "/admin/clientes", label: "Clientes", icon: <Users size={16} /> },
+      { href: "/admin/proyectos", label: "Proyectos", icon: <FolderKanban size={16} />, badge: "lateProjects", tone: "red" },
+      { href: "/admin/mantenimiento", label: "Mantenimiento", icon: <Wrench size={16} />, badge: "maintenance", tone: "accent" },
+    ],
+  },
+  {
+    title: "Día a día",
+    items: [
       { href: "/admin/tareas", label: "Tareas", icon: <CheckSquare size={16} />, badge: "overdue", tone: "red" },
       { href: "/admin/calendario", label: "Calendario", icon: <CalendarRange size={16} /> },
-      { href: "/admin/contenido", label: "Contenido", icon: <Clapperboard size={16} />, badge: "content", tone: "accent" },
+    ],
+  },
+  {
+    title: "Plata",
+    items: [
+      { href: "/admin/finanzas", label: "Finanzas", icon: <Wallet size={16} />, badge: "lateCharges", tone: "red" },
+      { href: "/admin/metricas", label: "Números", icon: <BarChart3 size={16} /> },
     ],
   },
   {
     title: "Estudio",
     items: [
-      { href: "/admin/finanzas", label: "Finanzas", icon: <Wallet size={16} /> },
-      { href: "/admin/metricas", label: "Métricas", icon: <BarChart3 size={16} /> },
-      { href: "/admin/cambios", label: "Registro", icon: <History size={16} /> },
-      { href: "/admin/avisos", label: "Avisos", icon: <Bell size={16} /> },
-      { href: "/admin/cuentas", label: "Cuentas", icon: <KeyRound size={16} /> },
-      { href: "/admin/seguridad", label: "Seguridad", icon: <ShieldCheck size={16} /> },
+      { href: "/admin/contenido", label: "Contenido", icon: <Clapperboard size={16} />, badge: "content", tone: "accent" },
       { href: "/admin/marca", label: "Marca", icon: <Palette size={16} /> },
+      { href: "/admin/cuentas", label: "Cuentas", icon: <KeyRound size={16} /> },
     ],
   },
 ];
+
+/** Secciones que se abren desde Ajustes: con cualquiera abierta, Ajustes queda marcado. */
+export const SETTINGS_PATHS = ["/admin/ajustes", "/admin/avisos", "/admin/seguridad", "/admin/cambios", "/admin/llamadas"];
 
 const PulseCtx = createContext<{ pulse: Pulse | null; refresh: () => void }>({ pulse: null, refresh: () => {} });
 export const usePulse = () => useContext(PulseCtx);
@@ -78,10 +97,13 @@ export function AdminShell({
   who,
   theme: initialTheme,
   callFeed,
+  myRoom,
   children,
 }: {
   who: LeadOwner;
   theme: Theme;
+  /** Sala fija de Meet de quien está (MEET_LINK_<NOMBRE>): con ella, «Llamar» es un clic. */
+  myRoom: string | null;
   /** De dónde recibe las llamadas: null si los avisos no están configurados. */
   callFeed: { topic: string; server: string } | null;
   children: React.ReactNode;
@@ -156,7 +178,7 @@ export function AdminShell({
   }
 
   const sidebar = (
-    <Sidebar who={who} pathname={pathname} pulse={pulse} theme={theme} onTheme={toggleTheme} onSearch={() => setPalette(true)} />
+    <Sidebar who={who} myRoom={myRoom} pathname={pathname} pulse={pulse} theme={theme} onTheme={toggleTheme} onSearch={() => setPalette(true)} />
   );
 
   return (
@@ -204,6 +226,7 @@ export function AdminShell({
 
 function Sidebar({
   who,
+  myRoom,
   pathname,
   pulse,
   theme,
@@ -211,6 +234,7 @@ function Sidebar({
   onSearch,
 }: {
   who: LeadOwner;
+  myRoom: string | null;
   pathname: string;
   pulse: Pulse | null;
   theme: Theme;
@@ -219,6 +243,7 @@ function Sidebar({
 }) {
   const isActive = (href: string) =>
     href === "/admin" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+  const inSettings = SETTINGS_PATHS.some(isActive);
   const other = PEOPLE_IDS.find((p) => p !== who) ?? null;
   const mod = useModKey();
 
@@ -249,9 +274,9 @@ function Sidebar({
       </div>
 
       <nav aria-label="Secciones del panel" className="admin-scroll mt-4 flex-1 overflow-y-auto px-3">
-        {NAV.map((group) => (
-          <div key={group.title} className="mb-5">
-            <p className="mb-1.5 px-2.5 text-[11px] font-medium tracking-[0.12em] text-muted uppercase">{group.title}</p>
+        {NAV.map((group, gi) => (
+          <div key={group.title ?? gi} className="mb-5">
+            {group.title && <p className="mb-1.5 px-2.5 text-[11px] font-medium tracking-[0.12em] text-muted uppercase">{group.title}</p>}
             <ul className="space-y-px">
               {group.items.map((item) => {
                 const on = isActive(item.href);
@@ -284,10 +309,14 @@ function Sidebar({
                   </li>
                 );
               })}
+              {gi === 0 && (
+                <li>
+                  <LiveLink on={isActive("/admin/oficinas")} />
+                </li>
+              )}
             </ul>
           </div>
         ))}
-        <LiveLink on={isActive("/admin/oficinas")} />
       </nav>
 
       <div className="border-t border-[var(--line)] p-3">
@@ -296,6 +325,17 @@ function Sidebar({
           className="focus-ring mb-1 flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground"
         >
           <ArrowUpRight size={16} /> Ver el sitio
+        </Link>
+        <Link
+          href="/admin/ajustes"
+          aria-current={inSettings ? "page" : undefined}
+          className={cn(
+            "focus-ring mb-1 flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] transition-colors",
+            inSettings ? "bg-white/[0.07] font-medium text-foreground" : "text-muted hover:bg-white/[0.04] hover:text-foreground",
+          )}
+        >
+          <Settings size={16} /> Ajustes
+          <Pending />
         </Link>
         <div className="flex items-center gap-2.5 rounded-lg border border-[var(--line)] bg-white/[0.02] px-2 py-1.5">
           <span className="relative">
@@ -306,6 +346,7 @@ function Sidebar({
             <span className="block truncate text-[13px] font-medium">{PEOPLE[who].name}</span>
             <span className="block truncate text-[11px] text-muted">{other ? `Con ${PEOPLE[other].name}` : "Equipo"}</span>
           </span>
+          {other && <CallButton other={other} myRoom={myRoom} />}
           <button
             type="button"
             onClick={onTheme}
@@ -326,25 +367,63 @@ function Sidebar({
   );
 }
 
-/** «En vivo»: el mapa del estudio. Va aparte y en naranja, con el punto de «al aire». */
+/**
+ * «En vivo»: el mapa del estudio, arriba junto a Inicio. Sin el naranja (que en el
+ * panel quiere decir «atender»): es identidad, no urgencia. El punto verde es «al aire».
+ */
 function LiveLink({ on }: { on: boolean }) {
   return (
     <Link
       href="/admin/oficinas"
       aria-current={on ? "page" : undefined}
       className={cn(
-        "focus-ring relative mb-5 flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[14px] font-medium text-accent transition-colors hover:bg-accent-soft",
-        on && "bg-accent-soft",
+        "focus-ring group relative flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[14px] transition-colors",
+        on ? "bg-white/[0.07] font-medium text-foreground" : "text-muted hover:bg-white/[0.04] hover:text-foreground",
       )}
     >
       {on && <span aria-hidden className="absolute top-1.5 bottom-1.5 -left-3 w-[3px] rounded-r-full bg-accent shadow-[0_0_10px_var(--accent)]" />}
       <span aria-hidden className="relative flex h-4 w-4 items-center justify-center">
-        <span className="absolute h-2.5 w-2.5 animate-ping rounded-full bg-accent opacity-50 motion-reduce:hidden" />
-        <span className="h-2 w-2 rounded-full bg-accent shadow-[0_0_8px_var(--accent)]" />
+        <span className="h-2 w-2 rounded-full bg-emerald-400" />
       </span>
       En vivo
       <Pending />
     </Link>
+  );
+}
+
+/**
+ * «Llamar» junto a la cara del socio. Con sala fija abre Meet y le suena el panel al
+ * otro en un clic; sin sala fija lleva a Llamadas, que guía el paso a paso.
+ */
+function CallButton({ other, myRoom }: { other: LeadOwner; myRoom: string | null }) {
+  const flash = useToast();
+  const [pending, start] = useTransition();
+  const name = PEOPLE[other].name;
+  const cls = "focus-ring rounded-lg p-1.5 text-muted transition-colors hover:bg-white/[0.06] hover:text-foreground disabled:opacity-50";
+  if (!myRoom)
+    return (
+      <Link href="/admin/llamadas" aria-label={`Llamar a ${name}`} title={`Llamar a ${name}`} className={cls}>
+        <Phone size={16} />
+      </Link>
+    );
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      aria-label={`Llamar a ${name}`}
+      title={`Llamar a ${name}`}
+      className={cls}
+      onClick={() => {
+        // La pestaña se abre en el mismo clic: si no, el navegador la bloquea.
+        window.open(myRoom, "_blank", "noopener");
+        start(async () => {
+          const res = await ringPerson(other, myRoom);
+          flash(res.error ?? `Le suena el panel a ${name}.`, res.error ? "error" : undefined);
+        });
+      }}
+    >
+      <Phone size={16} />
+    </button>
   );
 }
 

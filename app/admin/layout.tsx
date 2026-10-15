@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { getSession } from "@/lib/admin/auth";
+import { parseMeetLink } from "@/lib/admin/calls";
 import { listenTopic, notificationServer } from "@/lib/admin/notify";
 import { THEME_COOKIE, parseTheme } from "@/lib/admin/theme";
 import "./admin-light.css";
@@ -32,7 +33,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // Tema al que escucha esta persona para recibir llamadas; solo lo ve quien tiene sesión.
   const topic = listenTopic(me.who);
   return (
-    <AdminShell who={me.who} theme={theme} callFeed={topic ? { topic, server: notificationServer() } : null}>
+    <AdminShell
+      who={me.who}
+      theme={theme}
+      callFeed={topic ? { topic, server: notificationServer() } : null}
+      myRoom={parseMeetLink(process.env[`MEET_LINK_${me.who.toUpperCase()}`])}
+    >
       {children}
     </AdminShell>
   );
