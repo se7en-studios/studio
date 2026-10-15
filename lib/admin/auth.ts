@@ -30,7 +30,8 @@ const personal = (who: LeadOwner): string | null =>
   process.env[`ADMIN_PASSWORD_${who.toUpperCase()}`]?.trim() || null;
 
 /** El secreto del segundo paso de cada uno (TOTP_SECRET_FRANCO / TOTP_SECRET_FEDERICO). */
-const totpRaw = (who: LeadOwner): string | null => process.env[`TOTP_SECRET_${who.toUpperCase()}`]?.trim() || null;
+const totpRaw = (who: LeadOwner): string | null =>
+  process.env[`TOTP_SECRET_${who.toUpperCase()}`]?.trim() || null;
 
 /**
  * Si la variable existe, entrar pide el código de la app. Si está mal copiada (un carácter de
@@ -48,15 +49,19 @@ export function totpStatus(who: LeadOwner): "off" | "ok" | "broken" {
 
 export function checkTotp(who: LeadOwner, code: string) {
   const secret = totpRaw(who);
-  return secret !== null && base32Decode(secret) !== null && verifyTotp(secret, code);
+  return (
+    secret !== null && base32Decode(secret) !== null && verifyTotp(secret, code)
+  );
 }
 
 // Estado para la pantalla de Seguridad: solo sí o no, nunca los valores.
 export const hasOwnPassword = (who: LeadOwner) => personal(who) !== null;
 export const sharedPasswordActive = () => password() !== null;
-export const sessionSecretStrong = () => (process.env.ADMIN_SESSION_SECRET?.length ?? 0) >= MIN_SECRET;
+export const sessionSecretStrong = () =>
+  (process.env.ADMIN_SESSION_SECRET?.length ?? 0) >= MIN_SECRET;
 
-const anyPassword = () => password() ?? OWNERS.map(personal).find(Boolean) ?? null;
+const anyPassword = () =>
+  password() ?? OWNERS.map(personal).find(Boolean) ?? null;
 
 function secret(): string | null {
   const p = anyPassword();
@@ -65,11 +70,15 @@ function secret(): string | null {
   // Sin ADMIN_SESSION_SECRET se deriva de la contraseña: anda, pero la firma
   // depende de un secreto más débil. No se corta el acceso para no dejar
   // afuera al equipo; en producción se avisa en el log.
-  if (process.env.NODE_ENV === "production" && !warned && (!s || s.length < MIN_SECRET)) {
+  if (
+    process.env.NODE_ENV === "production" &&
+    !warned &&
+    (!s || s.length < MIN_SECRET)
+  ) {
     warned = true;
     console.warn(
       `[admin] ADMIN_SESSION_SECRET falta o tiene menos de ${MIN_SECRET} caracteres. ` +
-        "Generar uno con `openssl rand -hex 32` y cargarlo en Vercel."
+        "Generar uno con `openssl rand -hex 32` y cargarlo en Vercel.",
     );
   }
   if (s) return s;
@@ -86,11 +95,22 @@ function safeEqual(a: string, b: string) {
   return x.length === y.length && timingSafeEqual(x, y);
 }
 
+/**
+ * El token del link público de una propuesta, derivado del `nonce` de la fila con
+ * una subllave propia: la base guarda sólo el nonce y el sha256 del token, así que
+ * un volcado no abre propuestas, y el panel puede volver a armar el link. null sin secreto.
+ */
+export function proposalToken(nonce: string): string | null {
+  const key = secret();
+  return key ? sign(`propuesta:${nonce}`, `${key}:propuesta`) : null;
+}
+
 export function adminConfigured() {
   return Boolean(anyPassword());
 }
 
-const digest = (text: string) => createHash("sha256").update(text).digest("hex");
+const digest = (text: string) =>
+  createHash("sha256").update(text).digest("hex");
 
 /**
  * Compara los hashes y no los textos: así el tiempo no delata el largo de la contraseña.
@@ -136,13 +156,17 @@ export async function unlockVault(who: LeadOwner) {
   if (!key) return;
   const exp = Date.now() + VAULT_TTL_MS;
   const value = `${exp}.${who}.vault`;
-  (await cookies()).set(VAULT_COOKIE, `${value}.${sign(value, vaultKey(key))}`, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    path: "/admin",
-    expires: new Date(exp),
-  });
+  (await cookies()).set(
+    VAULT_COOKIE,
+    `${value}.${sign(value, vaultKey(key))}`,
+    {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/admin",
+      expires: new Date(exp),
+    },
+  );
 }
 
 export async function vaultUnlocked(who: LeadOwner): Promise<boolean> {
@@ -150,7 +174,8 @@ export async function vaultUnlocked(who: LeadOwner): Promise<boolean> {
   const raw = (await cookies()).get(VAULT_COOKIE)?.value;
   if (!key || !raw) return false;
   const [exp, by, tag, mac] = raw.split(".");
-  if (!exp || by !== who || tag !== "vault" || !mac || Number(exp) < Date.now()) return false;
+  if (!exp || by !== who || tag !== "vault" || !mac || Number(exp) < Date.now())
+    return false;
   return safeEqual(mac, sign(`${exp}.${by}.${tag}`, vaultKey(key)));
 }
 
