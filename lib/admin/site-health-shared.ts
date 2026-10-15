@@ -14,18 +14,32 @@ export type SiteCheck = {
   /** YYYY-MM-DD */
   domain_expires_on: string | null;
   error: string;
+  /**
+   * La parte de la página que cambió desde la captura anterior (0 a 1; ver
+   * scripts/visual-diff.mjs). null si no había con qué comparar.
+   */
+  visual_change?: number | null;
+  /** La página quedó casi toda de un color: no cargó o quedó en blanco. */
+  blank?: boolean;
 };
 
 /** Más que esto hasta terminar de cargar (Chrome en GitHub Actions) es lento. */
 export const SLOW_MS = 5000;
 export const SSL_DAYS = 21;
 export const DOMAIN_DAYS = 30;
+/**
+ * Desde esta parte del contenido cambiada de un día para el otro, «se ve
+ * distinto». Dos capturas normales difieren 0-7 %; otro sitio, 49 % o más
+ * (ver scripts/visual-diff.mjs).
+ */
+export const VISUAL_CHANGE = 0.3;
 
-export type SiteAlertKind = "caido" | "lento" | "ssl" | "dominio";
+export type SiteAlertKind = "caido" | "lento" | "ssl" | "dominio" | "visual";
 export type SiteAlert = {
   slug: string;
   kind: SiteAlertKind;
   /** Días que faltan (SSL y dominio; negativo = vencido). */ days?: number;
+  /** «visual»: cuánto de la página cambió, en %; 100 si quedó en blanco. */ pct?: number;
 };
 
 export const ALERT_LABEL: Record<SiteAlertKind, string> = {
@@ -33,7 +47,12 @@ export const ALERT_LABEL: Record<SiteAlertKind, string> = {
   lento: "Lento",
   ssl: "SSL por vencer",
   dominio: "Dominio por vencer",
+  visual: "Se ve distinto",
 };
+
+/** «Se ve distinto · cambió el 62 % desde ayer», «Se ve distinto · quedó en blanco». */
+export const visualDetail = (pct: number | undefined) =>
+  pct === undefined ? "" : pct >= 100 ? "quedó en blanco" : `cambió el ${pct} % desde ayer`;
 
 const daysBetween = (from: string, to: string) =>
   Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000);
@@ -55,6 +74,10 @@ export function siteAlerts(
     if (!c.ok) out.push({ slug: c.project_slug, kind: "caido" });
     else if (c.ms !== null && c.ms > SLOW_MS)
       out.push({ slug: c.project_slug, kind: "lento" });
+    // Responde, pero se ve roto: en blanco, o muy distinto a la captura de ayer.
+    if (c.ok && c.blank) out.push({ slug: c.project_slug, kind: "visual", pct: 100 });
+    else if (c.ok && (c.visual_change ?? 0) >= VISUAL_CHANGE)
+      out.push({ slug: c.project_slug, kind: "visual", pct: Math.round((c.visual_change ?? 0) * 100) });
     if (c.ssl_expires_on) {
       const days = daysBetween(today, c.ssl_expires_on);
       if (days < SSL_DAYS)

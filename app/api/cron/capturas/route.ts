@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { saveCapture, sitesToCapture } from "@/lib/admin/capturas";
+import { latestCaptures, saveCapture, sitesToCapture } from "@/lib/admin/capturas";
 import { authorizeGithubJob } from "@/lib/admin/cron";
 import { PanelNotReady } from "@/lib/admin/panel";
 import { cleanCheck, insertCheck } from "@/lib/admin/site-health";
@@ -24,7 +24,9 @@ const MAX_BYTES = 4 * 1024 * 1024;
 export async function GET(request: Request) {
   const denied = await authorize(request);
   if (denied) return denied;
-  return NextResponse.json({ sites: await sitesToCapture() });
+  // Con la captura anterior de cada sitio: la tarea la compara con la nueva (alarma visual).
+  const [sites, captures] = await Promise.all([sitesToCapture(), latestCaptures()]);
+  return NextResponse.json({ sites: sites.map((s) => ({ ...s, prev: captures.get(s.slug)?.url ?? null })) });
 }
 
 export async function POST(request: Request) {

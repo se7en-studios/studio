@@ -8,19 +8,23 @@
  * 640 de ancho y la sube al panel. De paso guarda la salud de cada sitio: si
  * respondió, el código HTTP, cuánto tardó en cargar, cuándo vence el SSL y
  * cuándo vence el dominio (por RDAP; los .ar no siempre responden y se cargan
- * a mano en el plan de mantenimiento). En GitHub se identifica con el token OIDC
+ * a mano en el plan de mantenimiento). Y la alarma visual: compara la página
+ * con la captura anterior (scripts/visual-diff.mjs) y manda cuánto cambió y si
+ * quedó en blanco; el panel avisa «Se ve distinto». En GitHub se identifica con el token OIDC
  * de la tarea (no hace falta ningún secreto). También se puede correr a mano:
  *
  *   PANEL_URL=https://se7enstudio.vercel.app CRON_SECRET=… node scripts/capturar-sitios.mjs
- *   node scripts/capturar-sitios.mjs --local     (los casos de data/projects.ts, a .capturas/, sin subir)
+ *   node scripts/capturar-sitios.mjs --local     (los casos de data/projects.ts, a .capturas/, sin subir;
+ *                                                 compara con lo que ya había en .capturas/)
  *
  * Usa CHROME_PATH o el Chrome que cachea Puppeteer
  * (`npx puppeteer browsers install chrome`).
  */
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import puppeteer from "puppeteer-core";
+import { compareGrids, GRID_W, isBlank } from "./visual-diff.mjs";
 
 const LOCAL = process.argv.includes("--local");
 const PANEL = (process.env.PANEL_URL ?? "").replace(/\/$/, "");
@@ -44,10 +48,11 @@ function findChrome() {
   return null;
 }
 
+/** Los sitios, con la captura anterior de cada uno (`prev`: URL, o archivo en --local). */
 async function listSites() {
   if (LOCAL) {
     const { projects } = await import("../data/projects.ts");
-    return projects.filter((p) => p.url).map((p) => ({ slug: p.slug, url: p.url }));
+    return projects.filter((p) => p.url).map((p) => ({ slug: p.slug, url: p.url, prev: join(OUT, `${p.slug}.jpg`) }));
   }
   if (!PANEL) throw new Error("Falta PANEL_URL (o correr con --local).");
   const res = await fetch(`${PANEL}/api/cron/capturas`, { headers: { Authorization: await authorization() } });
@@ -80,6 +85,17 @@ async function capture(browser, url, check) {
   const page = await browser.newPage();
   try {
     await page.setViewport({ ...VIEW, deviceScaleFactor: 1 });
+    // Como la ve alguien de acá, y siempre igual (la alarma visual compara día
+    // contra día): en claro, hora de Argentina y en español. Hay sitios que
+    // siguen el tema del sistema o eligen el idioma con navigator.language, y en
+    // el runner de GitHub (Linux, en inglés, UTC) Apex salía en inglés.
+    await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "light" }]);
+    await page.emulateTimezone("America/Argentina/Buenos_Aires");
+    await page.setExtraHTTPHeaders({ "Accept-Language": "es-AR,es;q=0.9" });
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, "language", { get: () => "es-AR" });
+      Object.defineProperty(navigator, "languages", { get: () => ["es-AR", "es"] });
+    });
     const started = Date.now();
     const res = await page.goto(url, { waitUntil: "networkidle2", timeout: 45_000 });
     check.status_code = res?.status() ?? null;
@@ -138,6 +154,52 @@ async function capture(browser, url, check) {
   }
 }
 
+/** La captura achicada a la grilla de visual-diff.mjs, en una página en blanco. */
+async function gridOf(page, jpeg) {
+  const r = await page.evaluate(
+    async (src, W) => {
+      const img = new Image();
+      img.src = src;
+      await img.decode();
+      const h = Math.max(1, Math.round((img.height * W) / img.width));
+      const cv = document.createElement("canvas");
+      cv.width = W;
+      cv.height = h;
+      const g = cv.getContext("2d");
+      g.imageSmoothingQuality = "high";
+      g.drawImage(img, 0, 0, W, h);
+      const d = g.getImageData(0, 0, W, h).data;
+      const rgb = new Array((d.length / 4) * 3);
+      for (let i = 0, j = 0; i < d.length; i += 4, j += 3) [rgb[j], rgb[j + 1], rgb[j + 2]] = [d[i], d[i + 1], d[i + 2]];
+      return { h, rgb };
+    },
+    `data:image/jpeg;base64,${Buffer.from(jpeg).toString("base64")}`,
+    GRID_W,
+  );
+  return { w: GRID_W, h: r.h, data: Uint8Array.from(r.rgb) };
+}
+
+/** La captura anterior: la que tiene el panel o, en --local, la que quedó en .capturas/. */
+async function previous(prev) {
+  if (!prev) return null;
+  if (LOCAL) return existsSync(prev) ? readFileSync(prev) : null;
+  if (!/^https:\/\//.test(prev)) return null;
+  const res = await fetch(prev, { signal: AbortSignal.timeout(15_000) });
+  return res.ok ? Buffer.from(await res.arrayBuffer()) : null;
+}
+
+/** Cuánto cambió la página desde la captura anterior y si quedó en blanco. */
+async function visualCheck(browser, jpeg, prevJpeg) {
+  const page = await browser.newPage();
+  try {
+    const next = await gridOf(page, jpeg);
+    const before = prevJpeg ? await gridOf(page, prevJpeg) : null;
+    return { visual_change: before ? Math.round(compareGrids(before, next) * 1000) / 1000 : null, blank: isBlank(next) };
+  } finally {
+    await page.close();
+  }
+}
+
 const domains = new Map();
 
 /** Vencimiento del dominio por RDAP (YYYY-MM-DD), o null si no se puede saber. */
@@ -160,13 +222,16 @@ async function domainExpiry(url) {
   return domains.get(domain);
 }
 
+/** Guarda el chequeo. false si el panel todavía no tiene la tabla (503): eso no es una falla de la tarea. */
 async function sendCheck(slug, check) {
   const res = await fetch(`${PANEL}/api/cron/capturas?${new URLSearchParams({ slug })}`, {
     method: "POST",
     headers: { Authorization: await authorization(), "Content-Type": "application/json" },
     body: JSON.stringify(check),
   });
+  if (res.status === 503) return false;
   if (!res.ok) throw new Error(`no se guardó el chequeo (${res.status}): ${await res.text()}`);
+  return true;
 }
 
 async function upload(slug, shot) {
@@ -187,11 +252,17 @@ if (!executablePath) {
 const sites = await listSites();
 if (LOCAL) mkdirSync(OUT, { recursive: true });
 const browser = await puppeteer.launch({ executablePath, headless: true, args: ["--lang=es-AR", "--hide-scrollbars"] });
-let failed = 0;
-for (const { slug, url } of sites) {
-  const check = { ok: false, status_code: null, ms: null, ssl_expires_on: null, domain_expires_on: await domainExpiry(url), error: "" };
+let failed = 0, unsaved = 0, noTable = false;
+for (const { slug, url, prev } of sites) {
+  const check = { ok: false, status_code: null, ms: null, ssl_expires_on: null, domain_expires_on: await domainExpiry(url), error: "", visual_change: null, blank: false };
   try {
     const shot = await capture(browser, url, check);
+    // Contra la anterior antes de pisarla (en --local es el mismo archivo).
+    try {
+      Object.assign(check, await visualCheck(browser, shot.jpeg, await previous(prev)));
+    } catch (e) {
+      console.error(`  (sin comparar ${slug} con la anterior: ${e instanceof Error ? e.message : e})`);
+    }
     if (LOCAL) writeFileSync(join(OUT, `${slug}.jpg`), shot.jpeg);
     else await upload(slug, shot);
     console.log(`✓ ${slug}  ${shot.width}×${shot.height}  ${Math.round(shot.jpeg.length / 1024)} KB`);
@@ -201,18 +272,25 @@ for (const { slug, url } of sites) {
     console.error(`✗ ${slug} (${url}): ${e instanceof Error ? e.message : e}`);
   }
   // El chequeo se guarda aunque la captura haya fallado: justamente ahí importa.
-  const health = `${check.ok ? "OK" : "CAÍDO"} ${check.status_code ?? "-"} ${check.ms ?? "-"} ms · SSL ${check.ssl_expires_on ?? "?"} · dominio ${check.domain_expires_on ?? "?"}`;
+  const visual = check.blank ? " · EN BLANCO" : check.visual_change === null ? "" : ` · cambió ${Math.round(check.visual_change * 100)} %`;
+  const health = `${check.ok ? "OK" : "CAÍDO"} ${check.status_code ?? "-"} ${check.ms ?? "-"} ms · SSL ${check.ssl_expires_on ?? "?"} · dominio ${check.domain_expires_on ?? "?"}${visual}`;
   if (LOCAL) console.log(`  ${health}`);
   else
     await sendCheck(slug, check).then(
-      () => console.log(`  ${health}`),
+      (saved) => {
+        console.log(`  ${health}`);
+        if (!saved) noTable = true;
+      },
       (e) => {
-        failed++;
+        unsaved++;
         console.error(`  ✗ salud de ${slug}: ${e instanceof Error ? e.message : e}`);
       },
     );
 }
 await browser.close();
 console.log(`${sites.length - failed} de ${sites.length} sitios capturados${LOCAL ? ` en ${OUT}/` : ""}.`);
+if (unsaved) console.error(`${unsaved} chequeos de salud sin guardar.`);
+// La salud todavía no está en la base: las capturas igual se subieron, así que no es una falla.
+if (noTable) console.warn("Los chequeos de salud no se guardaron: falta correr supabase/site-health.sql en Supabase.");
 // Si falló alguno, la tarea queda en rojo (las que salieron ya están subidas).
-if (failed) process.exit(1);
+if (failed || unsaved) process.exit(1);

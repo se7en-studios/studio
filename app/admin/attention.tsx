@@ -24,6 +24,7 @@ import type { Lead } from "@/lib/admin/db";
 import type { Meeting } from "@/lib/admin/sales-shared";
 import {
   ALERT_LABEL,
+  visualDetail,
   type SiteAlertKind,
 } from "@/lib/admin/site-health-shared";
 import { dayKey, dueLabel } from "@/lib/admin/task-shared";
@@ -71,7 +72,7 @@ export type AttentionProps = {
   /** Posts de Instagram de hoy o atrasados, sin publicar. */
   content?: DuePost[];
   /** Alertas de los sitios (caído, lento, SSL, dominio), con el nombre del proyecto. */
-  sites?: { slug: string; name: string; kind: SiteAlertKind; days?: number }[];
+  sites?: { slug: string; name: string; kind: SiteAlertKind; days?: number; pct?: number }[];
   /** Pedidos de mantenimiento abiertos con prioridad urgente o alta. */
   requests?: {
     id: string;
@@ -115,11 +116,13 @@ function buildItems(p: AttentionProps): TodayItem[] {
       href: "/admin/mantenimiento",
       title: s.name,
       detail:
-        s.days === undefined
-          ? ALERT_LABEL[s.kind]
-          : `${ALERT_LABEL[s.kind]} · ${s.days < 0 ? `vencido hace ${-s.days} días` : `en ${s.days} días`}`,
+        s.kind === "visual"
+          ? `${ALERT_LABEL.visual} · ${visualDetail(s.pct)}`
+          : s.days === undefined
+            ? ALERT_LABEL[s.kind]
+            : `${ALERT_LABEL[s.kind]} · ${s.days < 0 ? `vencido hace ${-s.days} días` : `en ${s.days} días`}`,
       tone:
-        s.kind === "caido" || (s.days !== undefined && s.days < 7)
+        s.kind === "caido" || (s.kind === "visual" && (s.pct ?? 0) >= 100) || (s.days !== undefined && s.days < 7)
           ? "red"
           : "amber",
     })),
