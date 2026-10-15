@@ -1,7 +1,10 @@
 "use client";
 
 // En la ficha de un pedido ganado: crea su proyecto (con cliente, monto,
-// responsable y la idea ya cargados) o, si ya existe, lleva a él.
+// responsable y la idea ya cargados) o, si ya existe, lleva a él. El cliente se
+// crea o se vincula a uno que ya exista (mismo email o nombre) con el contacto
+// del pedido; las tareas del pedido pasan al proyecto y el pedido queda
+// vinculado, con su chat y su historial.
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -18,7 +21,9 @@ export function WonProject({ leadId, slug }: { leadId: string; slug: string | nu
     <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-400/20 bg-emerald-400/[0.05] px-3.5 py-3">
       <p className="text-[13px]">
         <span className="block text-[11px] font-medium tracking-wide text-emerald-300 uppercase">Ganado</span>
-        {slug ? "Este pedido ya tiene su proyecto." : "Pasalo a proyecto: cliente, monto y responsable se copian solos."}
+        {slug
+          ? "Este pedido ya tiene su proyecto."
+          : "Pasalo a proyecto: el cliente (nuevo o uno que ya tengan) con su contacto, el monto, el responsable y las tareas pasan solos."}
         {error && <span className="mt-1 block text-[12px] text-red-400">{error}</span>}
       </p>
       {slug ? (
