@@ -33,6 +33,10 @@ assert.equal(morningDigest({ ...base, overdueTasks: 2 }).message, "• 2 tareas 
 assert.equal(morningDigest({ ...base, dueTodayTasks: 1 }).message, "• 1 tarea para hoy");
 assert.equal(morningDigest({ ...base, newLeads: 1 }).message, "• 1 pedido sin responder");
 assert.equal(morningDigest({ ...base, posts: [{ title: "x", date: "2026-10-01" }] }).message, "• 1 post atrasado sin publicar");
+// Cobros vencidos: cantidad y total, sin nombres de clientes; en cero no suman línea.
+assert.equal(morningDigest({ ...base, lateCharges: { count: 1, usd: 450.4 } }).message, "• 1 cobro vencido: USD 450");
+assert.equal(morningDigest({ ...base, lateCharges: { count: 3, usd: 1200 } }).message, "• 3 cobros vencidos: USD 1.200");
+assert.equal(morningDigest({ ...base, lateCharges: { count: 0, usd: 0 } }), null);
 
 // Tarde: título según cantidad, y abre Contenido.
 const one = eveningReminder([{ title: "Carrusel: Takefyy", date: today }], today);

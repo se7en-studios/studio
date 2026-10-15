@@ -3,6 +3,8 @@ import { authorizeCron } from "@/lib/admin/cron";
 import { listDue } from "@/lib/admin/content";
 import { countNewLeads } from "@/lib/admin/db";
 import { morningDigest } from "@/lib/admin/digest";
+import { listEntries } from "@/lib/admin/finance";
+import { usdOf } from "@/lib/admin/finance-shared";
 import { notificationsConfigured, notify } from "@/lib/admin/notify";
 import { bucket, dayKey } from "@/lib/admin/task-shared";
 import { listTasks } from "@/lib/admin/tasks";
@@ -36,13 +38,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ sent: false, reason: "Falta NTFY_TOPIC." });
 
   const today = dayKey();
-  const [posts, tasks, newLeads, tools] = await Promise.all([
+  const [posts, tasks, newLeads, tools, entries] = await Promise.all([
     orEmpty("posts", listDue(today), []),
     orEmpty("tareas", listTasks(), []),
     orEmpty("pedidos", countNewLeads(), 0),
     orEmpty("herramientas", listTools(), []),
+    orEmpty("finanzas", listEntries(), []),
   ]);
   const open = tasks.filter((t) => !t.done_at);
+  // Los pendientes de #70 (ingresos «pendiente») cuya fecha prevista ya pasó: lo mismo que «late» en receivables().
+  const late = entries.filter((e) => e.kind === "ingreso" && e.status === "pendiente" && e.occurred_on < today);
 
   const notice = morningDigest({
     posts: posts.map((p) => ({ title: p.title, date: p.post_date })),
@@ -50,6 +55,7 @@ export async function GET(request: Request) {
     overdueTasks: open.filter((t) => bucket(t, today) === "vencidas").length,
     dueTodayTasks: open.filter((t) => bucket(t, today) === "hoy").length,
     newLeads: newLeads ?? 0,
+    lateCharges: { count: late.length, usd: late.reduce((s, e) => s + usdOf(e), 0) },
     // El día 1 de cada mes se recuerda bajar la copia de seguridad.
     backupDue: today.endsWith("-01"),
     // Sólo las que renuevan en 3 días o menos.

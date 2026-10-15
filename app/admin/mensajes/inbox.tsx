@@ -2,16 +2,16 @@
 
 // Lista de conversaciones a la izquierda, la conversación elegida a la
 // derecha. Cambiar de conversación sólo cambia la URL (?c=…), sin recargar.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, FolderKanban, Hash, Inbox as InboxIcon, Plus } from "lucide-react";
+import { ArrowUpRight, FolderKanban, Hash, Inbox as InboxIcon, Plus, Search } from "lucide-react";
 import { ago } from "@/lib/admin/brief";
 import type { LeadOwner } from "@/lib/admin/db";
 import { PEOPLE } from "@/lib/admin/people";
 import { GENERAL, leadChannel, parseChannel, projectChannel, type ChannelSummary, type Message } from "@/lib/admin/message-shared";
 import { cn } from "../kit";
-import { Chat } from "./chat";
+import { Chat, SearchResults } from "./chat";
 
 export function Inbox({
   me,
@@ -30,6 +30,24 @@ export function Inbox({
   const [channel, setChannel] = useState(initialChannel);
   const [summaries, setSummaries] = useState(initial);
   const [picking, setPicking] = useState(false);
+  // Búsqueda en todas las conversaciones (la de una sola está en el chat).
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Message[] | null>(null);
+  const searching = query.trim().length >= 2;
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) return;
+    const id = window.setTimeout(async () => {
+      try {
+        const r = await fetch(`/admin/api/messages?q=${encodeURIComponent(q)}`, { cache: "no-store" });
+        const data = await r.json();
+        setResults(r.ok ? (data.messages as Message[]) : []);
+      } catch {
+        setResults([]);
+      }
+    }, 300);
+    return () => window.clearTimeout(id);
+  }, [query]);
 
   const title = (c: string) => {
     const p = parseChannel(c);
@@ -83,6 +101,32 @@ export function Inbox({
           </button>
         </div>
         {picking && <Picker projects={projects} leads={leads} onPick={open} />}
+        <label className="relative flex items-center border-b border-[var(--line)] p-2">
+          <Search size={13} className="pointer-events-none absolute left-4.5 text-muted" />
+          <input
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setResults(null);
+            }}
+            placeholder="Buscar en todos los mensajes…"
+            aria-label="Buscar en todos los mensajes"
+            className="focus-ring w-full rounded-md border border-[var(--line-strong)] bg-[var(--well)] py-1.5 pr-2.5 pl-8 text-[13px] placeholder:text-muted/60"
+          />
+        </label>
+        {searching ? (
+          <div className="admin-scroll min-h-0 flex-1 overflow-y-auto p-2">
+            <SearchResults
+              results={results}
+              me={me}
+              title={title}
+              onPick={(c) => {
+                setQuery("");
+                open(c);
+              }}
+            />
+          </div>
+        ) : (
         <ul className="admin-scroll min-h-0 flex-1 overflow-y-auto p-2">
           {list.map((s) => {
             const p = parseChannel(s.channel);
@@ -106,7 +150,7 @@ export function Inbox({
                     </span>
                     <span className="mt-0.5 flex items-center gap-2">
                       <span className={cn("truncate text-[12px]", s.unread ? "text-foreground/80" : "text-muted")}>
-                        {s.last ? `${s.last.author === me ? "Vos" : PEOPLE[s.last.author].name}: ${s.last.body}` : "Sin mensajes"}
+                        {s.last ? `${s.last.author === me ? "Vos" : PEOPLE[s.last.author].name}: ${s.last.body || "mandó un adjunto"}` : "Sin mensajes"}
                       </span>
                       {s.unread > 0 && (
                         <span className="ml-auto shrink-0 rounded-full bg-accent px-1.5 py-px font-mono text-[11px] font-medium text-background">{s.unread}</span>
@@ -118,6 +162,7 @@ export function Inbox({
             );
           })}
         </ul>
+        )}
       </aside>
 
       <section className="flex min-h-0 flex-col">

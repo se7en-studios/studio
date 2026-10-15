@@ -26,13 +26,9 @@ export default async function ContenidoPage() {
     <div className="space-y-8">
       <PageHeader title="Contenido">
         Lo que hay que subir a Instagram, día por día: archivos para descargar,
-        caption para copiar y el visto cuando se publicó.
+        caption para copiar y el visto cuando se publicó. Se agenda y reprograma desde acá.
       </PageHeader>
-      {setup || posts.length === 0 ? (
-        <ContentSetup tableMissing={Boolean(setup)} />
-      ) : (
-        <ContentView posts={posts} />
-      )}
+      {setup ? <ContentSetup tableMissing /> : <ContentView posts={posts} />}
     </div>
   );
 }

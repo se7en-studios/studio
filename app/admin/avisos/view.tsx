@@ -49,7 +49,7 @@ const WHEN = [
   },
   {
     what: "Resumen del día",
-    when: "Todos los días a las 9:00: posts, tareas vencidas y pedidos sin responder",
+    when: "Todos los días a las 9:00: posts, tareas vencidas, pedidos sin responder y cobros vencidos (cantidad y total)",
     cron: true,
   },
   {
