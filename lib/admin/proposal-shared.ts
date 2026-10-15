@@ -5,6 +5,7 @@
 import { addDays } from "./calendar-shared";
 import { fmt, isRealDay, type Currency } from "./finance-shared";
 import { installments } from "./plata-shared";
+import { dayKey } from "./task-shared";
 import {
   EXPRESS_MULTIPLIER,
   USD_TO_ARS,
@@ -241,7 +242,8 @@ export function acceptedContent(
     days,
     valid_until: p.valid_until,
     payment: p.payment,
-    plan: paymentPlan(total, p.payment, signer.at.slice(0, 10), days),
+    // Seña: el día de Argentina en que se aceptó.
+    plan: paymentPlan(total, p.payment, dayKey(0, Date.parse(signer.at)), days),
     signer,
   };
 }

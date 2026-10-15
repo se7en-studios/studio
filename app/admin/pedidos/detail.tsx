@@ -22,6 +22,7 @@ import { ActivityLog } from "./activity";
 import type { ContactFields } from "./actions";
 import { DealFields } from "./deal";
 import { LostReason } from "./lost";
+import { Proposals } from "./proposals";
 import { Reply } from "./reply";
 import { WonProject } from "./won-project";
 import { COLUMNS, STAGE } from "./stages";
@@ -252,6 +253,8 @@ export function Detail({
           )}
 
           <DealFields lead={lead} onContact={deal.onContact} onValue={deal.onValue} onExpectedClose={deal.onExpectedClose} />
+
+          <Proposals key={lead.id} lead={lead} onStatus={onStatus} />
 
           {followUp && <FollowUps lead={lead} {...followUp} />}
 
