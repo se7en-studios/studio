@@ -92,17 +92,28 @@ export function PageHeader({
   children,
   right,
   eyebrow,
+  accent,
 }: {
   title: React.ReactNode;
   children?: React.ReactNode;
   right?: React.ReactNode;
   eyebrow?: React.ReactNode;
+  /** Palabra final en serif naranja (en la home, el nombre de quien entra). */
+  accent?: React.ReactNode;
 }) {
   return (
     <header className="flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
         {eyebrow && <p className="mb-2 font-mono text-[11px] tracking-[0.14em] text-muted uppercase">{eyebrow}</p>}
-        <h1 className="text-[26px] leading-[1.1] font-semibold tracking-[-0.03em] text-foreground md:text-[32px]">{title}</h1>
+        <h1 className="adm-display text-[26px] text-balance text-foreground md:text-[34px]">
+          {title}
+          {accent && (
+            <>
+              {" "}
+              <span className="adm-serif">{accent}</span>
+            </>
+          )}
+        </h1>
         {children && <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-muted">{children}</p>}
       </div>
       {right && <div className="flex flex-wrap items-center gap-2">{right}</div>}
@@ -189,22 +200,26 @@ export function Kpi({
   href?: string;
   icon?: React.ReactNode;
 }) {
+  // Lo que pide atención (tono naranja) va relleno, como en el prototipo del panel.
+  const filled = tone === "accent";
   const body = (
     <>
-      <p className="flex items-center justify-between gap-2 text-[12px] font-medium text-muted">
+      <p className={cn("flex items-center justify-between gap-2 font-mono text-[11px] tracking-[0.1em] uppercase", filled ? "text-background/90" : "text-muted")}>
         {label}
-        {icon && <span className="text-muted">{icon}</span>}
+        {icon && <span>{icon}</span>}
       </p>
-      <p className={cn("mt-3 text-[28px] leading-none font-semibold tracking-[-0.03em] tabular-nums", tone ? TONE[tone] : "text-foreground")}>
+      <p className={cn("adm-num mt-3 text-[34px] leading-none tabular-nums", filled ? "text-background" : tone ? TONE[tone] : "text-foreground")}>
         {value}
       </p>
-      {hint && <p className="mt-2 truncate text-[12px] text-muted">{hint}</p>}
+      {hint && <p className={cn("mt-2 truncate text-[12px]", filled ? "text-background" : "text-muted")}>{hint}</p>}
     </>
   );
-  const cls =
-    "block h-full rounded-xl border border-[var(--line)] bg-[var(--panel)] p-4 shadow-[var(--shadow-card)]";
+  const cls = cn(
+    "block h-full rounded-xl border p-4 shadow-[var(--shadow-card)]",
+    filled ? "border-transparent bg-accent" : "border-[var(--line)] bg-[var(--panel)]",
+  );
   return href ? (
-    <Link href={href} className={cn("focus-ring transition-[border-color,background-color,transform] hover:-translate-y-px hover:border-[var(--line-strong)] hover:bg-[var(--panel-2)]", cls)}>
+    <Link href={href} className={cn("focus-ring transition-[border-color,background-color,transform] hover:-translate-y-px hover:border-[var(--line-strong)]", filled ? "hover:bg-[var(--accent-hover)]" : "hover:bg-[var(--panel-2)]", cls)}>
       {body}
     </Link>
   ) : (

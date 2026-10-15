@@ -5,6 +5,7 @@ import { parseMeetLink } from "@/lib/admin/calls";
 import { listenTopic, notificationServer } from "@/lib/admin/notify";
 import { THEME_COOKIE, parseTheme } from "@/lib/admin/theme";
 import "./admin-light.css";
+import { serif, wide } from "@/lib/rd-fonts";
 import { AdminShell } from "./shell";
 
 // Panel interno de Franco y Federico. Fuera de buscadores (robots.ts también
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
 /** El color de la barra del celular sigue al tema elegido en el panel. */
 export async function generateViewport(): Promise<Viewport> {
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
-  return { themeColor: theme === "light" ? "#f1f1ee" : "#0a0a0b" };
+  return { themeColor: theme === "light" ? "#ece7dc" : "#0a0a0b" };
 }
 
 // Sólo arma el marco del panel. El chequeo de sesión de verdad está en cada
@@ -29,17 +30,29 @@ export async function generateViewport(): Promise<Viewport> {
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const me = await getSession();
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
-  if (!me) return <div className="admin-app min-h-dvh" data-theme={theme}>{children}</div>;
+  // `contents`: el div sólo reparte las variables de fuente (--font-wide, --font-serif) al panel.
+  const fonts = `contents ${wide.variable} ${serif.variable}`;
+  if (!me) {
+    return (
+      <div className={fonts}>
+        <div className="admin-app min-h-dvh" data-theme={theme}>
+          {children}
+        </div>
+      </div>
+    );
+  }
   // Tema al que escucha esta persona para recibir llamadas; solo lo ve quien tiene sesión.
   const topic = listenTopic(me.who);
   return (
-    <AdminShell
-      who={me.who}
-      theme={theme}
-      callFeed={topic ? { topic, server: notificationServer() } : null}
-      myRoom={parseMeetLink(process.env[`MEET_LINK_${me.who.toUpperCase()}`])}
-    >
-      {children}
-    </AdminShell>
+    <div className={fonts}>
+      <AdminShell
+        who={me.who}
+        theme={theme}
+        callFeed={topic ? { topic, server: notificationServer() } : null}
+        myRoom={parseMeetLink(process.env[`MEET_LINK_${me.who.toUpperCase()}`])}
+      >
+        {children}
+      </AdminShell>
+    </div>
   );
 }
