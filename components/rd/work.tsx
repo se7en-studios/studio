@@ -259,7 +259,6 @@ function Card({
             loop
             playsInline
             preload="none"
-            poster={project.image}
           >
             <source src={project.video.webm} type="video/webm" />
             <source src={project.video.mp4} type="video/mp4" />

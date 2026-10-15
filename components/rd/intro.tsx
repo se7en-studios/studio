@@ -24,7 +24,7 @@ export function useIntroReady(): boolean {
 
 const SEEN_KEY = "rd-intro-seen";
 /** Duración del conteo 000→100, en ms. */
-const COUNT_MS = 1500;
+const COUNT_MS = 1000;
 
 function wasSeen(): boolean {
   try {
