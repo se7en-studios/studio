@@ -60,6 +60,9 @@ export type Delivery = {
 const plain = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
+/** Las palabras de un texto, sin tildes ni signos, con un espacio a cada lado. */
+const words = (s: string) => ` ${plain(s).replace(/[^a-z0-9]+/g, " ").trim()} `;
+
 /** Slug del proyecto cuyo nombre aparece en el título; el nombre más largo gana. */
 const MIN_KEYWORD = 4;
 
@@ -67,15 +70,15 @@ export function projectOfTitle(
   title: string,
   projects: { slug: string; name: string }[],
 ): string | null {
-  const t = plain(title);
+  // Por palabras completas: «pone» no tiene que encontrarse en «componente».
+  const t = words(title);
+  const has = (phrase: string) => phrase.trim() !== "" && t.includes(words(phrase));
   const byLength = [...projects].sort((a, b) => b.name.length - a.name.length);
-  const exact = byLength.find(
-    (p) => t.includes(plain(p.name)) || t.includes(p.slug.replaceAll("-", " ")),
-  );
+  const exact = byLength.find((p) => has(p.name) || has(p.slug.replaceAll("-", " ")));
   // «La web de Apex» nombra al proyecto «Apex Performance» sólo por su primera palabra.
   const firstWord = byLength.find((p) => {
-    const w = plain(p.name).split(" ")[0];
-    return w.length >= MIN_KEYWORD && t.includes(w);
+    const w = words(p.name).trim().split(" ")[0];
+    return w.length >= MIN_KEYWORD && has(w);
   });
   return (exact ?? firstWord)?.slug ?? null;
 }
