@@ -1,0 +1,75 @@
+/* Rediseño de la landing. Todo cuelga de .rd: no toca el resto del sitio. */
+@layer components {
+  .rd {
+    --ink: #0b0b0c;
+    --ink-2: #151517;
+    --ink-3: #1e1e21;
+    --paper: #f2eee6;
+    --paper-2: #e6e0d4;
+    --signal: #ff4d2e;
+    --signal-2: #ff6a4f;
+    --mute: #8d8982;
+    --mute-ink: #5d5952;
+    --line: #f2eee624;
+    --line-ink: #0b0b0c24;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-io: cubic-bezier(0.76, 0, 0.24, 1);
+    --gutter: clamp(16px, 3.2vw, 48px);
+    background: var(--ink);
+    color: var(--paper);
+    font-family: var(--font-wide), system-ui, sans-serif;
+    overflow-x: clip;
+  }
+  .rd * { border-color: revert-layer; }
+  .rd ::selection { background: var(--signal); color: var(--ink); }
+  .rd section[id] { scroll-margin-top: 0; }
+
+  .rd-display { font-family: var(--font-wide), system-ui, sans-serif; font-variation-settings: "wdth" 125; text-transform: uppercase; letter-spacing: -0.035em; font-weight: 800; line-height: 0.84; }
+  .rd-condensed { font-family: var(--font-wide), system-ui, sans-serif; font-variation-settings: "wdth" 62; text-transform: uppercase; letter-spacing: -0.01em; font-weight: 800; line-height: 0.86; }
+  .rd-serif { font-family: var(--font-serif), "Times New Roman", serif; text-transform: none; letter-spacing: -0.02em; font-variation-settings: normal; font-style: italic; font-weight: 400; }
+  .rd-display .rd-serif { font-size: 1.12em; line-height: 0.7; }
+  .rd-body { font-family: var(--font-wide), system-ui, sans-serif; font-variation-settings: "wdth" 100; letter-spacing: -0.005em; font-weight: 400; }
+  .rd-label { font-family: var(--font-chivo-mono), ui-monospace, monospace; letter-spacing: 0.14em; text-transform: uppercase; font-size: 11px; font-weight: 500; line-height: 1.4; }
+  .rd-wrap { width: 100%; padding-inline: var(--gutter); max-width: 1680px; margin-inline: auto; }
+  .rd-mask { margin-block: -0.16em -0.08em; padding-block: 0.16em 0.08em; display: block; overflow: hidden; }
+
+  .rd-btn { --btn-bg: var(--signal); --btn-fg: var(--ink); background: var(--btn-bg); height: 3.5rem; color: var(--btn-fg); font-variation-settings: "wdth" 110; letter-spacing: -0.01em; text-transform: uppercase; white-space: nowrap; isolation: isolate; transition: transform 0.5s var(--ease-out); border-radius: 999px; align-items: center; gap: 0.75rem; padding: 0 0.5rem 0 1.6rem; font-size: 0.95rem; font-weight: 700; display: inline-flex; position: relative; overflow: hidden; }
+  .rd-btn:before { content: ""; z-index: -1; border-radius: inherit; background: var(--paper); transition: transform 0.55s var(--ease-io); position: absolute; inset: 0; transform: translateY(101%); }
+  .rd-btn:hover:before, .rd-btn:focus-visible:before { transform: translateY(0); }
+  .rd-btn--ink { --btn-bg: var(--ink); --btn-fg: var(--paper); }
+  .rd-btn--ink:before { background: var(--signal); }
+  .rd-btn--ink:hover, .rd-btn--ink:focus-visible { color: var(--ink); }
+  .rd-btn--ghost { --btn-bg: transparent; --btn-fg: var(--paper); box-shadow: inset 0 0 0 1px var(--line); padding-right: 1.6rem; }
+  .rd-btn--ghost:hover, .rd-btn--ghost:focus-visible { color: var(--ink); }
+  .rd-btn__icon { background: var(--btn-fg); width: 2.5rem; height: 2.5rem; color: var(--btn-bg); transition: transform 0.55s var(--ease-io), background-color 0.4s var(--ease-out), color 0.4s var(--ease-out); border-radius: 999px; place-items: center; display: grid; }
+  .rd-btn:hover .rd-btn__icon { background: var(--ink); color: var(--paper); transform: rotate(-45deg); }
+
+  .rd-roll { line-height: 1.2; display: inline-block; position: relative; overflow: hidden; }
+  .rd-roll > span { transition: transform 0.55s var(--ease-io); display: block; }
+  .rd-roll > span + span { position: absolute; inset: 0; transform: translateY(105%); }
+  a:hover > .rd-roll > span:first-child, button:hover > .rd-roll > span:first-child, a:focus-visible > .rd-roll > span:first-child, button:focus-visible > .rd-roll > span:first-child { transform: translateY(-105%); }
+  a:hover > .rd-roll > span + span, button:hover > .rd-roll > span + span, a:focus-visible > .rd-roll > span + span, button:focus-visible > .rd-roll > span + span { transform: translateY(0); }
+
+  .rd-focus:focus-visible, .rd a:focus-visible, .rd button:focus-visible, .rd input:focus-visible, .rd textarea:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; }
+
+  .rd-spin { animation: 16s linear infinite rd-spin; }
+  .rd-ping { animation: rd-ping 1.8s var(--ease-out) infinite; }
+  .rd-preloader { animation: 0.3s 4s forwards rd-failsafe; }
+  .rd-link { transition: background-size 0.5s var(--ease-out); background-image: linear-gradient(currentColor, currentColor); background-position: 0 100%; background-repeat: no-repeat; background-size: 0% 1px; }
+  .rd-link:hover, .rd-link:focus-visible { background-size: 100% 1px; }
+
+  /* Grano de película sobre toda la página. */
+  .rd::after { content: ""; z-index: 9999; pointer-events: none; opacity: 0.05; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); position: fixed; inset: 0; }
+}
+
+@keyframes rd-spin { to { transform: rotate(360deg); } }
+@keyframes rd-ping { 0% { opacity: 0.7; transform: scale(1); } 80%, to { opacity: 0; transform: scale(2.6); } }
+@keyframes rd-failsafe { to { visibility: hidden; opacity: 0; } }
+
+@media (pointer: fine) { .rd [data-cursor] { cursor: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .rd-spin, .rd-ping { animation: none; }
+  .rd-btn, .rd-btn:before, .rd-roll > span, .rd-btn__icon { transition: none; }
+}
+
+html.lenis, html.lenis body { height: auto; }
