@@ -5,6 +5,17 @@ import { isContact, type Activity } from "./activity-shared";
 import { budgetValue } from "./brief";
 import { dayIn } from "./tz";
 
+/** Nombre de cada canal (o formulario de origen) de un pedido. */
+export const CHANNEL_LABEL: Record<string, string> = {
+  whatsapp: "WhatsApp",
+  email: "Email",
+  instagram: "Instagram",
+  referido: "Referido",
+  llamada: "Llamada",
+  otro: "Otro",
+  web: "Web",
+};
+
 /** Monto acordado si se cargó; si no, lo que sugiere el rango del formulario. */
 export const dealValue = (l: Pick<Lead, "value" | "budget">) =>
   l.value ?? budgetValue(l.budget);

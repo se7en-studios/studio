@@ -1,7 +1,8 @@
 "use client";
 
 // Cola de pedidos de los clientes, estilo Linear: se anota en una línea, se
-// cambia el estado y la prioridad en el lugar y se suma el tiempo usado.
+// cambia el estado y la prioridad en el lugar y el tiempo se toma con el
+// cronómetro de cada pedido (o se carga a mano un tramo).
 // Cambios optimistas: si fallan, vuelven atrás.
 import { useState, useTransition } from "react";
 import Link from "next/link";
@@ -12,7 +13,6 @@ import {
   REQUEST_STATUS,
   REQUEST_STATUSES,
   compareRequests,
-  durationLabel,
   type MaintRequest,
   type RequestInput,
   type RequestPriority,
@@ -26,6 +26,9 @@ import {
   cn,
   input,
 } from "../kit";
+import type { LeadOwner } from "@/lib/admin/db";
+import type { TimeEntry } from "@/lib/admin/time-shared";
+import { Hours } from "../horas/timer";
 import { useToast } from "../overlay";
 import { createRequest, deleteRequest, updateRequestAction } from "./actions";
 
@@ -56,10 +59,15 @@ const shortDate = (d: string) =>
 
 export function RequestQueue({
   initial,
+  time,
+  me,
   projects,
   today,
 }: {
   initial: MaintRequest[];
+  /** Tramos de horas (time.sql): el tiempo de cada pedido es la suma de los suyos más los minutos cargados antes. */
+  time: TimeEntry[];
+  me: LeadOwner;
   projects: { slug: string; name: string }[];
   today: string;
 }) {
@@ -231,7 +239,6 @@ export function RequestQueue({
                         · para el {shortDate(r.due)}
                       </span>
                     )}
-                    {r.minutes > 0 && ` · ${durationLabel(r.minutes)}`}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5 pl-4 md:pl-0">
@@ -276,23 +283,15 @@ export function RequestQueue({
                     aria-label="Para cuándo"
                     className={cn(small, "[color-scheme:dark]")}
                   />
-                  <label className="flex items-center gap-1 text-[12px] text-muted">
-                    <input
-                      key={r.minutes}
-                      type="number"
-                      min={0}
-                      step={15}
-                      defaultValue={r.minutes || ""}
-                      placeholder="0"
-                      onBlur={(e) => {
-                        const m = Number(e.target.value || 0);
-                        if (m !== r.minutes) patch(r.id, { minutes: m });
-                      }}
-                      aria-label="Tiempo usado en minutos"
-                      className={cn(small, "w-[72px]")}
-                    />
-                    min
-                  </label>
+                  <Hours
+                    compact
+                    slug={r.project_slug}
+                    requestId={r.id}
+                    initial={time.filter((t) => t.maintenance_request_id === r.id)}
+                    legacy={r.minutes}
+                    me={me}
+                    today={today}
+                  />
                   <button
                     type="button"
                     onClick={() => remove(r)}
