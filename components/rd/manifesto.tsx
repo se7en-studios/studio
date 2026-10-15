@@ -11,7 +11,7 @@ import {
 import { projects } from "@/data/projects";
 import { team } from "@/data/team";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
-import { useWide } from "@/lib/use-wide";
+import { MD, useMediaQuery } from "@/lib/use-media-query";
 import { RdLabel } from "@/components/rd/primitives";
 
 type Token =
@@ -86,7 +86,7 @@ function ManifestoToken({
 }) {
   const opacity = useTransform(progress, range, [0.14, 1]);
   const scale = useTransform(progress, range, [0.6, 1]);
-  const wide = useWide();
+  const wide = useMediaQuery(MD);
 
   if (token.kind === "word") {
     return (

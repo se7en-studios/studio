@@ -7,9 +7,11 @@ import {
   useScroll,
   useTransform,
 } from "framer-motion";
-import { ArrowDown } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { ArrowDown, ArrowUpRight } from "lucide-react";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
-import { useWide } from "@/lib/use-wide";
+import { MD, useMediaQuery } from "@/lib/use-media-query";
 import { projects } from "@/data/projects";
 import { useIntroReady } from "@/components/rd/intro";
 import { RdHeroRing } from "@/components/rd/hero-ring";
@@ -20,14 +22,17 @@ import {
   Sparkle,
 } from "@/components/rd/primitives";
 
-const WORDS = ["venden.", "enamoran.", "escalan.", "facturan."];
-const WORD_INTERVAL = 2600;
-const CLIP_INTERVAL = 3200;
+// Cada verbo del titular se apoya en un proyecto real: el clip, la pastilla de
+// abajo y el verbo cambian juntos, así que lo que decimos tiene su prueba.
+const PROOFS = [
+  { verb: "venden.", slug: "pone-la-pava", what: "Como Poné La Pava: tienda online con stock en tiempo real" },
+  { verb: "dan turnos.", slug: "muzzaga", what: "Como Muzzaga Pádel: reservas de cancha online" },
+  { verb: "toman pedidos.", slug: "takefyy", what: "Como Takefyy, la startup de Franco: pedidos sin comisiones de marketplaces" },
+] as const;
+const PROOF_INTERVAL = 3200;
 
 const sorted = [...projects].sort((a, b) => a.order - b.order);
-const clips = ["takefyy", "apex-ai", "pone-la-pava"]
-  .map((slug) => sorted.find((p) => p.slug === slug))
-  .filter((p) => !!p?.video);
+const proofProject = (slug: string) => sorted.find((p) => p.slug === slug);
 
 const FACTS = [
   `${projects.length} proyectos en producción`,
@@ -39,6 +44,16 @@ const FACTS = [
 export function RdHero() {
   const ready = useIntroReady();
   const reduced = useReducedMotion();
+  const [proofIndex, setProofIndex] = useState(0);
+  useEffect(() => {
+    if (!ready || reduced) return;
+    const id = window.setInterval(
+      () => setProofIndex((n) => (n + 1) % PROOFS.length),
+      PROOF_INTERVAL,
+    );
+    return () => window.clearInterval(id);
+  }, [ready, reduced]);
+  const proof = PROOFS[proofIndex];
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({
     target: ref,
@@ -108,14 +123,14 @@ export function RdHero() {
             >
               <HeroLine ready={ready} index={1}>
                 <span className="inline-flex items-center justify-end gap-[0.12em]">
-                  <HeroClip play={ready && !reduced} />
+                  <HeroClip slug={proof.slug} play={ready && !reduced} />
                   <span>Webs que</span>
                 </span>
               </HeroLine>
             </motion.span>
             <span aria-hidden className="rd-mask">
               <HeroLine ready={ready} index={2}>
-                <HeroWord play={ready && !reduced} />
+                <HeroWord word={proof.verb} />
               </HeroLine>
             </span>
             <HeroSticker ready={ready} />
@@ -128,6 +143,7 @@ export function RdHero() {
               transition={{ duration: 1, ease: EASE_OUT, delay: 0.75 }}
               className="lg:col-span-5 lg:col-start-8"
             >
+              <ProofPill slug={proof.slug} what={proof.what} />
               <p className="rd-body max-w-[30rem] text-lg leading-snug text-(--paper)/80 md:text-xl">
                 Webs, tiendas y apps a medida,{" "}
                 <span className="text-(--paper)">
@@ -217,49 +233,64 @@ function HeroLine({
 }
 
 /** Palabra final que rota (venden / enamoran / escalan / facturan). */
-function HeroWord({ play }: { play: boolean }) {
-  const [i, setI] = useState(0);
-  useEffect(() => {
-    if (!play) return;
-    const id = window.setInterval(
-      () => setI((n) => (n + 1) % WORDS.length),
-      WORD_INTERVAL,
-    );
-    return () => window.clearInterval(id);
-  }, [play]);
-
+function HeroWord({ word }: { word: string }) {
   return (
     <span className="relative -mt-[0.22em] inline-block overflow-hidden pt-[0.22em] pr-[0.1em] align-bottom">
       <AnimatePresence mode="popLayout" initial={false}>
         <motion.span
-          key={WORDS[i]}
+          key={word}
           className="rd-serif inline-block text-(--signal)"
           initial={{ y: "100%", opacity: 0 }}
           animate={{ y: "0%", opacity: 1 }}
           exit={{ y: "-100%", opacity: 0 }}
           transition={{ duration: 0.8, ease: EASE_OUT }}
         >
-          {WORDS[i]}
+          {word}
         </motion.span>
       </AnimatePresence>
     </span>
   );
 }
 
-/** Píldora de video entre "Webs" y "que" que alterna entre proyectos. */
-function HeroClip({ play }: { play: boolean }) {
-  const [i, setI] = useState(0);
-  useEffect(() => {
-    if (!play || clips.length < 2) return;
-    const id = window.setInterval(
-      () => setI((n) => (n + 1) % clips.length),
-      CLIP_INTERVAL,
-    );
-    return () => window.clearInterval(id);
-  }, [play]);
+/** Prueba del verbo del titular, sólo en celular (donde el clip del titular no entra). */
+function ProofPill({ slug, what }: { slug: string; what: string }) {
+  const project = proofProject(slug);
+  if (!project) return null;
+  return (
+    <Link
+      href={`/work/${slug}`}
+      className="mb-6 flex items-center gap-3 rounded-full border border-(--line) bg-(--ink-2)/70 p-1.5 pr-4 md:hidden"
+    >
+      <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-(--ink-3)">
+        <Image
+          src={project.image}
+          alt=""
+          fill
+          sizes="48px"
+          className="object-cover object-top"
+        />
+      </span>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span
+          key={slug}
+          className="rd-body min-w-0 flex-1 text-sm leading-snug text-(--paper)/90"
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.35 }}
+        >
+          {what}
+        </motion.span>
+      </AnimatePresence>
+      <ArrowUpRight size={16} aria-hidden className="shrink-0 text-(--signal)" />
+    </Link>
+  );
+}
 
-  const wide = useWide();
-  const clip = clips[i];
+/** Píldora de video entre "Webs" y "que" que alterna entre proyectos. */
+function HeroClip({ slug, play }: { slug: string; play: boolean }) {
+  const wide = useMediaQuery(MD);
+  const clip = proofProject(slug);
   // La pastilla sólo se ve desde md: en celular ni se pide el video.
   if (!wide || !clip?.video) return null;
   return (
