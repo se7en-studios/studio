@@ -40,7 +40,7 @@ export default function LandingLayout({ children }: { children: React.ReactNode 
       ))}
       <a
         href="#main"
-        className="fixed top-3 left-3 z-[100] -translate-y-20 rounded bg-(--signal) px-4 py-2 text-sm font-medium text-black focus:translate-y-0"
+        className="sr-only rounded bg-(--signal) px-4 py-2 text-sm font-medium text-black focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100]"
       >
         Saltar al contenido
       </a>

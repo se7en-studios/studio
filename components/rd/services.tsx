@@ -135,7 +135,7 @@ export function RdServices() {
                   <span className="rd-label text-(--ink)/50 md:col-span-1">
                     {s.number}
                   </span>
-                  <h3 className="rd-display text-[clamp(1.9rem,4.4vw,5rem)] transition-transform duration-700 ease-(--ease-out) md:col-span-7 md:group-hover:translate-x-4">
+                  <h3 className="rd-display text-[clamp(1.5rem,7.8vw,1.9rem)] transition-transform md:text-[clamp(1.9rem,4.4vw,5rem)] duration-700 ease-(--ease-out) md:col-span-7 md:group-hover:translate-x-4">
                     {s.title}
                   </h3>
                   <div className="md:col-span-4">

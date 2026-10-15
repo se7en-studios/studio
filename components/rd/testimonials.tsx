@@ -88,7 +88,7 @@ export function RdTestimonials() {
           </div>
         </div>
 
-        <div className="relative mt-14 min-h-[34rem] md:mt-20 md:min-h-[22rem]">
+        <div className="relative mt-14 min-h-[28rem] md:mt-20 md:min-h-[22rem]">
           <AnimatePresence mode="wait">
             <motion.blockquote
               key={current.id}
@@ -101,7 +101,7 @@ export function RdTestimonials() {
               <div className="lg:col-span-7">
                 <span className="rd-mask">
                   <motion.span
-                    className="rd-display block text-[clamp(1.75rem,6.6vw,5rem)] lg:text-[clamp(2rem,3.9vw,4.8rem)]"
+                    className="rd-display block text-[clamp(1.2rem,6vw,5rem)] lg:text-[clamp(2rem,3.9vw,4.8rem)]"
                     initial={{ y: "110%" }}
                     animate={{ y: "0%" }}
                     transition={{ duration: 1, ease: EASE_OUT }}
