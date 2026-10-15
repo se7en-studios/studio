@@ -5,6 +5,7 @@ import { projects as cases } from "@/data/projects";
 import { db, missingTable, type LeadOwner } from "./db";
 import type { Change } from "./changes";
 import { LEGACY_KINDS, kindOf, type EventKind } from "./event-shared";
+import { projectChannel } from "./message-shared";
 
 export const BUCKET = "panel";
 /** Máximo por archivo del plan Free de Supabase. panel.sql lo repite en el bucket. */
@@ -277,7 +278,7 @@ export async function insertProject(p: {
 
 /**
  * Borra un proyecto del panel: desvincula sus tareas, saca sus archivos de
- * Storage y de la tabla, y borra la fila. Devuelve el nombre y cuántos
+ * Storage y de la tabla, borra su chat y su captura, y borra la fila. Devuelve el nombre y cuántos
  * archivos se fueron, para contarlo en el feed.
  *
  * Los casos de data/projects.ts NO se pueden borrar desde acá: viven en el
@@ -340,6 +341,24 @@ export async function removeProject(slug: string): Promise<{ name: string; files
   // Y las visitas de «En vivo» (oficinas.sql): un proyecto nuevo con el mismo slug arranca apagado.
   const seen = await c.from("panel_room_visits").delete().eq("project_slug", slug);
   if (seen.error && !missingTable(seen.error)) fail(seen.error);
+  // Su chat (panel-v2.sql): sin esto, un proyecto nuevo con el mismo slug abre la
+  // conversación del borrado. Va también lo leído de ese canal.
+  const channel = projectChannel(slug);
+  const chat = await c.from("panel_messages").delete().eq("channel", channel);
+  if (chat.error && !missingTable(chat.error)) fail(chat.error);
+  const reads = await c.from("panel_reads").delete().eq("channel", channel);
+  if (reads.error && !missingTable(reads.error)) fail(reads.error);
+  // Y su captura (capturas.sql): la imagen del bucket y la fila. «capturas» es
+  // CAPTURE_BUCKET de capturas.ts, que importa este archivo.
+  const shot = await c.from("panel_site_captures").select("path").eq("project_slug", slug).maybeSingle();
+  if (shot.error && !missingTable(shot.error)) fail(shot.error);
+  const shotPath = (shot.data as { path: string } | null)?.path;
+  if (shotPath) {
+    const gone = await c.storage.from("capturas").remove([shotPath]);
+    if (gone.error) console.error("[panel] borrar captura:", gone.error.message);
+    const row = await c.from("panel_site_captures").delete().eq("project_slug", slug);
+    if (row.error) fail(row.error);
+  }
 
   const del = await c.from("panel_projects").delete().eq("slug", slug);
   if (del.error) fail(del.error);
