@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { SITE } from "@/data/site";
 import { landingFaqs as faqs } from "@/data/faq";
 import {
@@ -86,7 +86,7 @@ export function RdFaq() {
                 </h3>
                 <AnimatePresence initial={false}>
                   {open && (
-                    <motion.div
+                    <m.div
                       id={`rd-faq-${item.id}`}
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: "auto", opacity: 1 }}
@@ -97,7 +97,7 @@ export function RdFaq() {
                       <p className="rd-body max-w-2xl pb-8 pl-14 text-base leading-relaxed text-(--paper)/70 md:text-lg">
                         {item.answer}
                       </p>
-                    </motion.div>
+                    </m.div>
                   )}
                 </AnimatePresence>
               </li>

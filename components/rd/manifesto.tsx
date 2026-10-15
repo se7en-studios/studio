@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import Image from "next/image";
 import {
-  motion,
+  m,
   useScroll,
   useTransform,
   type MotionValue,
@@ -91,14 +91,14 @@ function ManifestoToken({
   if (token.kind === "word") {
     return (
       <>
-        <motion.span
+        <m.span
           style={still ? undefined : { opacity }}
           className={
             token.accent ? "rd-serif text-[1.12em] text-(--signal)" : undefined
           }
         >
           {token.text}
-        </motion.span>{" "}
+        </m.span>{" "}
       </>
     );
   }
@@ -106,19 +106,19 @@ function ManifestoToken({
   if (token.kind === "faces") {
     return (
       <>
-        <motion.span
+        <m.span
           aria-hidden
           style={still ? undefined : { scale }}
           className="inline-flex translate-y-[0.12em] align-baseline"
         >
-          {team.map((m, i) =>
-            m.imageUrl ? (
+          {team.map((member, i) =>
+            member.imageUrl ? (
               <span
-                key={m.id}
+                key={member.id}
                 className={`relative inline-block h-[0.9em] w-[0.9em] overflow-hidden rounded-full ring-[3px] ring-(--ink) ${i > 0 ? "-ml-[0.22em]" : ""}`}
               >
                 <Image
-                  src={m.imageUrl}
+                  src={member.imageUrl}
                   alt=""
                   fill
                   sizes="80px"
@@ -127,7 +127,7 @@ function ManifestoToken({
               </span>
             ) : null,
           )}
-        </motion.span>{" "}
+        </m.span>{" "}
       </>
     );
   }
@@ -136,7 +136,7 @@ function ManifestoToken({
   if (!project?.video) return null;
   return (
     <>
-      <motion.span
+      <m.span
         aria-hidden
         style={still ? undefined : { scale }}
         className="relative inline-block h-[0.86em] w-[1.9em] translate-y-[0.1em] overflow-hidden rounded-full align-baseline"
@@ -161,7 +161,7 @@ function ManifestoToken({
             <source src={project.video.mp4} type="video/mp4" />
           </video>
         )}
-      </motion.span>{" "}
+      </m.span>{" "}
     </>
   );
 }

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  motion,
+  m,
   useMotionValueEvent,
   useScroll,
   useSpring,
@@ -89,7 +89,7 @@ export function RdWork() {
             }}
           />
         )}
-        <motion.div
+        <m.div
           ref={trackRef}
           style={pinned ? { x } : undefined}
           className={
@@ -103,7 +103,7 @@ export function RdWork() {
             <Card key={p.slug} project={p} index={i} pinned={pinned} />
           ))}
           <EndCard pinned={pinned} />
-        </motion.div>
+        </m.div>
         {pinned && (
           <div className="rd-wrap absolute inset-x-0 bottom-6 flex items-center gap-6">
             <span className="rd-label tabular-nums text-(--paper)/70">
@@ -111,7 +111,7 @@ export function RdWork() {
               {String(sorted.length).padStart(2, "0")}
             </span>
             <div className="h-px flex-1 bg-(--line)">
-              <motion.div
+              <m.div
                 className="h-px origin-left bg-(--signal)"
                 style={{ scaleX }}
               />

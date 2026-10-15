@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   AnimatePresence,
-  motion,
+  m,
   useMotionValue,
   useSpring,
 } from "framer-motion";
@@ -51,14 +51,14 @@ function CursorInner() {
   }, [mx, my]);
 
   return (
-    <motion.div
+    <m.div
       aria-hidden
       className="pointer-events-none fixed top-0 left-0 z-[150]"
       style={{ x, y }}
     >
       <AnimatePresence>
         {label ? (
-          <motion.div
+          <m.div
             key="label"
             initial={{ scale: 0, rotate: -30 }}
             animate={{ scale: 1, rotate: 0 }}
@@ -67,9 +67,9 @@ function CursorInner() {
             className="rd-label absolute -top-12 -left-12 grid h-24 w-24 place-items-center rounded-full bg-(--signal) text-center text-[10px] leading-tight font-bold text-(--ink)"
           >
             {label}
-          </motion.div>
+          </m.div>
         ) : (
-          <motion.div
+          <m.div
             key="dot"
             initial={{ scale: 0 }}
             animate={{ scale: visible ? (onLink ? 3.2 : 1) : 0 }}
@@ -79,6 +79,6 @@ function CursorInner() {
           />
         )}
       </AnimatePresence>
-    </motion.div>
+    </m.div>
   );
 }

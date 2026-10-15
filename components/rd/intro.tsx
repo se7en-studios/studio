@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 import { EASE_IO, EASE_OUT } from "@/components/rd/primitives";
 
@@ -106,7 +106,7 @@ function Preloader({ onComplete }: { onComplete: () => void }) {
   const lit = Math.floor((count / 100) * letters.length);
 
   return (
-    <motion.div
+    <m.div
       aria-hidden
       data-lenis-prevent
       className="rd-preloader fixed inset-0 z-[200] flex flex-col justify-between bg-(--ink) p-(--gutter) text-(--paper)"
@@ -119,7 +119,7 @@ function Preloader({ onComplete }: { onComplete: () => void }) {
       </div>
       <div className="flex justify-center gap-[0.04em] rd-display text-[clamp(3rem,14vw,12rem)]">
         {letters.map((l, i) => (
-          <motion.span
+          <m.span
             key={i}
             initial={{ opacity: 0.08 }}
             animate={{ opacity: i < lit ? 1 : 0.08 }}
@@ -127,34 +127,34 @@ function Preloader({ onComplete }: { onComplete: () => void }) {
             className={l === "7" ? "text-(--signal)" : undefined}
           >
             {l}
-          </motion.span>
+          </m.span>
         ))}
       </div>
       <div className="flex items-end justify-between">
         <span className="rd-label max-w-[14rem] text-(--mute)">
           Diseñamos y programamos productos digitales que venden
         </span>
-        <motion.span
+        <m.span
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: EASE_OUT }}
           className="rd-condensed tabular-nums text-[clamp(4rem,16vw,14rem)] leading-none"
         >
           {String(count).padStart(3, "0")}
-        </motion.span>
+        </m.span>
       </div>
       <svg
         className="pointer-events-none absolute top-full left-0 h-[12vh] w-full"
         viewBox="0 0 100 100"
         preserveAspectRatio="none"
       >
-        <motion.path
+        <m.path
           fill="var(--ink)"
           initial={{ d: "M0 0 L100 0 Q50 0 0 0 Z" }}
           exit={{ d: "M0 0 L100 0 Q50 100 0 0 Z" }}
           transition={{ duration: 1, ease: EASE_IO }}
         />
       </svg>
-    </motion.div>
+    </m.div>
   );
 }

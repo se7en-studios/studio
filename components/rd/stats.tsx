@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { animate, motion, useInView } from "framer-motion";
+import { animate, m, useInView } from "framer-motion";
 import { projects } from "@/data/projects";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 import { EASE_OUT } from "@/components/rd/primitives";
@@ -43,7 +43,7 @@ export function RdStats() {
     >
       <div ref={ref} className="rd-wrap grid grid-cols-2 lg:grid-cols-4">
         {STATS.map((stat, i) => (
-          <motion.div
+          <m.div
             key={stat.label}
             initial={{ opacity: 0, y: 40 }}
             animate={inView ? { opacity: 1, y: 0 } : undefined}
@@ -60,7 +60,7 @@ export function RdStats() {
               </p>
               <p className="rd-label mt-1 text-(--ink)/65">{stat.note}</p>
             </div>
-          </motion.div>
+          </m.div>
         ))}
       </div>
     </section>

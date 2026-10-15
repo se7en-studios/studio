@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import {
-  motion,
+  m,
   useScroll,
   useTransform,
   type MotionValue,
@@ -143,7 +143,7 @@ function Step({
       className="sticky pb-6 md:h-[min(78vh,720px)]"
       style={{ top: `calc(12vh + ${index * 28}px)` }}
     >
-      <motion.article
+      <m.article
         style={
           reduced
             ? { background: p.bg, color: p.fg }
@@ -184,13 +184,13 @@ function Step({
           </ul>
         </div>
         {!reduced && (
-          <motion.span
+          <m.span
             aria-hidden
             style={{ opacity: shade }}
             className="pointer-events-none absolute inset-0 bg-black"
           />
         )}
-      </motion.article>
+      </m.article>
     </div>
   );
 }

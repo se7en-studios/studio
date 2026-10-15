@@ -4,7 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
   AnimatePresence,
-  motion,
+  m,
   useMotionValueEvent,
   useScroll,
   useSpring,
@@ -84,12 +84,12 @@ export function RdNavbar() {
 
   return (
     <>
-      <motion.div
+      <m.div
         aria-hidden
         className="fixed inset-x-0 top-0 z-[120] h-[3px] origin-left bg-(--signal)"
         style={{ scaleX: progress }}
       />
-      <motion.header
+      <m.header
         initial={{ y: -100, opacity: 0 }}
         animate={
           ready
@@ -164,10 +164,10 @@ export function RdNavbar() {
             </button>
           </div>
         </div>
-      </motion.header>
+      </m.header>
       <AnimatePresence>
         {open && (
-          <motion.div
+          <m.div
             id="rd-menu"
             role="dialog"
             aria-modal="true"
@@ -183,7 +183,7 @@ export function RdNavbar() {
               {[...LINKS, { href: "#contacto", label: "Contacto" }].map(
                 (l, i) => (
                   <span key={l.href} className="rd-mask">
-                    <motion.a
+                    <m.a
                       href={l.href}
                       onClick={() => setOpen(false)}
                       initial={{ y: "110%" }}
@@ -196,7 +196,7 @@ export function RdNavbar() {
                       className="rd-display block border-b border-(--ink)/15 py-2 text-[clamp(2.2rem,11vw,4rem)]"
                     >
                       {l.label}
-                    </motion.a>
+                    </m.a>
                   </span>
                 ),
               )}
@@ -209,7 +209,7 @@ export function RdNavbar() {
                 {slots} lugares{month ? ` · ${month}` : ""}
               </span>
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </>

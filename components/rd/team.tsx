@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import Image from "next/image";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { m, useScroll, useTransform } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
 import { team } from "@/data/team";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
@@ -63,7 +63,7 @@ export function RdTeam() {
           className="mt-16 grid gap-6 md:mt-24 md:grid-cols-2 md:gap-8"
         >
           {team.map((member, i) => (
-            <motion.article
+            <m.article
               key={member.id}
               style={reduced ? undefined : { y: i === 0 ? y0 : y1 }}
               className="group"
@@ -113,7 +113,7 @@ export function RdTeam() {
                   </a>
                 )}
               </div>
-            </motion.article>
+            </m.article>
           ))}
         </div>
       </div>
