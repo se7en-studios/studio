@@ -16,6 +16,11 @@ assert.equal(S.fadeOf(14, "archive"), 0);
 assert.equal(S.fadeOf(90, "archive"), 1);
 assert.equal(S.zoneOf("mantenimiento"), "active");
 assert.equal(S.zoneOf("entregado"), "archive");
+assert.equal(S.paceOf("mantenimiento"), "maintenance");
+assert.equal(S.paceOf("desarrollo"), "active");
+assert.equal(S.fadeOf(7, "maintenance"), 0);
+assert.equal(S.fadeOf(24.5, "maintenance"), 0.5);
+assert.equal(S.fadeOf(42, "maintenance"), 1);
 
 // Días calendario en Argentina: pasar la medianoche cuenta 1, nunca −1.
 const at = "2026-10-13T02:30:00Z"; // 12/10 23:30 en Buenos Aires
@@ -27,7 +32,9 @@ assert.equal(S.daysLabel(null), "nunca");
 assert.equal(S.daysLabel(1), "hace 1 día");
 
 // Semilla: la fila de visitas manda; si no hay, la más nueva entre lectura y cambio propio.
-assert.equal(S.resolveVisit("2026-10-01T00:00:00Z", "2026-10-10T00:00:00Z", null), "2026-10-01T00:00:00Z");
+// Cuenta lo más nuevo: haber trabajado desde la ficha prende la sala aunque la última entrada sea vieja.
+assert.equal(S.resolveVisit("2026-10-01T00:00:00Z", "2026-10-10T00:00:00Z", null), "2026-10-10T00:00:00Z");
+assert.equal(S.resolveVisit("2026-10-12T00:00:00Z", "2026-10-10T00:00:00Z", "2026-10-11T00:00:00Z"), "2026-10-12T00:00:00Z");
 assert.equal(S.resolveVisit(null, "2026-10-10T00:00:00Z", "2026-10-05T00:00:00Z"), "2026-10-10T00:00:00Z");
 assert.equal(S.resolveVisit(null, null, "2026-10-05T00:00:00Z"), "2026-10-05T00:00:00Z");
 assert.equal(S.resolveVisit(null, null, null), null);
