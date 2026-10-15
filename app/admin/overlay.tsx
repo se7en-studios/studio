@@ -10,18 +10,44 @@ import { cn } from "./kit";
 // desde la ficha de un pedido, por ejemplo).
 const stack: object[] = [];
 
-function useEscape(onClose: () => void) {
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Lo que comparte toda capa (panel lateral o diálogo): Escape cierra la de arriba,
+ * el foco del teclado queda adentro (Tab da la vuelta) y al cerrar vuelve a donde
+ * estaba (el botón que la abrió).
+ */
+function useLayer(onClose: () => void, box: React.RefObject<HTMLElement | null>) {
   const ref = useRef(onClose);
+  // Dónde estaba el foco antes de abrir: se lee al montar, antes de que un autoFocus de adentro lo mueva.
+  const [opener] = useState(() => (typeof document === "undefined" ? null : (document.activeElement as HTMLElement | null)));
   useEffect(() => {
     ref.current = onClose;
   });
   useEffect(() => {
     const me = {};
     stack.push(me);
+    const el = box.current;
+    if (el && !el.contains(document.activeElement)) (el.querySelector<HTMLElement>(FOCUSABLE) ?? el).focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && stack[stack.length - 1] === me) {
+      if (stack[stack.length - 1] !== me) return;
+      if (e.key === "Escape") {
         e.stopPropagation();
         ref.current();
+      } else if (e.key === "Tab" && el) {
+        const items = [...el.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((x) => x.offsetParent !== null);
+        if (!items.length) return e.preventDefault();
+        const first = items[0];
+        const last = items[items.length - 1];
+        const at = document.activeElement;
+        if (e.shiftKey && (at === first || !el.contains(at))) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && (at === last || !el.contains(at))) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
     window.addEventListener("keydown", onKey);
@@ -31,8 +57,9 @@ function useEscape(onClose: () => void) {
       stack.splice(stack.indexOf(me), 1);
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
+      if (opener?.isConnected) opener.focus();
     };
-  }, []);
+  }, [box, opener]);
 }
 
 export function Drawer({
@@ -49,16 +76,19 @@ export function Drawer({
   /** Va fijo arriba; el resto scrollea. */
   header?: React.ReactNode;
 }) {
-  useEscape(onClose);
+  const box = useRef<HTMLElement>(null);
+  useLayer(onClose, box);
   return (
     <div className="fixed inset-0 z-[70] flex justify-end">
       <button aria-label="Cerrar" onClick={onClose} className="admin-overlay absolute inset-0 bg-black/55" />
       <aside
+        ref={box}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={label}
         className={cn(
-          "admin-drawer relative flex h-full w-full flex-col border-l border-[var(--line-strong)] bg-[var(--panel)] shadow-[-30px_0_80px_-20px_rgba(0,0,0,0.7)]",
+          "admin-drawer relative flex outline-none h-full w-full flex-col border-l border-[var(--line-strong)] bg-[var(--panel)] shadow-[-30px_0_80px_-20px_rgba(0,0,0,0.7)]",
           width,
         )}
       >
@@ -89,16 +119,19 @@ export function Dialog({
   children: React.ReactNode;
   width?: string;
 }) {
-  useEscape(onClose);
+  const box = useRef<HTMLDivElement>(null);
+  useLayer(onClose, box);
   return (
     <div className="fixed inset-0 z-[80] flex items-end justify-center p-0 md:items-start md:p-4 md:pt-[12vh]">
       <button aria-label="Cerrar" onClick={onClose} className="admin-overlay absolute inset-0 bg-black/60" />
       <div
+        ref={box}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={label}
         className={cn(
-          "admin-pop relative max-h-[92dvh] w-full overflow-hidden rounded-t-2xl border border-[var(--line-strong)] bg-[var(--panel)] shadow-[var(--shadow-pop)] md:rounded-2xl",
+          "admin-pop relative max-h-[92dvh] outline-none w-full overflow-hidden rounded-t-2xl border border-[var(--line-strong)] bg-[var(--panel)] shadow-[var(--shadow-pop)] md:rounded-2xl",
           width,
         )}
       >
@@ -181,3 +214,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 }
 
 export const useToast = () => useContext(ToastCtx);
+
+const noop = () => () => {};
+
+/** La tecla de los atajos: ⌘ en Mac y iPhone/iPad, Ctrl en el resto (en el servidor, Ctrl). */
+export function useModKey() {
+  return useSyncExternalStore(
+    noop,
+    () => (/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? "⌘" : "Ctrl"),
+    () => "Ctrl",
+  );
+}

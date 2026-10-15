@@ -39,7 +39,7 @@ import { CallListener } from "./call-listener";
 import { CommandPalette } from "./command";
 import { mapRoom, onMapRoom } from "./presence";
 import { Face, Kbd, cn } from "./kit";
-import { ToastProvider } from "./overlay";
+import { ToastProvider, useModKey } from "./overlay";
 
 type NavItem = { href: string; label: string; icon: React.ReactNode; badge?: keyof Pulse; tone?: "accent" | "red" };
 
@@ -220,6 +220,7 @@ function Sidebar({
   const isActive = (href: string) =>
     href === "/admin" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
   const other = PEOPLE_IDS.find((p) => p !== who) ?? null;
+  const mod = useModKey();
 
   return (
     <div className="flex h-full flex-col">
@@ -241,7 +242,7 @@ function Sidebar({
           <Search size={14} />
           Buscar o saltar a…
           <span className="ml-auto flex gap-0.5">
-            <Kbd>⌘</Kbd>
+            <Kbd>{mod}</Kbd>
             <Kbd>K</Kbd>
           </span>
         </button>

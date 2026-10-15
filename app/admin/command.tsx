@@ -1,7 +1,7 @@
 "use client";
 
-// Paleta de comandos (⌘K): saltar a una sección, a un pedido, a un proyecto o
-// a una tarea, o empezar algo nuevo. El índice se pide una vez por apertura a
+// Paleta de comandos (⌘K / Ctrl K): saltar a una sección, a un pedido, a un
+// proyecto, a una tarea, a un mensaje o a un movimiento, o empezar algo nuevo. El índice se pide una vez por apertura a
 // /admin/api/search y se filtra en el navegador.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -23,6 +23,7 @@ import {
   Palette,
   Plus,
   Radio,
+  RotateCw,
   Search,
   Wallet,
 } from "lucide-react";
@@ -74,15 +75,25 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [index, setIndex] = useState<SearchIndex | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [active, setActive] = useState(0);
   const list = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
+    let live = true;
     fetch("/admin/api/search", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: SearchIndex | null) => d && setIndex(d))
-      .catch(() => {});
-  }, []);
+      .then((r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        return r.json() as Promise<SearchIndex>;
+      })
+      .then((d) => live && setIndex(d))
+      // Las secciones siguen andando; sólo falta buscar en los datos.
+      .catch(() => live && setFailed(true));
+    return () => {
+      live = false;
+    };
+  }, [attempt]);
 
   const items = useMemo(() => {
     const all: Item[] = [
@@ -109,6 +120,22 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         hint: t.done ? "Hecha" : undefined,
         icon: <CheckSquare size={16} />,
         href: `/admin/tareas?tarea=${t.id}`,
+      })),
+      ...(index?.messages ?? []).map((m) => ({
+        id: `m-${m.id}`,
+        group: "Mensajes",
+        label: m.body,
+        hint: m.where,
+        icon: <MessagesSquare size={16} />,
+        href: m.channel === "general" ? "/admin/mensajes" : `/admin/mensajes?c=${encodeURIComponent(m.channel)}`,
+      })),
+      ...(index?.movements ?? []).map((f) => ({
+        id: `f-${f.id}`,
+        group: "Finanzas",
+        label: f.label,
+        hint: f.hint,
+        icon: <Wallet size={16} />,
+        href: "/admin/finanzas",
       })),
     ];
     const words = norm(q).split(/\s+/).filter(Boolean);
@@ -155,7 +182,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
               go(items[active]);
             }
           }}
-          placeholder="Buscar pedidos, proyectos, tareas o secciones…"
+          placeholder="Buscar pedidos, proyectos, tareas, mensajes, movimientos…"
           aria-label="Buscar"
           className="h-12 min-w-0 flex-1 bg-transparent text-[14px] text-foreground placeholder:text-muted/70 focus:outline-none"
         />
@@ -163,7 +190,24 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
       </div>
       <ul ref={list} role="listbox" className="admin-scroll max-h-[min(60vh,420px)] overflow-y-auto p-2">
         {items.length === 0 && (
-          <li className="px-3 py-8 text-center text-[13px] text-muted">{index ? "Nada coincide." : "Cargando…"}</li>
+          <li className="px-3 py-8 text-center text-[13px] text-muted">
+            {index ? "Nada coincide." : failed ? "No se pudo cargar la búsqueda." : "Cargando…"}
+          </li>
+        )}
+        {failed && !index && (
+          <li className="flex items-center justify-between gap-3 px-2.5 pt-2 text-[12px] text-amber-300">
+            Sólo se buscan las secciones: no se pudieron cargar pedidos, proyectos ni tareas.
+            <button
+              type="button"
+              onClick={() => {
+                setFailed(false);
+                setAttempt((a) => a + 1);
+              }}
+              className="focus-ring inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-muted hover:text-foreground"
+            >
+              <RotateCw size={12} /> Reintentar
+            </button>
+          </li>
         )}
         {items.map((item, i) => {
           const head = item.group !== lastGroup;
