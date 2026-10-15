@@ -13,11 +13,14 @@ concurrency:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    # Fijo en 26.04: ubuntu-latest cambia de imagen entre el 19/10 y el 19/11
+    # de 2026, y así el cambio no nos agarra en el medio. Para pasar a otra,
+    # probarla en un PR (el de capturas también corre si se toca su workflow).
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
