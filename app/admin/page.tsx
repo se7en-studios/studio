@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CheckSquare, FolderKanban, History, Inbox, MessagesSquare, Plus, TrendingUp, Trophy, Wallet } from "lucide-react";
+import { CheckSquare, History, Inbox, MessagesSquare, Plus, Repeat, TrendingUp, Trophy, Wallet } from "lucide-react";
 import { panelSession } from "@/lib/admin/auth";
-import { db, listLeads, type Lead, type LeadOwner } from "@/lib/admin/db";
+import { db, listLeads, listMeetings, type Lead, type LeadOwner } from "@/lib/admin/db";
 import { listActivity } from "@/lib/admin/activity";
 import { listDue, type DuePost } from "@/lib/admin/content";
 import { listCobros, listEntries } from "@/lib/admin/finance";
@@ -11,7 +11,14 @@ import type { Activity } from "@/lib/admin/activity-shared";
 import { ago } from "@/lib/admin/brief";
 import { channelSummaries } from "@/lib/admin/messages";
 import { GENERAL, parseChannel, type ChannelSummary } from "@/lib/admin/message-shared";
-import { dealValue, monthKey, wonInMonth } from "@/lib/admin/metrics";
+import { monthKey, pipelineValue, wonInMonth } from "@/lib/admin/metrics";
+import { listPlans, listRequests } from "@/lib/admin/maintenance";
+import { mrr, type MaintRequest, type Plan } from "@/lib/admin/maintenance-shared";
+import { currentSiteAlerts } from "@/lib/admin/site-health";
+import type { SiteAlert } from "@/lib/admin/site-health-shared";
+import type { Meeting } from "@/lib/admin/sales-shared";
+import { isLateDelivery, isOpenRequest } from "@/lib/admin/today-shared";
+import { TZ, dayIn } from "@/lib/admin/tz";
 import { PanelNotReady, caseProjects, listEvents, listProjects, type PanelEvent, type PanelProject } from "@/lib/admin/panel";
 import { PEOPLE } from "@/lib/admin/people";
 import { ACTIVE_STATUSES, defaultState, type ProjectState } from "@/lib/admin/project-shared";
@@ -19,7 +26,7 @@ import { listStates } from "@/lib/admin/projects";
 import { receivables, withLegacy } from "@/lib/admin/payment-shared";
 import { bucket, dayKey, type Task, type TaskLinks } from "@/lib/admin/task-shared";
 import { listTasks, taskLinks } from "@/lib/admin/tasks";
-import { fetchRates } from "@/lib/admin/fx";
+import { fetchRates, referenceRate } from "@/lib/admin/fx";
 import { daysUntil, nextRenewal, toolEntries, type Tool } from "@/lib/admin/tool-shared";
 import { listTools } from "@/lib/admin/tools";
 import { fmt } from "@/lib/admin/finance-shared";
@@ -35,18 +42,20 @@ import { AdminGate, SetupNotice } from "./ui";
 
 export const metadata: Metadata = { title: "Inicio" };
 
-/** Lo que falte (tablas sin crear, base sin conectar) no tira abajo Inicio. */
-async function safe<T>(p: Promise<T>, fallback: T): Promise<{ value: T; missing: string | null }> {
+/**
+ * Lo que falte (tablas sin crear, base sin conectar) no tira abajo Inicio. Si
+ * una lectura falla por otra cosa, `failed` lleva su nombre: «Para atender» lo
+ * dice en vez de mostrar «todo al día» con datos que no pudo leer.
+ */
+async function safe<T>(p: Promise<T>, fallback: T, label: string): Promise<{ value: T; missing: string | null; failed: string | null }> {
   try {
-    return { value: await p, missing: null };
+    return { value: await p, missing: null, failed: null };
   } catch (e) {
-    if (e instanceof PanelNotReady) return { value: fallback, missing: e.message };
-    console.error("[panel] Inicio:", e instanceof Error ? e.message : e);
-    return { value: fallback, missing: null };
+    if (e instanceof PanelNotReady) return { value: fallback, missing: e.message, failed: null };
+    console.error(`[panel] Inicio (${label}):`, e instanceof Error ? e.message : e);
+    return { value: fallback, missing: null, failed: label };
   }
 }
-
-const TZ = "America/Argentina/Buenos_Aires";
 
 /**
  * Todo lo que muestra Inicio, leído en paralelo. Fuera del componente: acá
@@ -54,32 +63,38 @@ const TZ = "America/Argentina/Buenos_Aires";
  */
 async function loadHome(who: LeadOwner) {
   const hasDb = db() !== null;
-  const [leadsR, actsR, projectsR, statesR, eventsR, tasksR, linksR, chatsR, contentR, financeR, toolsR, rates, salaR] = await Promise.all([
-    safe<Lead[]>(hasDb ? listLeads() : Promise.resolve([]), []),
-    safe<Activity[] | null>(listActivity(), null),
-    safe<PanelProject[]>(listProjects(), caseProjects()),
-    safe<Map<string, ProjectState>>(listStates(), new Map()),
-    safe<PanelEvent[]>(listEvents({ limit: 10 }), []),
-    safe<Task[] | null>(listTasks(), null),
-    safe<TaskLinks>(taskLinks(), { leads: [], projects: [] }),
-    safe<ChannelSummary[]>(channelSummaries(who), []),
-    safe<DuePost[]>(listDue(dayKey()), []),
+  const today = dayKey();
+  const [leadsR, actsR, projectsR, statesR, eventsR, tasksR, linksR, chatsR, contentR, financeR, toolsR, rates, salaR, plansR, requestsR, sitesR, meetingsR] = await Promise.all([
+    safe<Lead[]>(hasDb ? listLeads() : Promise.resolve([]), [], "pedidos"),
+    safe<Activity[] | null>(listActivity(), null, "contactos"),
+    safe<PanelProject[]>(listProjects(), caseProjects(), "proyectos"),
+    safe<Map<string, ProjectState>>(listStates(), new Map(), "estado de los proyectos"),
+    safe<PanelEvent[]>(listEvents({ limit: 10 }), [], "actividad"),
+    safe<Task[] | null>(listTasks(), null, "tareas"),
+    safe<TaskLinks>(taskLinks(), { leads: [], projects: [] }, "tareas"),
+    safe<ChannelSummary[]>(channelSummaries(who), [], "mensajes"),
+    safe<DuePost[]>(listDue(today), [], "contenido"),
     // Movimientos de Finanzas más los cobros viejos (en USD: la cotización no importa para este resumen).
-    safe<Entry[] | null>(Promise.all([listEntries(), listCobros(0)]).then(([a, b]) => withLegacy(a, b)), null),
-    safe<Tool[]>(listTools(), []),
-    // Para pasar a dólares las herramientas en pesos; sin cotización, Inicio las deja afuera.
+    safe<Entry[] | null>(Promise.all([listEntries(), listCobros(0)]).then(([a, b]) => withLegacy(a, b)), null, "cobros"),
+    safe<Tool[]>(listTools(), [], "herramientas"),
+    // Para pasar a dólares las herramientas en pesos y los abonos; sin cotización, Inicio los deja afuera.
     fetchRates(),
     // «En vivo»: la sala más apagada, con las mismas reglas que el mapa.
-    safe<SalaMasApagada | null>(getSalaMasApagada(who), null),
+    safe<SalaMasApagada | null>(getSalaMasApagada(who), null, "En vivo"),
+    // Mantenimiento: abonos (ingreso fijo) y pedidos abiertos. Sin maintenance.sql quedan vacíos.
+    safe<Plan[] | null>(listPlans(), null, "abonos"),
+    safe<MaintRequest[]>(listRequests(), [], "pedidos de mantenimiento"),
+    safe<SiteAlert[]>(currentSiteAlerts(today), [], "salud de los sitios"),
+    safe<Meeting[]>(listMeetings(), [], "reuniones"),
   ]);
+  const failed = [...new Set([leadsR, actsR, statesR, tasksR, financeR, toolsR, plansR, requestsR, sitesR, meetingsR, contentR].map((r) => r.failed).filter((f): f is string => !!f))];
 
   const leads = leadsR.value;
   const now = Date.now();
   const thisMonth = monthKey(new Date(now).toISOString());
   const wonMonth = wonInMonth(leads, thisMonth);
-  const pipeline = leads.filter((l) => l.status === "contactado" || l.status === "propuesta").reduce((s, l) => s + dealValue(l), 0);
+  const pipeline = pipelineValue(leads);
   const fresh = leads.filter((l) => l.status === "nuevo").length;
-  const today = dayKey();
   const tasks = tasksR.value;
   const overdue = tasks?.filter((t) => t.assignee === who && bucket(t, today) === "vencidas").length ?? 0;
 
@@ -113,6 +128,16 @@ async function loadHome(who: LeadOwner) {
     .filter((r) => r.days <= 7)
     .sort((a, b) => a.days - b.days);
   const names = Object.fromEntries(projectsR.value.map((p) => [p.slug, p.name]));
+  // Ingreso mensual fijo: la suma de los abonos activos, en USD. null si falta maintenance.sql.
+  const fx = referenceRate(rates);
+  const plans = plansR.value;
+  const fixedIncome = plans && fx ? { usd: mrr(plans, fx), sites: plans.filter((x) => x.active).length } : null;
+  const sites = sitesR.value.map((a) => ({ ...a, name: names[a.slug] ?? a.slug }));
+  const requests = requestsR.value
+    .filter((r) => isOpenRequest(r) && (r.priority === "urgente" || r.priority === "alta"))
+    .map((r) => ({ id: r.id, title: r.title, project: names[r.project_slug] ?? r.project_slug, urgent: r.priority === "urgente", created_at: r.created_at }));
+  const meetings = meetingsR.value.filter((m) => dayIn(m.at) === today);
+  const lateDeliveries = projects.filter(({ s }) => isLateDelivery(s, today)).map(({ p, s }) => ({ slug: p.slug, name: p.name, due: s.due as string }));
   const leadNames = Object.fromEntries(leads.map((l) => [l.id, l.name]));
   const chats = [...chatsR.value].sort((a, b) => (b.last?.created_at ?? "").localeCompare(a.last?.created_at ?? "")).slice(0, 5);
   const unread = chatsR.value.reduce((n, c) => n + c.unread, 0);
@@ -122,7 +147,7 @@ async function loadHome(who: LeadOwner) {
   const hour = Number(new Date().toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit" }));
   const hello = hour < 13 ? "Buen día" : hour < 20 ? "Buenas tardes" : "Buenas noches";
 
-  return { sala: salaR.value, renewals, owing, unpaid, hasDb, fresh, active: projectRows(active), maintenance: projectRows(maintenance).sort(byNeed), projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now, actsR, eventsR, linksR, content: contentR.value, finance: financeR.value && [...financeR.value, ...toolEntries(toolsR.value, rates.mep ?? rates.oficial ?? rates.blue ?? 0)] };
+  return { failed, fixedIncome, sites, requests, meetings, lateDeliveries, sala: salaR.value, renewals, owing, unpaid, hasDb, fresh, active: projectRows(active), maintenance: projectRows(maintenance).sort(byNeed), projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now, actsR, eventsR, linksR, content: contentR.value, finance: financeR.value && [...financeR.value, ...toolEntries(toolsR.value, fx)] };
 }
 
 // Lo primero que se ve al entrar: qué está pendiente, cómo vienen los
@@ -133,7 +158,7 @@ export default async function AdminHome() {
 
   const d = await loadHome(me.who);
   const { hasDb, fresh, active, maintenance, projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now } = d;
-  const { actsR, eventsR, linksR, owing, unpaid, content, finance, renewals } = d;
+  const { actsR, eventsR, linksR, owing, unpaid, content, finance, renewals, failed, fixedIncome, sites, requests, meetings, lateDeliveries } = d;
 
   return (
     <div className="space-y-6">
@@ -177,7 +202,7 @@ export default async function AdminHome() {
             label="Por cobrar"
             value={usdShort(owing.total)}
             tone={unpaid?.length ? "amber" : undefined}
-            href="/admin/finanzas"
+            href="/admin/finanzas?tab=pendientes"
             icon={<Wallet size={14} />}
             hint={
               owing.projects.length
@@ -188,12 +213,17 @@ export default async function AdminHome() {
             }
           />
         )}
+        {/* El ingreso que se repite: de ahí vive hoy el estudio (los proyectos en curso están en su tarjeta). */}
         <Kpi
-          label="Proyectos en curso"
-          value={active.length}
-          href="/admin/proyectos"
-          hint={`${maintenance.length} en mantenimiento · ${projects.length} en total`}
-          icon={<FolderKanban size={14} />}
+          label="Ingreso fijo"
+          value={fixedIncome ? usdShort(fixedIncome.usd) : "—"}
+          href="/admin/mantenimiento"
+          hint={
+            fixedIncome
+              ? `${fixedIncome.sites} ${fixedIncome.sites === 1 ? "abono" : "abonos"} por mes · ${active.length} en curso`
+              : `${maintenance.length} en mantenimiento · ${projects.length} proyectos`
+          }
+          icon={<Repeat size={14} />}
         />
         <Kpi
           label="Tus tareas vencidas"
@@ -205,24 +235,60 @@ export default async function AdminHome() {
         />
       </div>
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
-        <div className="min-w-0 space-y-4">
-          {hasDb && <Attention leads={leads} activities={actsR.value} now={now} overdueTasks={overdue} unpaid={unpaid ?? []} content={content} renewals={renewals} />}
+      {/* En el celular las columnas se disuelven (contents) y manda `order`: primero lo
+          que hay que hacer (Para atender, Mis tareas), al final lo que se mira. */}
+      <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] xl:items-start">
+        <div className="contents xl:block xl:min-w-0 xl:space-y-4">
+          {hasDb && (
+            <div className="order-1 min-w-0 xl:order-none">
+              <Attention
+                leads={leads}
+                activities={actsR.value}
+                now={now}
+                overdueTasks={overdue}
+                unpaid={unpaid ?? []}
+                content={content}
+                renewals={renewals}
+                sites={sites}
+                requests={requests}
+                meetings={meetings}
+                lateDeliveries={lateDeliveries}
+                failed={failed}
+              />
+            </div>
+          )}
 
-          <ProjectsCard active={active} maintenance={maintenance} today={today} />
+          <div className="order-3 min-w-0 xl:order-none">
+            <ProjectsCard active={active} maintenance={maintenance} today={today} />
+          </div>
 
-          <Card title="Actividad del equipo" icon={<History size={14} />} action={<CardLink href="/admin/cambios">Registro completo →</CardLink>}>
-            <EventList events={eventsR.value} names={names} compact />
-          </Card>
+          <div className="order-7 min-w-0 xl:order-none">
+            <Card title="Actividad del equipo" icon={<History size={14} />} action={<CardLink href="/admin/cambios">Registro completo →</CardLink>}>
+              <EventList events={eventsR.value} names={names} compact />
+            </Card>
+          </div>
         </div>
 
-        <div className="min-w-0 space-y-4">
-          {d.sala && <EnVivoCard sala={d.sala} />}
+        <div className="contents xl:block xl:min-w-0 xl:space-y-4">
+          {d.sala && (
+            <div className="order-6 min-w-0 xl:order-none">
+              <EnVivoCard sala={d.sala} />
+            </div>
+          )}
 
-          {tasks && <MyTasks tasks={tasks} links={linksR.value} me={me.who} />}
+          {tasks && (
+            <div className="order-2 min-w-0 xl:order-none">
+              <MyTasks tasks={tasks} links={linksR.value} me={me.who} />
+            </div>
+          )}
 
-          {finance && <FinanceCard entries={finance} today={today} />}
+          {finance && (
+            <div className="order-5 min-w-0 xl:order-none">
+              <FinanceCard entries={finance} today={today} />
+            </div>
+          )}
 
+          <div className="order-4 min-w-0 xl:order-none">
           <Card
             title="Mensajes"
             icon={<MessagesSquare size={14} />}
@@ -264,6 +330,7 @@ export default async function AdminHome() {
               </Empty>
             )}
           </Card>
+          </div>
         </div>
       </div>
     </div>

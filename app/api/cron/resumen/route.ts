@@ -11,6 +11,7 @@ import { siteAlerts } from "@/lib/admin/site-health-shared";
 import { latestChecks } from "@/lib/admin/site-health";
 import { notificationsConfigured, notify } from "@/lib/admin/notify";
 import { bucket, dayKey } from "@/lib/admin/task-shared";
+import { isLateCharge } from "@/lib/admin/today-shared";
 import { listTasks } from "@/lib/admin/tasks";
 import { daysUntil, nextRenewal } from "@/lib/admin/tool-shared";
 import { listTools } from "@/lib/admin/tools";
@@ -55,8 +56,8 @@ export async function GET(request: Request) {
     orEmpty("planes de mantenimiento", listPlans(), []),
   ]);
   const open = tasks.filter((t) => !t.done_at);
-  // Los pendientes de #70 (ingresos «pendiente») cuya fecha prevista ya pasó: lo mismo que «late» en receivables().
-  const late = entries.filter((e) => e.kind === "ingreso" && e.status === "pendiente" && e.occurred_on < today);
+  // Cobros vencidos con la misma regla que Inicio y el contador de Finanzas (today-shared).
+  const late = entries.filter((e) => isLateCharge(e, today));
 
   const notice = morningDigest({
     posts: posts.map((p) => ({ title: p.title, date: p.post_date })),
