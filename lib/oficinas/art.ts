@@ -1100,25 +1100,51 @@ export function decay(r: MapRoom, f: number) {
 // --- Muñecos ------------------------------------------------------------------------
 
 export type Dir = "SE" | "SW" | "NE" | "NW";
-/** Quién se dibuja: uno de los dos socios o el guía que recorre las salas en la landing. */
-export type ActorLook = Who | "guia";
-type Look = { hair: string; hair2: string; skin: string; skin2: string; main: string; shade: string; collar: string; tie: string | null; pants: string; shoes: string };
-export const LOOKS: Record<ActorLook, Look> = {
+/**
+ * Quién se dibuja: uno de los dos socios, el guía que recorre las salas en la
+ * landing o una visita de la landing (`v:` y un id: su ropa sale de ese id).
+ */
+export type ActorLook = Who | "guia" | `v:${string}`;
+/** El peinado: el de cada socio, la gorra del guía o, para las visitas, una de esas formas. */
+type HairStyle = "federico" | "franco" | "cap";
+type Look = { style: HairStyle; hair: string; hair2: string; skin: string; skin2: string; main: string; shade: string; collar: string; tie: string | null; pants: string; shoes: string };
+const LOOKS: Record<Who | "guia", Look> = {
   // Federico: pelo castaño con flequillo de costado, camisa blanca y corbata negra.
-  federico: { hair: "#3d2718", hair2: "#6b4630", skin: "#e8bb93", skin2: "#cf9a73", main: "#f1efea", shade: "#cfcbc2", collar: "#ffffff", tie: "#17171c", pants: "#25252d", shoes: "#121216" },
+  federico: { style: "federico", hair: "#3d2718", hair2: "#6b4630", skin: "#e8bb93", skin2: "#cf9a73", main: "#f1efea", shade: "#cfcbc2", collar: "#ffffff", tie: "#17171c", pants: "#25252d", shoes: "#121216" },
   // Franco: pelo negro texturado con flequillo recto, sweater beige y cuello blanco.
-  franco: { hair: "#151517", hair2: "#34343d", skin: "#d6a07a", skin2: "#b9815c", main: "#cdbd83", shade: "#ae9f66", collar: "#f7f4ec", tie: null, pants: "#2d3039", shoes: "#121216" },
+  franco: { style: "franco", hair: "#151517", hair2: "#34343d", skin: "#d6a07a", skin2: "#b9815c", main: "#cdbd83", shade: "#ae9f66", collar: "#f7f4ec", tie: null, pants: "#2d3039", shoes: "#121216" },
   // El guía: remera naranja del estudio, gorra negra y zapatillas blancas.
-  guia: { hair: "#17171c", hair2: "#ff4d2e", skin: "#c98f6b", skin2: "#ad7552", main: "#ff4d2e", shade: "#d33d22", collar: "#ff4d2e", tie: null, pants: "#2b2f3a", shoes: "#f1efea" },
+  guia: { style: "cap", hair: "#17171c", hair2: "#ff4d2e", skin: "#c98f6b", skin2: "#ad7552", main: "#ff4d2e", shade: "#d33d22", collar: "#ff4d2e", tie: null, pants: "#2b2f3a", shoes: "#f1efea" },
 };
 const LINE = "rgba(32,20,26,0.92)";
+
+// Las visitas: piel, pelo, remera y pantalón salen del id, así cada una se ve
+// distinta y la misma persona se ve igual en cada señal.
+const SKINS: [string, string][] = [["#f1c9a5", "#d9a983"], ["#e8bb93", "#cf9a73"], ["#d6a07a", "#b9815c"], ["#b97d55", "#9a6240"], ["#8d5a3b", "#71452c"], ["#6a4029", "#53311f"]];
+const HAIRS: [string, string][] = [["#151517", "#34343d"], ["#3d2718", "#6b4630"], ["#7a4a24", "#a0683a"], ["#d9b46a", "#f0d08f"], ["#b8b4ad", "#dcd8d1"], ["#a8342a", "#c9523f"]];
+const SHIRTS = ["#3f7cc9", "#2f9e6e", "#e2a53a", "#8a5cc9", "#d9534f", "#2b2f3a", "#f1efea", "#e07aa8", "#4bb3b0", "#7a8f3a"];
+const PANTS = ["#25252d", "#2d3a5a", "#4a3b2a", "#5a5f66", "#1f3b30"];
+const looks = new Map<string, Look>();
+function visitorLook(id: string): Look {
+  let v = looks.get(id);
+  if (v) return v;
+  let n = 0;
+  for (let i = 0; i < id.length; i++) n = (Math.imul(n, 31) + id.charCodeAt(i)) | 0;
+  const pick = <T,>(arr: T[], k: number) => arr[Math.floor(hash(n, k) * arr.length)];
+  const [skin, skin2] = pick(SKINS, 1), [hair, hair2] = pick(HAIRS, 2), main = pick(SHIRTS, 3);
+  const style = pick<HairStyle>(["federico", "franco", "franco", "federico", "cap"], 4);
+  v = { style, hair: style === "cap" ? pick(SHIRTS, 6) : hair, hair2: style === "cap" ? "#f1efea" : hair2, skin, skin2, main, shade: mix(main, "#000000", 0.18), collar: main, tie: null, pants: pick(PANTS, 5), shoes: hash(n, 7) > 0.5 ? "#f1efea" : "#121216" };
+  looks.set(id, v);
+  return v;
+}
+export const lookFor = (who: ActorLook): Look => (who.startsWith("v:") ? visitorLook(who) : LOOKS[who as Who | "guia"]);
 
 /**
  * Dibuja a `who` parado en (sx, sy) (los pies). `phase` 0–1 es el paso; null =
  * quieto. `typing` 0–1: sentado, mueve las manos sobre el teclado.
  */
 export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: number | null, sitting = false, blink = false, typing: number | null = null) {
-  const L = LOOKS[who];
+  const L = lookFor(who);
   const mirror = dir === "SW" || dir === "NW";
   const back = dir === "NE" || dir === "NW";
   const s = phase === null ? 0 : Math.sin(phase * Math.PI * 2);
@@ -1196,8 +1222,8 @@ export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: 
 }
 
 function hair(who: ActorLook, back: boolean, by: number) {
-  const L = LOOKS[who];
-  if (who === "guia") {
+  const L = lookFor(who);
+  if (L.style === "cap") {
     // Gorra negra con la visera hacia adelante y el punto naranja del estudio
     rrect(-11.5, -63 + by, 24, 13, 7, L.hair, LINE);
     if (back) {
@@ -1211,7 +1237,7 @@ function hair(who: ActorLook, back: boolean, by: number) {
     g.fillRect(-11, -51 + by, 3, 4);
     return;
   }
-  if (who === "federico") {
+  if (L.style === "federico") {
     if (back) {
       rrect(-11, -62 + by, 23, 18, 8, L.hair, LINE);
       poly([[-6, -60 + by], [4, -61 + by], [0, -56 + by]], L.hair2);

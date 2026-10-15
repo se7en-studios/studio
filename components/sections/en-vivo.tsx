@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Container } from "@/components/ui/container";
 import { RevealText } from "@/components/ui/reveal-text";
 import { projects } from "@/data/projects";
+import { useVisitors } from "@/lib/use-visitors";
 import { MapFrame } from "./en-vivo-frame";
 
 // El mapa (motor, arte y tipografías) recién se baja cuando la sección está por
@@ -18,6 +19,8 @@ export function EnVivo() {
   const ref = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState(false);
   const [inView, setInView] = useState(false);
+  // Cada visita de la landing cuenta, aunque no haya llegado hasta el mapa
+  const visitors = useVisitors();
 
   useEffect(() => {
     const el = ref.current;
@@ -48,10 +51,11 @@ export function EnVivo() {
             <p className="mt-4 text-base leading-relaxed text-muted">
               Cada sala es un proyecto en producción, con su sitio en la tele.
               Si estamos conectados nos ves trabajando; si no, el guía te los
-              muestra uno por uno.
+              muestra uno por uno. Y cada persona que está mirando la página
+              pasea por el estudio: la que dice «vos» sos vos.
             </p>
           </div>
-          <div ref={ref}>{near ? <EnVivoMap active={inView} /> : <MapFrame />}</div>
+          <div ref={ref}>{near ? <EnVivoMap active={inView} visitors={visitors} /> : <MapFrame />}</div>
         </div>
         {/* Para teclado y lectores de pantalla: el mapa se recorre con el mouse. */}
         <ul className="sr-only">

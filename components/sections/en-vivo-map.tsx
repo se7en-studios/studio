@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { createEngine, type ActorSpec, type Engine, type RoomLooks } from "@/lib/oficinas/engine";
 import type { EnVivoPublic } from "@/app/api/en-vivo/route";
+import type { VisitorsNow } from "@/lib/visitas";
 import { buildMap, hourIn, ledMessages, periodOf, themeOf, type MapModel, type Who } from "@/lib/admin/oficinas-shared";
 import { publicProjects, type PublicCapture } from "@/lib/en-vivo";
 import { roomInfoOf } from "@/lib/en-vivo-sala";
@@ -20,16 +21,25 @@ import { MapFrame } from "./en-vivo-frame";
 const NAMES: Record<Who, string> = { federico: "Federico", franco: "Franco" };
 const POLL_MS = 30_000;
 
-/** Quiénes caminan: los conectados o, si no hay nadie, el guía. */
-function actorsFor(online: EnVivoPublic["online"], map: MapModel): ActorSpec[] {
-  if (!online.length) return [{ id: "guia", look: "guia", goal: { kind: "tour" } }];
-  return online.map((o) => {
-    const room = o.room ? map.rooms.find((r) => r.slug === o.room) : null;
-    return { id: o.who, look: o.who, goal: room ? { kind: "room", room: room.id } : { kind: "seat", who: o.who } };
-  });
+/** Quiénes caminan: los conectados o, si no hay nadie, el guía; y una persona por cada visita de la página. */
+function actorsFor(online: EnVivoPublic["online"], map: MapModel, visitors: VisitorsNow | null): ActorSpec[] {
+  const staff: ActorSpec[] = !online.length
+    ? [{ id: "guia", look: "guia", goal: { kind: "tour" } }]
+    : online.map((o) => {
+        const room = o.room ? map.rooms.find((r) => r.slug === o.room) : null;
+        return { id: o.who, look: o.who, goal: room ? { kind: "room", room: room.id } : { kind: "seat", who: o.who } };
+      });
+  const guests: ActorSpec[] = (visitors?.visitors ?? []).map((v) => ({ id: `v-${v}`, look: `v:${v}`, goal: { kind: "wander" }, you: v === visitors?.you }));
+  return [...staff, ...guests];
 }
 
-export function EnVivoMap({ active }: { active: boolean }) {
+/** «Sólo vos mirando», «Vos y 4 personas más». */
+function audience(v: VisitorsNow | null) {
+  if (!v || !v.total) return null;
+  return v.total === 1 ? "Sólo vos mirando" : `Vos y ${v.total - 1} ${v.total === 2 ? "persona más" : "personas más"} mirando`;
+}
+
+export function EnVivoMap({ active, visitors }: { active: boolean; visitors: VisitorsNow | null }) {
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [engine, setEngine] = useState<Engine | null>(null);
@@ -100,8 +110,8 @@ export function EnVivoMap({ active }: { active: boolean }) {
   }, [captures, map, bySlug, projects, router]);
 
   useEffect(() => {
-    if (engine && online) engine.setActors(actorsFor(online, map));
-  }, [engine, online, map]);
+    if (engine && online) engine.setActors(actorsFor(online, map, visitors));
+  }, [engine, online, map, visitors]);
 
   useEffect(() => {
     engine?.setPaused(!active);
@@ -134,6 +144,7 @@ export function EnVivoMap({ active }: { active: boolean }) {
           En vivo
         </p>
         <p className="mt-1 truncate font-mono text-[10px] leading-snug text-[#a39e95]">{status}</p>
+        {audience(visitors) && <p className="truncate font-mono text-[10px] leading-snug text-[#ffb199]">{audience(visitors)}</p>}
       </div>
       {hp && (
         <div className="pointer-events-none absolute bottom-2 left-2 max-w-[calc(100%-16px)] rounded-md border border-white/10 bg-[rgba(10,10,14,0.82)] px-2 py-1.5 text-[#f1ede6]">
