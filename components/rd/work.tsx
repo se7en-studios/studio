@@ -11,7 +11,7 @@ import {
   useTransform,
 } from "framer-motion";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
-import { useMediaQuery } from "@/lib/use-media-query";
+import { MD, useMediaQuery } from "@/lib/use-media-query";
 import { projects } from "@/data/projects";
 import { brandFonts } from "@/lib/brand-fonts";
 import type { Project } from "@/types";
@@ -185,6 +185,23 @@ function EndCard({ pinned }: { pinned: boolean }) {
   );
 }
 
+/** Qué hicimos en cada proyecto, para la tarjeta de celular. */
+const PITCH: Record<string, string> = {
+  "pone-la-pava": "Tienda online con catálogo y stock en tiempo real, construida alrededor de su identidad.",
+  muzzaga: "Reservas de cancha online por día, cancha y horario; el turno se confirma por WhatsApp.",
+  "iphone-vita": "Tienda con buscador de iPhone, Plan Canje y un catálogo que administra su propio equipo.",
+  pravilo: "El sitio del primer centro Pravilo de Argentina, en Plottier, Neuquén.",
+  "altum-sci": "Su canal principal de consultas para compradores e inversores en la Patagonia.",
+  "apex-ai": "Panel del coach y app del atleta: la IA arma cada rutina dentro del plan del coach.",
+  takefyy: "Carta digital y pedidos sin comisiones de marketplaces, en uso por restaurantes reales.",
+  sentinel: "Mapa interactivo con datos satelitales en vivo (NASA FIRMS) e índice de riesgo de incendio.",
+};
+const OWNER: Record<string, string> = {
+  takefyy: "Startup de Franco",
+  sentinel: "Startup de Franco",
+  "apex-ai": "Producto de Federico",
+};
+
 function Card({
   project,
   index,
@@ -197,6 +214,8 @@ function Card({
   const linkRef = useRef<HTMLAnchorElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const reduced = useReducedMotion();
+  const wide = useMediaQuery(MD);
+  const phoneShot = !pinned ? project.screens?.mobile : undefined;
   const brand = project.brand;
   const accent = brand?.accent ?? "#ff4d2e";
 
@@ -241,17 +260,39 @@ function Card({
       </div>
       <div
         className={`relative mx-3 overflow-hidden rounded-[1.4rem] bg-(--ink-3) ${
-          pinned ? "flex-1" : "aspect-[4/3] md:aspect-[16/10]"
+          pinned
+            ? "flex-1"
+            : phoneShot
+              ? "md:aspect-[16/10]"
+              : "aspect-[4/3] md:aspect-[16/10]"
         }`}
       >
+        {phoneShot && (
+          <div
+            className="flex justify-center px-6 pt-14 pb-7 md:hidden"
+            style={{
+              background: `linear-gradient(160deg, ${accent}40, transparent 65%)`,
+            }}
+          >
+            <div className="relative aspect-[390/844] w-[58%] overflow-hidden rounded-[1.6rem] border-[5px] border-(--ink) shadow-2xl ring-1 ring-(--line)">
+              <Image
+                src={phoneShot}
+                alt={`${project.name} en celular`}
+                fill
+                sizes="240px"
+                className="object-cover object-top"
+              />
+            </div>
+          </div>
+        )}
         <Image
           src={project.image}
           alt={`${project.name}: ${project.shortDescription}`}
           fill
           sizes="(min-width: 1024px) 58vw, 100vw"
-          className="object-cover object-top transition-transform duration-[1.2s] ease-(--ease-out) group-hover:scale-[1.04]"
+          className={`object-cover object-top transition-transform duration-[1.2s] ease-(--ease-out) group-hover:scale-[1.04] ${phoneShot ? "max-md:hidden" : ""}`}
         />
-        {project.video && !reduced && (
+        {project.video && !reduced && wide && (
           <video
             ref={videoRef}
             className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-[1.2s] ease-(--ease-out) group-hover:scale-[1.04]"
@@ -316,6 +357,31 @@ function Card({
           </svg>
         </span>
       </div>
+      {!pinned && (
+        <div className="px-6 pb-6 md:hidden">
+          <p className="rd-label text-(--paper)/50">
+            Qué hicimos
+            {OWNER[project.slug] && (
+              <span style={{ color: accent }}> · {OWNER[project.slug]}</span>
+            )}
+          </p>
+          <p className="rd-body mt-2 text-sm leading-snug text-(--paper)/75">
+            {PITCH[project.slug] ?? project.shortDescription}
+          </p>
+          {project.technology && (
+            <ul className="mt-4 flex flex-wrap gap-1.5">
+              {project.technology.slice(0, 4).map((t) => (
+                <li
+                  key={t}
+                  className="rd-label rounded-full border border-(--line) px-2.5 py-1 text-[10px] text-(--paper)/70"
+                >
+                  {t}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </Link>
   );
 }
