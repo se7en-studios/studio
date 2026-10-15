@@ -157,7 +157,7 @@ export default async function AdminHome() {
   if (!me) return <AdminGate />;
 
   const d = await loadHome(me.who);
-  const { hasDb, fresh, active, maintenance, projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now } = d;
+  const { hasDb, fresh, active, maintenance, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now } = d;
   const { actsR, eventsR, linksR, owing, unpaid, content, finance, renewals, failed, fixedIncome, sites, requests, meetings, lateDeliveries } = d;
 
   return (
