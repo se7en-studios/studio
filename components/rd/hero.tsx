@@ -67,7 +67,6 @@ export function RdHero() {
 
   return (
     <section
-      id="top"
       ref={ref}
       data-theme="ink"
       className="relative flex min-h-[100svh] flex-col overflow-hidden bg-(--ink) pt-24 md:pt-28"
