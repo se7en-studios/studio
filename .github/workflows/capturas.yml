@@ -7,8 +7,9 @@
 # este workflow en master. Se puede correr a mano desde la pestaña Actions
 # («Run workflow»).
 #
-# Un PR que toca este workflow o el script lo prueba en el runner sin subir
-# nada (--local) y deja las capturas como artifact para mirarlas.
+# Un PR que toca este workflow, el script o las dependencias (puppeteer-core)
+# lo prueba en el runner sin subir nada (--local) y deja las capturas como
+# artifact para mirarlas.
 name: Capturas de los sitios
 
 on:
@@ -19,6 +20,7 @@ on:
     paths:
       - .github/workflows/capturas.yml
       - scripts/capturar-sitios.mjs
+      - package-lock.json
 
 concurrency:
   group: capturas-${{ github.ref }}
