@@ -2,7 +2,7 @@
 
 import { useRef, type ElementType, type ReactNode } from "react";
 import Link from "next/link";
-import { motion, useInView } from "framer-motion";
+import { m, useInView } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
 
 // Piezas compartidas del rediseño de la landing (components/rd). Port de los
@@ -117,7 +117,7 @@ export function RdLines({
     <Tag ref={ref} className={className}>
       {lines.map((line, i) => (
         <span key={i} className={`rd-mask ${lineClassName}`}>
-          <motion.span
+          <m.span
             className="block origin-bottom-left"
             initial={{ y: "110%", rotate: 3 }}
             animate={on ? { y: "0%", rotate: 0 } : { y: "110%", rotate: 3 }}
@@ -128,7 +128,7 @@ export function RdLines({
             }}
           >
             {line}
-          </motion.span>
+          </m.span>
         </span>
       ))}
     </Tag>
@@ -150,7 +150,7 @@ export function RdReveal({
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "0px 0px -10% 0px" });
   return (
-    <motion.div
+    <m.div
       ref={ref}
       className={className}
       initial={{ opacity: 0, y }}
@@ -158,7 +158,7 @@ export function RdReveal({
       transition={{ duration: 0.9, ease: EASE_OUT, delay }}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 

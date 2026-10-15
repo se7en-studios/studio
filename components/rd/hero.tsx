@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   AnimatePresence,
-  motion,
+  m,
   useScroll,
   useTransform,
 } from "framer-motion";
@@ -75,25 +75,25 @@ export function RdHero() {
         aria-hidden
         className="pointer-events-none absolute top-[8%] right-[-25%] h-[90vw] w-[90vw] rounded-full bg-[radial-gradient(closest-side,rgba(255,77,46,0.28),transparent)] md:top-[-10%] md:right-[-12%] md:h-[70vw] md:w-[70vw]"
       />
-      <motion.div
+      <m.div
         aria-hidden
         style={reduced ? undefined : { scale: ringScale, y: ringY }}
         className="pointer-events-none absolute top-[3%] right-[-42%] w-[104vw] md:top-[6%] md:right-[-16%] md:w-[68vw] lg:top-[2%] lg:right-[-8%] lg:w-[52vw]"
       >
-        <motion.div
+        <m.div
           initial={{ opacity: 0, scale: 0.6, rotate: -12 }}
           animate={ready ? { opacity: 1, scale: 1, rotate: 0 } : undefined}
           transition={{ duration: 1.6, ease: EASE_OUT, delay: 0.1 }}
         >
           <RdHeroRing className="h-auto w-full" />
-        </motion.div>
-      </motion.div>
+        </m.div>
+      </m.div>
 
-      <motion.div
+      <m.div
         style={reduced ? undefined : { opacity: fade }}
         className="rd-wrap relative flex flex-1 flex-col"
       >
-        <motion.div
+        <m.div
           initial={{ opacity: 0 }}
           animate={ready ? { opacity: 1 } : undefined}
           transition={{ duration: 0.8, delay: 0.2 }}
@@ -101,12 +101,12 @@ export function RdHero() {
         >
           <span>( Estudio de producto digital )</span>
           <span className="hidden sm:inline">Est. 2025 — Patagonia, AR</span>
-        </motion.div>
+        </m.div>
 
         <div className="flex flex-1 flex-col justify-center py-8 md:py-10">
           <h1 className="rd-display relative text-[clamp(2.5rem,min(13.4vw,21svh),11.8rem)] whitespace-nowrap md:text-[clamp(2.5rem,min(11vw,21svh),11.8rem)]">
             <span className="sr-only">Hacemos webs que venden.</span>
-            <motion.span
+            <m.span
               aria-hidden
               style={reduced ? undefined : { x: line1X }}
               className="rd-mask"
@@ -114,8 +114,8 @@ export function RdHero() {
               <HeroLine ready={ready} index={0}>
                 Hacemos
               </HeroLine>
-            </motion.span>
-            <motion.span
+            </m.span>
+            <m.span
               aria-hidden
               style={reduced ? undefined : { x: line2X }}
               className="rd-mask text-right"
@@ -126,7 +126,7 @@ export function RdHero() {
                   <span>Webs que</span>
                 </span>
               </HeroLine>
-            </motion.span>
+            </m.span>
             <span aria-hidden className="rd-mask">
               <HeroLine ready={ready} index={2}>
                 <HeroWord word={proof.verb} />
@@ -136,7 +136,7 @@ export function RdHero() {
           </h1>
 
           <div className="mt-8 grid grid-cols-1 gap-8 md:mt-6 lg:-mt-[min(8.6vw,16svh)] lg:grid-cols-12">
-            <motion.div
+            <m.div
               // Sin opacity 0: el párrafo es el LCP y tiene que pintar con el HTML, no esperar al
               // preloader ni al JS. Sólo se desliza (queda tapado por el telón mientras tanto).
               initial={{ y: 24 }}
@@ -159,12 +159,12 @@ export function RdHero() {
                   Ver trabajos
                 </RdButton>
               </div>
-            </motion.div>
+            </m.div>
           </div>
         </div>
-      </motion.div>
+      </m.div>
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0 }}
         animate={ready ? { opacity: 1 } : undefined}
         transition={{ duration: 1, delay: 1 }}
@@ -188,7 +188,7 @@ export function RdHero() {
           >
             Scroll
             <span className="relative grid h-8 w-8 place-items-center overflow-hidden rounded-full border border-(--line)">
-              <motion.span
+              <m.span
                 animate={reduced ? undefined : { y: ["-120%", "0%", "120%"] }}
                 transition={{
                   duration: 1.8,
@@ -198,11 +198,11 @@ export function RdHero() {
                 }}
               >
                 <ArrowDown size={14} />
-              </motion.span>
+              </m.span>
             </span>
           </a>
         </div>
-      </motion.div>
+      </m.div>
     </section>
   );
 }
@@ -218,7 +218,7 @@ function HeroLine({
   children: ReactNode;
 }) {
   return (
-    <motion.span
+    <m.span
       className="block origin-bottom-left"
       initial={{ y: "115%", rotate: 4 }}
       animate={ready ? { y: "0%", rotate: 0 } : undefined}
@@ -229,7 +229,7 @@ function HeroLine({
       }}
     >
       {children}
-    </motion.span>
+    </m.span>
   );
 }
 
@@ -238,7 +238,7 @@ function HeroWord({ word }: { word: string }) {
   return (
     <span className="relative -mt-[0.22em] inline-block overflow-hidden pt-[0.22em] pr-[0.1em] align-bottom">
       <AnimatePresence mode="popLayout" initial={false}>
-        <motion.span
+        <m.span
           key={word}
           className="rd-serif inline-block text-(--signal)"
           initial={{ y: "100%", opacity: 0 }}
@@ -247,7 +247,7 @@ function HeroWord({ word }: { word: string }) {
           transition={{ duration: 0.8, ease: EASE_OUT }}
         >
           {word}
-        </motion.span>
+        </m.span>
       </AnimatePresence>
     </span>
   );
@@ -272,7 +272,7 @@ function ProofPill({ slug, what }: { slug: string; what: string }) {
         />
       </span>
       <AnimatePresence mode="wait" initial={false}>
-        <motion.span
+        <m.span
           key={slug}
           className="rd-body min-w-0 flex-1 text-sm leading-snug text-(--paper)/90"
           initial={{ opacity: 0, y: 6 }}
@@ -281,7 +281,7 @@ function ProofPill({ slug, what }: { slug: string; what: string }) {
           transition={{ duration: 0.35 }}
         >
           {what}
-        </motion.span>
+        </m.span>
       </AnimatePresence>
       <ArrowUpRight size={16} aria-hidden className="shrink-0 text-(--signal)" />
     </Link>
@@ -297,7 +297,7 @@ function HeroClip({ slug, play }: { slug: string; play: boolean }) {
   return (
     <span className="relative hidden h-[0.66em] w-[1.25em] shrink-0 overflow-hidden rounded-full bg-(--ink-3) align-middle ring-1 ring-(--line) md:inline-block">
       <AnimatePresence initial={false}>
-        <motion.video
+        <m.video
           key={clip.slug}
           className="absolute inset-0 h-full w-full object-cover"
           autoPlay={play}
@@ -312,7 +312,7 @@ function HeroClip({ slug, play }: { slug: string; play: boolean }) {
         >
           <source src={clip.video.webm} type="video/webm" />
           <source src={clip.video.mp4} type="video/mp4" />
-        </motion.video>
+        </m.video>
       </AnimatePresence>
     </span>
   );
@@ -321,7 +321,7 @@ function HeroClip({ slug, play }: { slug: string; play: boolean }) {
 /** Sello circular giratorio con texto en trazado. */
 function HeroSticker({ ready }: { ready: boolean }) {
   return (
-    <motion.span
+    <m.span
       aria-hidden
       initial={{ scale: 0, rotate: -90 }}
       animate={ready ? { scale: 1, rotate: 0 } : undefined}
@@ -349,6 +349,6 @@ function HeroSticker({ ready }: { ready: boolean }) {
         </text>
       </svg>
       <span className="rd-display text-[0.28em] text-(--signal)">7</span>
-    </motion.span>
+    </m.span>
   );
 }

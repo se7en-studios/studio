@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
 import { projects } from "@/data/projects";
 import { testimonials } from "@/data/team";
@@ -70,7 +70,7 @@ export function RdTestimonials() {
                 }`}
               >
                 {i === index && playing && (
-                  <motion.span
+                  <m.span
                     key={`bar-${index}`}
                     aria-hidden
                     className="absolute inset-0 origin-left bg-(--paper)/12"
@@ -90,7 +90,7 @@ export function RdTestimonials() {
 
         <div className="relative mt-14 min-h-[28rem] md:mt-20 md:min-h-[22rem]">
           <AnimatePresence mode="wait">
-            <motion.blockquote
+            <m.blockquote
               key={current.id}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -100,7 +100,7 @@ export function RdTestimonials() {
             >
               <div className="lg:col-span-7">
                 <span className="rd-mask">
-                  <motion.span
+                  <m.span
                     className="rd-display block text-[clamp(1.2rem,6vw,5rem)] lg:text-[clamp(2rem,3.9vw,4.8rem)]"
                     initial={{ y: "110%" }}
                     animate={{ y: "0%" }}
@@ -108,11 +108,11 @@ export function RdTestimonials() {
                     style={{ color: accent }}
                   >
                     {current.highlight}
-                  </motion.span>
+                  </m.span>
                 </span>
               </div>
               <div className="flex flex-col justify-end gap-8 lg:col-span-5">
-                <motion.p
+                <m.p
                   initial={{ opacity: 0, y: 24 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.9, ease: EASE_OUT, delay: 0.15 }}
@@ -121,8 +121,8 @@ export function RdTestimonials() {
                   {"“"}
                   {current.quote}
                   {"”"}
-                </motion.p>
-                <motion.footer
+                </m.p>
+                <m.footer
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.8, delay: 0.35 }}
@@ -144,9 +144,9 @@ export function RdTestimonials() {
                       Ver caso <ArrowUpRight size={14} />
                     </Link>
                   )}
-                </motion.footer>
+                </m.footer>
               </div>
-            </motion.blockquote>
+            </m.blockquote>
           </AnimatePresence>
         </div>
       </div>

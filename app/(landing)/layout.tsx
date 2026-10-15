@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { LazyMotion, domAnimation } from "framer-motion";
 import "./rd.css";
 import { wide, serif } from "@/lib/rd-fonts";
 import { MotionProvider } from "@/components/providers/motion-provider";
@@ -45,12 +46,16 @@ export default function LandingLayout({ children }: { children: React.ReactNode 
         Saltar al contenido
       </a>
       <MotionProvider>
-        <SmoothScroll />
-        <IntroProvider>
-          <RdNavbar />
-          <Cursor />
-          <main id="main">{children}</main>
-        </IntroProvider>
+        {/* Los componentes de la landing usan `m` (no `motion`): sólo cargan las animaciones y
+            gestos que usan (domAnimation), sin layout ni drag, que no se usan acá. */}
+        <LazyMotion features={domAnimation}>
+          <SmoothScroll />
+          <IntroProvider>
+            <RdNavbar />
+            <Cursor />
+            <main id="main">{children}</main>
+          </IntroProvider>
+        </LazyMotion>
       </MotionProvider>
     </div>
   );

@@ -3,7 +3,7 @@
 import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   AnimatePresence,
-  motion,
+  m,
   useMotionValue,
   useScroll,
   useSpring,
@@ -62,7 +62,7 @@ function Magnetic({
     Math.max(-MAGNET_MAX, Math.min(MAGNET_MAX, d * MAGNET_STRENGTH));
 
   return (
-    <motion.span
+    <m.span
       ref={ref}
       onMouseMove={(e) => {
         const el = ref.current;
@@ -79,7 +79,7 @@ function Magnetic({
       className={`inline-block ${className}`}
     >
       {children}
-    </motion.span>
+    </m.span>
   );
 }
 
@@ -116,12 +116,12 @@ export function RdContact() {
           </span>
         </div>
 
-        <motion.h2
+        <m.h2
           style={reduced ? undefined : { scale, rotate }}
           className="rd-display mt-10 origin-left text-[clamp(2.6rem,12.4vw,14.5rem)] leading-[0.8] whitespace-nowrap md:mt-14"
         >
           ¿Habla<span className="rd-serif">mos</span>?
-        </motion.h2>
+        </m.h2>
 
         <div className="mt-14 grid gap-12 md:mt-20 lg:grid-cols-12">
           <div className="flex flex-col gap-8 lg:col-span-4">
@@ -197,7 +197,7 @@ function CopyEmail() {
       </button>
       <AnimatePresence>
         {copied && (
-          <motion.span
+          <m.span
             role="status"
             initial={{ opacity: 0, y: 8, rotate: -6 }}
             animate={{ opacity: 1, y: 0, rotate: -3 }}
@@ -206,7 +206,7 @@ function CopyEmail() {
             className="rd-label absolute -top-6 left-24 rounded-full bg-(--ink) px-3 py-1.5 text-[10px] text-(--paper)"
           >
             {"¡Mail copiado! ✌"}
-          </motion.span>
+          </m.span>
         )}
       </AnimatePresence>
     </div>
@@ -251,7 +251,7 @@ function ContactForm() {
 
   if (status.kind === "sent") {
     return (
-      <motion.div
+      <m.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.7, ease: EASE_OUT }}
@@ -266,7 +266,7 @@ function ContactForm() {
         <p className="rd-body max-w-md text-lg text-(--paper)/75">
           Te escribimos dentro de las próximas 24 h hábiles a {email}.
         </p>
-      </motion.div>
+      </m.div>
     );
   }
 

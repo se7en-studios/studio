@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { motion, useInView } from "framer-motion";
+import { m, useInView } from "framer-motion";
 import { projects } from "@/data/projects";
 import { SITE } from "@/data/site";
 import { EASE_OUT } from "@/components/rd/primitives";
@@ -136,7 +136,7 @@ export function RdFooter() {
       >
         {"SE7EN".split("").map((ch, i) => (
           <span key={i} className="rd-mask">
-            <motion.span
+            <m.span
               className={`rd-display block text-[29vw] leading-[0.74] ${
                 ch === "7" ? "text-(--signal)" : "text-(--paper)"
               }`}
@@ -145,7 +145,7 @@ export function RdFooter() {
               transition={{ duration: 1.2, ease: EASE_OUT, delay: i * 0.07 }}
             >
               {ch}
-            </motion.span>
+            </m.span>
           </span>
         ))}
       </div>

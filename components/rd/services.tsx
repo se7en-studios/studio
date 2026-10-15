@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import {
   AnimatePresence,
-  motion,
+  m,
   useMotionValue,
   useSpring,
 } from "framer-motion";
@@ -144,7 +144,7 @@ export function RdServices() {
                     </p>
                     <AnimatePresence initial={false}>
                       {open && (
-                        <motion.ul
+                        <m.ul
                           initial={{ height: 0, opacity: 0 }}
                           animate={{ height: "auto", opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
@@ -159,7 +159,7 @@ export function RdServices() {
                               {d}
                             </li>
                           ))}
-                        </motion.ul>
+                        </m.ul>
                       )}
                     </AnimatePresence>
                   </div>
@@ -172,7 +172,7 @@ export function RdServices() {
       {finePointer && !reduced && (
         <AnimatePresence>
           {preview && (
-            <motion.div
+            <m.div
               key="preview"
               aria-hidden
               style={{ left, top }}
@@ -184,7 +184,7 @@ export function RdServices() {
             >
               <div className="relative h-56 w-80 overflow-hidden rounded-2xl shadow-2xl">
                 <AnimatePresence initial={false}>
-                  <motion.div
+                  <m.div
                     key={preview.slug}
                     className="absolute inset-0"
                     initial={{ y: "100%" }}
@@ -202,10 +202,10 @@ export function RdServices() {
                     <span className="rd-label absolute bottom-3 left-3 rounded-full bg-(--ink) px-2.5 py-1 text-[10px] text-(--paper)">
                       {preview.name}
                     </span>
-                  </motion.div>
+                  </m.div>
                 </AnimatePresence>
               </div>
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
       )}

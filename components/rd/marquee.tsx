@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import {
-  motion,
+  m,
   useAnimationFrame,
   useInView,
   useMotionValue,
@@ -117,7 +117,7 @@ function Band({
 
   return (
     <div className={`absolute -inset-x-[10%] py-[0.18em] ${className}`}>
-      <motion.div
+      <m.div
         aria-hidden
         style={{ x }}
         className="rd-condensed flex w-max text-[clamp(2.4rem,6.4vw,6.4rem)] leading-none whitespace-nowrap"
@@ -126,7 +126,7 @@ function Band({
         {group}
         {group}
         {group}
-      </motion.div>
+      </m.div>
       <span className="sr-only">{items.join(", ")}</span>
     </div>
   );
