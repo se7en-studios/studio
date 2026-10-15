@@ -51,34 +51,52 @@ export function About() {
           </button>
         </div>
 
-        {/* Una tarjeta por fundador: foto + nombre + rol + bio + LinkedIn,
-            cada dato una sola vez. La foto es el argumento de la sección
-            (hablás con personas, no con una agencia), así que en desktop
-            ocupa una columna propia; en mobile va al lado del nombre para
-            no quedar sola arriba de la tarjeta. */}
-        <div className="mt-12 grid grid-cols-1 gap-4 md:mt-16 xl:grid-cols-2 xl:gap-6">
+        {/* Retrato grande por fundador: la foto es el argumento de la sección
+            (hablás con personas, no con una agencia). En blanco y negro hasta
+            el hover; el segundo retrato va desfasado para romper la grilla. */}
+        <div className="mt-12 grid grid-cols-1 gap-8 md:mt-16 md:grid-cols-2 md:gap-8">
           {team.map((member, i) => (
             <Reveal key={member.id} index={i} className="h-full">
-              <article className="group grid h-full content-start grid-cols-[5rem_1fr] gap-x-4 gap-y-5 rounded-2xl border border-border bg-surface/40 p-5 transition-colors duration-300 hover:border-foreground/20 hover:bg-surface sm:grid-cols-[9rem_1fr] sm:gap-x-6 sm:p-6 md:p-8 xl:grid-cols-[11rem_1fr]">
-                {member.imageUrl && (
-                  <div className="relative aspect-square overflow-hidden rounded-xl border border-border sm:row-span-2">
+              <article
+                className={`group ${i % 2 === 1 ? "md:mt-16" : ""}`}
+              >
+                <div className="relative aspect-[4/5] overflow-hidden rounded-[2rem] border border-border bg-surface-2">
+                  {member.imageUrl && (
                     <Image
                       src={member.imageUrl}
                       alt={member.name ?? ""}
                       fill
-                      sizes="(min-width: 1280px) 176px, (min-width: 640px) 144px, 80px"
-                      className="object-cover transition-transform duration-700 ease-(--ease) group-hover:scale-[1.04]"
+                      sizes="(min-width: 768px) 46vw, 100vw"
+                      className="object-cover grayscale transition-[filter,transform] duration-[1.2s] ease-(--ease) group-hover:scale-[1.04] group-hover:grayscale-0"
                     />
-                  </div>
-                )}
+                  )}
+                  <span className="absolute top-5 left-5 rounded-full bg-foreground px-3 py-1.5 font-mono text-[10px] font-bold tracking-widest text-background uppercase">
+                    {member.role}
+                  </span>
+                  {member.focus && member.focus.length > 0 && (
+                    <ul
+                      aria-label={`De qué se encarga ${member.name}`}
+                      className="absolute inset-x-5 bottom-5 flex flex-wrap gap-1.5"
+                    >
+                      {member.focus.map((item) => (
+                        <li
+                          key={item}
+                          className="rounded-full bg-background/70 px-2.5 py-1 font-mono text-[10px] tracking-widest text-foreground uppercase backdrop-blur-md"
+                        >
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
 
-                <div className="flex items-start justify-between gap-3 self-center sm:self-start">
+                <div className="mt-6 flex items-start justify-between gap-6">
                   <div>
-                    <h3 className="text-xl font-semibold text-foreground md:text-2xl">
+                    <h3 className="display text-3xl text-foreground uppercase md:text-5xl">
                       {member.name}
                     </h3>
-                    <p className="mt-1.5 font-mono text-xs uppercase tracking-widest text-accent">
-                      {member.role}
+                    <p className="mt-3 max-w-md text-base leading-snug text-muted">
+                      {member.bio}
                     </p>
                   </div>
                   {member.linkedin && (
@@ -87,31 +105,10 @@ export function About() {
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label={`LinkedIn de ${member.name}`}
-                      className="focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border text-muted transition-colors hover:border-accent hover:bg-accent hover:text-background"
+                      className="focus-ring grid h-12 w-12 shrink-0 place-items-center rounded-full border border-border text-muted transition-colors duration-300 hover:border-accent hover:bg-accent hover:text-background"
                     >
-                      <LinkedinIcon size={16} />
+                      <LinkedinIcon size={18} />
                     </Link>
-                  )}
-                </div>
-
-                <div className="col-span-2 sm:col-span-1 sm:col-start-2">
-                  <p className="text-sm leading-relaxed text-muted md:text-base">
-                    {member.bio}
-                  </p>
-                  {member.focus && member.focus.length > 0 && (
-                    <ul
-                      aria-label={`De qué se encarga ${member.name}`}
-                      className="mt-5 flex flex-wrap gap-2"
-                    >
-                      {member.focus.map((item) => (
-                        <li
-                          key={item}
-                          className="rounded-full border border-border bg-surface-2 px-3 py-1 font-mono text-[11px] text-foreground/80"
-                        >
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
                   )}
                 </div>
               </article>

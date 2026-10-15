@@ -5,7 +5,7 @@ import { Container } from "@/components/ui/container";
 import { RevealText } from "@/components/ui/reveal-text";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Magnetic } from "@/components/ui/magnetic";
-import { ProjectWheel } from "@/components/work/project-wheel";
+import { ProjectRail } from "@/components/work/project-rail";
 import { projects } from "@/data/projects";
 import { SITE } from "@/data/site";
 
@@ -45,7 +45,7 @@ export function SelectedWork() {
 
       </Container>
 
-      <ProjectWheel projects={ordered} />
+      <ProjectRail projects={ordered} />
     </section>
   );
 }
