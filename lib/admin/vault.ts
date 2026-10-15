@@ -81,6 +81,7 @@ export async function updateAccount(
     patch.rotated_on = today;
   }
   if (v.notes) patch.notes_enc = encrypt(v.notes, notesAad(id));
+  else if (v.clearNotes) patch.notes_enc = null;
   const { data, error } = await client()
     .from("panel_vault")
     .update(patch)

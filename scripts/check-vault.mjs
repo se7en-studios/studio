@@ -77,6 +77,11 @@ for (const bad of ["https://accounts.google.com@evil.com", "https://user:pass@ve
   assert.equal(shared.cleanAccount({ ...base, url: bad }, { creating: true }).ok, false, bad);
 assert.equal(shared.cleanAccount({ ...base, url: "HTTPS://Vercel.com/login" }, { creating: true }).value.url, "https://vercel.com/login");
 // Valores raros caen en los de siempre.
+// Borrar las notas: sólo al editar, y escribir notas nuevas gana.
+assert.equal(shared.cleanAccount({ ...base, clearNotes: true }, { creating: false }).value.clearNotes, true);
+assert.equal(shared.cleanAccount({ ...base, clearNotes: true }, { creating: true }).value.clearNotes, false);
+assert.equal(shared.cleanAccount({ ...base, notes: "nuevas", clearNotes: true }, { creating: false }).value.clearNotes, false);
+assert.equal(shared.cleanAccount({ ...base }, { creating: false }).value.clearNotes, false);
 const odd = shared.cleanAccount({ ...base, twofa: "otro", owner: "nadie" }, { creating: true }).value;
 assert.deepEqual([odd.twofa, odd.owner], ["app", "ambos"]);
 assert.equal(shared.cleanAccount({ ...base, secret: "x".repeat(shared.MAX_SECRET + 1) }, { creating: true }).ok, false);
