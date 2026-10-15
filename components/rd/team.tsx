@@ -44,7 +44,7 @@ export function RdTeam() {
                   {" intermediarios."}
                 </>,
               ]}
-              className="rd-display text-[clamp(2.2rem,5.6vw,6.8rem)]"
+              className="rd-display text-[clamp(1.4rem,7.9vw,2.2rem)] md:text-[clamp(2.2rem,5.6vw,6.8rem)]"
             />
             <RdReveal className="mt-8 flex flex-wrap items-center gap-6">
               <p className="rd-body max-w-lg text-lg leading-snug text-(--ink)/70 md:text-xl">

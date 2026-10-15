@@ -95,7 +95,7 @@ export function RdProcess() {
                 <span className="rd-serif text-(--signal)">4 pasos</span>
               </>,
             ]}
-            className="rd-display text-[clamp(2.4rem,6.4vw,7.6rem)] lg:col-span-9"
+            className="rd-display text-[clamp(1.9rem,9vw,2.4rem)] md:text-[clamp(2.4rem,6.4vw,7.6rem)] lg:col-span-9"
           />
         </div>
         <div ref={ref} className="relative mt-16 md:mt-24">
@@ -140,7 +140,7 @@ function Step({
   );
   return (
     <div
-      className="sticky h-[min(78vh,720px)] pb-6"
+      className="sticky pb-6 md:h-[min(78vh,720px)]"
       style={{ top: `calc(12vh + ${index * 28}px)` }}
     >
       <motion.article
@@ -149,7 +149,7 @@ function Step({
             ? { background: p.bg, color: p.fg }
             : { scale, background: p.bg, color: p.fg }
         }
-        className="relative grid h-full origin-top grid-rows-[auto_1fr] overflow-hidden rounded-[2rem] p-6 md:grid-cols-12 md:grid-rows-1 md:p-12"
+        className="relative grid h-full origin-top grid-rows-[auto_1fr] gap-10 overflow-hidden rounded-[2rem] p-6 md:grid-cols-12 md:grid-rows-1 md:gap-0 md:p-12"
       >
         <div className="flex items-start justify-between md:col-span-5 md:flex-col md:justify-between">
           <span className="rd-label opacity-70">{step.duration}</span>

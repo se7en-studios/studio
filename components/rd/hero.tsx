@@ -228,7 +228,7 @@ function HeroWord({ play }: { play: boolean }) {
   }, [play]);
 
   return (
-    <span className="relative inline-block overflow-hidden pr-[0.1em] align-bottom">
+    <span className="relative -mt-[0.22em] inline-block overflow-hidden pt-[0.22em] pr-[0.1em] align-bottom">
       <AnimatePresence mode="popLayout" initial={false}>
         <motion.span
           key={WORDS[i]}
