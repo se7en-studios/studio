@@ -6,15 +6,22 @@
 # que le firma GitHub (por eso id-token: write), y el panel sólo acepta el de
 # este workflow en master. Se puede correr a mano desde la pestaña Actions
 # («Run workflow»).
+#
+# Un PR que toca este workflow o el script lo prueba en el runner sin subir
+# nada (--local) y deja las capturas como artifact para mirarlas.
 name: Capturas de los sitios
 
 on:
   schedule:
     - cron: "30 9 * * *" # 06:30 en Argentina
   workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/capturas.yml
+      - scripts/capturar-sitios.mjs
 
 concurrency:
-  group: capturas
+  group: capturas-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -23,17 +30,28 @@ permissions:
 
 jobs:
   capturar:
-    runs-on: ubuntu-latest
+    # Fijo en 26.04: ubuntu-latest cambia de imagen entre el 19/10 y el 19/11
+    # de 2026, y así el cambio no nos agarra en el medio. Para pasar a otra,
+    # probarla en un PR (el de capturas también corre si se toca su workflow).
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
       - run: npm ci
       # El runner ya trae Google Chrome: no hace falta bajar otro.
-      - run: node scripts/capturar-sitios.mjs
+      - run: node scripts/capturar-sitios.mjs ${{ github.event_name == 'pull_request' && '--local' || '' }}
         env:
           PANEL_URL: https://se7enstudio.vercel.app
           CHROME_PATH: /usr/bin/google-chrome
+      - if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: capturas
+          path: .capturas/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
