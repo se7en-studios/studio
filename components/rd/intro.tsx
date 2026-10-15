@@ -25,6 +25,8 @@ export function useIntroReady(): boolean {
 const SEEN_KEY = "rd-intro-seen";
 /** Duración del conteo 000→100, en ms. */
 const COUNT_MS = 1000;
+/** Espeja el delay de .rd-preloader en rd.css: pasado esto el telón ya no se ve. */
+const FAILSAFE_MS = 2600;
 
 function wasSeen(): boolean {
   try {
@@ -73,6 +75,12 @@ function Preloader({ onComplete }: { onComplete: () => void }) {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
+    // Hidratación tardía (celular lento): el telón ya lo ocultó rd.css (rd-failsafe),
+    // así que no tiene sentido bloquear el scroll para un conteo que nadie ve.
+    if (performance.now() > FAILSAFE_MS + 300) {
+      onComplete();
+      return;
+    }
     const root = document.documentElement;
     const prevOverflow = root.style.overflow;
     root.style.overflow = "hidden";

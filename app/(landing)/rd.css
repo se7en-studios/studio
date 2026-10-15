@@ -54,7 +54,7 @@
 
   .rd-spin { animation: 16s linear infinite rd-spin; }
   .rd-ping { animation: rd-ping 1.8s var(--ease-out) infinite; }
-  .rd-preloader { animation: 0.3s 4s forwards rd-failsafe; }
+  .rd-preloader { animation: 0.3s 2.6s forwards rd-failsafe; }
   .rd-link { transition: background-size 0.5s var(--ease-out); background-image: linear-gradient(currentColor, currentColor); background-position: 0 100%; background-repeat: no-repeat; background-size: 0% 1px; }
   .rd-link:hover, .rd-link:focus-visible { background-size: 100% 1px; }
 
