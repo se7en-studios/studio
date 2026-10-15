@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import type { Lead, LeadStatus } from "@/lib/admin/db";
 import type { Activity } from "@/lib/admin/activity-shared";
 import { PEOPLE } from "@/lib/admin/people";
-import { computeMetrics, type Group } from "@/lib/admin/metrics";
+import { CHANNEL_LABEL, computeMetrics, type Group } from "@/lib/admin/metrics";
 import { BarChart3 } from "lucide-react";
 import { Card, Kpi, Segmented, cn, kpiRow } from "../kit";
 
@@ -28,15 +28,6 @@ const STAGES: { id: LeadStatus; label: string }[] = [
   { id: "perdido", label: "Perdidos" },
 ];
 
-const CHANNEL_LABEL: Record<string, string> = {
-  whatsapp: "WhatsApp",
-  email: "Email",
-  instagram: "Instagram",
-  referido: "Referido",
-  llamada: "Llamada",
-  otro: "Otro",
-  web: "Web",
-};
 
 const usd = (n: number | null) =>
   n ? `USD ${Math.round(n).toLocaleString("es-AR")}` : "—";
