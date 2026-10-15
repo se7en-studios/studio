@@ -29,7 +29,10 @@ import type { Entry } from "@/lib/admin/finance-shared";
 import { withLegacy } from "@/lib/admin/payment-shared";
 import { dayKey, type Task, type TaskLinks } from "@/lib/admin/task-shared";
 import { listTasks, taskLinks } from "@/lib/admin/tasks";
+import { listTime } from "@/lib/admin/time";
+import type { TimeEntry } from "@/lib/admin/time-shared";
 import { EventList } from "../../feed";
+import { Hours } from "../../horas/timer";
 import { Card, CardLink, Face, Progress, StatusPill, TabLinks, btnPrimary, btnSecondary, usd } from "../../kit";
 import { Chat } from "../../mensajes/chat";
 import { AdminGate, SetupNotice, bytes } from "../../ui";
@@ -84,7 +87,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
   if (!project) return <SetupNotice reason={setup ?? ""} />;
 
   // Sólo lo que necesita la pestaña abierta, y en paralelo.
-  const [stateR, filesR, tasksR, linksR, eventsR, countR, paymentsR] = await Promise.all([
+  const [stateR, filesR, tasksR, linksR, eventsR, countR, paymentsR, timeR] = await Promise.all([
     optional<ProjectState>(getState(slug, project.isCase), defaultState(slug, project.isCase)),
     tab === "archivos" ? optional<PanelFile[]>(listFiles(slug), []) : null,
     tab === "resumen" ? optional<Task[] | null>(listTasks({ projectSlug: slug }), null) : null,
@@ -103,6 +106,8 @@ export default async function ProjectPage({ params, searchParams }: Props) {
           [],
         )
       : null,
+    // Las horas (time.sql): el cronómetro del proyecto y sus tramos, incluidos los de sus pedidos de mantenimiento.
+    tab === "resumen" ? optional<TimeEntry[]>(listTime(slug), []) : null,
   ]);
   const state = stateR.value;
   // El cliente (clients.sql): si falta la tabla o no tiene, no se muestra.
@@ -232,6 +237,11 @@ export default async function ProjectPage({ params, searchParams }: Props) {
                   accent={project.accent}
                   today={dayKey()}
                 />
+              )}
+              {timeR?.missing ? (
+                <SetupNotice reason={timeR.missing} />
+              ) : (
+                <Hours slug={project.slug} initial={timeR?.value ?? []} me={me.who} today={dayKey()} />
               )}
               {tasksR?.value ? (
                 <ProjectTasks slug={project.slug} tasks={tasksR.value} links={linksR?.value ?? { leads: [], projects: [] }} me={me.who} owner={state.owner} />

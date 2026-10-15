@@ -18,6 +18,8 @@ import {
 } from "@/lib/admin/maintenance-shared";
 import { siteAlerts } from "@/lib/admin/site-health-shared";
 import { dayKey } from "@/lib/admin/task-shared";
+import { listTime } from "@/lib/admin/time";
+import type { TimeEntry } from "@/lib/admin/time-shared";
 import { Kpi, PageHeader, kpiRow, usd } from "../kit";
 import { AdminGate, SetupNotice } from "../ui";
 import { loadBook, optional } from "../clientes/data";
@@ -36,7 +38,7 @@ export default async function MantenimientoPage() {
   // Idempotente: abrirla dos veces no genera dos.
   await optional(ensureCharges(today), 0, missing);
 
-  const [book, requests, charges, clients] = await Promise.all([
+  const [book, requests, charges, clients, time] = await Promise.all([
     loadBook(missing),
     optional(listRequests(), [] as MaintRequest[], missing),
     optional(
@@ -45,6 +47,7 @@ export default async function MantenimientoPage() {
       missing,
     ),
     optional(listClients(), [] as Client[], []),
+    optional(listTime(), [] as TimeEntry[], missing),
   ]);
   const entries = await optional(
     chargeEntries([...charges.values()].filter((x): x is string => Boolean(x))),
@@ -75,7 +78,7 @@ export default async function MantenimientoPage() {
           ? chargeState((fid && entries.get(fid)) || null, today)
           : null,
         open: open.get(p.slug) ?? 0,
-        hours: hoursUsage(plan, p.slug, requests, today),
+        hours: hoursUsage(plan, p.slug, requests, today, time),
         check: book.checks.get(p.slug) ?? null,
         alerts: alerts.filter((a) => a.slug === p.slug),
       };
@@ -143,6 +146,8 @@ export default async function MantenimientoPage() {
 
       <RequestQueue
         initial={requests}
+        time={time}
+        me={me.who}
         projects={book.projects.map((p) => ({ slug: p.slug, name: p.name }))}
         today={today}
       />

@@ -11,6 +11,7 @@ import {
   type Entry,
   type Owner,
 } from "./finance-shared";
+import { projectMinutesInMonth, type TimeEntry } from "./time-shared";
 
 export type Plan = {
   project_slug: string;
@@ -312,17 +313,23 @@ export type HoursUsage = {
   over: boolean;
 };
 
-/** Horas usadas este mes contra las incluidas en el plan. */
+/**
+ * Horas usadas este mes contra las incluidas en el plan: los minutos cargados a
+ * mano en los pedidos (antes del cronómetro) más todos los tramos del proyecto
+ * en el mes (supabase/time.sql), sean de un pedido o del proyecto.
+ */
 export function hoursUsage(
   plan: Pick<Plan, "project_slug" | "hours_included"> | null,
   slug: string,
   requests: Pick<MaintRequest, "project_slug" | "minutes" | "done_at">[],
   today: string,
+  time: TimeEntry[] = [],
 ): HoursUsage {
-  const used =
-    Math.round(
-      (minutesInMonth(requests, slug, monthOf(today), today) / 60) * 10,
-    ) / 10;
+  const ym = monthOf(today);
+  const minutes =
+    minutesInMonth(requests, slug, ym, today) +
+    projectMinutesInMonth(time, slug, ym);
+  const used = Math.round((minutes / 60) * 10) / 10;
   const included = plan?.hours_included ?? null;
   return { used, included, over: included !== null && used > included };
 }
