@@ -10,6 +10,8 @@ import { paymentNotice } from "@/lib/admin/digest";
 import { notifyPartner } from "@/lib/admin/notify";
 import { currentFx, insertEntry, removeEntry } from "@/lib/admin/finance";
 import { cleanEntry, fmt, type Entry, type Owner } from "@/lib/admin/finance-shared";
+import { installments } from "@/lib/admin/plata-shared";
+import { dayKey } from "@/lib/admin/task-shared";
 import { removePayment } from "@/lib/admin/payments";
 import { stateForLead, upsertState } from "@/lib/admin/projects";
 import { TASK_TEMPLATES, isTemplate, templateTasks } from "@/lib/admin/task-shared";
@@ -285,43 +287,66 @@ const UUID = /^[0-9a-f-]{36}$/i;
 /**
  * Registra un cobro (seña, saldo, cuota, abono) como ingreso de Finanzas con el
  * proyecto: es el mismo número que suman Inicio, Finanzas y la ficha. Va en
- * dólares con la cotización de hoy, para tener el equivalente en pesos.
+ * dólares con la cotización de hoy y su fuente, para tener el equivalente en pesos.
+ *
+ * Con `due: true` es un plan de cobros: `installments` pendientes (una cuota por
+ * mes desde la fecha, el monto partido) que se marcan cobrados cuando entran.
  */
 export async function addPayment(
   slug: string,
-  input: { amount: number | string; paid_on: string; note?: string; owner?: Owner; category?: string },
-): Promise<Entry> {
+  input: {
+    amount: number | string;
+    paid_on: string;
+    note?: string;
+    owner?: Owner;
+    category?: string;
+    due?: boolean;
+    installments?: number;
+  },
+): Promise<Entry[]> {
   const me = await guard();
   if (!(await getProject(slug))) throw new Error("Ese proyecto no existe.");
-  const fx = await currentFx();
+  const { fx, source } = await currentFx();
   if (!fx) throw new Error("No pude traer la cotización del dólar: cargá el cobro desde Finanzas, con la cotización a mano.");
-  const cleaned = cleanEntry({
-    kind: "ingreso",
-    currency: "USD",
-    amount: Number(input.amount),
-    fx,
-    occurred_on: input.paid_on,
-    category: input.category === "mantenimiento" ? "mantenimiento" : "proyecto",
-    description: input.note ?? "",
-    project_slug: slug,
-    recurring: false,
-    until: null,
-    // Quién cobró la plata: de ahí sale quién le debe a quién (todo se divide 50/50).
-    owner: input.owner,
-    status: "pagado",
+  const due = Boolean(input.due);
+  if (!due && input.paid_on > dayKey()) throw new Error("Un cobro que todavía no entró va como «Por cobrar».");
+  const parts = due ? installments(Number(input.amount), Number(input.installments) || 1, input.paid_on) : [{ amount: Number(input.amount), due: input.paid_on }];
+  const note = (input.note ?? "").trim();
+  const rows = parts.map((p, i) => {
+    const cleaned = cleanEntry({
+      kind: "ingreso",
+      currency: "USD",
+      amount: p.amount,
+      fx,
+      fx_source: source,
+      occurred_on: p.due,
+      category: input.category === "mantenimiento" ? "mantenimiento" : "proyecto",
+      description: parts.length > 1 ? `${note || "Cuota"} ${i + 1}/${parts.length}` : note,
+      project_slug: slug,
+      recurring: false,
+      until: null,
+      // Quién cobró la plata: de ahí sale quién le debe a quién (todo se divide 50/50).
+      owner: input.owner,
+      status: due ? "pendiente" : "pagado",
+    });
+    if (!cleaned.ok) throw new Error(cleaned.error);
+    return cleaned.value;
   });
-  if (!cleaned.ok) throw new Error(cleaned.error);
-  const entry = await insertEntry(cleaned.value, me.who);
+  const saved: Entry[] = [];
+  for (const row of rows) saved.push(await insertEntry(row, me.who));
+  const total = usd(rows.reduce((s, r) => s + r.amount, 0));
   after(() =>
     logEvent({
       actor: me.who,
       kind: "finanzas",
-      text: `registró un cobro de ${usd(entry.amount)}${entry.description ? ` (${entry.description})` : ""}`,
+      text: due
+        ? `cargó un plan de cobros de ${total}${rows.length > 1 ? ` en ${rows.length} cuotas` : ""}`
+        : `registró un cobro de ${total}${note ? ` (${note})` : ""}`,
       project_slug: slug,
     }),
   );
-  after(() => notifyPartner(me.who, paymentNotice(PEOPLE[me.who].name)));
-  return entry;
+  if (!due) after(() => notifyPartner(me.who, paymentNotice(PEOPLE[me.who].name)));
+  return saved;
 }
 
 /** Borra un cobro: un ingreso de Finanzas o, si es de antes de finance-v4.sql, uno de la tabla vieja («cobro-<id>»). */

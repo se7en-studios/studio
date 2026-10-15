@@ -15,6 +15,7 @@ import {
   type Currency,
   type Entry,
   type FinanceKind,
+  type FxSource,
   type Owner,
 } from "@/lib/admin/finance-shared";
 import type { Rates } from "@/lib/admin/fx";
@@ -97,10 +98,19 @@ export function EntryForm({
     setCategory("otros");
   }
 
+  /** De dónde salió la cotización: la del movimiento si no se tocó, un atajo del día o a mano. */
+  function fxSource(): FxSource {
+    if (seed && draft.fx === seed.fx && seed.fx_source) return seed.fx_source;
+    return RATE_LABEL.find((r) => rates[r.id] === draft.fx)?.id ?? "manual";
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const cleaned = cleanEntry({
       ...draft,
+      fx_source: fxSource(),
+      // La fecha prevista no se pierde: la de un pendiente que se cobra acá, o la que ya tenía.
+      due_on: entry?.status === "pendiente" && !isPending ? entry.occurred_on : (entry?.due_on ?? null),
       // Un pendiente que pasa a pagado cuenta desde hoy, no desde su fecha prevista.
       occurred_on:
         entry?.status === "pendiente" && !isPending && day > today ? today : day,
@@ -349,8 +359,9 @@ export function EntryForm({
                   className={`${input} max-w-[200px] [color-scheme:dark]`}
                 />
                 <p className="mt-1.5 text-[12px] text-muted">
-                  Cuenta en cada mes con el mismo monto y cotización. Sin fecha,
-                  sigue hasta que lo borres.
+                  {kind === "ingreso"
+                    ? "Cada mes queda un pendiente con este monto que marcás cobrado cuando entra (con finance-v5.sql). Sin fecha, sigue hasta que lo borres."
+                    : "Cuenta en cada mes con el mismo monto y cotización. Sin fecha, sigue hasta que lo borres."}
                 </p>
               </div>
             )}

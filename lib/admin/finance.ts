@@ -2,14 +2,23 @@
 // ingresos con proyecto; los viejos de panel_payments se leen hasta correr
 // finance-v4.sql. Usa la service role key: NUNCA importar desde un componente de cliente.
 import type { LeadOwner } from "./db";
-import type { Entry, EntryInput } from "./finance-shared";
-import { fetchRates, referenceRate } from "./fx";
+import type { Entry, EntryInput, FxSource } from "./finance-shared";
+import { fetchRates, referenceRate, referenceSource } from "./fx";
 import { paymentToEntry, type Payment } from "./payment-shared";
 import { PanelNotReady, client } from "./panel";
+import { missingDues, type TaxCategory } from "./plata-shared";
+import { dayKey } from "./task-shared";
 
 const LEGACY_COLUMNS =
   "id, kind, occurred_on, currency, amount, fx, category, description, project_slug, recurring, until, created_by";
-const COLUMNS = `${LEGACY_COLUMNS}, owner, status`;
+const V2_COLUMNS = `${LEGACY_COLUMNS}, owner, status`;
+// finance-v5.sql: fuente de la cotización, fecha prevista y clave de los pendientes generados por mes.
+const COLUMNS = `${V2_COLUMNS}, fx_source, due_on, series`;
+const missingV5 = (e: { code?: string } | null) => e?.code === "42703" || e?.code === "PGRST204";
+/** Sin finance-v5.sql, lo que se guarda va sin las columnas nuevas. */
+const V5_FIELDS = ["fx_source", "due_on", "series"] as const;
+const withoutV5 = <T extends object>(row: T) =>
+  Object.fromEntries(Object.entries(row).filter(([k]) => !(V5_FIELDS as readonly string[]).includes(k)));
 const LIMIT = 5000;
 
 function fail(e: { code?: string; message: string }): never {
@@ -38,6 +47,8 @@ const toEntry = (r: Row): Entry => ({
   owner: r.owner ?? "ambos",
   status: r.status ?? "pagado",
   source: "manual",
+  // Con finance-v5.sql un ingreso recurrente es un plan: genera un pendiente por mes.
+  plan: "series" in r && r.kind === "ingreso" && r.recurring,
 });
 
 const select = (columns: string, slug?: string) => {
@@ -49,10 +60,22 @@ const select = (columns: string, slug?: string) => {
     .limit(LIMIT);
 };
 
-/** Todos los movimientos, o los de un proyecto. */
+/**
+ * Todos los movimientos, o los de un proyecto. Antes genera los pendientes del
+ * mes de cada ingreso recurrente que falten (idempotente), así Inicio, Finanzas
+ * y la ficha los ven igual sin depender de quién abrió qué primero.
+ */
 export async function listEntries(slug?: string): Promise<Entry[]> {
+  const entries = await readEntries(slug);
+  const due = missingDues(entries, dayKey());
+  if (!due.length) return entries;
+  return (await insertDues(due)) ? readEntries(slug) : entries;
+}
+
+async function readEntries(slug?: string): Promise<Entry[]> {
   let res = await select(COLUMNS, slug);
-  // Sin finance-v2.sql sigue andando como antes (todo «ambos» y pagado), hasta que se corra.
+  // Sin finance-v5.sql (o v2) sigue andando como antes, hasta que se corra.
+  if (res.error?.code === "42703") res = await select(V2_COLUMNS, slug);
   if (res.error?.code === "42703") res = await select(LEGACY_COLUMNS, slug);
   if (res.error) fail(res.error);
   return (res.data as unknown as Row[]).map(toEntry);
@@ -85,9 +108,10 @@ export async function listCobros(fx: number, slug?: string): Promise<Entry[]> {
  * Pesos por dólar para un cobro cargado desde la ficha de un proyecto: la de
  * referencia de hoy o, si no responde, la del último movimiento. 0 si no hay ninguna.
  */
-export async function currentFx(): Promise<number> {
-  const today = referenceRate(await fetchRates());
-  if (today) return today;
+export async function currentFx(): Promise<{ fx: number; source: FxSource | null }> {
+  const rates = await fetchRates();
+  const today = referenceRate(rates);
+  if (today) return { fx: today, source: referenceSource(rates) };
   const { data, error } = await client()
     .from("panel_finance")
     .select("fx")
@@ -96,47 +120,78 @@ export async function currentFx(): Promise<number> {
     .limit(1)
     .maybeSingle();
   if (error) fail(error);
-  return data ? Number((data as { fx: string | number }).fx) : 0;
+  return { fx: data ? Number((data as { fx: string | number }).fx) : 0, source: "estimada" };
 }
 
-export async function insertEntry(
-  input: EntryInput,
-  by: LeadOwner,
-): Promise<Entry> {
-  const { data, error } = await client()
-    .from("panel_finance")
-    .insert({ ...input, created_by: by })
-    .select(COLUMNS)
-    .single();
-  if (error) fail(error);
-  return toEntry(data as Row);
+/** Escribe y devuelve la fila; sin finance-v5.sql reintenta sin las columnas nuevas. */
+async function write(
+  run: (row: object, columns: string) => PromiseLike<{ data: unknown; error: { code?: string; message: string } | null }>,
+  row: object,
+): Promise<Entry | null> {
+  let res = await run(row, COLUMNS);
+  if (missingV5(res.error)) res = await run(withoutV5(row), V2_COLUMNS);
+  if (res.error) fail(res.error);
+  return res.data ? toEntry(res.data as Row) : null;
+}
+
+export async function insertEntry(input: EntryInput, by: LeadOwner): Promise<Entry> {
+  const entry = await write(
+    (row, columns) => client().from("panel_finance").insert(row).select(columns).single(),
+    { ...input, created_by: by },
+  );
+  return entry as Entry;
 }
 
 export async function updateEntry(id: string, input: EntryInput): Promise<Entry | null> {
-  const { data, error } = await client()
-    .from("panel_finance")
-    .update(input)
-    .eq("id", id)
-    .select(COLUMNS)
-    .maybeSingle();
-  if (error) fail(error);
-  return data ? toEntry(data as Row) : null;
+  return write((row, columns) => client().from("panel_finance").update(row).eq("id", id).select(columns).maybeSingle(), input);
 }
 
-/** Marca un pendiente como pagado, con la fecha en que realmente se pagó. */
+/**
+ * Los pendientes de cada mes de un plan (ver monthlyDues en plata-shared):
+ * los que ya están (misma `series`) se saltean, así que se puede llamar cada
+ * vez que se abre una página. Sin finance-v5.sql no hace nada.
+ */
+export async function insertDues(rows: EntryInput[], by: LeadOwner | null = null): Promise<number> {
+  if (!rows.length) return 0;
+  const { data, error } = await client()
+    .from("panel_finance")
+    .upsert(
+      rows.map((r) => ({ ...r, created_by: by })),
+      { onConflict: "series", ignoreDuplicates: true },
+    )
+    .select("id");
+  if (missingV5(error) || error?.code === "42P10") return 0;
+  if (error) fail(error);
+  return data?.length ?? 0;
+}
+
+/**
+ * Marca un pendiente como pagado: la fecha real es `paidOn`, la prevista queda
+ * en due_on y la cotización pasa a ser la de ese día (si la hay).
+ */
 export async function settleEntry(
   id: string,
   paidOn: string,
+  rate: { fx: number; source: FxSource | null },
 ): Promise<Entry | null> {
-  const { data, error } = await client()
+  const { data: row, error: readError } = await client()
     .from("panel_finance")
-    .update({ status: "pagado", occurred_on: paidOn })
+    .select("occurred_on")
     .eq("id", id)
     .eq("status", "pendiente")
-    .select(COLUMNS)
     .maybeSingle();
-  if (error) fail(error);
-  return data ? toEntry(data as Row) : null;
+  if (readError) fail(readError);
+  if (!row) return null;
+  return write(
+    (patch, columns) =>
+      client().from("panel_finance").update(patch).eq("id", id).eq("status", "pendiente").select(columns).maybeSingle(),
+    {
+      status: "pagado",
+      occurred_on: paidOn,
+      due_on: (row as { occurred_on: string }).occurred_on,
+      ...(rate.fx > 0 ? { fx: rate.fx, fx_source: rate.source } : {}),
+    },
+  );
 }
 
 type Removed = Pick<Entry, "kind" | "description" | "category" | "currency" | "occurred_on" | "project_slug"> & { amount: number };
@@ -152,4 +207,23 @@ export async function removeEntry(id: string): Promise<Removed | null> {
   if (!data) return null;
   const row = data as Omit<Removed, "amount"> & { amount: string | number };
   return { ...row, amount: Number(row.amount) };
+}
+
+// --- Monotributo -----------------------------------------------------------------
+
+/** La categoría de monotributo de cada socio (tabla panel_monotributo, finance-v5.sql). null si falta la tabla. */
+export async function listTaxCategories(): Promise<Partial<Record<LeadOwner, TaxCategory>> | null> {
+  const { data, error } = await client().from("panel_monotributo").select("owner, category");
+  if (error) {
+    if (error.code === "PGRST205" || error.code === "42P01") return null;
+    throw new Error(error.message);
+  }
+  return Object.fromEntries((data as { owner: LeadOwner; category: TaxCategory }[]).map((r) => [r.owner, r.category]));
+}
+
+export async function setTaxCategory(owner: LeadOwner, category: TaxCategory): Promise<void> {
+  const { error } = await client().from("panel_monotributo").upsert({ owner, category, updated_at: new Date().toISOString() });
+  if (error?.code === "PGRST205" || error?.code === "42P01")
+    throw new PanelNotReady("Falta correr supabase/finance-v5.sql en Supabase.");
+  if (error) throw new Error(error.message);
 }

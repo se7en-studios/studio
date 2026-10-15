@@ -28,6 +28,7 @@ const dayLabel = (day: string) =>
 
 export function Pending({
   entries,
+  plans = [],
   owed,
   today,
   projectName,
@@ -36,6 +37,8 @@ export function Pending({
   onAdd,
 }: {
   entries: Entry[];
+  /** Ingresos que se repiten todos los meses (finance-v5.sql): cada mes generan un pendiente acá. */
+  plans?: Entry[];
   owed: OwedProject[];
   today: string;
   projectName: (slug: string | null) => string | null;
@@ -46,7 +49,7 @@ export function Pending({
   const sorted = [...entries].sort((a, b) =>
     a.occurred_on.localeCompare(b.occurred_on),
   );
-  const count = sorted.length + owed.length;
+  const count = sorted.length + plans.length + owed.length;
   return (
     <Card
       title="Pagos pendientes"
@@ -113,6 +116,30 @@ export function Pending({
               </li>
             );
           })}
+          {plans.map((e) => (
+            <li key={e.id} className="flex items-center gap-3 px-4 py-3">
+              <OwnerFaces owner={e.owner} />
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] leading-snug font-medium break-words">
+                  {e.description || categoryLabel(e.kind, e.category)}
+                </p>
+                <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px] text-muted">
+                  <span>Todos los meses, el día {Number(e.occurred_on.slice(8))}</span>
+                  {projectName(e.project_slug) && <span>{projectName(e.project_slug)}</span>}
+                  {e.until && <span>hasta {dayLabel(e.until)}</span>}
+                </p>
+              </div>
+              <p className="shrink-0 text-[13px] font-medium tabular-nums">{fmt(e.amount, e.currency)}</p>
+              <button
+                type="button"
+                onClick={() => onEdit(e)}
+                aria-label={`Editar ${e.description || categoryLabel(e.kind, e.category)}`}
+                className={cn(btnGhost, "shrink-0 p-1.5")}
+              >
+                <Pencil size={14} />
+              </button>
+            </li>
+          ))}
           {owed.map((p) => (
             <li key={p.slug} className="flex items-center gap-3 px-4 py-3">
               <span className="w-[18px] shrink-0" aria-hidden />

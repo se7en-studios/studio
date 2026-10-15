@@ -23,7 +23,9 @@ export const COST_CATEGORIES: Category[] = [
   { id: "infra", label: "Hosting e infraestructura" },
   { id: "herramientas", label: "Herramientas y software" },
   { id: "publicidad", label: "Publicidad" },
-  { id: "sueldos", label: "Sueldos y retiros" },
+  { id: "sueldos", label: "Sueldos" },
+  // No es un costo: es plata del resultado que se lleva un socio. Se muestra aparte (isWithdrawal).
+  { id: "retiros", label: "Retiros de socios" },
   { id: "impuestos", label: "Impuestos y contador" },
   { id: "dominios", label: "Dominios y licencias" },
   { id: "otros", label: "Otros" },
@@ -35,6 +37,14 @@ export const INCOME_CATEGORIES: Category[] = [
   { id: "suscripcion", label: "Suscripciones" },
   { id: "otros", label: "Otros" },
 ];
+
+/** Un retiro de un socio: sale de la caja pero no es un costo del estudio. */
+export const isWithdrawal = (e: Pick<Entry, "kind" | "category">) =>
+  e.kind === "costo" && e.category === "retiros";
+
+/** De dónde salió la cotización de un movimiento. «estimada»: la del movimiento más cercano (cobros migrados con finance-v4.sql). */
+export const FX_SOURCES = ["mep", "oficial", "blue", "manual", "estimada"] as const;
+export type FxSource = (typeof FX_SOURCES)[number];
 
 export const categoriesOf = (kind: FinanceKind) =>
   kind === "costo" ? COST_CATEGORIES : INCOME_CATEGORIES;
@@ -65,6 +75,18 @@ export type Entry = {
   created_by: LeadOwner | null;
   /** «cobro»: un cobro viejo de panel_payments (hasta correr finance-v4.sql); «herramienta»: una suscripción. No se editan como movimiento y su cotización es la de hoy. */
   source: "manual" | "cobro" | "herramienta";
+  /** De dónde salió `fx` (finance-v5.sql); null si no se sabe. */
+  fx_source?: FxSource | null;
+  /** YYYY-MM-DD: cuándo se esperaba cobrar o pagar (finance-v5.sql). Un pendiente lo tiene igual a occurred_on; al marcarlo pagado, occurred_on pasa a ser la fecha real y esta queda. */
+  due_on?: string | null;
+  /** Clave de un pendiente generado por mes («<plan>:YYYY-MM»): no se genera dos veces (ver monthlyDues). */
+  series?: string | null;
+  /**
+   * Ingreso recurrente con finance-v5.sql: es un plan, no un cobro. No cuenta solo:
+   * cada mes genera un pendiente que se marca cobrado a mano. Sin finance-v5.sql
+   * es false y el recurrente cuenta todos los meses, como antes.
+   */
+  plan?: boolean;
   /** Es la mitad de un movimiento de la cuenta del estudio, vista desde un socio: el monto ya viene partido. */
   studio?: boolean;
 };
@@ -83,7 +105,8 @@ export type EntryInput = Pick<
   | "until"
   | "owner"
   | "status"
->;
+> &
+  Partial<Pick<Entry, "fx_source" | "due_on" | "series">>;
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -146,6 +169,10 @@ export function cleanEntry(
   const until = recurring && input.until ? String(input.until) : null;
   if (until && (!isRealDay(until) || until < day))
     return { ok: false, error: "«Hasta» no puede ser anterior a la fecha." };
+  // Un pendiente vence el día cargado; uno pagado conserva la fecha prevista si la tenía.
+  const due_on =
+    status === "pendiente" ? day : input.due_on && isRealDay(String(input.due_on)) ? String(input.due_on) : null;
+  const fx_source = FX_SOURCES.find((x) => x === input.fx_source) ?? null;
   return {
     ok: true,
     value: {
@@ -163,6 +190,9 @@ export function cleanEntry(
       until,
       owner,
       status,
+      due_on,
+      fx_source,
+      ...(input.series ? { series: String(input.series).slice(0, 120) } : {}),
     },
   };
 }
@@ -206,12 +236,13 @@ export type Occurrence = { entry: Entry; month: string };
 
 /**
  * Un movimiento puntual cuenta en su mes; uno recurrente, en cada mes desde que
- * empieza hasta que termina. Los pendientes no cuentan hasta que se pagan.
+ * empieza hasta que termina. Los pendientes no cuentan hasta que se pagan, y un
+ * ingreso recurrente que es plan (finance-v5.sql) tampoco: cuentan sus pendientes cobrados.
  */
 export function expand(entries: Entry[], months: string[]): Occurrence[] {
   const out: Occurrence[] = [];
   for (const entry of entries) {
-    if (entry.status === "pendiente") continue;
+    if (entry.status === "pendiente" || entry.plan) continue;
     const start = monthOf(entry.occurred_on);
     const end = entry.until ? monthOf(entry.until) : null;
     for (const month of months) {
@@ -229,12 +260,17 @@ export type Totals = {
   ingresoArs: number;
   costoUsd: number;
   costoArs: number;
+  /** Retiros de los socios: no son costo, se muestran aparte. */
+  retiroUsd: number;
+  retiroArs: number;
 };
 const EMPTY: Totals = {
   ingresoUsd: 0,
   ingresoArs: 0,
   costoUsd: 0,
   costoArs: 0,
+  retiroUsd: 0,
+  retiroArs: 0,
 };
 
 export function totals(occ: Occurrence[]): Totals {
@@ -243,6 +279,9 @@ export function totals(occ: Occurrence[]): Totals {
     if (e.kind === "ingreso") {
       t.ingresoUsd += usdOf(e);
       t.ingresoArs += arsOf(e);
+    } else if (isWithdrawal(e)) {
+      t.retiroUsd += usdOf(e);
+      t.retiroArs += arsOf(e);
     } else {
       t.costoUsd += usdOf(e);
       t.costoArs += arsOf(e);
@@ -273,8 +312,8 @@ export function groupTotals(
 
 export const pick = (t: Totals, currency: Currency) =>
   currency === "USD"
-    ? { ingreso: t.ingresoUsd, costo: t.costoUsd }
-    : { ingreso: t.ingresoArs, costo: t.costoArs };
+    ? { ingreso: t.ingresoUsd, costo: t.costoUsd, retiro: t.retiroUsd }
+    : { ingreso: t.ingresoArs, costo: t.costoArs, retiro: t.retiroArs };
 
 /** Costos fijos de un mes: lo que se gasta todos los meses haya o no ingresos. */
 export function fixedCosts(

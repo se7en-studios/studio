@@ -39,3 +39,7 @@ export async function fetchRates(): Promise<Rates> {
 
 /** Cotización de referencia: MEP, después oficial, después blue; 0 si no hay ninguna. */
 export const referenceRate = (r: Rates) => r.mep ?? r.oficial ?? r.blue ?? 0;
+
+/** De cuál sale referenceRate; null si no hay ninguna. */
+export const referenceSource = (r: Rates) =>
+  r.mep ? ("mep" as const) : r.oficial ? ("oficial" as const) : r.blue ? ("blue" as const) : null;
