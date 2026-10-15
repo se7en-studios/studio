@@ -44,6 +44,9 @@ const SQL_WHAT: Record<string, React.ReactNode> = {
   "panel-v2.sql": "Crea el estado de los proyectos, los mensajes y el detalle del registro de cambios.",
   "content.sql": "Crea la tabla del calendario de contenido de Instagram.",
   "payments.sql": "Crea la tabla de cobros de los proyectos.",
+  "clients.sql": "Crea los clientes a partir de los nombres escritos en los proyectos y los vincula.",
+  "maintenance.sql": "Crea los planes de mantenimiento, sus cobros mensuales y la cola de pedidos de los clientes.",
+  "site-health.sql": "Crea la tabla de chequeos diarios de los sitios (respuesta, tiempo, SSL y dominio).",
   "finance-v4.sql": "Pasa los cobros de los proyectos a Finanzas, como ingresos con proyecto: así todo el panel suma lo mismo.",
 };
 

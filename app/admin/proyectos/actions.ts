@@ -13,6 +13,7 @@ import { cleanEntry, fmt, type Entry, type Owner } from "@/lib/admin/finance-sha
 import { installments } from "@/lib/admin/plata-shared";
 import { dayKey } from "@/lib/admin/task-shared";
 import { removePayment } from "@/lib/admin/payments";
+import { clientForLead, setProjectClient } from "@/lib/admin/clients";
 import { stateForLead, upsertState } from "@/lib/admin/projects";
 import { TASK_TEMPLATES, isTemplate, templateTasks } from "@/lib/admin/task-shared";
 import { insertTasks } from "@/lib/admin/tasks";
@@ -372,9 +373,12 @@ export async function deletePayment(id: string): Promise<void> {
 // --- Pedido ganado → proyecto ------------------------------------------------
 
 /**
- * Crea el proyecto de un pedido ganado y lo deja vinculado: cliente, monto,
- * responsable y el pedido pasan solos. Si el pedido ya tiene proyecto,
- * devuelve ese (dos clicks no crean dos proyectos).
+ * Crea el proyecto de un pedido ganado y lo deja vinculado: el cliente (uno
+ * que ya exista con el mismo email o nombre, o uno nuevo con el contacto del
+ * pedido), monto, responsable y el pedido pasan solos. Las tareas del pedido
+ * quedan también en el proyecto; el chat y el historial siguen en el pedido,
+ * que queda vinculado (nada se copia). Si el pedido ya tiene proyecto, devuelve
+ * ese (dos clicks no crean dos proyectos).
  */
 export async function projectFromLead(leadId: string): Promise<{ slug?: string; error?: string }> {
   try {
@@ -391,6 +395,12 @@ export async function projectFromLead(leadId: string): Promise<{ slug?: string; 
     const lead = data as Lead;
     if (lead.status !== "ganado") return { error: "Primero pasá el pedido a Ganado." };
 
+    // Sin clients.sql el proyecto se crea igual, con el cliente como texto.
+    const linked = await clientForLead(lead, me.who).catch((e) => {
+      if (e instanceof PanelNotReady) return null;
+      throw e;
+    });
+
     const name = (lead.company || lead.name).trim().slice(0, 80) || "Proyecto";
     const slug = await insertProject({
       name,
@@ -406,7 +416,7 @@ export async function projectFromLead(leadId: string): Promise<{ slug?: string; 
         {
           status: "descubrimiento",
           owner: lead.owner ?? me.who,
-          client: lead.company ? `${lead.name} · ${lead.company}` : lead.name,
+          client: linked?.client.name ?? (lead.company ? `${lead.name} · ${lead.company}` : lead.name),
           lead_id: lead.id,
           budget: lead.value ?? null,
           start_date: new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }),
@@ -416,13 +426,18 @@ export async function projectFromLead(leadId: string): Promise<{ slug?: string; 
       ),
       me.who,
     );
+    if (linked) await setProjectClient(slug, false, linked.client.id, me.who);
+    // Las tareas del pedido que no son de otro proyecto pasan a verse también en éste.
+    const tasks = await c.from("panel_tasks").update({ project_slug: slug }).eq("lead_id", lead.id).is("project_slug", null);
+    if (tasks.error) console.error("[proyectos] tareas del pedido:", tasks.error.message);
     after(() =>
       logEvent({
         actor: me.who,
         kind: "proyecto",
-        text: `creó el proyecto desde el pedido de ${lead.name}`,
+        text: `creó el proyecto desde el pedido de ${lead.name}${linked?.created ? ` y el cliente «${linked.client.name}»` : linked ? ` para el cliente «${linked.client.name}»` : ""}`,
         project_slug: slug,
         lead_id: lead.id,
+        changes: linked ? [{ field: "client_id", label: "Cliente", before: null, after: linked.client.name }] : [],
       }),
     );
     return { slug };

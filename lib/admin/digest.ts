@@ -2,6 +2,7 @@
 // pedido nuevo. Puro y sin dependencias de servidor, para poder probarlo. Los avisos
 // salen por un servicio externo: llevan solo conteos y títulos de posts del estudio,
 // nunca nombres ni datos de clientes.
+import type { SiteAlert } from "./site-health-shared";
 export type Notice = {
   title: string;
   message: string;
@@ -30,6 +31,8 @@ export type DigestInput = {
   backupDue?: boolean;
   /** Cobros pendientes con la fecha ya pasada: cuántos y el total en USD, sin clientes. */
   lateCharges?: { count: number; usd: number };
+  /** Alertas de los sitios (siteAlerts): en el aviso van sólo contadas, sin el sitio. */
+  siteAlerts?: SiteAlert[];
 };
 
 const plural = (n: number, one: string, many: string) =>
@@ -56,6 +59,18 @@ function renewalLines(renewals: Renewal[]): string[] {
     .map(([days, names]) => `Renueva ${when(days)}: ${names.join(", ")}`);
 }
 
+/** «2 sitios caídos», «SSL por vencer en 1 sitio»: cuántos, nunca cuáles (son de clientes). */
+function siteLines(alerts: SiteAlert[]): string[] {
+  const n = (kind: SiteAlert["kind"]) => alerts.filter((a) => a.kind === kind).length;
+  const down = n("caido"), slow = n("lento"), ssl = n("ssl"), domain = n("dominio");
+  return [
+    down ? plural(down, "sitio caído", "sitios caídos") : null,
+    slow ? plural(slow, "sitio lento", "sitios lentos") : null,
+    ssl ? `SSL por vencer en ${plural(ssl, "sitio", "sitios")}` : null,
+    domain ? `Dominio por vencer en ${plural(domain, "sitio", "sitios")}` : null,
+  ].filter((l): l is string => l !== null);
+}
+
 /** Lo que hay para hoy, a la mañana. null si no hay nada: un aviso vacío es ruido. */
 export function morningDigest(i: DigestInput): Notice | null {
   const late = i.posts.filter((p) => p.date < i.today);
@@ -74,6 +89,7 @@ export function morningDigest(i: DigestInput): Notice | null {
       ? `${plural(i.lateCharges.count, "cobro vencido", "cobros vencidos")}: USD ${Math.round(i.lateCharges.usd).toLocaleString("es-AR")}`
       : null,
     ...renewalLines(i.renewals ?? []),
+    ...siteLines(i.siteAlerts ?? []),
     i.backupDue ? "Toca bajar la copia de seguridad del mes (Avisos → Copia de seguridad)" : null,
   ].filter((l): l is string => l !== null);
   return lines.length

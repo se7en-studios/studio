@@ -23,6 +23,7 @@ import {
 import { PEOPLE } from "@/lib/admin/people";
 import { defaultState, type ProjectState } from "@/lib/admin/project-shared";
 import { getState } from "@/lib/admin/projects";
+import { clientOfProject, getClient } from "@/lib/admin/clients";
 import { listCobros, listEntries } from "@/lib/admin/finance";
 import type { Entry } from "@/lib/admin/finance-shared";
 import { withLegacy } from "@/lib/admin/payment-shared";
@@ -104,6 +105,10 @@ export default async function ProjectPage({ params, searchParams }: Props) {
       : null,
   ]);
   const state = stateR.value;
+  // El cliente (clients.sql): si falta la tabla o no tiene, no se muestra.
+  const owner = await clientOfProject(slug)
+    .then((id) => (id ? getClient(id) : null))
+    .catch(() => null);
   // No sale de project.files: getProject arma la ficha sin estadísticas y ese
   // campo queda siempre en 0, así que el contador de la pestaña nunca aparecía.
   // En la lista sí funciona, porque ahí listProjects pasa las suyas.
@@ -180,6 +185,11 @@ export default async function ProjectPage({ params, searchParams }: Props) {
             {project.isCase && (
               <Link href={`/work/${project.slug}`} className={btnSecondary}>
                 Caso en la web <ArrowUpRight size={14} />
+              </Link>
+            )}
+            {owner && (
+              <Link href={`/admin/clientes/${owner.id}`} className={btnSecondary}>
+                Cliente: {owner.name}
               </Link>
             )}
             {!project.isCase && (

@@ -5,6 +5,10 @@ import { countNewLeads } from "@/lib/admin/db";
 import { morningDigest } from "@/lib/admin/digest";
 import { listEntries } from "@/lib/admin/finance";
 import { usdOf } from "@/lib/admin/finance-shared";
+import { ensureCharges, listPlans } from "@/lib/admin/maintenance";
+import { manualDomains } from "@/lib/admin/maintenance-shared";
+import { siteAlerts } from "@/lib/admin/site-health-shared";
+import { latestChecks } from "@/lib/admin/site-health";
 import { notificationsConfigured, notify } from "@/lib/admin/notify";
 import { bucket, dayKey } from "@/lib/admin/task-shared";
 import { listTasks } from "@/lib/admin/tasks";
@@ -34,16 +38,21 @@ const orEmpty = async <T>(
 export async function GET(request: Request) {
   const denied = authorizeCron(request);
   if (denied) return denied;
+  const today = dayKey();
+  // Los cobros de mantenimiento del mes se generan acá también (además de al
+  // abrir Mantenimiento): así aparecen aunque nadie entre al panel.
+  await orEmpty("cobros de mantenimiento", ensureCharges(today), 0);
   if (!notificationsConfigured())
     return NextResponse.json({ sent: false, reason: "Falta NTFY_TOPIC." });
 
-  const today = dayKey();
-  const [posts, tasks, newLeads, tools, entries] = await Promise.all([
+  const [posts, tasks, newLeads, tools, entries, checks, plans] = await Promise.all([
     orEmpty("posts", listDue(today), []),
     orEmpty("tareas", listTasks(), []),
     orEmpty("pedidos", countNewLeads(), 0),
     orEmpty("herramientas", listTools(), []),
     orEmpty("finanzas", listEntries(), []),
+    orEmpty("salud de los sitios", latestChecks(), new Map()),
+    orEmpty("planes de mantenimiento", listPlans(), []),
   ]);
   const open = tasks.filter((t) => !t.done_at);
   // Los pendientes de #70 (ingresos «pendiente») cuya fecha prevista ya pasó: lo mismo que «late» en receivables().
@@ -62,6 +71,8 @@ export async function GET(request: Request) {
     renewals: tools
       .map((t) => ({ name: t.name, days: daysUntil(nextRenewal(t.renews_on, t.cycle, today), today) }))
       .filter((r) => r.days <= 3),
+    // Sólo contadas: el texto va a ntfy y no lleva nombres de clientes.
+    siteAlerts: siteAlerts(checks.values(), today, manualDomains(plans)),
   });
   if (!notice)
     return NextResponse.json({ sent: false, reason: "Nada para avisar." });
