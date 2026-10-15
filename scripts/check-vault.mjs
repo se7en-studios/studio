@@ -86,4 +86,16 @@ assert.equal(shared.ageLabel(1), "hace 1 día");
 assert.equal(shared.ageLabel(45), "hace 1 mes");
 assert.equal(shared.ageLabel(400), "hace 1 año");
 
+// Copia de seguridad cifrada con una frase: vuelve igual, y con otra frase no se abre.
+const bk = await import("../lib/admin/backup-shared.ts");
+const json = JSON.stringify({ app: "se7en-panel", tables: { leads: { rows: [{ id: "1", name: "Ana ñandú" }] } } });
+const box = bk.encryptBackup(json, "una frase bastante larga", "2026-10-14T00:00:00Z");
+assert.ok(bk.isEncryptedBackup(box));
+assert.ok(!box.data.includes("Ana"));
+assert.equal(bk.decryptBackup(box, "una frase bastante larga"), json);
+assert.throws(() => bk.decryptBackup(box, "otra frase bastante larga"), /No se pudo descifrar/);
+assert.throws(() => bk.decryptBackup({ ...box, data: box.data.slice(0, -4) + "AAAA" }, "una frase bastante larga"), /No se pudo descifrar/);
+assert.throws(() => bk.encryptBackup(json, "corta", "x"), /12 caracteres/);
+assert.throws(() => bk.decryptBackup({ ...box, kdf: { ...box.kdf, N: 1 << 24 } }, "x"), /inválido/);
+
 console.log("vault OK");

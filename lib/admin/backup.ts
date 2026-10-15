@@ -2,27 +2,9 @@
 // service role key: NUNCA importar desde un componente de cliente. Las claves de Cuentas
 // salen cifradas, tal cual están en la base: sin VAULT_KEY no se pueden leer.
 import { missingTable } from "./db";
+import { BACKUP_TABLES } from "./backup-shared";
 import { allRows } from "./paged";
 import { client } from "./panel";
-
-/** Las tablas del panel y de los pedidos. Una que no exista (todavía) se anota y se sigue. */
-export const BACKUP_TABLES = [
-  "leads",
-  "panel_lead_activity",
-  "panel_projects",
-  "panel_project_state",
-  "panel_files",
-  "panel_payments",
-  "panel_finance",
-  "panel_tools",
-  "panel_tasks",
-  "panel_messages",
-  "panel_reads",
-  "panel_events",
-  "content_posts",
-  "panel_vault",
-] as const;
-
 
 export type TableDump =
   | { rows: unknown[]; truncated?: boolean }
