@@ -2,14 +2,13 @@
 // Las saca la tarea de GitHub (.github/workflows/capturas.yml) y las sube por
 // /api/cron/capturas. Usa la service role key: NUNCA importar este archivo
 // desde un componente de cliente.
-import { db } from "./db";
+import { db, missingTable } from "./db";
 import { PanelNotReady, caseProjects, client, listProjects } from "./panel";
 
 export const CAPTURE_BUCKET = "capturas";
 
 export type SiteCapture = { url: string; width: number; height: number; capturedAt: string };
 
-const missingTable = (e: { code?: string }) => e.code === "PGRST205" || e.code === "42P01";
 const NOT_READY = "Falta correr supabase/capturas.sql en Supabase.";
 
 /** Los sitios a capturar: los casos de la web y los proyectos del panel que tienen URL. */

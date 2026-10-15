@@ -44,7 +44,7 @@ export async function ringPerson(
   after(() =>
     logEvent({
       actor: me.who,
-      kind: "proyecto",
+      kind: "llamadas",
       text: `llamó a ${name} por Meet`,
     }),
   );

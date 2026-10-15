@@ -1,0 +1,52 @@
+# Copia de seguridad mensual de lo que el panel guarda en Supabase (pedidos,
+# proyectos, tareas, mensajes, finanzas, contenido, cuentas cifradas). El día 1
+# de cada mes le pide la copia al panel y la guarda como artefacto de esta
+# ejecución (pestaña Actions → la ejecución → Artifacts), por 90 días.
+#
+# Sin secretos en el repo: la tarea se identifica ante el panel con el token
+# OIDC que le firma GitHub (como capturas.yml), y el panel la entrega cifrada
+# con la frase BACKUP_PASSPHRASE, que vive sólo en Vercel. El repo es público:
+# sin esa frase el archivo no se puede leer. Para restaurar:
+#   RESPALDO_FRASE=… node --env-file=.env.local scripts/restore-backup.mjs archivo.json
+# Se puede correr a mano desde la pestaña Actions («Run workflow»).
+name: Copia de seguridad mensual
+
+on:
+  schedule:
+    - cron: "0 12 1 * *" # día 1, 09:00 en Argentina
+  workflow_dispatch:
+
+concurrency:
+  group: respaldo
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  respaldo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Pedir la copia cifrada al panel
+        env:
+          PANEL_URL: https://se7enstudio.vercel.app
+        run: |
+          token=$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=se7en-respaldo" | jq -r .value)
+          echo "::add-mask::$token"
+          status=$(curl -sS -X POST -H "Authorization: Bearer $token" -o respaldo.json -w '%{http_code}' \
+            "$PANEL_URL/api/cron/respaldo")
+          if [ "$status" != "200" ]; then
+            echo "El panel respondió $status:"; cat respaldo.json; exit 1
+          fi
+          # Nunca guardar algo que no esté cifrado.
+          jq -e '.format == "se7en-respaldo-cifrado" and (.data | length > 0)' respaldo.json > /dev/null
+          mv respaldo.json "se7en-respaldo-$(date -u +%Y-%m-%d).cifrado.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: respaldo-${{ github.run_number }}
+          path: se7en-respaldo-*.cifrado.json
+          retention-days: 90
+          if-no-files-found: error

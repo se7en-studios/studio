@@ -4,7 +4,8 @@
 // oficinas-shared.ts).
 import { caseBrand } from "@/lib/en-vivo";
 import { latestCaptures, type SiteCapture } from "./capturas";
-import { db } from "./db";
+import { db, missingTable } from "./db";
+import { kindOf, type EventKind } from "./event-shared";
 import { PanelNotReady, caseProjects, client, fail, getProject, listProjects, type PanelProject } from "./panel";
 import { defaultState, type ProjectState } from "./project-shared";
 import { listStates } from "./projects";
@@ -12,9 +13,9 @@ import {
   WHO,
   daysSince,
   fadeOf,
+  paceOf,
   resolveVisit,
   salaMasApagada,
-  zoneOf,
   type OficinasData,
   type OfiEvent,
   type OfiProject,
@@ -23,13 +24,15 @@ import {
 } from "./oficinas-shared";
 
 const SLUG = /^[a-z0-9-]{1,64}$/;
-/** Lo que se muestra en el mapa: sin pedidos (no van en «En vivo»). */
-const EVENT_KINDS = ["archivos", "proyecto", "tarea"];
-const missingTable = (e: { code?: string }) => e.code === "PGRST205" || e.code === "42P01";
+/**
+ * Lo que se muestra en el mapa: el trabajo en los proyectos. Sin pedidos,
+ * finanzas, cuentas, contenido, llamadas ni seguridad (no van en «En vivo»).
+ */
+const EVENT_KINDS: EventKind[] = ["archivos", "proyecto", "tarea"];
 const key = (who: string, slug: string) => `${who}|${slug}`;
 
 type TaskRow = { id: string; title: string; assignee: Who | null; due: string | null; priority: OfiTask["priority"]; project_slug: string | null };
-type EventRow = { id: string; created_at: string; actor: Who | null; text: string; project_slug: string | null };
+type EventRow = { id: string; created_at: string; actor: Who | null; kind: EventKind; text: string; project_slug: string | null };
 
 const toTask = (t: TaskRow): OfiTask => ({ id: t.id, title: t.title, assignee: t.assignee, due: t.due, priority: t.priority, projectSlug: t.project_slug });
 const toEvent = (e: EventRow): OfiEvent => ({ id: e.id, createdAt: e.created_at, actor: e.actor, text: e.text, projectSlug: e.project_slug });
@@ -59,8 +62,11 @@ function toProject(p: PanelProject, s: ProjectState, tasks: OfiTask[], events: O
   };
 }
 
-/** Todo lo que necesita el mapa, en una ida al servidor. Sin base, los casos de la web solos. */
-export async function getOficinasData(me: Who): Promise<OficinasData> {
+/**
+ * Todo lo que necesita el mapa, en una ida al servidor. Sin base, los casos de la web solos.
+ * `light`: sólo lo que define cuán prendida está cada sala (sin tareas ni capturas), para Inicio.
+ */
+export async function getOficinasData(me: Who, { light = false } = {}): Promise<OficinasData> {
   const generatedAt = new Date().toISOString();
   if (!db()) {
     const none = { federico: null, franco: null };
@@ -81,12 +87,12 @@ export async function getOficinasData(me: Who): Promise<OficinasData> {
       if (e instanceof PanelNotReady) return new Map<string, ProjectState>();
       throw e;
     }),
-    c.from("panel_tasks").select("id, title, assignee, due, priority, project_slug").is("done_at", null).is("lead_id", null).limit(1000),
+    light ? { data: [], error: null } : c.from("panel_tasks").select("id, title, assignee, due, priority, project_slug").is("done_at", null).is("lead_id", null).limit(1000),
     c.from("panel_events").select("id, created_at, actor, kind, text, project_slug").in("kind", EVENT_KINDS).order("created_at", { ascending: false }).limit(400),
     c.from("panel_room_visits").select("who, project_slug, visited_at"),
     c.from("panel_reads").select("who, channel, last_read_at").like("channel", "p:%"),
     // Sin capturas.sql, o si falla, la tele usa la captura fija: no corta el mapa.
-    latestCaptures().catch(() => new Map<string, SiteCapture>()),
+    light ? new Map<string, SiteCapture>() : latestCaptures().catch(() => new Map<string, SiteCapture>()),
   ]);
   if (tasksRes.error && !missingTable(tasksRes.error)) fail(tasksRes.error);
   if (eventsRes.error) fail(eventsRes.error);
@@ -94,7 +100,8 @@ export async function getOficinasData(me: Who): Promise<OficinasData> {
   if (readsRes.error && !missingTable(readsRes.error)) fail(readsRes.error);
 
   const tasks = ((tasksRes.data ?? []) as TaskRow[]).map(toTask);
-  const events = ((eventsRes.data ?? []) as EventRow[]).map(toEvent);
+  // Sin panel-v3.sql, lo de Cuentas o Finanzas viene anotado como «proyecto»: se reconoce por el texto.
+  const events = ((eventsRes.data ?? []) as EventRow[]).filter((e) => EVENT_KINDS.includes(kindOf(e.kind, e.text))).map(toEvent);
   const rows = new Map(((visitsRes.data ?? []) as { who: string; project_slug: string; visited_at: string }[]).map((v) => [key(v.who, v.project_slug), v.visited_at]));
   const reads = new Map(((readsRes.data ?? []) as { who: string; channel: string; last_read_at: string }[]).map((r) => [key(r.who, r.channel.slice(2)), r.last_read_at]));
   // Mi último cambio en cada proyecto: los eventos ya vienen del más nuevo al más viejo.
@@ -126,12 +133,12 @@ export type SalaMasApagada = { slug: string; name: string; accent: string; days:
  * y la misma semilla que el mapa, y cuántas siguen prendidas. null sin proyectos.
  */
 export async function getSalaMasApagada(who: Who): Promise<SalaMasApagada | null> {
-  const data = await getOficinasData(who);
+  const data = await getOficinasData(who, { light: true });
   const now = Date.now();
   const visitOf = (slug: string) => data.projects.find((p) => p.slug === slug)?.lastVisit[who] ?? null;
   const worst = salaMasApagada(data.projects, visitOf, now);
   if (!worst) return null;
-  const lit = data.projects.filter((p) => fadeOf(daysSince(p.lastVisit[who], now), zoneOf(p.status)) === 0).length;
+  const lit = data.projects.filter((p) => fadeOf(daysSince(p.lastVisit[who], now), paceOf(p.status)) === 0).length;
   const accent = data.projects.find((p) => p.slug === worst.slug)?.accent ?? "#ff4d2e";
   return { ...worst, accent, lit, total: data.projects.length };
 }

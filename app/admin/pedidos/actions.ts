@@ -3,7 +3,7 @@
 // Acciones del CRM de pedidos: alta manual, datos de contacto, monto acordado
 // e historial de contactos. Etapa, responsable y notas siguen en ../actions.ts.
 import { after } from "next/server";
-import { getSession } from "@/lib/admin/auth";
+import { requireSession } from "@/lib/admin/auth";
 import {
   OWNERS,
   createLeadRow,
@@ -23,8 +23,10 @@ import {
   type ActivityKind,
 } from "@/lib/admin/activity-shared";
 import { logEvent } from "@/lib/admin/panel";
+import { dayIn } from "@/lib/admin/tz";
 import { leadDiff } from "@/lib/admin/lead-changes";
 import { ACTIVITY_LABEL } from "@/lib/admin/activity-shared";
+import { LOST_NOTE_MAX, isLostReason, lostReasonLabel } from "@/lib/admin/sales-shared";
 
 const MAX_VALUE = 10_000_000;
 const CONTACT_TEXT: Record<ActivityKind, string> = {
@@ -35,11 +37,7 @@ const CONTACT_TEXT: Record<ActivityKind, string> = {
   nota: "una nota",
 };
 
-async function guard() {
-  const me = await getSession();
-  if (!me) throw new Error("Sesión vencida: volvé a entrar.");
-  return me;
-}
+const guard = requireSession;
 
 const UUID = /^[0-9a-f-]{36}$/i;
 function checkId(id: string) {
@@ -177,6 +175,45 @@ export async function setValue(id: string, value: number | string | null) {
   );
 }
 
+/** Fecha de cierre prevista (YYYY-MM-DD) o null para sacarla. */
+export async function setExpectedClose(id: string, day: string | null) {
+  const me = await guard();
+  checkId(id);
+  if (day !== null && (!/^\d{4}-\d{2}-\d{2}$/.test(day) || Number.isNaN(Date.parse(day)))) throw new Error("Fecha inválida.");
+  const { before, after: lead } = await patchLead(id, { expected_close: day });
+  const changes = leadDiff(before, { expected_close: day });
+  if (!changes.length) return;
+  after(() =>
+    logEvent({
+      actor: me.who,
+      kind: "pedido",
+      text: day ? `puso cierre previsto al pedido de ${lead.name}` : `sacó el cierre previsto del pedido de ${lead.name}`,
+      lead_id: id,
+      changes,
+    }),
+  );
+}
+
+/** Motivo de pérdida (uno de LOST_REASONS, o null) y el detalle en texto libre. */
+export async function setLost(id: string, reason: string | null, note: string) {
+  const me = await guard();
+  checkId(id);
+  if (reason !== null && !isLostReason(reason)) throw new Error("Motivo inválido.");
+  const patch = { lost_reason: reason, lost_note: text(note, LOST_NOTE_MAX) };
+  const { before, after: lead } = await patchLead(id, patch);
+  const changes = leadDiff(before, patch);
+  if (!changes.length) return;
+  after(() =>
+    logEvent({
+      actor: me.who,
+      kind: "pedido",
+      text: reason ? `anotó por qué se perdió el pedido de ${lead.name}: ${lostReasonLabel(reason).toLowerCase()}` : `actualizó el motivo de pérdida del pedido de ${lead.name}`,
+      lead_id: id,
+      changes,
+    }),
+  );
+}
+
 /**
  * Registra un contacto. Si el pedido seguía «Nuevo» y fue un contacto real
  * (no una nota), pasa a «Contactado». Devuelve la nueva etapa si cambió.
@@ -205,9 +242,7 @@ export async function logActivity(
       throw new Error("Fecha inválida.");
     if (
       day !==
-      new Date().toLocaleDateString("en-CA", {
-        timeZone: "America/Argentina/Buenos_Aires",
-      })
+      dayIn(Date.now())
     )
       at = when.toISOString();
   }

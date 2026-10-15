@@ -192,7 +192,9 @@ function ClientMeeting({ myRoom }: { myRoom: string | null }) {
     <Card title="Reunión con un cliente" icon={<Video size={14} />}>
       <div className="space-y-3 p-4">
         <p className="text-[13px] text-muted">
-          Abrí una sala y compartí el link por WhatsApp o mail.
+          Abrí una sala y compartí el link por WhatsApp o mail. Si la abrís
+          desde la ficha del pedido («Reunión por Meet»), queda anotada en su
+          historial.
         </p>
         <div className="flex flex-wrap gap-2">
           <a

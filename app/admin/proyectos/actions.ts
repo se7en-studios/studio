@@ -2,16 +2,21 @@
 
 import { after } from "next/server";
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/admin/auth";
-import { OWNERS, db, type Lead } from "@/lib/admin/db";
+import { requireSession } from "@/lib/admin/auth";
+import { OWNERS } from "@/lib/admin/db";
 import { dateLabel, diff, usd } from "@/lib/admin/changes";
 import { PEOPLE } from "@/lib/admin/people";
 import { paymentNotice } from "@/lib/admin/digest";
 import { notifyPartner } from "@/lib/admin/notify";
-import { insertPayment, removePayment } from "@/lib/admin/payments";
-import type { Payment } from "@/lib/admin/payment-shared";
-import { OWNERS as PAYMENT_OWNERS, type Owner } from "@/lib/admin/finance-shared";
-import { stateForLead, upsertState } from "@/lib/admin/projects";
+import { currentFx, insertEntry, removeEntry } from "@/lib/admin/finance";
+import { cleanEntry, fmt, type Entry, type Owner } from "@/lib/admin/finance-shared";
+import { installments } from "@/lib/admin/plata-shared";
+import { dayKey } from "@/lib/admin/task-shared";
+import { removePayment } from "@/lib/admin/payments";
+import { projectForLead } from "@/lib/admin/lead-project";
+import { upsertState } from "@/lib/admin/projects";
+import { TASK_TEMPLATES, isTemplate, templateTasks } from "@/lib/admin/task-shared";
+import { insertTasks } from "@/lib/admin/tasks";
 import {
   PROJECT_STATUS,
   cleanStateInput,
@@ -38,11 +43,7 @@ import {
 
 type FileInfo = { name: string; size: number; type: string };
 
-async function guard() {
-  const me = await getSession();
-  if (!me) throw new Error("Sesión vencida: volvé a entrar.");
-  return me;
-}
+const guard = requireSession;
 
 function message(e: unknown) {
   return e instanceof PanelNotReady || e instanceof Error ? e.message : "Algo falló. Probá de nuevo.";
@@ -166,6 +167,20 @@ export async function createProject(_: NewProjectState, form: FormData): Promise
       created_by: me.who,
     });
     await logEvent({ actor: me.who, kind: "proyecto", text: "creó el proyecto", project_slug: slug });
+    const template = form.get("template");
+    if (isTemplate(template)) {
+      // El proyecto ya está creado: si las tareas fallan (falta tasks.sql), se sigue igual.
+      const n = await insertTasks(templateTasks(template, slug), me.who).catch(() => 0);
+      if (n)
+        after(() =>
+          logEvent({
+            actor: me.who,
+            kind: "tarea",
+            text: `cargó ${n} tareas de la plantilla ${TASK_TEMPLATES[template].label}`,
+            project_slug: slug,
+          }),
+        );
+    }
   } catch (e) {
     return { error: message(e) };
   }
@@ -264,109 +279,101 @@ export async function updateProjectInfo(
 
 // --- Cobros ----------------------------------------------------------------
 
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-f-]{36}$/i;
-const MAX_AMOUNT = 10_000_000;
 
-/** Registra un cobro (seña, saldo, cuota) y lo cuenta en el feed del proyecto. */
+/**
+ * Registra un cobro (seña, saldo, cuota, abono) como ingreso de Finanzas con el
+ * proyecto: es el mismo número que suman Inicio, Finanzas y la ficha. Va en
+ * dólares con la cotización de hoy y su fuente, para tener el equivalente en pesos.
+ *
+ * Con `due: true` es un plan de cobros: `installments` pendientes (una cuota por
+ * mes desde la fecha, el monto partido) que se marcan cobrados cuando entran.
+ */
 export async function addPayment(
   slug: string,
-  input: { amount: number | string; paid_on: string; note?: string; owner?: Owner },
-): Promise<Payment> {
+  input: {
+    amount: number | string;
+    paid_on: string;
+    note?: string;
+    owner?: Owner;
+    category?: string;
+    due?: boolean;
+    installments?: number;
+  },
+): Promise<Entry[]> {
   const me = await guard();
-  const amount = Math.round(Number(input.amount) * 100) / 100;
-  if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_AMOUNT) throw new Error("Monto inválido.");
-  if (!DAY.test(input.paid_on) || Number.isNaN(new Date(`${input.paid_on}T12:00:00`).getTime())) {
-    throw new Error("Fecha inválida.");
-  }
   if (!(await getProject(slug))) throw new Error("Ese proyecto no existe.");
-  const note = String(input.note ?? "").trim().slice(0, 200);
-  // Quién cobró la plata: de ahí sale quién le debe a quién (todo se divide 50/50).
-  const owner = PAYMENT_OWNERS.find((o) => o === input.owner) ?? "ambos";
-  const row = await insertPayment({ project_slug: slug, paid_on: input.paid_on, amount, note, owner }, me.who);
+  const { fx, source } = await currentFx();
+  if (!fx) throw new Error("No pude traer la cotización del dólar: cargá el cobro desde Finanzas, con la cotización a mano.");
+  const due = Boolean(input.due);
+  if (!due && input.paid_on > dayKey()) throw new Error("Un cobro que todavía no entró va como «Por cobrar».");
+  const parts = due ? installments(Number(input.amount), Number(input.installments) || 1, input.paid_on) : [{ amount: Number(input.amount), due: input.paid_on }];
+  const note = (input.note ?? "").trim();
+  const rows = parts.map((p, i) => {
+    const cleaned = cleanEntry({
+      kind: "ingreso",
+      currency: "USD",
+      amount: p.amount,
+      fx,
+      fx_source: source,
+      occurred_on: p.due,
+      category: input.category === "mantenimiento" ? "mantenimiento" : "proyecto",
+      description: parts.length > 1 ? `${note || "Cuota"} ${i + 1}/${parts.length}` : note,
+      project_slug: slug,
+      recurring: false,
+      until: null,
+      // Quién cobró la plata: de ahí sale quién le debe a quién (todo se divide 50/50).
+      owner: input.owner,
+      status: due ? "pendiente" : "pagado",
+    });
+    if (!cleaned.ok) throw new Error(cleaned.error);
+    return cleaned.value;
+  });
+  const saved: Entry[] = [];
+  for (const row of rows) saved.push(await insertEntry(row, me.who));
+  const total = usd(rows.reduce((s, r) => s + r.amount, 0));
   after(() =>
     logEvent({
       actor: me.who,
-      kind: "proyecto",
-      text: `registró un cobro de ${usd(amount)}${note ? ` (${note})` : ""}`,
+      kind: "finanzas",
+      text: due
+        ? `cargó un plan de cobros de ${total}${rows.length > 1 ? ` en ${rows.length} cuotas` : ""}`
+        : `registró un cobro de ${total}${note ? ` (${note})` : ""}`,
       project_slug: slug,
     }),
   );
-  after(() => notifyPartner(me.who, paymentNotice(PEOPLE[me.who].name)));
-  return row;
+  if (!due) after(() => notifyPartner(me.who, paymentNotice(PEOPLE[me.who].name)));
+  return saved;
 }
 
+/** Borra un cobro: un ingreso de Finanzas o, si es de antes de finance-v4.sql, uno de la tabla vieja («cobro-<id>»). */
 export async function deletePayment(id: string): Promise<void> {
   const me = await guard();
-  if (!UUID.test(id)) throw new Error("Cobro inválido.");
-  const gone = await removePayment(id);
+  const legacy = id.startsWith("cobro-");
+  const raw = legacy ? id.slice("cobro-".length) : id;
+  if (!UUID.test(raw)) throw new Error("Cobro inválido.");
+  const gone = legacy
+    ? await removePayment(raw).then((p) => ({ amount: fmt(p.amount, "USD"), day: p.paid_on, slug: p.project_slug }))
+    : await removeEntry(raw).then((e) => e && { amount: fmt(e.amount, e.currency), day: e.occurred_on, slug: e.project_slug });
+  if (!gone) throw new Error("Ese cobro ya no existe.");
   after(() =>
     logEvent({
       actor: me.who,
-      kind: "proyecto",
-      text: `borró un cobro de ${usd(gone.amount)} del ${dateLabel(gone.paid_on)}`,
-      project_slug: gone.project_slug,
+      kind: "finanzas",
+      text: `borró un cobro de ${gone.amount} del ${dateLabel(gone.day)}`,
+      project_slug: gone.slug,
     }),
   );
 }
 
 // --- Pedido ganado → proyecto ------------------------------------------------
 
-/**
- * Crea el proyecto de un pedido ganado y lo deja vinculado: cliente, monto,
- * responsable y el pedido pasan solos. Si el pedido ya tiene proyecto,
- * devuelve ese (dos clicks no crean dos proyectos).
- */
+/** El botón de la ficha del pedido ganado. La lógica está en lib/admin/lead-project.ts. */
 export async function projectFromLead(leadId: string): Promise<{ slug?: string; error?: string }> {
   try {
     const me = await guard();
     if (!UUID.test(leadId)) return { error: "Pedido inválido." };
-    const existing = await stateForLead(leadId);
-    if (existing) return { slug: existing };
-
-    const c = db();
-    if (!c) return { error: "Base de datos no configurada." };
-    const { data, error } = await c.from("leads").select("*").eq("id", leadId).maybeSingle();
-    if (error) return { error: error.message };
-    if (!data) return { error: "Ese pedido ya no existe." };
-    const lead = data as Lead;
-    if (lead.status !== "ganado") return { error: "Primero pasá el pedido a Ganado." };
-
-    const name = (lead.company || lead.name).trim().slice(0, 80) || "Proyecto";
-    const slug = await insertProject({
-      name,
-      category: (lead.project_type ?? "").trim().slice(0, 80),
-      url: "",
-      accent: "#ff4d2e",
-      created_by: me.who,
-    });
-    await upsertState(
-      slug,
-      false,
-      cleanStateInput(
-        {
-          status: "descubrimiento",
-          owner: lead.owner ?? me.who,
-          client: lead.company ? `${lead.name} · ${lead.company}` : lead.name,
-          lead_id: lead.id,
-          budget: lead.value ?? null,
-          start_date: new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }),
-          notes: lead.idea ?? "",
-        },
-        OWNERS,
-      ),
-      me.who,
-    );
-    after(() =>
-      logEvent({
-        actor: me.who,
-        kind: "proyecto",
-        text: `creó el proyecto desde el pedido de ${lead.name}`,
-        project_slug: slug,
-        lead_id: lead.id,
-      }),
-    );
-    return { slug };
+    return { slug: await projectForLead(leadId, me.who) };
   } catch (e) {
     return { error: message(e) };
   }

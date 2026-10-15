@@ -3,7 +3,7 @@
 // Avisos al celular: estado, cómo activarlos (con un tema y un secreto sugeridos)
 // y un botón para mandar un aviso de prueba.
 import { useState, useTransition } from "react";
-import { BellRing, Check, Copy, Download, RefreshCw, Send } from "lucide-react";
+import { BellRing, Check, Copy, RefreshCw, Send } from "lucide-react";
 import { NOTE_MAX } from "@/lib/admin/digest";
 import { Card, btnPrimary, btnSecondary, cn, input } from "../kit";
 import { useToast } from "../overlay";
@@ -49,7 +49,7 @@ const WHEN = [
   },
   {
     what: "Resumen del día",
-    when: "Todos los días a las 9:00: posts, tareas vencidas y pedidos sin responder",
+    when: "Todos los días a las 9:00: posts, tareas vencidas, pedidos sin responder y cobros vencidos (cantidad y total)",
     cron: true,
   },
   {
@@ -100,31 +100,8 @@ export function NoticesView({
           contenido. El aviso suelto lleva exactamente lo que escribís.
         </p>
       </Card>
-      <BackupCard />
       </div>
     </div>
-  );
-}
-
-/** Una copia de todo lo que el panel guarda en Supabase, para tener afuera si algo falla. */
-function BackupCard() {
-  return (
-    <Card title="Copia de seguridad" icon={<Download size={14} />}>
-      <div className="space-y-3 p-4">
-        <p className="text-[13px] text-muted">
-          Baja un archivo con los pedidos, proyectos, tareas, mensajes, finanzas, contenido y las cuentas (estas
-          últimas siguen cifradas). El plan gratis de Supabase no hace copias solo: conviene bajar una una vez por
-          mes.
-        </p>
-        <p className="text-[12px] text-muted">
-          Lleva datos de clientes: guardala en un lugar privado y no la compartas. No incluye los archivos
-          subidos a los proyectos, solo su lista.
-        </p>
-        <a href="/admin/api/respaldo" download className={btnSecondary}>
-          <Download size={14} /> Descargar copia
-        </a>
-      </div>
-    </Card>
   );
 }
 

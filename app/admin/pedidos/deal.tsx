@@ -6,14 +6,8 @@ import { useState } from "react";
 import { MessageCircle, Phone } from "lucide-react";
 import type { Lead } from "@/lib/admin/db";
 import type { ContactFields } from "./actions";
+import { waLink } from "@/lib/admin/templates";
 import { label as sectionLabel } from "../kit";
-
-/** Link de WhatsApp: sólo dígitos; sin código de país se asume Argentina. */
-export function waLink(phone: string) {
-  const digits = phone.replace(/\D/g, "");
-  if (!digits) return null;
-  return `https://wa.me/${digits.length <= 10 ? `549${digits}` : digits}`;
-}
 
 function Field({
   label,
@@ -62,10 +56,12 @@ export function DealFields({
   lead,
   onContact,
   onValue,
+  onExpectedClose,
 }: {
   lead: Lead;
   onContact: (fields: ContactFields) => void;
   onValue: (value: number | null) => void;
+  onExpectedClose: (day: string | null) => void;
 }) {
   const wa = lead.phone ? waLink(lead.phone) : null;
   return (
@@ -84,6 +80,16 @@ export function DealFields({
             onSave={(v) => onValue(v === "" ? null : Number(v))}
           />
         </div>
+        {(lead.status === "nuevo" || lead.status === "contactado" || lead.status === "propuesta") && (
+          <div className="col-span-2">
+            <Field
+              label="Cierre previsto"
+              type="date"
+              value={lead.expected_close ?? ""}
+              onSave={(v) => onExpectedClose(v || null)}
+            />
+          </div>
+        )}
         <Field
           label="Nombre"
           value={lead.name}

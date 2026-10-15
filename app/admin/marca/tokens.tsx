@@ -5,7 +5,12 @@ import { Check } from "lucide-react";
 
 const noop = () => () => {};
 
-/** Lee el valor real de una variable de globals.css: si cambia el CSS, cambia acá. */
+/**
+ * Lee el valor real de una variable de globals.css: si cambia el CSS, cambia acá.
+ * Se lee de la raíz (los colores del sitio), no del panel: con el panel en tema
+ * claro, `var(--background)` adentro del panel es el fondo claro del panel, no el
+ * de la marca. Por eso las muestras se pintan con este valor y no con var().
+ */
 function useCssVar(name: string) {
   return useSyncExternalStore(
     noop,
@@ -39,7 +44,7 @@ export function ColorToken({ name, label, note }: { name: string; label: string;
       onClick={() => value && copy(value)}
       className="focus-ring group overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)] shadow-[var(--shadow-card)] text-left transition-colors hover:border-foreground/20"
     >
-      <span className="block h-20 border-b border-border" style={{ background: `var(${name})` }} />
+      <span className="block h-20 border-b border-border" style={{ background: value || undefined }} />
       <span className="block p-3">
         <span className="block text-sm text-foreground">{label}</span>
         <span className="mt-0.5 flex items-center gap-1.5 font-mono text-[11px] text-muted">
@@ -83,5 +88,15 @@ export function AccentChip({ name, color }: { name: string; color: string }) {
       <span className="truncate text-foreground">{name}</span>
       <span className={`ml-auto font-mono text-[11px] ${copied ? "text-emerald-400" : "text-muted"}`}>{copied ? "Copiado" : color}</span>
     </button>
+  );
+}
+
+/** El fondo de un logo con el color de la marca (no el del tema del panel). */
+export function LogoStage({ bg, children }: { bg: string; children: React.ReactNode }) {
+  const value = useCssVar(bg);
+  return (
+    <div className="flex aspect-[16/9] items-center justify-center" style={{ background: value || undefined }}>
+      {children}
+    </div>
   );
 }

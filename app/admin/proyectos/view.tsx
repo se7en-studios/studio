@@ -26,7 +26,7 @@ import { updateProjectState } from "./actions";
 
 type View = "tablero" | "lista" | "galeria";
 const VIEWS: readonly View[] = ["tablero", "lista", "galeria"];
-type Scope = "activos" | "todos" | ProjectStatus;
+export type Scope = "activos" | "todos" | ProjectStatus;
 type Row = { p: PanelProject; s: ProjectState };
 
 const DRAG = "application/x-se7en-project";
@@ -35,16 +35,19 @@ export function ProjectsView({
   projects,
   states: initial,
   editable,
+  initialScope = "todos",
 }: {
   projects: PanelProject[];
   states: Record<string, ProjectState>;
   /** Sin panel-v2.sql no hay dónde guardar etapas: se ve, pero no se edita. */
   editable: boolean;
+  /** Etapa con la que abre (desde un link de Inicio). */
+  initialScope?: Scope;
 }) {
   const flash = useToast();
   const [states, setStates] = useState(initial);
   const [view, pickView] = useStoredChoice<View>("panel:proyectos:vista", "tablero", VIEWS);
-  const [scope, setScope] = useState<Scope>("todos");
+  const [scope, setScope] = useState<Scope>(initialScope);
   const [owner, setOwner] = useState<"todos" | LeadOwner>("todos");
   const [query, setQuery] = useState("");
   const q = useDeferredValue(query);

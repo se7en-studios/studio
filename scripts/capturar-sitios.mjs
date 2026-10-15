@@ -5,7 +5,10 @@
  * Lo corre .github/workflows/capturas.yml todas las mañanas. Pide la lista de
  * sitios al panel, abre cada uno con Chrome, baja por la página (para que
  * carguen las imágenes y las animaciones de entrada), saca la página entera a
- * 640 de ancho y la sube al panel. En GitHub se identifica con el token OIDC
+ * 640 de ancho y la sube al panel. De paso guarda la salud de cada sitio: si
+ * respondió, el código HTTP, cuánto tardó en cargar, cuándo vence el SSL y
+ * cuándo vence el dominio (por RDAP; los .ar no siempre responden y se cargan
+ * a mano en el plan de mantenimiento). En GitHub se identifica con el token OIDC
  * de la tarea (no hace falta ningún secreto). También se puede correr a mano:
  *
  *   PANEL_URL=https://se7enstudio.vercel.app CRON_SECRET=… node scripts/capturar-sitios.mjs
@@ -73,11 +76,18 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * después se pegan en una sola imagen. El menú fijo y los botones flotantes
  * salen sólo en el primer tramo.
  */
-async function capture(browser, url) {
+async function capture(browser, url, check) {
   const page = await browser.newPage();
   try {
     await page.setViewport({ ...VIEW, deviceScaleFactor: 1 });
-    await page.goto(url, { waitUntil: "networkidle2", timeout: 45_000 });
+    const started = Date.now();
+    const res = await page.goto(url, { waitUntil: "networkidle2", timeout: 45_000 });
+    check.status_code = res?.status() ?? null;
+    check.ok = Boolean(res) && res.status() < 400;
+    // Hasta el evento load de la navegación (sin la espera de red quieta de networkidle2).
+    check.ms = Math.round(await page.evaluate(() => performance.getEntriesByType("navigation")[0]?.duration ?? 0)) || Date.now() - started;
+    const validTo = res?.securityDetails()?.validTo();
+    if (validTo) check.ssl_expires_on = new Date(validTo * 1000).toISOString().slice(0, 10);
     await sleep(2500);
     const height = Math.min(await page.evaluate(() => document.documentElement.scrollHeight), MAX_HEIGHT);
     const tops = [];
@@ -128,6 +138,37 @@ async function capture(browser, url) {
   }
 }
 
+const domains = new Map();
+
+/** Vencimiento del dominio por RDAP (YYYY-MM-DD), o null si no se puede saber. */
+async function domainExpiry(url) {
+  const parts = new URL(url).hostname.replace(/^www\./, "").split(".");
+  // ponytail: dominio registrable a ojo (.com.ar, .gob.ar…); una lista de sufijos públicos si hace falta más.
+  const n = parts.length > 2 && /^(com|net|org|gob|gov|edu|co|tur)$/.test(parts.at(-2)) ? 3 : 2;
+  const domain = parts.slice(-n).join(".");
+  // Subdominios de plataformas: el dominio no es del cliente.
+  if (/^(vercel\.app|netlify\.app|github\.io|pages\.dev)$/.test(domain)) return null;
+  if (!domains.has(domain)) {
+    domains.set(
+      domain,
+      fetch(`https://rdap.org/domain/${domain}`, { headers: { Accept: "application/rdap+json" }, signal: AbortSignal.timeout(10_000) })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => j?.events?.find((e) => e.eventAction === "expiration")?.eventDate?.slice(0, 10) ?? null)
+        .catch(() => null),
+    );
+  }
+  return domains.get(domain);
+}
+
+async function sendCheck(slug, check) {
+  const res = await fetch(`${PANEL}/api/cron/capturas?${new URLSearchParams({ slug })}`, {
+    method: "POST",
+    headers: { Authorization: await authorization(), "Content-Type": "application/json" },
+    body: JSON.stringify(check),
+  });
+  if (!res.ok) throw new Error(`no se guardó el chequeo (${res.status}): ${await res.text()}`);
+}
+
 async function upload(slug, shot) {
   const q = new URLSearchParams({ slug, w: String(shot.width), h: String(shot.height) });
   const res = await fetch(`${PANEL}/api/cron/capturas?${q}`, {
@@ -148,15 +189,28 @@ if (LOCAL) mkdirSync(OUT, { recursive: true });
 const browser = await puppeteer.launch({ executablePath, headless: true, args: ["--lang=es-AR", "--hide-scrollbars"] });
 let failed = 0;
 for (const { slug, url } of sites) {
+  const check = { ok: false, status_code: null, ms: null, ssl_expires_on: null, domain_expires_on: await domainExpiry(url), error: "" };
   try {
-    const shot = await capture(browser, url);
+    const shot = await capture(browser, url, check);
     if (LOCAL) writeFileSync(join(OUT, `${slug}.jpg`), shot.jpeg);
     else await upload(slug, shot);
     console.log(`✓ ${slug}  ${shot.width}×${shot.height}  ${Math.round(shot.jpeg.length / 1024)} KB`);
   } catch (e) {
     failed++;
+    if (!check.error) check.error = String(e instanceof Error ? e.message : e).slice(0, 300);
     console.error(`✗ ${slug} (${url}): ${e instanceof Error ? e.message : e}`);
   }
+  // El chequeo se guarda aunque la captura haya fallado: justamente ahí importa.
+  const health = `${check.ok ? "OK" : "CAÍDO"} ${check.status_code ?? "-"} ${check.ms ?? "-"} ms · SSL ${check.ssl_expires_on ?? "?"} · dominio ${check.domain_expires_on ?? "?"}`;
+  if (LOCAL) console.log(`  ${health}`);
+  else
+    await sendCheck(slug, check).then(
+      () => console.log(`  ${health}`),
+      (e) => {
+        failed++;
+        console.error(`  ✗ salud de ${slug}: ${e instanceof Error ? e.message : e}`);
+      },
+    );
 }
 await browser.close();
 console.log(`${sites.length - failed} de ${sites.length} sitios capturados${LOCAL ? ` en ${OUT}/` : ""}.`);

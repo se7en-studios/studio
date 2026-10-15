@@ -7,7 +7,7 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
-import { OWNERS, type LeadOwner } from "./db";
+import { OWNERS, db, missingTable, type LeadOwner } from "./db";
 import { base32Decode, verifyTotp } from "./totp";
 
 export type Session = { who: LeadOwner };
@@ -30,7 +30,8 @@ const personal = (who: LeadOwner): string | null =>
   process.env[`ADMIN_PASSWORD_${who.toUpperCase()}`]?.trim() || null;
 
 /** El secreto del segundo paso de cada uno (TOTP_SECRET_FRANCO / TOTP_SECRET_FEDERICO). */
-const totpRaw = (who: LeadOwner): string | null => process.env[`TOTP_SECRET_${who.toUpperCase()}`]?.trim() || null;
+const totpRaw = (who: LeadOwner): string | null =>
+  process.env[`TOTP_SECRET_${who.toUpperCase()}`]?.trim() || null;
 
 /**
  * Si la variable existe, entrar pide el código de la app. Si está mal copiada (un carácter de
@@ -48,15 +49,19 @@ export function totpStatus(who: LeadOwner): "off" | "ok" | "broken" {
 
 export function checkTotp(who: LeadOwner, code: string) {
   const secret = totpRaw(who);
-  return secret !== null && base32Decode(secret) !== null && verifyTotp(secret, code);
+  return (
+    secret !== null && base32Decode(secret) !== null && verifyTotp(secret, code)
+  );
 }
 
 // Estado para la pantalla de Seguridad: solo sí o no, nunca los valores.
 export const hasOwnPassword = (who: LeadOwner) => personal(who) !== null;
 export const sharedPasswordActive = () => password() !== null;
-export const sessionSecretStrong = () => (process.env.ADMIN_SESSION_SECRET?.length ?? 0) >= MIN_SECRET;
+export const sessionSecretStrong = () =>
+  (process.env.ADMIN_SESSION_SECRET?.length ?? 0) >= MIN_SECRET;
 
-const anyPassword = () => password() ?? OWNERS.map(personal).find(Boolean) ?? null;
+const anyPassword = () =>
+  password() ?? OWNERS.map(personal).find(Boolean) ?? null;
 
 function secret(): string | null {
   const p = anyPassword();
@@ -65,11 +70,15 @@ function secret(): string | null {
   // Sin ADMIN_SESSION_SECRET se deriva de la contraseña: anda, pero la firma
   // depende de un secreto más débil. No se corta el acceso para no dejar
   // afuera al equipo; en producción se avisa en el log.
-  if (process.env.NODE_ENV === "production" && !warned && (!s || s.length < MIN_SECRET)) {
+  if (
+    process.env.NODE_ENV === "production" &&
+    !warned &&
+    (!s || s.length < MIN_SECRET)
+  ) {
     warned = true;
     console.warn(
       `[admin] ADMIN_SESSION_SECRET falta o tiene menos de ${MIN_SECRET} caracteres. ` +
-        "Generar uno con `openssl rand -hex 32` y cargarlo en Vercel."
+        "Generar uno con `openssl rand -hex 32` y cargarlo en Vercel.",
     );
   }
   if (s) return s;
@@ -86,11 +95,24 @@ function safeEqual(a: string, b: string) {
   return x.length === y.length && timingSafeEqual(x, y);
 }
 
+/**
+ * El token del link público de una propuesta, derivado del `nonce` de la fila con
+ * una subllave propia: la base guarda sólo el nonce y el sha256 del token, así que
+ * un volcado no abre propuestas, y el panel puede volver a armar el link.
+ * Sólo con ADMIN_SESSION_SECRET fuerte: derivado de la contraseña, un volcado más
+ * una contraseña adivinable alcanzarían para armar los links. null si no está.
+ */
+export function proposalToken(nonce: string): string | null {
+  const key = process.env.ADMIN_SESSION_SECRET;
+  return key && key.length >= MIN_SECRET ? sign(`propuesta:${nonce}`, `${key}:propuesta`) : null;
+}
+
 export function adminConfigured() {
   return Boolean(anyPassword());
 }
 
-const digest = (text: string) => createHash("sha256").update(text).digest("hex");
+const digest = (text: string) =>
+  createHash("sha256").update(text).digest("hex");
 
 /**
  * Compara los hashes y no los textos: así el tiempo no delata el largo de la contraseña.
@@ -136,13 +158,17 @@ export async function unlockVault(who: LeadOwner) {
   if (!key) return;
   const exp = Date.now() + VAULT_TTL_MS;
   const value = `${exp}.${who}.vault`;
-  (await cookies()).set(VAULT_COOKIE, `${value}.${sign(value, vaultKey(key))}`, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    path: "/admin",
-    expires: new Date(exp),
-  });
+  (await cookies()).set(
+    VAULT_COOKIE,
+    `${value}.${sign(value, vaultKey(key))}`,
+    {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/admin",
+      expires: new Date(exp),
+    },
+  );
 }
 
 export async function vaultUnlocked(who: LeadOwner): Promise<boolean> {
@@ -150,12 +176,52 @@ export async function vaultUnlocked(who: LeadOwner): Promise<boolean> {
   const raw = (await cookies()).get(VAULT_COOKIE)?.value;
   if (!key || !raw) return false;
   const [exp, by, tag, mac] = raw.split(".");
-  if (!exp || by !== who || tag !== "vault" || !mac || Number(exp) < Date.now()) return false;
+  if (!exp || by !== who || tag !== "vault" || !mac || Number(exp) < Date.now())
+    return false;
   return safeEqual(mac, sign(`${exp}.${by}.${tag}`, vaultKey(key)));
 }
 
 export async function lockVault() {
   (await cookies()).delete({ name: VAULT_COOKIE, path: "/admin" });
+}
+
+// «Cerrar todas las sesiones» (supabase/security-v2.sql): las cookies firmadas antes
+// de session_epoch dejan de valer. La cookie no guarda cuándo se firmó, pero no
+// hace falta: siempre vence TTL_MS después. Se relee cada 30 s como mucho, así no
+// cuesta una consulta por pedido; en la instancia que corta vale al instante.
+const EPOCH_KEY = "session_epoch";
+const EPOCH_TTL_MS = 30_000;
+let epoch: { at: number; value: number } | null = null;
+
+/** Desde cuándo (ms) valen las sesiones. 0 si nunca se cortaron o falta la tabla. */
+export async function sessionEpoch(): Promise<number> {
+  if (epoch && Date.now() - epoch.at < EPOCH_TTL_MS) return epoch.value;
+  const c = db();
+  if (!c) return 0;
+  const { data, error } = await c.from("panel_settings").select("value").eq("key", EPOCH_KEY).maybeSingle();
+  // Sin la tabla, como antes. Si la base falla, se sigue con lo último que se leyó.
+  if (error && !missingTable(error)) {
+    console.error("[admin] leer session_epoch:", error.message);
+    return epoch?.value ?? 0;
+  }
+  epoch = { at: Date.now(), value: Number((data as { value: string } | null)?.value) || 0 };
+  return epoch.value;
+}
+
+/** Corta todas las sesiones abiertas. false si falta correr supabase/security-v2.sql. */
+export async function revokeAllSessions(): Promise<boolean> {
+  const c = db();
+  if (!c) throw new Error("Falta conectar la base de datos.");
+  const now = Date.now();
+  const { error } = await c
+    .from("panel_settings")
+    .upsert({ key: EPOCH_KEY, value: String(now), updated_at: new Date(now).toISOString() });
+  if (error) {
+    if (missingTable(error)) return false;
+    throw new Error(error.message);
+  }
+  epoch = { at: now, value: now };
+  return true;
 }
 
 /**
@@ -172,8 +238,18 @@ export const getSession = cache(async function getSession(): Promise<Session | n
   if (!exp || !who || !mac || Number(exp) < Date.now()) return null;
   if (!safeEqual(mac, sign(`${exp}.${who}`, key))) return null;
   if (!(OWNERS as readonly string[]).includes(who)) return null;
+  if (Number(exp) - TTL_MS < (await sessionEpoch())) return null;
   return { who: who as LeadOwner };
 });
+
+const SESSION_EXPIRED = "Sesión vencida: volvé a entrar.";
+
+/** Para las acciones del panel: la sesión, o un error que la UI muestra tal cual. */
+export async function requireSession(): Promise<Session> {
+  const me = await getSession();
+  if (!me) throw new Error(SESSION_EXPIRED);
+  return me;
+}
 
 /**
  * Para las páginas del panel: siempre por pedido (la sesión y los datos no

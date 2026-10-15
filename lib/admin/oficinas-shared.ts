@@ -3,6 +3,7 @@
 // mapa (app/admin/oficinas) y scripts/check-oficinas.mjs, que lo importa directo
 // con Node. Por eso acá sólo hay imports de tipos.
 import type { LeadOwner } from "./db";
+import { TZ, dayIn } from "./tz";
 
 export type Who = LeadOwner;
 export const WHO: readonly Who[] = ["federico", "franco"];
@@ -10,11 +11,11 @@ export const otherOf = (w: Who): Who => (w === "federico" ? "franco" : "federico
 
 // --- Tiempo ------------------------------------------------------------------
 
-export const TZ = "America/Argentina/Buenos_Aires";
+export { TZ };
 const DAY = 86_400_000;
 
 /** YYYY-MM-DD en hora de Argentina. */
-export const dayKey = (ms: number) => new Date(ms).toLocaleDateString("en-CA", { timeZone: TZ });
+export const dayKey = (ms: number) => dayIn(ms);
 const keyMs = (k: string) => Date.parse(`${k}T00:00:00Z`);
 
 /** Días calendario (en Argentina) desde `at` hasta `now`. null = nunca. Pasar la medianoche no da −1. */
@@ -46,15 +47,19 @@ export const periodOf = (h: number): Period => (h >= 6 && h < 8 ? "manana" : h >
 /** En curso: lo que se sigue tocando (mantenimiento incluido). Archivo: lo cerrado. */
 export type Zone = "active" | "archive";
 export const zoneOf = (status: string): Zone => (status === "entregado" ? "archive" : "active");
+/** Ritmo con que se apaga: un sitio en mantenimiento pide un vistazo por semana, no todos los días. */
+export type Pace = Zone | "maintenance";
+export const paceOf = (status: string): Pace => (status === "mantenimiento" ? "maintenance" : zoneOf(status));
 
 /**
  * 0 = recién visitada, 1 = apagada del todo.
- * En curso: empieza al tercer día y se apaga al mes. Archivo: desde las dos
- * semanas, del todo a los tres meses. Nunca visitada = apagada.
+ * En curso: empieza al tercer día y se apaga al mes. Mantenimiento: desde la
+ * semana, del todo a las seis. Archivo: desde las dos semanas, del todo a los
+ * tres meses. Nunca visitada = apagada.
  */
-export function fadeOf(days: number | null, zone: Zone = "active"): number {
+export function fadeOf(days: number | null, pace: Pace = "active"): number {
   if (days === null) return 1;
-  const f = zone === "archive" ? (days - 14) / 76 : (days - 2) / 28;
+  const f = pace === "archive" ? (days - 14) / 76 : pace === "maintenance" ? (days - 7) / 35 : (days - 2) / 28;
   return Math.min(1, Math.max(0, f));
 }
 
@@ -127,12 +132,12 @@ export type OficinasData = {
   openTasks: OfiTask[];
 };
 
-/** La visita que cuenta: la fila de panel_room_visits; si no hay, la más nueva entre la lectura del chat y mi último cambio. */
+/**
+ * La visita que cuenta: la más nueva entre entrar a la sala, leer su chat y mi
+ * último cambio en el proyecto. Trabajar desde la ficha también la prende.
+ */
 export function resolveVisit(row: string | null, read: string | null, ownEvent: string | null): string | null {
-  if (row) return row;
-  if (!read) return ownEvent;
-  if (!ownEvent) return read;
-  return read > ownEvent ? read : ownEvent;
+  return [row, read, ownEvent].reduce<string | null>((a, b) => (b && (!a || b > a) ? b : a), null);
 }
 
 /** Novedades de la sala: lo que hizo el otro después de mi última visita. */
@@ -144,7 +149,7 @@ export type RoomLook = { days: number | null; fade: number; badge: number };
 
 export function lookOf(p: Pick<OfiProject, "status" | "events">, visit: string | null, who: Who, now: number): RoomLook {
   const days = daysSince(visit, now);
-  return { days, fade: fadeOf(days, zoneOf(p.status)), badge: newSince(p.events, who, visit, now) };
+  return { days, fade: fadeOf(days, paceOf(p.status)), badge: newSince(p.events, who, visit, now) };
 }
 
 /** La sala más apagada (para el pasillo y la tarjeta de Inicio). Empate: más días, después por nombre. */
@@ -156,7 +161,7 @@ export function salaMasApagada(
   let best: { slug: string; name: string; days: number | null; fade: number } | null = null;
   for (const p of projects) {
     const days = daysSince(visitOf(p.slug), now);
-    const cand = { slug: p.slug, name: p.name, days, fade: fadeOf(days, zoneOf(p.status)) };
+    const cand = { slug: p.slug, name: p.name, days, fade: fadeOf(days, paceOf(p.status)) };
     const dd = (x: number | null) => (x === null ? Number.POSITIVE_INFINITY : x);
     if (
       !best ||

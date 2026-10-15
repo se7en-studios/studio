@@ -19,6 +19,8 @@ export function taskDiff(before: Task, patch: Partial<TaskInput>, links?: TaskLi
     { field: "due", label: "Vence", format: dateLabel },
     { field: "priority", label: "Prioridad", format: (v) => PRIORITY[String(v)] ?? String(v) },
     { field: "notes", label: "Notas", long: true },
+    { field: "waiting", label: "Esperando al cliente", format: (v) => (v ? "Sí" : "No") },
+    { field: "recur", label: "Se repite", format: (v) => (v ? String(v) : "No") },
   ]);
   if ("lead_id" in patch || "project_slug" in patch) {
     const next = { lead_id: patch.lead_id ?? null, project_slug: patch.project_slug ?? null };

@@ -2,8 +2,10 @@
 // service role key: NUNCA importar este archivo desde un componente de cliente
 // (los tipos sí, con `import type`).
 import { projects as cases } from "@/data/projects";
-import { db, type LeadOwner } from "./db";
+import { db, missingTable, type LeadOwner } from "./db";
 import type { Change } from "./changes";
+import { LEGACY_KINDS, kindOf, type EventKind } from "./event-shared";
+import { projectChannel } from "./message-shared";
 
 export const BUCKET = "panel";
 /** Máximo por archivo del plan Free de Supabase. panel.sql lo repite en el bucket. */
@@ -59,7 +61,7 @@ export type PanelFile = {
   url: string | null;
 };
 
-export type EventKind = "archivos" | "proyecto" | "pedido" | "tarea";
+export type { EventKind } from "./event-shared";
 
 export type PanelEvent = {
   id: string;
@@ -84,20 +86,23 @@ export function client() {
   return c;
 }
 
-export function fail(e: { code?: string; message: string }): never {
-  if (e.code === "PGRST205" || e.code === "42P01") {
-    throw new PanelNotReady("Faltan las tablas del panel en Supabase.");
-  }
-  throw new Error(e.message);
-}
+export type Fail = (e: { code?: string; message: string }) => never;
+
+/**
+ * Un error de la base: si falta la tabla, PanelNotReady con `notReady` (la página
+ * muestra cómo activarlo, «Falta correr supabase/x.sql…»); si no, el error tal cual.
+ */
+export const failMissing =
+  (notReady: string): Fail =>
+  (e) => {
+    if (missingTable(e)) throw new PanelNotReady(notReady);
+    throw new Error(e.message);
+  };
+
+export const fail: Fail = failMissing("Faltan las tablas del panel en Supabase.");
 
 /** Para las tablas de panel-v2.sql: si faltan, el aviso dice qué archivo correr. */
-export function failV2(e: { code?: string; message: string }): never {
-  if (e.code === "PGRST205" || e.code === "42P01") {
-    throw new PanelNotReady("Falta correr supabase/panel-v2.sql en Supabase.");
-  }
-  throw new Error(e.message);
-}
+export const failV2: Fail = failMissing("Falta correr supabase/panel-v2.sql en Supabase.");
 
 const IMAGE_EXT = /\.(jpe?g|png|webp|gif|avif|svg)$/i;
 
@@ -273,7 +278,7 @@ export async function insertProject(p: {
 
 /**
  * Borra un proyecto del panel: desvincula sus tareas, saca sus archivos de
- * Storage y de la tabla, y borra la fila. Devuelve el nombre y cuántos
+ * Storage y de la tabla, borra su chat y su captura, y borra la fila. Devuelve el nombre y cuántos
  * archivos se fueron, para contarlo en el feed.
  *
  * Los casos de data/projects.ts NO se pueden borrar desde acá: viven en el
@@ -325,13 +330,35 @@ export async function removeProject(slug: string): Promise<{ name: string; files
   // con el mismo slug heredaría etapa, cliente y responsable del borrado.
   // Si panel-v2.sql todavía no corrió no hay nada que limpiar.
   const state = await c.from("panel_project_state").delete().eq("slug", slug);
-  if (state.error && state.error.code !== "PGRST205" && state.error.code !== "42P01") fail(state.error);
-  // Lo mismo con los cobros (payments.sql): sin FK, quedarían colgados del slug.
+  if (state.error && !missingTable(state.error)) fail(state.error);
+  // Lo mismo con los cobros viejos (payments.sql): sin FK, quedarían colgados del slug.
   const paid = await c.from("panel_payments").delete().eq("project_slug", slug);
-  if (paid.error && paid.error.code !== "PGRST205" && paid.error.code !== "42P01") fail(paid.error);
+  if (paid.error && !missingTable(paid.error)) fail(paid.error);
+  // Los movimientos de Finanzas no se borran (la plata entró igual): quedan sin
+  // proyecto, para que uno nuevo con el mismo slug no herede sus cobros.
+  const money = await c.from("panel_finance").update({ project_slug: null }).eq("project_slug", slug);
+  if (money.error && !missingTable(money.error)) fail(money.error);
   // Y las visitas de «En vivo» (oficinas.sql): un proyecto nuevo con el mismo slug arranca apagado.
   const seen = await c.from("panel_room_visits").delete().eq("project_slug", slug);
-  if (seen.error && seen.error.code !== "PGRST205" && seen.error.code !== "42P01") fail(seen.error);
+  if (seen.error && !missingTable(seen.error)) fail(seen.error);
+  // Su chat (panel-v2.sql): sin esto, un proyecto nuevo con el mismo slug abre la
+  // conversación del borrado. Va también lo leído de ese canal.
+  const channel = projectChannel(slug);
+  const chat = await c.from("panel_messages").delete().eq("channel", channel);
+  if (chat.error && !missingTable(chat.error)) fail(chat.error);
+  const reads = await c.from("panel_reads").delete().eq("channel", channel);
+  if (reads.error && !missingTable(reads.error)) fail(reads.error);
+  // Y su captura (capturas.sql): la imagen del bucket y la fila. «capturas» es
+  // CAPTURE_BUCKET de capturas.ts, que importa este archivo.
+  const shot = await c.from("panel_site_captures").select("path").eq("project_slug", slug).maybeSingle();
+  if (shot.error && !missingTable(shot.error)) fail(shot.error);
+  const shotPath = (shot.data as { path: string } | null)?.path;
+  if (shotPath) {
+    const gone = await c.storage.from("capturas").remove([shotPath]);
+    if (gone.error) console.error("[panel] borrar captura:", gone.error.message);
+    const row = await c.from("panel_site_captures").delete().eq("project_slug", slug);
+    if (row.error) fail(row.error);
+  }
 
   const del = await c.from("panel_projects").delete().eq("slug", slug);
   if (del.error) fail(del.error);
@@ -368,7 +395,7 @@ export async function countFiles(slug: string): Promise<number> {
   return count ?? 0;
 }
 
-function safeName(name: string) {
+export function safeName(name: string) {
   const clean = name
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
@@ -449,8 +476,16 @@ export async function logEvent(e: NewEvent) {
   if (!c) return;
   const { lead_id = null, changes = [], ...base } = e;
   const row = { ...base, paths: e.paths ?? [] };
-  let { error } = await c.from("panel_events").insert({ ...row, lead_id, changes });
-  if (error && missingCol(error)) ({ error } = await c.from("panel_events").insert(row));
+  const insert = (r: object) => c.from("panel_events").insert(r);
+  let extra: object = { lead_id, changes };
+  let { error } = await insert({ ...row, ...extra });
+  if (error && missingCol(error)) {
+    extra = {};
+    ({ error } = await insert(row));
+  }
+  // Tipo nuevo sin panel-v3.sql: va como «proyecto», el tipo de antes, y al
+  // leerlo kindOf lo reconoce por el texto. La migración lo deja bien guardado.
+  if (error?.code === "23514" && !LEGACY_KINDS.includes(row.kind)) ({ error } = await insert({ ...row, ...extra, kind: "proyecto" }));
   if (error) console.error("[panel] feed:", error.message);
 }
 
@@ -485,11 +520,15 @@ export async function listEvents({ limit = 50, kind, actor, projectSlug, leadId,
     res = await run(EVENT_COLUMNS, false);
   }
   if (res.error) fail(res.error);
-  const rows = (res.data as unknown as Omit<PanelEvent, "thumbs">[]).map((r) => ({
-    ...r,
-    lead_id: r.lead_id ?? null,
-    changes: Array.isArray(r.changes) ? r.changes : [],
-  }));
+  const rows = (res.data as unknown as Omit<PanelEvent, "thumbs">[])
+    .map((r) => ({
+      ...r,
+      kind: kindOf(r.kind, r.text),
+      lead_id: r.lead_id ?? null,
+      changes: Array.isArray(r.changes) ? r.changes : [],
+    }))
+    // Sin panel-v3.sql, «Proyectos» trae también lo de Finanzas, Cuentas… anotado con el tipo viejo.
+    .filter((r) => !kind || r.kind === kind);
   const thumbPaths = (r: Omit<PanelEvent, "thumbs">) => r.paths.filter((p) => isImage(p)).slice(0, 4);
   const urls = await sign(rows.flatMap(thumbPaths));
   return rows.map((r) => ({

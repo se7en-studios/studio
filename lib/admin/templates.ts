@@ -76,18 +76,23 @@ export const fill = (text: string, v: Vars) =>
 /**
  * El número listo para WhatsApp (código de país y 9 para celulares de Argentina), o null
  * si no se puede armar con seguridad: mejor no ofrecer el botón que abrir un chat equivocado.
+ * Un número del exterior se acepta si viene con «+» y su código de país.
  */
 export function waNumber(phone: string | null | undefined): string | null {
-  const digits = (phone ?? "").replace(/\D/g, "").replace(/^0+/, "");
+  const raw = (phone ?? "").trim();
+  const digits = raw.replace(/\D/g, "").replace(/^0+/, "");
   if (digits.length === 10) return `549${digits}`;
   if (/^549\d{10}$/.test(digits)) return digits;
   if (/^54\d{10}$/.test(digits)) return `549${digits.slice(2)}`;
+  if (raw.startsWith("+") && !digits.startsWith("54") && digits.length >= 8 && digits.length <= 15) return digits;
   return null;
 }
 
-export const waLink = (phone: string | null | undefined, text: string) => {
+/** El único link de WhatsApp del panel: con el mensaje armado, o sin texto para abrir el chat. */
+export const waLink = (phone: string | null | undefined, text = "") => {
   const n = waNumber(phone);
-  return n ? `https://wa.me/${n}?text=${encodeURIComponent(text)}` : null;
+  if (!n) return null;
+  return text ? `https://wa.me/${n}?text=${encodeURIComponent(text)}` : `https://wa.me/${n}`;
 };
 
 export const mailLink = (email: string, subject: string, body: string) =>

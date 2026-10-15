@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "check": "node scripts/check-finance.mjs && node scripts/check-calendar.mjs && node scripts/check-digest.mjs && node scripts/check-templates.mjs && node scripts/check-calls.mjs && node scripts/check-vault.mjs && node scripts/check-totp.mjs && node scripts/check-oficinas.mjs && node scripts/check-oidc.mjs && node scripts/gen-admin-light.mjs --check",
+    "check": "node scripts/check-finance.mjs && node scripts/check-brief.mjs && node scripts/check-events.mjs && node scripts/check-calendar.mjs && node scripts/check-digest.mjs && node scripts/check-templates.mjs && node scripts/check-sales.mjs && node scripts/check-calls.mjs && node scripts/check-vault.mjs && node scripts/check-totp.mjs && node scripts/check-oficinas.mjs && node scripts/check-oidc.mjs && node scripts/check-tasks.mjs && node scripts/check-messages.mjs && node scripts/check-content.mjs && node scripts/check-maintenance.mjs && node scripts/check-paged.mjs && node scripts/check-numbers.mjs && node scripts/check-proposals.mjs && node scripts/check-portal.mjs && node scripts/gen-admin-light.mjs --check",
     "verify": "npm run lint && npm run check && npm run build",
     "visual-check": "node scripts/visual-check.mjs",
     "bundle-size": "node scripts/bundle-size.mjs",

@@ -34,7 +34,14 @@ assert.throws(() => crypto.decrypt(sealed, aad.replace("secret", "notes"), key),
 // Otra llave, o un dato alterado, no abren nada.
 assert.throws(() => crypto.decrypt(sealed, aad, Buffer.alloc(32, 8)), /No se pudo descifrar/);
 const [v, iv, tag, data] = sealed.split(".");
-const flipped = data.slice(0, -2) + (data.endsWith("A") ? "B" : "A") + data.slice(-1);
+// Se invierte un bit del primer byte: siempre cambia el dato (cambiar una letra del
+// base64 a veces no, si cae en los bits de relleno o ya era esa letra).
+const flipByte = (b64) => {
+  const buf = Buffer.from(b64, "base64url");
+  buf[0] ^= 1;
+  return buf.toString("base64url");
+};
+const flipped = flipByte(data);
 assert.throws(() => crypto.decrypt([v, iv, tag, flipped].join("."), aad, key));
 assert.throws(() => crypto.decrypt("basura", aad, key), /inválido/);
 // Un tag recortado o un IV de otro largo no se aceptan (GCM sin largo fijo permitiría tags cortos).
@@ -70,6 +77,11 @@ for (const bad of ["https://accounts.google.com@evil.com", "https://user:pass@ve
   assert.equal(shared.cleanAccount({ ...base, url: bad }, { creating: true }).ok, false, bad);
 assert.equal(shared.cleanAccount({ ...base, url: "HTTPS://Vercel.com/login" }, { creating: true }).value.url, "https://vercel.com/login");
 // Valores raros caen en los de siempre.
+// Borrar las notas: sólo al editar, y escribir notas nuevas gana.
+assert.equal(shared.cleanAccount({ ...base, clearNotes: true }, { creating: false }).value.clearNotes, true);
+assert.equal(shared.cleanAccount({ ...base, clearNotes: true }, { creating: true }).value.clearNotes, false);
+assert.equal(shared.cleanAccount({ ...base, notes: "nuevas", clearNotes: true }, { creating: false }).value.clearNotes, false);
+assert.equal(shared.cleanAccount({ ...base }, { creating: false }).value.clearNotes, false);
 const odd = shared.cleanAccount({ ...base, twofa: "otro", owner: "nadie" }, { creating: true }).value;
 assert.deepEqual([odd.twofa, odd.owner], ["app", "ambos"]);
 assert.equal(shared.cleanAccount({ ...base, secret: "x".repeat(shared.MAX_SECRET + 1) }, { creating: true }).ok, false);
@@ -85,5 +97,17 @@ assert.equal(shared.ageLabel(0), "hoy");
 assert.equal(shared.ageLabel(1), "hace 1 día");
 assert.equal(shared.ageLabel(45), "hace 1 mes");
 assert.equal(shared.ageLabel(400), "hace 1 año");
+
+// Copia de seguridad cifrada con una frase: vuelve igual, y con otra frase no se abre.
+const bk = await import("../lib/admin/backup-shared.ts");
+const json = JSON.stringify({ app: "se7en-panel", tables: { leads: { rows: [{ id: "1", name: "Ana ñandú" }] } } });
+const box = bk.encryptBackup(json, "una frase bastante larga", "2026-10-14T00:00:00Z");
+assert.ok(bk.isEncryptedBackup(box));
+assert.ok(!box.data.includes("Ana"));
+assert.equal(bk.decryptBackup(box, "una frase bastante larga"), json);
+assert.throws(() => bk.decryptBackup(box, "otra frase bastante larga"), /No se pudo descifrar/);
+assert.throws(() => bk.decryptBackup({ ...box, data: box.data.split(".").map((p, i) => (i === 3 ? flipByte(p) : p)).join(".") }, "una frase bastante larga"), /No se pudo descifrar/);
+assert.throws(() => bk.encryptBackup(json, "corta", "x"), /20 caracteres/);
+assert.throws(() => bk.decryptBackup({ ...box, kdf: { ...box.kdf, N: 1 << 24 } }, "x"), /inválido/);
 
 console.log("vault OK");

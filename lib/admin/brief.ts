@@ -25,18 +25,29 @@ export function headline(idea: string): string {
   return text.length > 110 ? `${text.slice(0, 107).trimEnd()}…` : text;
 }
 
-/** Monto aproximado en USD que sugiere el rango elegido, para ordenar. */
+/**
+ * Monto aproximado en USD que sugiere el rango elegido, para ordenar. Entiende
+ * los rangos del sitio: «Menos de USD 1.500» o «< $1.500 USD» (un poco menos),
+ * «USD 1.500 – 3.000» (el medio) y «Más de USD 6.000» o «$6.000+ USD» (un poco más).
+ */
 export function budgetValue(budget: string): number {
   const nums = (budget.match(/\d[\d.,]*/g) ?? []).map((n) => Number(n.replace(/[.,]/g, "")));
-  if (/más de/i.test(budget) && nums[0]) return nums[0] * 1.5;
+  if ((/más de/i.test(budget) || /\d\s*\+/.test(budget)) && nums[0]) return nums[0] * 1.5;
   if (nums.length >= 2) return (nums[0] + nums[1]) / 2;
-  if (/menos de/i.test(budget) && nums[0]) return nums[0] * 0.6;
+  if ((/menos de/i.test(budget) || /^\s*</.test(budget)) && nums[0]) return nums[0] * 0.6;
   return nums[0] ?? 0;
 }
 
+/**
+ * Plazo que pide apuro. Ojo con «semana»: el plazo por defecto de /start es
+ * «Normal (2 a 4 semanas)» y no es urgente. Cuentan «urgente», «ya», «ASAP»,
+ * «exprés», «esta semana», «menos de 2 semanas» o «en un mes» y parecidos.
+ */
+const URGENT = /urgente|asap|cuanto antes|expr[eé]s|\bya\b|esta semana|(menos de|en) (1|una|2|dos) semanas?|\b(1|un) mes\b/i;
+
 export function priority(b: Pick<BriefInput, "budget" | "timeline">): Priority {
   const v = budgetValue(b.budget);
-  const urgent = /urgente|ya|asap|semana|1 mes|un mes/i.test(b.timeline);
+  const urgent = URGENT.test(b.timeline);
   if (v >= 3000 || (v >= 1500 && urgent)) return "alta";
   if (v >= 1500 || urgent) return "media";
   return "baja";

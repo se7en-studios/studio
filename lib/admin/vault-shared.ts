@@ -60,6 +60,8 @@ export type AccountInput = {
   owner: string;
   secret?: string;
   notes?: string;
+  /** Borrar las notas guardadas (sólo al editar y si no se escriben notas nuevas). */
+  clearNotes?: boolean;
 };
 
 export type CleanAccount = Omit<
@@ -68,6 +70,7 @@ export type CleanAccount = Omit<
 > & {
   secret: string | null;
   notes: string | null;
+  clearNotes: boolean;
 };
 
 export const MAX_SECRET = 500;
@@ -126,6 +129,7 @@ export function cleanAccount(
       owner,
       secret: secret || null,
       notes: notes.trim() ? notes : null,
+      clearNotes: !creating && !notes.trim() && input.clearNotes === true,
     },
   };
 }

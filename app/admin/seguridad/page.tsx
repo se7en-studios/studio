@@ -1,24 +1,23 @@
 import type { Metadata } from "next";
+import { Download } from "lucide-react";
 import qrcode from "qrcode-generator";
 import {
   hasOwnPassword,
   hasTotp,
   panelSession,
-  sessionSecretStrong,
-  sharedPasswordActive,
-  totpStatus,
+  sessionEpoch,
 } from "@/lib/admin/auth";
-import { notificationsConfigured } from "@/lib/admin/notify";
+import { MIN_PASSPHRASE } from "@/lib/admin/backup-shared";
 import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
 import { newTotpSecret, otpauthUri } from "@/lib/admin/totp";
-import { vaultReady } from "@/lib/admin/vault-crypto";
-import { Card, cn } from "../kit";
+import { TZ } from "@/lib/admin/tz";
+import { Card, btnSecondary, cn, input } from "../kit";
 import { AdminGate, PageHeader } from "../ui";
+import { securityChecklist } from "./checklist";
+import { SessionsCard } from "./sessions";
 import { TotpSetup } from "./setup";
 
 export const metadata: Metadata = { title: "Seguridad" };
-
-type Row = { label: string; ok: boolean; hint: string };
 
 function qrSvg(text: string) {
   const qr = qrcode(0, "M");
@@ -36,57 +35,14 @@ export default async function SeguridadPage() {
   const names = { me: PEOPLE[me.who].name, other: PEOPLE[other].name };
   const bothOwn = hasOwnPassword(me.who) && hasOwnPassword(other);
 
-  const rows: Row[] = [
-    {
-      label: `Contraseña propia de ${names.me}`,
-      ok: hasOwnPassword(me.who),
-      hint: `Cargá ADMIN_PASSWORD_${mine} en Vercel.`,
-    },
-    {
-      label: `Contraseña propia de ${names.other}`,
-      ok: hasOwnPassword(other),
-      hint: `Que cargue ADMIN_PASSWORD_${other.toUpperCase()} en Vercel.`,
-    },
-    {
-      label: "Contraseña compartida apagada",
-      ok: !sharedPasswordActive(),
-      hint: bothOwn
-        ? "Los dos ya tienen la propia: borrá ADMIN_PASSWORD de Vercel y redeployá."
-        : "Se apaga cuando los dos tengan la propia (borrando ADMIN_PASSWORD).",
-    },
-    {
-      label: `Segundo paso de ${names.me}`,
-      ok: totpStatus(me.who) === "ok",
-      hint:
-        totpStatus(me.who) === "broken"
-          ? `TOTP_SECRET_${mine} no es un secreto válido: entrar queda bloqueado. Corregila o borrala en Vercel.`
-          : "Activalo en el recuadro de al lado.",
-    },
-    {
-      label: `Segundo paso de ${names.other}`,
-      ok: totpStatus(other) === "ok",
-      hint:
-        totpStatus(other) === "broken"
-          ? `TOTP_SECRET_${other.toUpperCase()} no es un secreto válido: su ingreso queda bloqueado hasta corregirla o borrarla.`
-          : "Lo activa desde esta misma pantalla.",
-    },
-    {
-      label: "Firma de las sesiones",
-      ok: sessionSecretStrong(),
-      hint: "ADMIN_SESSION_SECRET tiene que tener 32 caracteres o más.",
-    },
-    {
-      label: "Llave de la caja fuerte",
-      ok: vaultReady(),
-      hint: "Falta VAULT_KEY en Vercel.",
-    },
-    {
-      label: "Avisos al celular",
-      ok: notificationsConfigured(),
-      hint: "Falta NTFY_TOPIC en Vercel.",
-    },
-  ];
+  const rows = securityChecklist(me.who);
   const done = rows.filter((r) => r.ok).length;
+
+  const pendingRows = rows.filter((r) => !r.ok);
+  const epoch = await sessionEpoch();
+  const lastCut = epoch
+    ? new Date(epoch).toLocaleString("es-AR", { timeZone: TZ, dateStyle: "long", timeStyle: "short" })
+    : null;
 
   const enrolled = hasTotp(me.who);
   const secret = enrolled ? null : newTotpSecret();
@@ -159,7 +115,118 @@ export default async function SeguridadPage() {
             </div>
           </Card>
         )}
+
+        {pendingRows.length > 0 && <NextSteps names={names} bothOwn={bothOwn} />}
+        <SessionsCard lastCut={lastCut} />
+        <BackupCard monthly={(process.env.BACKUP_PASSPHRASE?.length ?? 0) >= MIN_PASSPHRASE} />
       </div>
     </div>
   );
 }
+
+const code = "rounded bg-white/[0.06] px-1 text-foreground";
+
+/**
+ * Lo que falta para el 8 de 8, en orden. Es configuración de Vercel que hacen
+ * los socios: el panel no puede (ni debe) tocar sus propias variables.
+ */
+function NextSteps({ names, bothOwn }: { names: { me: string; other: string }; bothOwn: boolean }) {
+  return (
+    <Card title="Cómo llegar a 8 de 8">
+      <ol className="list-decimal space-y-2 p-4 pl-9 text-[13px] text-muted">
+        <li>
+          <span className="text-foreground">Contraseña propia de cada uno.</span> En Vercel → Settings → Environment
+          Variables (Production), cada uno crea <code className={code}>ADMIN_PASSWORD_FRANCO</code> o{" "}
+          <code className={code}>ADMIN_PASSWORD_FEDERICO</code> con una contraseña larga que no use en otro lado.
+          Redeployar. Desde ahí, a cada uno le sirve sólo la suya.
+        </li>
+        <li>
+          <span className="text-foreground">Segundo paso de cada uno.</span> Entrando cada uno con su usuario, en esta
+          página: escanear el QR con la app (Google Authenticator, 1Password…), poner el código para comprobarlo y
+          cargar en Vercel la línea <code className={code}>TOTP_SECRET_…</code> que aparece. Redeployar. {names.me} lo
+          hace desde su sesión y {names.other} desde la suya.
+        </li>
+        <li>
+          <span className="text-foreground">Apagar la contraseña compartida.</span>{" "}
+          {bothOwn ? "Los dos ya tienen la propia: " : "Recién cuando los dos tengan la propia: "}
+          borrar <code className={code}>ADMIN_PASSWORD</code> en Vercel y redeployar. Mientras exista, cualquiera de
+          los dos puede entrar como el otro y el Registro no garantiza quién hizo qué.
+        </li>
+        <li>
+          <span className="text-foreground">Después de cada cambio,</span> volver a esta página: la lista de arriba se
+          actualiza sola. Si algo queda mal cargado, el ingreso de esa persona se bloquea hasta corregirlo (falla
+          cerrado), así que conviene hacerlo de a uno y con el otro conectado.
+        </li>
+      </ol>
+    </Card>
+  );
+}
+
+/** Copia de todo lo que el panel guarda en Supabase: a mano (con o sin frase) y la mensual automática. */
+function BackupCard({ monthly }: { monthly: boolean }) {
+  return (
+    <Card title="Copia de seguridad" icon={<Download size={14} />}>
+      <div className="space-y-3 p-4 text-[13px] text-muted">
+        <p>
+          Un archivo con los pedidos, proyectos, tareas, mensajes, finanzas, contenido y las cuentas (estas siguen
+          cifradas con la llave de la caja). No incluye los archivos subidos, solo su lista. El plan gratis de
+          Supabase no hace copias solo.
+        </p>
+        <form method="post" action="/admin/api/respaldo" className="space-y-2">
+          <label htmlFor="backup-frase" className="block text-[11px] font-medium tracking-wide text-muted uppercase">
+            Frase para cifrarla (recomendado)
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <input
+              id="backup-frase"
+              name="frase"
+              type="password"
+              autoComplete="new-password"
+              minLength={MIN_PASSPHRASE}
+              placeholder={`${MIN_PASSPHRASE} caracteres o más`}
+              className={cn(input, "min-w-0 flex-1")}
+            />
+            <button type="submit" className={btnSecondary}>
+              <Download size={14} /> Descargar copia
+            </button>
+          </div>
+          <p className="text-[12px]">
+            Sin frase baja el archivo en claro: lleva datos de clientes, guardalo en un lugar privado. Con frase, sin
+            ella no se puede abrir (ni siquiera nosotros): anotala en un lugar seguro.
+          </p>
+        </form>
+        <div className="space-y-1 border-t border-[var(--line)] pt-3">
+          <p className="text-foreground">Copia mensual automática</p>
+          {monthly ? (
+            <p>
+              El día 1 de cada mes GitHub Actions guarda una copia cifrada con la frase{" "}
+              <code className={code}>BACKUP_PASSPHRASE</code> (pestaña Actions del repo → «Copia de seguridad mensual»
+              → Artifacts). Cada una dura 90 días.
+            </p>
+          ) : (
+            <p className="text-amber-300">
+              Falta cargar <code className={code}>BACKUP_PASSPHRASE</code> en Vercel (una frase de {MIN_PASSPHRASE}{" "}
+              caracteres o más, guardada también fuera del panel) y redeployar. Sin ella la copia mensual no se hace:
+              el repo es público y nunca se guarda en claro.
+            </p>
+          )}
+        </div>
+        <div className="space-y-1 border-t border-[var(--line)] pt-3">
+          <p className="text-foreground">Restaurar</p>
+          <p>
+            Desde una compu con el repo y el <code className={code}>.env.local</code> (las variables de Supabase):
+          </p>
+          <code className="block rounded-lg border border-[var(--line-strong)] bg-[var(--well)] px-3 py-2 font-mono text-[12px] break-all text-foreground">
+            RESPALDO_FRASE=&apos;…&apos; node --env-file=.env.local scripts/restore-backup.mjs copia.json
+          </code>
+          <p>
+            Primero muestra qué haría (cuántas filas hay y cuántas faltan) sin tocar nada. Con{" "}
+            <code className={code}>--aplicar</code> agrega lo que falta y repone lo cambiado; nunca borra. Con{" "}
+            <code className={code}>--tablas=leads,panel_tasks</code> se limita a esas.
+          </p>
+        </div>
+      </div>
+    </Card>
+  );
+}
+

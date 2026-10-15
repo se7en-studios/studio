@@ -44,6 +44,10 @@ const SQL_WHAT: Record<string, React.ReactNode> = {
   "panel-v2.sql": "Crea el estado de los proyectos, los mensajes y el detalle del registro de cambios.",
   "content.sql": "Crea la tabla del calendario de contenido de Instagram.",
   "payments.sql": "Crea la tabla de cobros de los proyectos.",
+  "clients.sql": "Crea los clientes a partir de los nombres escritos en los proyectos y los vincula.",
+  "maintenance.sql": "Crea los planes de mantenimiento, sus cobros mensuales y la cola de pedidos de los clientes.",
+  "site-health.sql": "Crea la tabla de chequeos diarios de los sitios (respuesta, tiempo, SSL y dominio).",
+  "finance-v4.sql": "Pasa los cobros de los proyectos a Finanzas, como ingresos con proyecto: así todo el panel suma lo mismo.",
 };
 
 /** Falta la base o faltan las tablas del panel: cómo activarlo, sin romper la página. */
@@ -70,22 +74,7 @@ export function SetupNotice({ reason }: { reason: string }) {
   );
 }
 
-const TZ = "America/Argentina/Buenos_Aires";
-const dayKey = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: TZ });
-
-/** «Hoy», «Ayer» o «martes 6 de octubre», en hora de Argentina. */
-export function dayLabel(iso: string) {
-  const d = new Date(iso);
-  const today = new Date();
-  const yesterday = new Date(Date.now() - 86_400_000);
-  if (dayKey(d) === dayKey(today)) return "Hoy";
-  if (dayKey(d) === dayKey(yesterday)) return "Ayer";
-  return d.toLocaleDateString("es-AR", { timeZone: TZ, weekday: "long", day: "numeric", month: "long" });
-}
-
-export function timeLabel(iso: string) {
-  return new Date(iso).toLocaleTimeString("es-AR", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
-}
+export { dayLabel, timeLabel } from "@/lib/admin/tz";
 
 export function bytes(n: number) {
   if (n < 1024 * 1024) return `${Math.max(1, Math.round(n / 1024))} KB`;

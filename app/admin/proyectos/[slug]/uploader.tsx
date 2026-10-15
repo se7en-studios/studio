@@ -142,7 +142,7 @@ export function Uploader({
 }
 
 /** Mismo pedido que hace supabase-js en uploadToSignedUrl, con avance. */
-function put(url: string, file: File, onProgress: (p: number) => void) {
+export function put(url: string, file: File, onProgress: (p: number) => void) {
   return new Promise<void>((resolve, reject) => {
     const body = new FormData();
     body.append("cacheControl", "3600");

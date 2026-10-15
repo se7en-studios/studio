@@ -15,6 +15,13 @@ for (const bad of ["", null, undefined, "123", "abc", "29941234567890"]) assert.
 
 assert.equal(t.waLink("2994123456", "Hola ñandú"), "https://wa.me/5492994123456?text=Hola%20%C3%B1and%C3%BA");
 assert.equal(t.waLink("", "x"), null);
+// Una sola función arma todos los links de WhatsApp del panel: sin texto abre el chat solo.
+assert.equal(t.waLink("2994123456"), "https://wa.me/5492994123456");
+assert.equal(t.waLink("+54 9 299 412-3456", ""), "https://wa.me/5492994123456");
+// Del exterior, sólo con «+» y código de país.
+assert.equal(t.waNumber("+1 (555) 123-4567"), "15551234567");
+assert.equal(t.waNumber("+34 612 345 678"), "34612345678");
+assert.equal(t.waNumber("1 555 123 4567 89"), null);
 assert.equal(t.mailLink("a@b.com", "Tu proyecto", "Hola\nchau"), "mailto:a@b.com?subject=Tu%20proyecto&body=Hola%0Achau");
 
 // Variables: primer nombre y proyecto, con texto neutro si faltan.

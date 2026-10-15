@@ -3,30 +3,31 @@
 // Una conversación del equipo: la general, la de un proyecto o la de un pedido.
 // Se lee de /admin/api/messages cada pocos segundos mientras la pestaña está a
 // la vista (un route handler, no una acción: las acciones van en fila y el
-// polling trabaría el resto del panel). Mandar es optimista.
+// polling trabaría el resto del panel). Mandar es optimista. Arriba se pueden
+// cargar los anteriores de a tandas y buscar en la conversación; los adjuntos
+// suben directo a Storage, igual que los archivos de los proyectos.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
-import { ArrowUp, Check, MessagesSquare, Pencil, Trash2, X } from "lucide-react";
+import { ArrowUp, Check, LoaderCircle, MessagesSquare, Paperclip, Pencil, Search, Trash2, X } from "lucide-react";
 import type { LeadOwner } from "@/lib/admin/db";
 import { PEOPLE } from "@/lib/admin/people";
-import { MESSAGE_MAX, type Message } from "@/lib/admin/message-shared";
+import { MAX_ATTACHMENTS, MESSAGE_MAX, PAGE, type Attachment, type Message } from "@/lib/admin/message-shared";
+import { put } from "../proyectos/[slug]/uploader";
 import { Empty, Face, cn } from "../kit";
+import { TZ, dayIn, dayLabel, timeLabel } from "@/lib/admin/tz";
 import { useToast } from "../overlay";
 import { usePulse } from "../shell";
-import { deleteMessage, sendMessage, updateMessage } from "./actions";
+import { deleteMessage, prepareAttachments, sendMessage, updateMessage } from "./actions";
 
 const POLL_MS = 4000;
-const TZ = "America/Argentina/Buenos_Aires";
+const SEARCH_DELAY_MS = 300;
+/** Igual que los archivos de proyectos: el máximo del plan Free de Supabase. */
+const MAX_FILE_BYTES = 50 * 1024 * 1024;
 /** Mensajes seguidos del mismo autor dentro de este rango van en un solo bloque. */
 const GROUP_MS = 5 * 60_000;
 
-const dayKey = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: TZ });
-const time = (iso: string) => new Date(iso).toLocaleTimeString("es-AR", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
-function dayTitle(iso: string) {
-  const k = dayKey(iso);
-  if (k === dayKey(new Date().toISOString())) return "Hoy";
-  if (k === dayKey(new Date(Date.now() - 86_400_000).toISOString())) return "Ayer";
-  return new Date(iso).toLocaleDateString("es-AR", { timeZone: TZ, weekday: "long", day: "numeric", month: "long" });
-}
+const dayKey = dayIn;
+const time = timeLabel;
+const dayTitle = dayLabel;
 
 const signature = (ms: Message[]) => ms.map((m) => `${m.id}:${m.edited_at ?? ""}`).join("|");
 
@@ -58,6 +59,16 @@ export function Chat({
   const stick = useRef(true);
   const sig = useRef(initial ? signature(initial) : "");
   const pendingSends = useRef(0);
+  const [hasMore, setHasMore] = useState(initial ? initial.length >= PAGE : false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const firstLoad = useRef(!initial);
+  /** Al sumar anteriores arriba: dónde estaba el scroll, para no saltar. */
+  const keep = useRef<{ height: number; top: number } | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [searching, setSearching] = useState(false);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Message[] | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -70,10 +81,19 @@ export function Chat({
       // Mientras se manda algo, no pisar el mensaje optimista con una lectura vieja.
       if (pendingSends.current > 0) return;
       const next = data.messages as Message[];
+      if (firstLoad.current) {
+        firstLoad.current = false;
+        setHasMore(next.length >= PAGE);
+      }
       const s = signature(next);
       if (s !== sig.current) {
         sig.current = s;
-        setMessages(next);
+        // Los anteriores que ya se cargaron a mano quedan arriba de la tanda nueva.
+        setMessages((prev) => {
+          const first = next[0]?.created_at;
+          const older = prev && first ? prev.filter((m) => m.created_at < first && !m.id.startsWith("tmp-")) : [];
+          return [...older, ...next];
+        });
       } else setMessages((m) => m ?? next);
     } catch {
       /* sin conexión: el próximo intento lo resuelve */
@@ -102,25 +122,98 @@ export function Chat({
   // Abajo de todo al llegar algo nuevo, salvo que se esté leyendo más arriba.
   useLayoutEffect(() => {
     const el = scroller.current;
-    if (el && stick.current) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    if (keep.current) {
+      el.scrollTop = keep.current.top + (el.scrollHeight - keep.current.height);
+      keep.current = null;
+    } else if (stick.current) el.scrollTop = el.scrollHeight;
   }, [messages]);
+
+  async function loadOlder() {
+    const first = messages?.find((m) => !m.id.startsWith("tmp-"));
+    if (!first || loadingOlder) return;
+    setLoadingOlder(true);
+    try {
+      const r = await fetch(`/admin/api/messages?channel=${encodeURIComponent(channel)}&before=${encodeURIComponent(first.created_at)}`, {
+        cache: "no-store",
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.error ?? "No se pudieron cargar");
+      const older = data.messages as Message[];
+      const el = scroller.current;
+      if (el) keep.current = { height: el.scrollHeight, top: el.scrollTop };
+      stick.current = false;
+      setHasMore(older.length >= PAGE);
+      setMessages((m) => [...older, ...(m ?? [])]);
+    } catch (e) {
+      flash(e instanceof Error ? e.message : "No se pudieron cargar", "error");
+    } finally {
+      setLoadingOlder(false);
+    }
+  }
+
+  // Búsqueda en la conversación, con una pausa corta mientras se escribe.
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) return;
+    const id = window.setTimeout(async () => {
+      try {
+        const r = await fetch(`/admin/api/messages?channel=${encodeURIComponent(channel)}&q=${encodeURIComponent(q)}`, { cache: "no-store" });
+        const data = await r.json();
+        setResults(r.ok ? (data.messages as Message[]) : []);
+      } catch {
+        setResults([]);
+      }
+    }, SEARCH_DELAY_MS);
+    return () => window.clearTimeout(id);
+  }, [query, channel]);
+  const showResults = searching && query.trim().length >= 2;
+
+  function pickFiles(list: FileList | null) {
+    const picked = Array.from(list ?? []);
+    if (fileInput.current) fileInput.current.value = "";
+    const big = picked.find((f) => f.size > MAX_FILE_BYTES);
+    if (big) return flash(`«${big.name}» pesa más de 50 MB`, "error");
+    setFiles((fs) => [...fs, ...picked].slice(0, MAX_ATTACHMENTS));
+  }
+
+  /** Sube los adjuntos directo a Storage. Si alguno falla, no se manda nada. */
+  async function upload(list: File[]): Promise<Attachment[]> {
+    const prep = await prepareAttachments(channel, list.map((f) => ({ name: f.name, size: f.size })));
+    if (!prep.targets) throw new Error(prep.error ?? "No se pudo preparar la subida");
+    const targets = prep.targets;
+    await Promise.all(list.map((f, i) => put(targets[i].url, f, () => {})));
+    return list.map((f, i) => ({ path: targets[i].path, name: f.name, size: f.size, mime: f.type }));
+  }
 
   function send() {
     const body = draft.trim();
-    if (!body) return;
+    const sending = files;
+    if (!body && !sending.length) return;
     const now = new Date().toISOString();
-    const temp: Message = { id: `tmp-${now}`, created_at: now, edited_at: null, channel, author: me, body };
+    const temp: Message = {
+      id: `tmp-${now}`,
+      created_at: now,
+      edited_at: null,
+      channel,
+      author: me,
+      body,
+      attachments: sending.map((f) => ({ path: "", name: f.name, size: f.size, mime: f.type })),
+    };
     setDraft("");
+    setFiles([]);
     stick.current = true;
     setMessages((m) => [...(m ?? []), temp]);
     pendingSends.current++;
     startTransition(async () => {
       try {
-        const saved = await sendMessage(channel, body);
+        const attachments = sending.length ? await upload(sending) : [];
+        const saved = await sendMessage(channel, body, attachments);
         setMessages((m) => (m ?? []).map((x) => (x.id === temp.id ? saved : x)));
       } catch (e) {
         setMessages((m) => (m ?? []).filter((x) => x.id !== temp.id));
         setDraft(body);
+        setFiles(sending);
         flash(e instanceof Error ? e.message : "No se pudo mandar", "error");
       } finally {
         pendingSends.current--;
@@ -135,7 +228,7 @@ export function Chat({
     startTransition(async () => {
       try {
         const saved = await updateMessage(id, body);
-        setMessages((m) => (m ?? []).map((x) => (x.id === id ? saved : x)));
+        setMessages((m) => (m ?? []).map((x) => (x.id === id ? { ...saved, attachments: x.attachments } : x)));
       } catch (e) {
         setMessages(before);
         flash(e instanceof Error ? e.message : "No se pudo editar", "error");
@@ -166,6 +259,44 @@ export function Chat({
 
   return (
     <div className={cn("flex min-h-0 flex-col", className)}>
+      <div className="flex items-center justify-end gap-2 border-b border-[var(--line)] px-3 py-1.5">
+        {searching ? (
+          <label className="relative flex flex-1 items-center">
+            <Search size={13} className="pointer-events-none absolute left-2.5 text-muted" />
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setSearching(false);
+                  setQuery("");
+                }
+              }}
+              placeholder="Buscar en esta conversación…"
+              aria-label="Buscar en esta conversación"
+              className="focus-ring w-full rounded-md border border-[var(--line-strong)] bg-[var(--well)] py-1 pr-2 pl-8 text-[13px] placeholder:text-muted/60"
+            />
+          </label>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => {
+            setSearching((v) => !v);
+            setQuery("");
+            setResults(null);
+          }}
+          aria-label={searching ? "Cerrar búsqueda" : "Buscar en esta conversación"}
+          className="focus-ring rounded-md p-1.5 text-muted hover:bg-white/[0.05] hover:text-foreground"
+        >
+          {searching ? <X size={14} /> : <Search size={14} />}
+        </button>
+      </div>
+      {showResults ? (
+        <div className="admin-scroll min-h-0 flex-1 overflow-y-auto px-4 py-3">
+          <SearchResults results={results} me={me} />
+        </div>
+      ) : (
       <div
         ref={scroller}
         onScroll={(e) => {
@@ -192,6 +323,18 @@ export function Chat({
           </Empty>
         ) : (
           <ol>
+            {hasMore && (
+              <li className="mb-3 flex justify-center">
+                <button
+                  type="button"
+                  onClick={loadOlder}
+                  disabled={loadingOlder}
+                  className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-[var(--line-strong)] px-3 py-1 text-[12px] text-muted hover:text-foreground disabled:opacity-60"
+                >
+                  {loadingOlder && <LoaderCircle size={12} className="animate-spin" />} Cargar anteriores
+                </button>
+              </li>
+            )}
             {messages.map((m, i) => {
               const prev = messages[i - 1];
               const newDay = !prev || dayKey(prev.created_at) !== dayKey(m.created_at);
@@ -223,6 +366,7 @@ export function Chat({
           </ol>
         )}
       </div>
+      )}
 
       <form
         onSubmit={(e) => {
@@ -231,6 +375,27 @@ export function Chat({
         }}
         className="border-t border-[var(--line)] p-3"
       >
+        {files.length > 0 && (
+          <ul className="mb-2 flex flex-wrap gap-1.5">
+            {files.map((f, i) => (
+              <li
+                key={`${f.name}-${i}`}
+                className="inline-flex max-w-[240px] items-center gap-1 rounded-md border border-[var(--line-strong)] bg-[var(--well)] py-0.5 pr-0.5 pl-2 text-[12px]"
+              >
+                <Paperclip size={12} className="shrink-0 text-muted" />
+                <span className="truncate">{f.name}</span>
+                <button
+                  type="button"
+                  onClick={() => setFiles((fs) => fs.filter((_, j) => j !== i))}
+                  aria-label={`Sacar ${f.name}`}
+                  className="focus-ring rounded p-0.5 text-muted hover:text-foreground"
+                >
+                  <X size={12} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="flex items-end gap-2 rounded-xl border border-[var(--line-strong)] bg-[var(--well)] p-1.5 pl-3 transition-[border-color,box-shadow] focus-within:border-accent/60 focus-within:shadow-[0_0_0_3px_var(--accent-soft)]">
           <AutoTextarea
             value={draft}
@@ -239,9 +404,18 @@ export function Chat({
             placeholder={placeholder}
             ariaLabel="Mensaje"
           />
+          <input ref={fileInput} type="file" multiple hidden onChange={(e) => pickFiles(e.target.files)} />
+          <button
+            type="button"
+            onClick={() => fileInput.current?.click()}
+            aria-label="Adjuntar archivos"
+            className="focus-ring flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-white/[0.05] hover:text-foreground"
+          >
+            <Paperclip size={16} />
+          </button>
           <button
             type="submit"
-            disabled={!draft.trim()}
+            disabled={!draft.trim() && !files.length}
             aria-label="Mandar"
             className="focus-ring flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-background shadow-[var(--shadow-btn)] transition-opacity disabled:opacity-30"
           >
@@ -351,6 +525,7 @@ function Bubble({
             {m.edited_at && <span className="ml-1.5 text-[11px] text-muted">(editado)</span>}
           </p>
         )}
+        {m.attachments && m.attachments.length > 0 && <Attachments list={m.attachments} pending={temp} />}
       </div>
       {mine && !temp && !editing && (
         <div className="absolute top-0 right-1 hidden items-center gap-0.5 rounded-lg border border-[var(--line-strong)] bg-[var(--panel-3)] p-0.5 shadow-lg group-hover:flex group-focus-within:flex">
@@ -404,5 +579,92 @@ function Rich({ text, me }: { text: string; me: LeadOwner }) {
         return <span key={i}>{p}</span>;
       })}
     </>
+  );
+}
+
+const kb = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+
+function Attachments({ list, pending }: { list: Attachment[]; pending: boolean }) {
+  return (
+    <ul className={cn("mt-1.5 flex flex-wrap gap-2", pending && "opacity-60")}>
+      {list.map((a, i) => (
+        <li key={a.path || i}>
+          {a.url && a.mime.startsWith("image/") ? (
+            <a href={a.url} target="_blank" rel="noopener noreferrer" className="focus-ring block overflow-hidden rounded-lg border border-[var(--line)]">
+              {/* eslint-disable-next-line @next/next/no-img-element -- URL firmada de Storage */}
+              <img src={a.url} alt={a.name} className="h-32 max-w-[240px] object-cover" />
+            </a>
+          ) : (
+            <a
+              href={a.url ?? undefined}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="focus-ring inline-flex max-w-[260px] items-center gap-1.5 rounded-lg border border-[var(--line-strong)] bg-[var(--well)] px-2.5 py-1.5 text-[12px] text-foreground hover:border-accent/60"
+            >
+              {pending ? (
+                <LoaderCircle size={13} className="shrink-0 animate-spin text-muted" />
+              ) : (
+                <Paperclip size={13} className="shrink-0 text-muted" />
+              )}
+              <span className="truncate">{a.name}</span>
+              <span className="shrink-0 text-muted">{kb(a.size)}</span>
+            </a>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Resultados de una búsqueda: el más nuevo primero, con fecha. */
+export function SearchResults({
+  results,
+  me,
+  title,
+  onPick,
+}: {
+  results: Message[] | null;
+  me: LeadOwner;
+  /** Para la búsqueda global: de qué conversación es cada uno. */
+  title?: (channel: string) => string;
+  onPick?: (channel: string) => void;
+}) {
+  if (results === null) return <p className="py-6 text-center text-[13px] text-muted">Buscando…</p>;
+  if (!results.length) return <p className="py-6 text-center text-[13px] text-muted">Nada coincide.</p>;
+  return (
+    <ol className="space-y-1">
+      {results.map((m) => {
+        const body = (
+          <>
+            <span className="flex items-baseline gap-2 text-[12px] text-muted">
+              <span className="font-medium text-foreground">{PEOPLE[m.author].name}</span>
+              {title && <span className="truncate">{title(m.channel)}</span>}
+              <time className="ml-auto shrink-0" dateTime={m.created_at}>
+                {new Date(m.created_at).toLocaleDateString("es-AR", { timeZone: TZ, day: "numeric", month: "short", year: "2-digit" })}{" "}
+                {time(m.created_at)}
+              </time>
+            </span>
+            <span className="mt-0.5 line-clamp-3 block text-[13px] whitespace-pre-wrap text-foreground/90">
+              <Rich text={m.body || (m.attachments ?? []).map((a) => a.name).join(", ")} me={me} />
+            </span>
+          </>
+        );
+        return (
+          <li key={m.id}>
+            {onPick ? (
+              <button
+                type="button"
+                onClick={() => onPick(m.channel)}
+                className="focus-ring block w-full rounded-lg px-2.5 py-2 text-left hover:bg-white/[0.035]"
+              >
+                {body}
+              </button>
+            ) : (
+              <div className="rounded-lg px-2.5 py-2">{body}</div>
+            )}
+          </li>
+        );
+      })}
+    </ol>
   );
 }

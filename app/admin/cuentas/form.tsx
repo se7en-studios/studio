@@ -139,6 +139,7 @@ export function AccountForm({
   const [username, setUsername] = useState(account?.username ?? "");
   const [secret, setSecret] = useState("");
   const [notes, setNotes] = useState("");
+  const [clearNotes, setClearNotes] = useState(false);
   const [twofa, setTwofa] = useState<string>(account?.twofa ?? "app");
   const [owner, setOwner] = useState<Owner>(account?.owner ?? "ambos");
   const [visible, setVisible] = useState(false);
@@ -160,7 +161,7 @@ export function AccountForm({
   async function submit(password?: string): Promise<string | undefined> {
     const res = await saveAccount(
       account?.id ?? null,
-      { service, label: name, url, username, twofa, owner, secret, notes },
+      { service, label: name, url, username, twofa, owner, secret, notes, clearNotes },
       password,
     );
     if ("account" in res) {
@@ -350,6 +351,12 @@ export function AccountForm({
               }
               className={cn(input, "resize-none font-mono")}
             />
+            {account?.has_notes && !notes.trim() && (
+              <label className="mt-1.5 flex items-center gap-2 text-[12px] text-muted">
+                <input type="checkbox" checked={clearNotes} onChange={(e) => setClearNotes(e.target.checked)} />
+                Borrar las notas guardadas
+              </label>
+            )}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">

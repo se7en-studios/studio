@@ -26,127 +26,16 @@ import { Reveal } from "@/components/ui/reveal";
 import { useSoundFx } from "@/components/providers/sound-provider";
 import { WhatsAppLogo } from "@/components/icons/whatsapp-logo";
 import { SITE } from "@/data/site";
+import { SaveQuote } from "./save-quote";
+import { USD_TO_ARS, addonModules, paceDays, productBases, quote, type ProductBase } from "@/data/pricing";
 
-interface ProductBase {
-  id: string;
-  name: string;
-  category: string;
-  basePriceUSD: number;
-  baseDays: number;
-  description: string;
-  included: string[];
-}
-
-const productBases: ProductBase[] = [
-  {
-    id: "landing",
-    name: "Landing Page de Alta Conversión",
-    category: "Web & Marketing",
-    basePriceUSD: 1200,
-    baseDays: 7,
-    description: "Diseñada para maximizar captación de clientes con carga en < 0.4s y diseño en Figma a medida.",
-    included: [
-      "Diseño UI/UX exclusivo en Figma",
-      "Next.js 16 + Tailwind CSS v4",
-      "Puntaje Google Lighthouse 100/100",
-      "Micro-animaciones a 60 FPS con Framer Motion",
-      "Formularios con validación Zod y Resend",
-      "30 días de soporte post-lanzamiento",
-    ],
-  },
-  {
-    id: "saas",
-    name: "SaaS MVP / Producto Digital",
-    category: "Full-Stack Software",
-    basePriceUSD: 2800,
-    baseDays: 18,
-    description: "Plataforma completa lista para validar tu modelo de negocio y cobrar a tus primeros usuarios.",
-    included: [
-      "Autenticación segura (OAuth, Passkeys, Magic Links)",
-      "PostgreSQL en Supabase con Row-Level Security",
-      "Server Actions y mutaciones en tiempo real",
-      "Panel de control / Dashboard interactivo",
-      "Integración de pasarela de cobros",
-      "Infraestructura Edge en Vercel",
-    ],
-  },
-  {
-    id: "ecommerce",
-    name: "E-Commerce a Medida sin Comisiones",
-    category: "Comercio Propio",
-    basePriceUSD: 2400,
-    baseDays: 14,
-    description: "Tu propia tienda online ultrarrápida sin pagar el 15-25% de comisión por venta.",
-    included: [
-      "Catálogo dinámico con filtros instantáneos",
-      "Checkout optimizado de 1 solo paso",
-      "Pasarela Mercado Pago / Stripe integrada",
-      "Panel de administración de stock y pedidos",
-      "Notificaciones automáticas a WhatsApp y Email",
-      "100% código tuyo en GitHub sin suscripciones",
-    ],
-  },
-  {
-    id: "ai-agent",
-    name: "Plataforma con Agentes de IA",
-    category: "Inteligencia Artificial",
-    basePriceUSD: 3600,
-    baseDays: 21,
-    description: "Integración de modelos LLM (Claude 3.7 / OpenAI) con bases de datos vectoriales RAG.",
-    included: [
-      "Respuestas contextuales en streaming ultrarrápido",
-      "Búsqueda semántica con pgvector en PostgreSQL",
-      "Embeddings y sincronización de documentación",
-      "Guardrails de seguridad y control de consumo de tokens",
-      "Panel analítico de conversaciones",
-      "Soporte y tuning de prompts especializado",
-    ],
-  },
-];
-
-interface AddonModule {
-  id: string;
-  name: string;
-  priceUSD: number;
-  extraDays: number;
-  icon: LucideIcon;
-  description: string;
-}
-
-const addonModules: AddonModule[] = [
-  {
-    id: "payments",
-    name: "Pasarela de Pagos (Stripe / Mercado Pago)",
-    priceUSD: 350,
-    extraDays: 2,
-    icon: CreditCard,
-    description: "Suscripciones recurrentes o cobros directos con webhooks seguros.",
-  },
-  {
-    id: "chatbot",
-    name: "Agente Asistente IA (Streaming RAG)",
-    priceUSD: 550,
-    extraDays: 3,
-    icon: Bot,
-    description: "Chatbot entrenado con tu catálogo o base de conocimiento.",
-  },
-  {
-    id: "i18n",
-    name: "Multi-idioma Internacional (i18n)",
-    priceUSD: 250,
-    extraDays: 2,
-    icon: Globe2,
-    description: "Soporte de rutas y traducciones automáticas inglés/español.",
-  },
-  {
-    id: "pwa",
-    name: "Aplicación Móvil PWA Instalable",
-    priceUSD: 300,
-    extraDays: 2,
-    icon: Zap,
-    description: "Ícono en la pantalla de inicio del teléfono con soporte offline.",
-  },
-];
+// Íconos de los módulos (los precios viven en data/pricing.ts).
+const ADDON_ICON: Record<string, LucideIcon> = {
+  payments: CreditCard,
+  chatbot: Bot,
+  i18n: Globe2,
+  pwa: Zap,
+};
 
 export function PricingClient() {
   const [selectedBase, setSelectedBase] = useState<ProductBase>(productBases[1]);
@@ -157,8 +46,6 @@ export function PricingClient() {
 
   const { playClick, playPop, playSuccess } = useSoundFx();
 
-  const USD_TO_ARS = 1350;
-
   function toggleAddon(id: string) {
     playPop();
     setSelectedAddons((prev) =>
@@ -166,32 +53,10 @@ export function PricingClient() {
     );
   }
 
-  // Cálculos
-  const calculation = useMemo(() => {
-    const addonsCost = selectedAddons.reduce((acc, id) => {
-      const found = addonModules.find((a) => a.id === id);
-      return acc + (found ? found.priceUSD : 0);
-    }, 0);
-
-    const addonsDays = selectedAddons.reduce((acc, id) => {
-      const found = addonModules.find((a) => a.id === id);
-      return acc + (found ? found.extraDays : 0);
-    }, 0);
-
-    const subtotal = selectedBase.basePriceUSD + addonsCost;
-    const expressMultiplier = deliveryPace === "express" ? 1.2 : 1;
-    const finalPriceUSD = Math.round(subtotal * expressMultiplier);
-
-    const rawDays = selectedBase.baseDays + addonsDays;
-    const finalDays = deliveryPace === "express" ? Math.max(5, Math.round(rawDays * 0.6)) : rawDays;
-
-    return {
-      finalPriceUSD,
-      finalDays,
-      addonsCost,
-      addonsDays,
-    };
-  }, [selectedBase, selectedAddons, deliveryPace]);
+  const calculation = useMemo(
+    () => quote(selectedBase, selectedAddons, deliveryPace),
+    [selectedBase, selectedAddons, deliveryPace],
+  );
 
   const displayMultiplier = currency === "USD" ? 1 : USD_TO_ARS;
   const currencySymbol = currency === "USD" ? "$" : "$";
@@ -338,7 +203,7 @@ export function PricingClient() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {addonModules.map((addon) => {
                   const isSelected = selectedAddons.includes(addon.id);
-                  const Icon = addon.icon;
+                  const Icon = ADDON_ICON[addon.id] ?? Zap;
                   return (
                     <button
                       key={addon.id}
@@ -414,7 +279,7 @@ export function PricingClient() {
                     <h4 className="font-medium text-accent text-xs">Express Acelerado (+20%)</h4>
                   </div>
                   <p className="mt-1 text-[11px] text-muted">
-                    Sprint prioritario para lanzar en ~{Math.max(5, Math.round(selectedBase.baseDays * 0.6))} días.
+                    Sprint prioritario para lanzar en ~{paceDays(selectedBase.baseDays, "express")} días.
                   </p>
                 </button>
               </div>
@@ -494,6 +359,17 @@ export function PricingClient() {
                     <span>Agendar 15 min</span>
                   </button>
                 </div>
+
+                <SaveQuote
+                  whatsappUrl={whatsappUrl}
+                  quote={{
+                    projectType: selectedBase.name,
+                    // En USD siempre, aunque se esté mirando en pesos: el panel lo usa como monto estimado.
+                    budget: `USD ${calculation.finalPriceUSD.toLocaleString("es-AR")} (cotizador)`,
+                    timeline: `~${calculation.finalDays} días hábiles${deliveryPace === "express" ? " (express)" : ""}`,
+                    idea: proposalSummary,
+                  }}
+                />
               </div>
             </div>
           </div>

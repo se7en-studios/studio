@@ -3,18 +3,22 @@
 import { after } from "next/server";
 import { getSession } from "@/lib/admin/auth";
 import {
+  currentFx,
   insertEntry,
   removeEntry,
+  setTaxCategory,
   settleEntry as settleEntryRow,
   updateEntry,
 } from "@/lib/admin/finance";
 import {
   categoryLabel,
   cleanEntry,
+  isRealDay,
   type Entry,
   type EntryInput,
 } from "@/lib/admin/finance-shared";
 import { PanelNotReady, logEvent } from "@/lib/admin/panel";
+import { TAX_CATEGORIES } from "@/lib/admin/plata-shared";
 import { cleanPayment, type Payment, type PaymentInput } from "@/lib/admin/payment-shared";
 import { removePayment, updatePayment } from "@/lib/admin/payments";
 import { dayKey } from "@/lib/admin/task-shared";
@@ -44,7 +48,7 @@ export async function createEntry(
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "finanzas",
         text: `cargó ${entry.kind === "costo" ? "un costo" : "un ingreso"}: ${what}`,
         project_slug: entry.project_slug,
       }),
@@ -72,7 +76,7 @@ export async function editEntry(
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "finanzas",
         text: `editó ${entry.kind === "costo" ? "un costo" : "un ingreso"}: ${what}`,
         project_slug: entry.project_slug,
       }),
@@ -94,7 +98,7 @@ export async function deleteEntry(id: string): Promise<{ error?: string }> {
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "finanzas",
         text: `borró ${gone.kind === "costo" ? "un costo" : "un ingreso"}: ${what}`,
       }),
     );
@@ -104,21 +108,31 @@ export async function deleteEntry(id: string): Promise<{ error?: string }> {
   }
 }
 
-/** Un pago pendiente que se cobró (o se pagó): pasa a contar en los totales con la fecha de hoy. */
+/**
+ * Un pago pendiente que se cobró (o se pagó): pasa a contar en los totales con
+ * la fecha real (hoy si no se dice otra) y la cotización de hoy; la fecha
+ * prevista queda guardada para medir cuánto se tarda en cobrar.
+ */
 export async function settleEntry(
   id: string,
+  paidOn?: string,
 ): Promise<{ entry?: Entry; error?: string }> {
   const me = await getSession();
   if (!me) return { error: "Sesión vencida: volvé a entrar." };
   if (!UUID.test(id)) return { error: "Movimiento inválido." };
+  const today = dayKey();
+  const day = paidOn ?? today;
+  if (!isRealDay(day) || day > today) return { error: "La fecha del cobro no es válida." };
   try {
-    const entry = await settleEntryRow(id, dayKey());
+    // La cotización de hoy sólo si es de hoy y real (no la del último movimiento).
+    const rate = day === today ? await currentFx() : null;
+    const entry = await settleEntryRow(id, day, rate && rate.source !== "estimada" ? rate : { fx: 0, source: null });
     if (!entry) return { error: "Ese pago ya no está pendiente." };
     const what = entry.description || categoryLabel(entry.kind, entry.category);
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "finanzas",
         text: `marcó como ${entry.kind === "costo" ? "pagado" : "cobrado"}: ${what}`,
         project_slug: entry.project_slug,
       }),
@@ -140,13 +154,13 @@ export async function saveTool(
   if (!cleaned.ok) return { error: cleaned.error };
   try {
     const tool = id
-      ? await updateTool(id, cleaned.value)
+      ? await updateTool(id, cleaned.value, (await currentFx()).fx)
       : await insertTool(cleaned.value);
     if (!tool) return { error: "Esa herramienta ya no existe." };
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "finanzas",
         text: `${id ? "actualizó" : "agregó"} la herramienta ${tool.name}`,
       }),
     );
@@ -156,21 +170,23 @@ export async function saveTool(
   }
 }
 
-export async function deleteTool(id: string): Promise<{ error?: string }> {
+/** Da de baja una herramienta: los meses que se pagó siguen en los costos (ended_on: la fecha de baja; null si se borró). */
+export async function deleteTool(id: string): Promise<{ ended_on?: string | null; error?: string }> {
   const me = await getSession();
   if (!me) return { error: "Sesión vencida: volvé a entrar." };
   if (!UUID.test(id)) return { error: "Herramienta inválida." };
   try {
-    const name = await removeTool(id);
-    if (!name) return { error: "Esa herramienta ya no existe." };
+    const gone = await removeTool(id);
+    if (!gone) return { error: "Esa herramienta ya no existe." };
+    const { name } = gone;
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "finanzas",
         text: `quitó la herramienta ${name}`,
       }),
     );
-    return {};
+    return { ended_on: gone.ended_on };
   } catch (e) {
     return { error: message(e) };
   }
@@ -192,7 +208,7 @@ export async function editPayment(
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "finanzas",
         text: "editó un cobro",
         project_slug: payment.project_slug,
       }),
@@ -212,11 +228,27 @@ export async function deleteCobro(id: string): Promise<{ error?: string }> {
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "finanzas",
         text: "borró un cobro",
         project_slug: gone.project_slug,
       }),
     );
+    return {};
+  } catch (e) {
+    return { error: message(e) };
+  }
+}
+
+/** La categoría de monotributo de un socio, para el medidor de Finanzas. */
+export async function saveTaxCategory(owner: string, category: string): Promise<{ error?: string }> {
+  const me = await getSession();
+  if (!me) return { error: "Sesión vencida: volvé a entrar." };
+  const who = (["franco", "federico"] as const).find((o) => o === owner);
+  const cat = TAX_CATEGORIES.find((c) => c === category);
+  if (!who || !cat) return { error: "Categoría inválida." };
+  try {
+    await setTaxCategory(who, cat);
+    after(() => logEvent({ actor: me.who, kind: "finanzas", text: `cambió la categoría de monotributo de ${who} a ${cat}` }));
     return {};
   } catch (e) {
     return { error: message(e) };

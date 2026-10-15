@@ -14,7 +14,7 @@ export default function AdminNotFound() {
       </h1>
       <p className="mt-2 text-[14px] text-muted">
         Puede que se haya borrado o que el link esté viejo. Probá con la
-        búsqueda (⌘K) o volvé al Inicio.
+        búsqueda (Ctrl K o ⌘K) o volvé al Inicio.
       </p>
       <Link href="/admin" className={`${btnPrimary} mt-6`}>
         Ir al Inicio

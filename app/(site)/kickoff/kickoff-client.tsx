@@ -77,6 +77,8 @@ export function KickoffClient() {
     const result = await sendLead({
       source: "kickoff",
       name: contactLeader || projectName || "Cliente Kickoff",
+      // El panel saca de acá el email o el teléfono para sumarlo al pedido que ya existe.
+      contact: contactLeader,
       projectType: "Kickoff de Proyecto",
       budget: "Confirmado",
       idea: kickoffSummary,

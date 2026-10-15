@@ -25,7 +25,8 @@ create index if not exists panel_tasks_lead_idx on panel_tasks (lead_id) where l
 -- Igual que el resto: RLS sin policies, sólo el servidor con la service role.
 alter table panel_tasks enable row level security;
 
--- El feed de Cambios también cuenta las tareas.
+-- El feed de Cambios también cuenta las tareas. Van también los tipos de
+-- panel-v3.sql: así, correr esto de nuevo no choca con los eventos que ya los usan.
 alter table panel_events drop constraint if exists panel_events_kind_check;
 alter table panel_events add constraint panel_events_kind_check
-  check (kind in ('archivos', 'proyecto', 'pedido', 'tarea'));
+  check (kind in ('archivos', 'proyecto', 'pedido', 'tarea', 'finanzas', 'cuentas', 'contenido', 'llamadas', 'seguridad'));

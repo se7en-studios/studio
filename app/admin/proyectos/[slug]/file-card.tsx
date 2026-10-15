@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ExternalLink, FileText, Trash2 } from "lucide-react";
 import type { PanelFile } from "@/lib/admin/panel";
 import { deleteFile } from "../actions";
+import { ShareToggle } from "./share-toggle";
 
 /**
  * Una tarjeta por archivo: miniatura, nombre, quién y cuándo. Se abre en otra
@@ -14,12 +15,15 @@ export function FileCard({
   file,
   meta,
   folder,
+  shared,
 }: {
   file: PanelFile;
   /** «2,4 MB · Federico · hace 3 h», armado en el servidor. */
   meta: string;
   /** Nombre de la carpeta, sólo cuando se ven todas juntas. */
   folder?: string;
+  /** Si lo ve el cliente en su portal; undefined = sin portal.sql, no se muestra. */
+  shared?: boolean;
 }) {
   const router = useRouter();
   const [confirm, setConfirm] = useState(false);
@@ -70,6 +74,7 @@ export function FileCard({
           {folder && `${folder} · `}
           {meta}
         </p>
+        {shared !== undefined && <ShareToggle id={file.id} initial={shared} />}
         <div className="mt-2 flex h-6 items-center">
           {confirm ? (
             <span className="flex items-center gap-2 text-xs">

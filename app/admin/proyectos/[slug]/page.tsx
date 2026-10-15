@@ -23,17 +23,24 @@ import {
 import { PEOPLE } from "@/lib/admin/people";
 import { defaultState, type ProjectState } from "@/lib/admin/project-shared";
 import { getState } from "@/lib/admin/projects";
-import { listPayments } from "@/lib/admin/payments";
-import type { Payment } from "@/lib/admin/payment-shared";
-import type { Task, TaskLinks } from "@/lib/admin/task-shared";
+import { clientOfProject, getClient } from "@/lib/admin/clients";
+import { listCobros, listEntries } from "@/lib/admin/finance";
+import type { Entry } from "@/lib/admin/finance-shared";
+import { withLegacy } from "@/lib/admin/payment-shared";
+import { dayKey, type Task, type TaskLinks } from "@/lib/admin/task-shared";
 import { listTasks, taskLinks } from "@/lib/admin/tasks";
+import { listTime } from "@/lib/admin/time";
+import type { TimeEntry } from "@/lib/admin/time-shared";
+import { sharedFileIds } from "@/lib/admin/portal";
 import { EventList } from "../../feed";
+import { Hours } from "../../horas/timer";
 import { Card, CardLink, Face, Progress, StatusPill, TabLinks, btnPrimary, btnSecondary, usd } from "../../kit";
 import { Chat } from "../../mensajes/chat";
 import { AdminGate, SetupNotice, bytes } from "../../ui";
 import { DeleteProject } from "./delete-project";
 import { FileCard } from "./file-card";
 import { Payments } from "./payments";
+import { PortalApprovals } from "./portal-approvals";
 import { ProjectTasks } from "./project-tasks";
 import { EditInfo, StatePanel } from "./state-panel";
 import { Uploader } from "./uploader";
@@ -82,7 +89,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
   if (!project) return <SetupNotice reason={setup ?? ""} />;
 
   // Sólo lo que necesita la pestaña abierta, y en paralelo.
-  const [stateR, filesR, tasksR, linksR, eventsR, countR, paymentsR] = await Promise.all([
+  const [stateR, filesR, tasksR, linksR, eventsR, countR, paymentsR, timeR] = await Promise.all([
     optional<ProjectState>(getState(slug, project.isCase), defaultState(slug, project.isCase)),
     tab === "archivos" ? optional<PanelFile[]>(listFiles(slug), []) : null,
     tab === "resumen" ? optional<Task[] | null>(listTasks({ projectSlug: slug }), null) : null,
@@ -94,14 +101,28 @@ export default async function ProjectPage({ params, searchParams }: Props) {
     // que pedirla. Va un count sin filas y no listFiles, que firmaría una URL
     // por archivo para terminar usando nada más que el largo.
     tab !== "archivos" ? optional<number>(countFiles(slug), 0) : null,
-    tab === "resumen" ? optional<Payment[]>(listPayments(slug), []) : null,
+    // Los cobros son los ingresos del proyecto en Finanzas (más los viejos, hasta finance-v4.sql).
+    tab === "resumen"
+      ? optional<Entry[]>(
+          Promise.all([listEntries(slug), listCobros(0, slug)]).then(([a, b]) => withLegacy(a, b).filter((e) => e.kind === "ingreso")),
+          [],
+        )
+      : null,
+    // Las horas (time.sql): el cronómetro del proyecto y sus tramos, incluidos los de sus pedidos de mantenimiento.
+    tab === "resumen" ? optional<TimeEntry[]>(listTime(slug), []) : null,
   ]);
   const state = stateR.value;
+  // El cliente (clients.sql): si falta la tabla o no tiene, no se muestra.
+  const owner = await clientOfProject(slug)
+    .then((id) => (id ? getClient(id) : null))
+    .catch(() => null);
   // No sale de project.files: getProject arma la ficha sin estadísticas y ese
   // campo queda siempre en 0, así que el contador de la pestaña nunca aparecía.
   // En la lista sí funciona, porque ahí listProjects pasa las suyas.
   const files = filesR?.value.length ?? countR?.value ?? 0;
   const base = `/admin/proyectos/${project.slug}`;
+  // Qué archivos ve el cliente en su portal (portal.sql); null = sin la columna, no se muestra el botón.
+  const shared = tab === "archivos" ? await sharedFileIds(slug).catch(() => null) : null;
 
   return (
     <div className="space-y-6">
@@ -175,6 +196,11 @@ export default async function ProjectPage({ params, searchParams }: Props) {
                 Caso en la web <ArrowUpRight size={14} />
               </Link>
             )}
+            {owner && (
+              <Link href={`/admin/clientes/${owner.id}`} className={btnSecondary}>
+                Cliente: {owner.name}
+              </Link>
+            )}
             {!project.isCase && (
               <EditInfo slug={project.slug} initial={{ name: project.name, category: project.category, url: project.url ?? "", accent: project.accent }} />
             )}
@@ -208,8 +234,20 @@ export default async function ProjectPage({ params, searchParams }: Props) {
               {paymentsR?.missing ? (
                 <SetupNotice reason={paymentsR.missing} />
               ) : (
-                <Payments slug={project.slug} budget={state.budget} initial={paymentsR?.value ?? []} me={me.who} accent={project.accent} />
+                <Payments
+                  project={{ slug: project.slug, name: project.name, budget: state.budget, status: state.status }}
+                  initial={paymentsR?.value ?? []}
+                  me={me.who}
+                  accent={project.accent}
+                  today={dayKey()}
+                />
               )}
+              {timeR?.missing ? (
+                <SetupNotice reason={timeR.missing} />
+              ) : (
+                <Hours slug={project.slug} initial={timeR?.value ?? []} me={me.who} today={dayKey()} />
+              )}
+              <PortalApprovals slug={project.slug} />
               {tasksR?.value ? (
                 <ProjectTasks slug={project.slug} tasks={tasksR.value} links={linksR?.value ?? { leads: [], projects: [] }} me={me.who} owner={state.owner} />
               ) : null}
@@ -237,7 +275,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
       {tab === "cambios" &&
         (eventsR?.missing ? <SetupNotice reason={eventsR.missing} /> : <div className="max-w-3xl"><EventList events={eventsR?.value ?? []} names={{}} grouped hideProject /></div>)}
 
-      {tab === "archivos" && <Files project={project} files={filesR?.value ?? []} missing={filesR?.missing ?? null} carpeta={carpeta} base={base} />}
+      {tab === "archivos" && <Files project={project} files={filesR?.value ?? []} missing={filesR?.missing ?? null} carpeta={carpeta} base={base} shared={shared} />}
     </div>
   );
 }
@@ -248,12 +286,14 @@ function Files({
   missing,
   carpeta,
   base,
+  shared,
 }: {
   project: NonNullable<Awaited<ReturnType<typeof getProject>>>;
   files: PanelFile[];
   missing: string | null;
   carpeta?: string;
   base: string;
+  shared: Set<string> | null;
 }) {
   const current = carpeta === WEB && project.isCase ? WEB : carpeta && isFolder(carpeta) ? carpeta : null;
   const visible = current ? files.filter((f) => f.folder === current) : files;
@@ -324,6 +364,7 @@ function Files({
               key={f.id}
               file={f}
               folder={current ? undefined : folderLabel(f.folder)}
+              shared={shared ? shared.has(f.id) : undefined}
               meta={[bytes(f.size), f.uploaded_by && PEOPLE[f.uploaded_by].name, ago(f.created_at)].filter(Boolean).join(" · ")}
             />
           ))}

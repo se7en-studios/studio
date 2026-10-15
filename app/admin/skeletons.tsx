@@ -190,3 +190,53 @@ export function MetricsSkeleton() {
     </Shell>
   );
 }
+
+/** Secciones de tarjetas (Seguridad, Avisos, Llamadas, Marca): encabezado y dos columnas. */
+export function CardsSkeleton() {
+  return (
+    <Shell>
+      <Header actions={0} />
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <Sk className="h-[320px] rounded-xl" />
+        <Sk className="h-[260px] rounded-xl" />
+      </div>
+    </Shell>
+  );
+}
+
+/** Listas con filtro (Registro, Cuentas). */
+export function ListSkeleton() {
+  return (
+    <Shell>
+      <Header />
+      <Filters />
+      <div className="space-y-2">
+        {Array.from({ length: 6 }, (_, i) => (
+          <Sk key={i} className="h-14 rounded-xl" />
+        ))}
+      </div>
+    </Shell>
+  );
+}
+
+/** Mensajes: conversaciones a la izquierda y el chat. */
+export function ChatSkeleton() {
+  return (
+    <Shell>
+      <Header actions={0} />
+      <div className="grid gap-4 md:grid-cols-[280px_1fr]">
+        <Sk className="hidden h-[520px] rounded-xl md:block" />
+        <Sk className="h-[520px] rounded-xl" />
+      </div>
+    </Shell>
+  );
+}
+
+/** En vivo: el mapa ocupa todo. */
+export function MapSkeleton() {
+  return (
+    <Shell>
+      <Sk className="h-[70dvh] rounded-xl" />
+    </Shell>
+  );
+}

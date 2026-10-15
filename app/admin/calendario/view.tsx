@@ -15,6 +15,7 @@ import {
   isTaskLike,
   monthLabel,
   monthOf,
+  SHARED_TYPES,
   type CalEvent,
   type CalPost,
   type Delivery,
@@ -56,6 +57,8 @@ type Props = {
   posts: CalPost[];
   deliveries: Delivery[];
   tools: Tool[];
+  /** Reuniones, cobros esperados y vencimientos: los arma el servidor, sólo se muestran. */
+  extra: CalEvent[];
   projects: Project[];
 };
 
@@ -66,8 +69,10 @@ function buildEvents(
   tools: Tool[],
   today: string,
   leadNames: Map<string, string>,
+  extra: CalEvent[],
 ): CalEvent[] {
   return [
+    ...extra,
     ...posts.map((p): CalEvent => ({
       key: `p-${p.id}`,
       id: p.id,
@@ -143,6 +148,7 @@ export function CalendarView({
   posts: initialPosts,
   deliveries,
   tools,
+  extra,
   projects,
 }: Props) {
   const flash = useToast();
@@ -166,12 +172,12 @@ export function CalendarView({
     [links.leads],
   );
   const events = useMemo(
-    () => buildEvents(api.tasks, posts, deliveries, tools, today, leadNames),
-    [api.tasks, posts, deliveries, tools, today, leadNames],
+    () => buildEvents(api.tasks, posts, deliveries, tools, today, leadNames, extra),
+    [api.tasks, posts, deliveries, tools, today, leadNames, extra],
   );
   const matches = (e: Pick<CalEvent, "project" | "owner" | "type">) =>
     (project === "todos" || (e.project ?? NO_PROJECT) === project) &&
-    (who === "todos" || e.type === "post" || e.type === "renovacion" || e.owner === who);
+    (who === "todos" || SHARED_TYPES.includes(e.type) || e.owner === who);
   const visible = events.filter((e) => types.includes(e.type) && matches(e));
   const byDay = groupByDay(visible);
   const unscheduled = api.tasks.filter(

@@ -1,10 +1,11 @@
 // Calendario del panel: tipos y fechas puras (sin servidor) para la página y el
-// componente de cliente. Junta posts de Instagram, tareas y entregas de proyectos.
+// componente de cliente. Junta posts de Instagram, tareas, entregas de proyectos,
+// renovaciones, reuniones con pedidos, cobros esperados y vencimientos de los sitios.
 import type { ContentKind } from "./content-shared";
 import type { LeadOwner } from "./db";
 import type { TaskPriority } from "./task-shared";
 
-export type EventType = "post" | "task" | "seguimiento" | "entrega" | "renovacion";
+export type EventType = "post" | "task" | "seguimiento" | "entrega" | "renovacion" | "reunion" | "cobro" | "vencimiento";
 
 export const EVENT_TYPES: { id: EventType; label: string }[] = [
   { id: "post", label: "Posts" },
@@ -12,7 +13,13 @@ export const EVENT_TYPES: { id: EventType; label: string }[] = [
   { id: "seguimiento", label: "Seguimientos" },
   { id: "entrega", label: "Entregas" },
   { id: "renovacion", label: "Renovaciones" },
+  { id: "reunion", label: "Reuniones" },
+  { id: "cobro", label: "Cobros" },
+  { id: "vencimiento", label: "Dominios y SSL" },
 ];
+
+/** Tipos que no son de nadie en particular: se ven con cualquier filtro de persona. */
+export const SHARED_TYPES: EventType[] = ["post", "renovacion", "reunion", "cobro", "vencimiento"];
 
 /** Valor del filtro de proyecto para lo que no pertenece a ninguno. */
 export const NO_PROJECT = "__sin-proyecto";
@@ -34,6 +41,8 @@ export type CalEvent = {
   detail?: string;
   /** Pedido al que pertenece un seguimiento. */
   lead?: { id: string; name: string } | null;
+  /** A dónde lleva el título, si no es la ficha del proyecto (reuniones, cobros, vencimientos). */
+  href?: string;
 };
 
 export type CalPost = {
@@ -60,6 +69,9 @@ export type Delivery = {
 const plain = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
+/** Las palabras de un texto, sin tildes ni signos, con un espacio a cada lado. */
+const words = (s: string) => ` ${plain(s).replace(/[^a-z0-9]+/g, " ").trim()} `;
+
 /** Slug del proyecto cuyo nombre aparece en el título; el nombre más largo gana. */
 const MIN_KEYWORD = 4;
 
@@ -67,15 +79,15 @@ export function projectOfTitle(
   title: string,
   projects: { slug: string; name: string }[],
 ): string | null {
-  const t = plain(title);
+  // Por palabras completas: «pone» no tiene que encontrarse en «componente».
+  const t = words(title);
+  const has = (phrase: string) => phrase.trim() !== "" && t.includes(words(phrase));
   const byLength = [...projects].sort((a, b) => b.name.length - a.name.length);
-  const exact = byLength.find(
-    (p) => t.includes(plain(p.name)) || t.includes(p.slug.replaceAll("-", " ")),
-  );
+  const exact = byLength.find((p) => has(p.name) || has(p.slug.replaceAll("-", " ")));
   // «La web de Apex» nombra al proyecto «Apex Performance» sólo por su primera palabra.
   const firstWord = byLength.find((p) => {
-    const w = plain(p.name).split(" ")[0];
-    return w.length >= MIN_KEYWORD && t.includes(w);
+    const w = words(p.name).trim().split(" ")[0];
+    return w.length >= MIN_KEYWORD && has(w);
   });
   return (exact ?? firstWord)?.slug ?? null;
 }

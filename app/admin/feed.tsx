@@ -7,6 +7,7 @@ import { ago } from "@/lib/admin/brief";
 import type { Change } from "@/lib/admin/changes";
 import type { EventKind, PanelEvent } from "@/lib/admin/panel";
 import { PEOPLE } from "@/lib/admin/people";
+import { TZ, dayLabel, timeLabel } from "@/lib/admin/tz";
 import { Empty, Face, cn } from "./kit";
 
 export const KIND_LABEL: Record<EventKind, string> = {
@@ -14,6 +15,13 @@ export const KIND_LABEL: Record<EventKind, string> = {
   proyecto: "Proyectos",
   pedido: "Pedidos",
   tarea: "Tareas",
+  finanzas: "Finanzas",
+  cuentas: "Cuentas",
+  contenido: "Contenido",
+  llamadas: "Llamadas",
+  seguridad: "Seguridad",
+  clientes: "Clientes",
+  mantenimiento: "Mantenimiento",
 };
 
 const KIND_DOT: Record<EventKind, string> = {
@@ -21,20 +29,15 @@ const KIND_DOT: Record<EventKind, string> = {
   proyecto: "bg-violet-400",
   pedido: "bg-accent",
   tarea: "bg-emerald-400",
+  finanzas: "bg-amber-400",
+  cuentas: "bg-zinc-400",
+  contenido: "bg-pink-400",
+  llamadas: "bg-teal-400",
+  seguridad: "bg-red-400",
+  clientes: "bg-indigo-400",
+  mantenimiento: "bg-lime-400",
 };
 
-const TZ = "America/Argentina/Buenos_Aires";
-const dayKey = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: TZ });
-
-function dayLabel(iso: string) {
-  const d = new Date(iso);
-  if (dayKey(d) === dayKey(new Date())) return "Hoy";
-  if (dayKey(d) === dayKey(new Date(Date.now() - 86_400_000))) return "Ayer";
-  return d.toLocaleDateString("es-AR", { timeZone: TZ, weekday: "long", day: "numeric", month: "long" });
-}
-
-const timeLabel = (iso: string) =>
-  new Date(iso).toLocaleTimeString("es-AR", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
 
 export function EventList({
   events,
@@ -105,7 +108,7 @@ function Row({
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-[13px] leading-snug text-foreground/80">
-          <span className="font-medium text-foreground">{e.actor ? PEOPLE[e.actor].name : "Alguien"}</span> {e.text}
+          <span className="font-medium text-foreground">{e.actor ? PEOPLE[e.actor].name : e.text.startsWith("«") ? "El cliente" : "Alguien"}</span> {e.text}
           {project && e.project_slug && (
             <>
               {" en "}

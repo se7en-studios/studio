@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
-import { CalendarClock, CheckSquare, FolderKanban, History, Inbox, MessagesSquare, Plus, TrendingUp, Trophy, Wallet } from "lucide-react";
+import { CheckSquare, History, Inbox, MessagesSquare, Plus, Repeat, TrendingUp, Trophy, Wallet } from "lucide-react";
 import { panelSession } from "@/lib/admin/auth";
-import { db, listLeads, type Lead, type LeadOwner } from "@/lib/admin/db";
+import { db, listLeads, listMeetings, type Lead, type LeadOwner } from "@/lib/admin/db";
 import { listActivity } from "@/lib/admin/activity";
 import { listDue, type DuePost } from "@/lib/admin/content";
 import { listCobros, listEntries } from "@/lib/admin/finance";
@@ -12,42 +11,51 @@ import type { Activity } from "@/lib/admin/activity-shared";
 import { ago } from "@/lib/admin/brief";
 import { channelSummaries } from "@/lib/admin/messages";
 import { GENERAL, parseChannel, type ChannelSummary } from "@/lib/admin/message-shared";
-import { dealValue, monthKey } from "@/lib/admin/metrics";
+import { monthKey, pipelineValue, wonInMonth } from "@/lib/admin/metrics";
+import { listPlans, listRequests } from "@/lib/admin/maintenance";
+import { mrr, type MaintRequest, type Plan } from "@/lib/admin/maintenance-shared";
+import { currentSiteAlerts } from "@/lib/admin/site-health";
+import type { SiteAlert } from "@/lib/admin/site-health-shared";
+import type { Meeting } from "@/lib/admin/sales-shared";
+import { isLateDelivery, isOpenRequest } from "@/lib/admin/today-shared";
+import { TZ, dayIn } from "@/lib/admin/tz";
 import { PanelNotReady, caseProjects, listEvents, listProjects, type PanelEvent, type PanelProject } from "@/lib/admin/panel";
 import { PEOPLE } from "@/lib/admin/people";
 import { ACTIVE_STATUSES, defaultState, type ProjectState } from "@/lib/admin/project-shared";
 import { listStates } from "@/lib/admin/projects";
-import { paidBySlug } from "@/lib/admin/payments";
-import { balance } from "@/lib/admin/payment-shared";
-import { bucket, dayKey, dueLabel, type Task, type TaskLinks } from "@/lib/admin/task-shared";
+import { receivables, withLegacy } from "@/lib/admin/payment-shared";
+import { bucket, dayKey, type Task, type TaskLinks } from "@/lib/admin/task-shared";
 import { listTasks, taskLinks } from "@/lib/admin/tasks";
-import { fetchRates } from "@/lib/admin/fx";
+import { fetchRates, referenceRate } from "@/lib/admin/fx";
 import { daysUntil, nextRenewal, toolEntries, type Tool } from "@/lib/admin/tool-shared";
 import { listTools } from "@/lib/admin/tools";
 import { fmt } from "@/lib/admin/finance-shared";
 import { Attention } from "./attention";
 import { EventList } from "./feed";
-import { Card, CardLink, Empty, Face, Kpi, PageHeader, Progress, StatusPill, btnPrimary, btnSecondary, cn, kpiRow, usdShort } from "./kit";
+import { Card, CardLink, Empty, Face, Kpi, PageHeader, btnPrimary, btnSecondary, cn, kpiRow, usdShort } from "./kit";
 import { MyTasks } from "./tareas/my-tasks";
 import { FinanceCard } from "./finance-card";
+import { ProjectsCard, type HomeProject } from "./projects-card";
 import { getSalaMasApagada, type SalaMasApagada } from "@/lib/admin/oficinas";
 import { EnVivoCard } from "./oficinas/home-card";
 import { AdminGate, SetupNotice } from "./ui";
 
 export const metadata: Metadata = { title: "Inicio" };
 
-/** Lo que falte (tablas sin crear, base sin conectar) no tira abajo Inicio. */
-async function safe<T>(p: Promise<T>, fallback: T): Promise<{ value: T; missing: string | null }> {
+/**
+ * Lo que falte (tablas sin crear, base sin conectar) no tira abajo Inicio. Si
+ * una lectura falla por otra cosa, `failed` lleva su nombre: «Para atender» lo
+ * dice en vez de mostrar «todo al día» con datos que no pudo leer.
+ */
+async function safe<T>(p: Promise<T>, fallback: T, label: string): Promise<{ value: T; missing: string | null; failed: string | null }> {
   try {
-    return { value: await p, missing: null };
+    return { value: await p, missing: null, failed: null };
   } catch (e) {
-    if (e instanceof PanelNotReady) return { value: fallback, missing: e.message };
-    console.error("[panel] Inicio:", e instanceof Error ? e.message : e);
-    return { value: fallback, missing: null };
+    if (e instanceof PanelNotReady) return { value: fallback, missing: e.message, failed: null };
+    console.error(`[panel] Inicio (${label}):`, e instanceof Error ? e.message : e);
+    return { value: fallback, missing: null, failed: label };
   }
 }
-
-const TZ = "America/Argentina/Buenos_Aires";
 
 /**
  * Todo lo que muestra Inicio, leído en paralelo. Fuera del componente: acá
@@ -55,35 +63,38 @@ const TZ = "America/Argentina/Buenos_Aires";
  */
 async function loadHome(who: LeadOwner) {
   const hasDb = db() !== null;
-  const [leadsR, actsR, projectsR, statesR, eventsR, tasksR, linksR, chatsR, paidR, contentR, financeR, toolsR, rates, salaR] = await Promise.all([
-    safe<Lead[]>(hasDb ? listLeads() : Promise.resolve([]), []),
-    safe<Activity[] | null>(listActivity(), null),
-    safe<PanelProject[]>(listProjects(), caseProjects()),
-    safe<Map<string, ProjectState>>(listStates(), new Map()),
-    safe<PanelEvent[]>(listEvents({ limit: 10 }), []),
-    safe<Task[] | null>(listTasks(), null),
-    safe<TaskLinks>(taskLinks(), { leads: [], projects: [] }),
-    safe<ChannelSummary[]>(channelSummaries(who), []),
-    safe<Map<string, number> | null>(paidBySlug(), null),
-    safe<DuePost[]>(listDue(dayKey()), []),
-    // Cobros en USD: la cotización no importa para este resumen.
-    safe<Entry[] | null>(Promise.all([listEntries(), listCobros(0)]).then(([a, b]) => [...a, ...b]), null),
-    safe<Tool[]>(listTools(), []),
-    // Para pasar a dólares las herramientas en pesos; sin cotización, Inicio las deja afuera.
+  const today = dayKey();
+  const [leadsR, actsR, projectsR, statesR, eventsR, tasksR, linksR, chatsR, contentR, financeR, toolsR, rates, salaR, plansR, requestsR, sitesR, meetingsR] = await Promise.all([
+    safe<Lead[]>(hasDb ? listLeads() : Promise.resolve([]), [], "pedidos"),
+    safe<Activity[] | null>(listActivity(), null, "contactos"),
+    safe<PanelProject[]>(listProjects(), caseProjects(), "proyectos"),
+    safe<Map<string, ProjectState>>(listStates(), new Map(), "estado de los proyectos"),
+    safe<PanelEvent[]>(listEvents({ limit: 10 }), [], "actividad"),
+    safe<Task[] | null>(listTasks(), null, "tareas"),
+    safe<TaskLinks>(taskLinks(), { leads: [], projects: [] }, "tareas"),
+    safe<ChannelSummary[]>(channelSummaries(who), [], "mensajes"),
+    safe<DuePost[]>(listDue(today), [], "contenido"),
+    // Movimientos de Finanzas más los cobros viejos (en USD: la cotización no importa para este resumen).
+    safe<Entry[] | null>(Promise.all([listEntries(), listCobros(0)]).then(([a, b]) => withLegacy(a, b)), null, "cobros"),
+    safe<Tool[]>(listTools(), [], "herramientas"),
+    // Para pasar a dólares las herramientas en pesos y los abonos; sin cotización, Inicio los deja afuera.
     fetchRates(),
     // «En vivo»: la sala más apagada, con las mismas reglas que el mapa.
-    safe<SalaMasApagada | null>(getSalaMasApagada(who), null),
+    safe<SalaMasApagada | null>(getSalaMasApagada(who), null, "En vivo"),
+    // Mantenimiento: abonos (ingreso fijo) y pedidos abiertos. Sin maintenance.sql quedan vacíos.
+    safe<Plan[] | null>(listPlans(), null, "abonos"),
+    safe<MaintRequest[]>(listRequests(), [], "pedidos de mantenimiento"),
+    safe<SiteAlert[]>(currentSiteAlerts(today), [], "salud de los sitios"),
+    safe<Meeting[]>(listMeetings(), [], "reuniones"),
   ]);
+  const failed = [...new Set([leadsR, actsR, statesR, tasksR, financeR, toolsR, plansR, requestsR, sitesR, meetingsR, contentR].map((r) => r.failed).filter((f): f is string => !!f))];
 
   const leads = leadsR.value;
   const now = Date.now();
   const thisMonth = monthKey(new Date(now).toISOString());
-  const wonMonth = leads
-    .filter((l) => l.status === "ganado" && monthKey(l.updated_at ?? l.created_at) === thisMonth)
-    .reduce((s, l) => s + dealValue(l), 0);
-  const pipeline = leads.filter((l) => l.status === "contactado" || l.status === "propuesta").reduce((s, l) => s + dealValue(l), 0);
+  const wonMonth = wonInMonth(leads, thisMonth);
+  const pipeline = pipelineValue(leads);
   const fresh = leads.filter((l) => l.status === "nuevo").length;
-  const today = dayKey();
   const tasks = tasksR.value;
   const overdue = tasks?.filter((t) => t.assignee === who && bucket(t, today) === "vencidas").length ?? 0;
 
@@ -92,21 +103,41 @@ async function loadHome(who: LeadOwner) {
   const active = projects
     .filter(({ s }) => ACTIVE_STATUSES.includes(s.status))
     .sort((a, b) => (a.s.due ?? "9999").localeCompare(b.s.due ?? "9999"));
-  // Saldo de cada proyecto con monto acordado. null si falta payments.sql.
-  const paid = paidR.value;
-  const unpaid = paid
-    ? projects
-        .filter(({ s }) => s.status !== "pausado")
-        .map(({ p, s }) => ({ slug: p.slug, name: p.name, done: s.status === "entregado" || s.status === "mantenimiento", left: balance(s.budget, paid.get(p.slug) ?? 0) ?? 0 }))
-        .filter((x) => x.left > 0)
-        .sort((a, b) => b.left - a.left)
+  // Los sitios que se mantienen: no están «en curso», pero son el trabajo de todos los días.
+  const maintenance = projects.filter(({ s }) => s.status === "mantenimiento");
+  // Lo que falta cobrar, con la misma cuenta que Finanzas y la ficha. null si falta finance.sql.
+  const owing = financeR.value
+    ? receivables(
+        projects.map(({ p, s }) => ({ slug: p.slug, name: p.name, budget: s.budget, status: s.status })),
+        financeR.value,
+        today,
+      )
     : null;
+  // Cada proyecto con sus tareas abiertas y lo que falta cobrarle; en mantenimiento, primero lo que pide atención.
+  const owedBy = new Map(owing?.projects.map((m) => [m.slug, m.owed]));
+  const projectRows = (list: typeof projects): HomeProject[] =>
+    list.map(({ p, s }) => ({ p, s, tasks: tasks?.filter((t) => !t.done_at && t.project_slug === p.slug).length ?? 0, owed: owedBy.get(p.slug) ?? 0 }));
+  const byNeed = (a: HomeProject, b: HomeProject) => b.owed - a.owed || b.tasks - a.tasks || a.p.name.localeCompare(b.p.name, "es");
+  // Para «Atención»: cuotas vencidas y saldos de lo ya entregado.
+  const unpaid = owing?.projects
+    .filter((x) => x.late > 0 || (x.done && x.uncovered > 0))
+    .map((x) => ({ slug: x.slug, name: x.name, left: x.late + (x.done ? x.uncovered : 0), late: x.late > 0 }));
   // Herramientas que renuevan en la semana, la más cercana primero.
   const renewals = toolsR.value
     .map((t) => ({ id: t.id, name: t.name, days: daysUntil(nextRenewal(t.renews_on, t.cycle, today), today), price: `${fmt(t.amount, t.currency)} / ${t.cycle === "anual" ? "año" : "mes"}` }))
     .filter((r) => r.days <= 7)
     .sort((a, b) => a.days - b.days);
   const names = Object.fromEntries(projectsR.value.map((p) => [p.slug, p.name]));
+  // Ingreso mensual fijo: la suma de los abonos activos, en USD. null si falta maintenance.sql.
+  const fx = referenceRate(rates);
+  const plans = plansR.value;
+  const fixedIncome = plans && fx ? { usd: mrr(plans, fx), sites: plans.filter((x) => x.active).length } : null;
+  const sites = sitesR.value.map((a) => ({ ...a, name: names[a.slug] ?? a.slug }));
+  const requests = requestsR.value
+    .filter((r) => isOpenRequest(r) && (r.priority === "urgente" || r.priority === "alta"))
+    .map((r) => ({ id: r.id, title: r.title, project: names[r.project_slug] ?? r.project_slug, urgent: r.priority === "urgente", created_at: r.created_at }));
+  const meetings = meetingsR.value.filter((m) => dayIn(m.at) === today);
+  const lateDeliveries = projects.filter(({ s }) => isLateDelivery(s, today)).map(({ p, s }) => ({ slug: p.slug, name: p.name, due: s.due as string }));
   const leadNames = Object.fromEntries(leads.map((l) => [l.id, l.name]));
   const chats = [...chatsR.value].sort((a, b) => (b.last?.created_at ?? "").localeCompare(a.last?.created_at ?? "")).slice(0, 5);
   const unread = chatsR.value.reduce((n, c) => n + c.unread, 0);
@@ -116,7 +147,7 @@ async function loadHome(who: LeadOwner) {
   const hour = Number(new Date().toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit" }));
   const hello = hour < 13 ? "Buen día" : hour < 20 ? "Buenas tardes" : "Buenas noches";
 
-  return { sala: salaR.value, renewals, unpaid, hasDb, fresh, active, projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now, actsR, eventsR, linksR, content: contentR.value, finance: financeR.value && [...financeR.value, ...toolEntries(toolsR.value, rates.mep ?? rates.oficial ?? rates.blue ?? 0)] };
+  return { failed, fixedIncome, sites, requests, meetings, lateDeliveries, sala: salaR.value, renewals, owing, unpaid, hasDb, fresh, active: projectRows(active), maintenance: projectRows(maintenance).sort(byNeed), projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now, actsR, eventsR, linksR, content: contentR.value, finance: financeR.value && [...financeR.value, ...toolEntries(toolsR.value, fx)] };
 }
 
 // Lo primero que se ve al entrar: qué está pendiente, cómo vienen los
@@ -126,8 +157,8 @@ export default async function AdminHome() {
   if (!me) return <AdminGate />;
 
   const d = await loadHome(me.who);
-  const { hasDb, fresh, active, projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now } = d;
-  const { actsR, eventsR, linksR, unpaid, content, finance, renewals } = d;
+  const { hasDb, fresh, active, maintenance, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now } = d;
+  const { actsR, eventsR, linksR, owing, unpaid, content, finance, renewals, failed, fixedIncome, sites, requests, meetings, lateDeliveries } = d;
 
   return (
     <div className="space-y-6">
@@ -152,6 +183,7 @@ export default async function AdminHome() {
         {[
           fresh ? `${fresh} ${fresh === 1 ? "pedido espera" : "pedidos esperan"} respuesta` : "Ningún pedido sin responder",
           active.length ? `${active.length} ${active.length === 1 ? "proyecto en curso" : "proyectos en curso"}` : null,
+          maintenance.length ? `${maintenance.length} ${maintenance.length === 1 ? "sitio" : "sitios"} en mantenimiento` : null,
           overdue ? `${overdue} ${overdue === 1 ? "tarea tuya vencida" : "tareas tuyas vencidas"}` : null,
         ]
           .filter(Boolean)
@@ -161,21 +193,38 @@ export default async function AdminHome() {
 
       {setup && <SetupNotice reason={setup} />}
 
-      <div className={cn(kpiRow, "md:grid-cols-3", unpaid ? "xl:grid-cols-6" : "xl:grid-cols-5")}>
+      <div className={cn(kpiRow, "md:grid-cols-3", owing ? "xl:grid-cols-6" : "xl:grid-cols-5")}>
         <Kpi label="Sin responder" value={hasDb ? fresh : "—"} tone={fresh ? "accent" : undefined} href="/admin/pedidos" hint="Pedidos nuevos" icon={<Inbox size={14} />} />
         <Kpi label="Valor en juego" value={usdShort(pipeline)} href="/admin/metricas" hint="Contactados + propuesta" icon={<TrendingUp size={14} />} />
         <Kpi label="Ganado este mes" value={usdShort(wonMonth)} tone={wonMonth ? "green" : undefined} href="/admin/metricas" icon={<Trophy size={14} />} />
-        {unpaid && (
+        {owing && (
           <Kpi
             label="Por cobrar"
-            value={usdShort(unpaid.reduce((n, x) => n + x.left, 0))}
-            tone={unpaid.some((x) => x.done) ? "amber" : undefined}
-            href="/admin/proyectos"
+            value={usdShort(owing.total)}
+            tone={unpaid?.length ? "amber" : undefined}
+            href="/admin/finanzas?tab=pendientes"
             icon={<Wallet size={14} />}
-            hint={unpaid.length ? `${unpaid.length} ${unpaid.length === 1 ? "proyecto" : "proyectos"} con saldo` : "Todo cobrado"}
+            hint={
+              owing.projects.length
+                ? `${owing.projects.length} ${owing.projects.length === 1 ? "proyecto" : "proyectos"} con saldo`
+                : owing.total
+                  ? "Pendientes sin proyecto"
+                  : "Todo cobrado"
+            }
           />
         )}
-        <Kpi label="Proyectos en curso" value={active.length} href="/admin/proyectos" hint={`${projects.length} en total`} icon={<FolderKanban size={14} />} />
+        {/* El ingreso que se repite: de ahí vive hoy el estudio (los proyectos en curso están en su tarjeta). */}
+        <Kpi
+          label="Ingreso fijo"
+          value={fixedIncome ? usdShort(fixedIncome.usd) : "—"}
+          href="/admin/mantenimiento"
+          hint={
+            fixedIncome?.sites
+              ? `${fixedIncome.sites} ${fixedIncome.sites === 1 ? "abono" : "abonos"} por mes · ${active.length} en curso`
+              : `Cargá los abonos en Mantenimiento`
+          }
+          icon={<Repeat size={14} />}
+        />
         <Kpi
           label="Tus tareas vencidas"
           value={tasks ? overdue : "—"}
@@ -186,70 +235,60 @@ export default async function AdminHome() {
         />
       </div>
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
-        <div className="min-w-0 space-y-4">
-          {hasDb && <Attention leads={leads} activities={actsR.value} now={now} overdueTasks={overdue} unpaid={unpaid?.filter((x) => x.done) ?? []} content={content} renewals={renewals} />}
+      {/* En el celular las columnas se disuelven (contents) y manda `order`: primero lo
+          que hay que hacer (Para atender, Mis tareas), al final lo que se mira. */}
+      <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] xl:items-start">
+        <div className="contents xl:block xl:min-w-0 xl:space-y-4">
+          {hasDb && (
+            <div className="order-1 min-w-0 xl:order-none">
+              <Attention
+                leads={leads}
+                activities={actsR.value}
+                now={now}
+                overdueTasks={overdue}
+                unpaid={unpaid ?? []}
+                content={content}
+                renewals={renewals}
+                sites={sites}
+                requests={requests}
+                meetings={meetings}
+                lateDeliveries={lateDeliveries}
+                failed={failed}
+              />
+            </div>
+          )}
 
-          <Card
-            title="Proyectos en curso"
-            icon={<FolderKanban size={14} />}
-            count={active.length}
-            action={<CardLink href="/admin/proyectos">Ver todos →</CardLink>}
-          >
-            {active.length ? (
-              <ul className="divide-y divide-[var(--line)]">
-                {active.slice(0, 6).map(({ p, s }) => (
-                  <li key={p.slug}>
-                    <Link
-                      href={`/admin/proyectos/${p.slug}`}
-                      className="focus-ring grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.025] md:grid-cols-[auto_minmax(0,1fr)_120px_110px_auto]"
-                    >
-                      <Cover project={p} />
-                      <span className="min-w-0">
-                        <span className="block truncate text-[14px] font-medium">{p.name}</span>
-                        <span className="mt-0.5 block truncate text-[12px] text-muted">{s.client || p.category || "Sin cliente"}</span>
-                      </span>
-                      <span className="hidden md:block">
-                        <span className="mb-1 flex justify-between text-[11px] text-muted">
-                          Avance <span className="tabular-nums">{s.progress}%</span>
-                        </span>
-                        <Progress value={s.progress} accent={p.accent} />
-                      </span>
-                      <span className="hidden md:block">
-                        <StatusPill status={s.status} />
-                      </span>
-                      <span className="flex items-center gap-2">
-                        {s.due && (
-                          <span className={cn("hidden text-[12px] sm:inline", s.due < today ? "text-red-400" : "text-muted")}>
-                            <CalendarClock size={12} className="mr-1 inline -translate-y-px" />
-                            {dueLabel(s.due, today)}
-                          </span>
-                        )}
-                        <Face who={s.owner} size={22} />
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <Empty icon={<FolderKanban size={18} />} title="Nada en curso">
-                Pasá un proyecto a Descubrimiento, Diseño, Desarrollo o Revisión y aparece acá.
-              </Empty>
-            )}
-          </Card>
+          <div className="order-3 min-w-0 xl:order-none">
+            <ProjectsCard active={active} maintenance={maintenance} today={today} />
+          </div>
 
-          <Card title="Actividad del equipo" icon={<History size={14} />} action={<CardLink href="/admin/cambios">Registro completo →</CardLink>}>
-            <EventList events={eventsR.value} names={names} compact />
-          </Card>
+          <div className="order-7 min-w-0 xl:order-none">
+            <Card title="Actividad del equipo" icon={<History size={14} />} action={<CardLink href="/admin/cambios">Registro completo →</CardLink>}>
+              <EventList events={eventsR.value} names={names} compact />
+            </Card>
+          </div>
         </div>
 
-        <div className="min-w-0 space-y-4">
-          {d.sala && <EnVivoCard sala={d.sala} />}
+        <div className="contents xl:block xl:min-w-0 xl:space-y-4">
+          {d.sala && (
+            <div className="order-6 min-w-0 xl:order-none">
+              <EnVivoCard sala={d.sala} />
+            </div>
+          )}
 
-          {tasks && <MyTasks tasks={tasks} links={linksR.value} me={me.who} />}
+          {tasks && (
+            <div className="order-2 min-w-0 xl:order-none">
+              <MyTasks tasks={tasks} links={linksR.value} me={me.who} />
+            </div>
+          )}
 
-          {finance && <FinanceCard entries={finance} today={today} />}
+          {finance && (
+            <div className="order-5 min-w-0 xl:order-none">
+              <FinanceCard entries={finance} today={today} />
+            </div>
+          )}
 
+          <div className="order-4 min-w-0 xl:order-none">
           <Card
             title="Mensajes"
             icon={<MessagesSquare size={14} />}
@@ -291,6 +330,7 @@ export default async function AdminHome() {
               </Empty>
             )}
           </Card>
+          </div>
         </div>
       </div>
     </div>
@@ -298,16 +338,3 @@ export default async function AdminHome() {
 }
 
 const openLabel = (n: number) => `${n} ${n === 1 ? "abierta" : "abiertas"}`;
-
-function Cover({ project }: { project: PanelProject }) {
-  const cls = "h-9 w-14 shrink-0 rounded-md border border-[var(--line)] object-cover object-top";
-  if (!project.cover)
-    return <span className={cls} style={{ background: `linear-gradient(135deg, ${project.accent}, #111)` }} />;
-  return project.isCase ? (
-    <Image src={project.cover} alt="" width={112} height={72} className={cls} />
-  ) : (
-    // URL firmada de Supabase: ver feed.tsx.
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={project.cover} alt="" className={cls} />
-  );
-}

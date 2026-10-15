@@ -1,8 +1,9 @@
 "use client";
 
 // Pagos pendientes: lo que falta cobrar o pagar. Los cargados a mano no cuentan
-// en los totales hasta que se marcan como cobrados. Debajo, el saldo de los
-// proyectos con monto acordado, que se cobra desde la ficha de cada proyecto.
+// en los totales hasta que se marcan como cobrados. Debajo, lo que queda del
+// monto acordado de cada proyecto sin un pendiente cargado (se cobra desde la
+// ficha del proyecto). Los ingresos de la lista suman el «Por cobrar».
 import Link from "next/link";
 import { Check, Clock, Pencil, Plus } from "lucide-react";
 import {
@@ -14,7 +15,8 @@ import {
 import { Card, btnGhost, btnSecondary, cn } from "../kit";
 import { OwnerFaces } from "./owner";
 
-export type OwedProject = { slug: string; name: string; balance: number };
+/** `partial`: el proyecto ya tiene pendientes cargados y esto es lo que queda del acordado. */
+export type OwedProject = { slug: string; name: string; balance: number; partial?: boolean };
 
 const dayLabel = (day: string) =>
   new Date(`${day}T12:00:00Z`).toLocaleDateString("es-AR", {
@@ -26,6 +28,7 @@ const dayLabel = (day: string) =>
 
 export function Pending({
   entries,
+  plans = [],
   owed,
   today,
   projectName,
@@ -34,6 +37,8 @@ export function Pending({
   onAdd,
 }: {
   entries: Entry[];
+  /** Ingresos que se repiten todos los meses (finance-v5.sql): cada mes generan un pendiente acá. */
+  plans?: Entry[];
   owed: OwedProject[];
   today: string;
   projectName: (slug: string | null) => string | null;
@@ -44,7 +49,7 @@ export function Pending({
   const sorted = [...entries].sort((a, b) =>
     a.occurred_on.localeCompare(b.occurred_on),
   );
-  const count = sorted.length + owed.length;
+  const count = sorted.length + plans.length + owed.length;
   return (
     <Card
       title="Pagos pendientes"
@@ -111,6 +116,30 @@ export function Pending({
               </li>
             );
           })}
+          {plans.map((e) => (
+            <li key={e.id} className="flex items-center gap-3 px-4 py-3">
+              <OwnerFaces owner={e.owner} />
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] leading-snug font-medium break-words">
+                  {e.description || categoryLabel(e.kind, e.category)}
+                </p>
+                <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px] text-muted">
+                  <span>Todos los meses, el día {Number(e.occurred_on.slice(8))}</span>
+                  {projectName(e.project_slug) && <span>{projectName(e.project_slug)}</span>}
+                  {e.until && <span>hasta {dayLabel(e.until)}</span>}
+                </p>
+              </div>
+              <p className="shrink-0 text-[13px] font-medium tabular-nums">{fmt(e.amount, e.currency)}</p>
+              <button
+                type="button"
+                onClick={() => onEdit(e)}
+                aria-label={`Editar ${e.description || categoryLabel(e.kind, e.category)}`}
+                className={cn(btnGhost, "shrink-0 p-1.5")}
+              >
+                <Pencil size={14} />
+              </button>
+            </li>
+          ))}
           {owed.map((p) => (
             <li key={p.slug} className="flex items-center gap-3 px-4 py-3">
               <span className="w-[18px] shrink-0" aria-hidden />
@@ -119,7 +148,7 @@ export function Pending({
                   {p.name}
                 </p>
                 <p className="mt-0.5 text-[12px] text-muted">
-                  Saldo del monto acordado
+                  {p.partial ? "Resto del monto acordado, sin cuota cargada" : "Saldo del monto acordado"}
                 </p>
               </div>
               <p className="shrink-0 text-[13px] font-medium tabular-nums">

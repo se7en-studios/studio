@@ -29,6 +29,7 @@ export function StatePanel({
   editable: boolean;
 }) {
   const flash = useToast();
+  const router = useRouter();
   const [s, setS] = useState(initial);
   const [notes, setNotes] = useState(initial.notes);
   const [, start] = useTransition();
@@ -45,6 +46,8 @@ export function StatePanel({
     start(async () => {
       try {
         setS(await updateProjectState(slug, patch));
+        // El monto y la etapa cambian «Falta cobrar» de la tarjeta de cobros: se vuelve a pedir la ficha.
+        if ("budget" in patch || "status" in patch) router.refresh();
       } catch (e) {
         setS(before);
         flash(e instanceof Error ? e.message : "No se pudo guardar", "error");
