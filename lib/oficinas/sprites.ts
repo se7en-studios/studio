@@ -27,12 +27,12 @@ const HEAD_FRONT = [
   "..KSSSSSSSSSSSK.",
   "..KSSSSSSSSSSSK.",
   "..KSSSSSSSSSSSK.",
-  "..KSSSSSSSSSSSK.",
-  "..KSSSESSSSESSK.",
-  ".KsSSSESSSSESSK.",
-  "..KSSSSSSSSSSSK.",
-  "..KSSSSMMMMSSK..",
-  "...KSSSSSSSSK...",
+  "..KsSSSSSSSSSSK.",
+  "..KsSSESSSSESSK.",
+  ".KssSSESSSSESSK.",
+  "..KsSSSSSSSSSSK.",
+  "..KsSSSMMMMSSK..",
+  "...KssSSSSSSK...",
   "....KKKssKKK....",
 ];
 const HEAD_BACK = [
@@ -53,16 +53,16 @@ const HEAD_BACK = [
 ];
 const BODY_FRONT = [
   "..KKWWWXXWWWKK..",
-  ".KWWWWWXXWWWWWK.",
-  ".KWKWWWXXWWWKWK.",
-  ".KWKWWWWWWWWKWK.",
+  ".KwWWWWXXWWWWWK.",
+  ".KwKWWWXXWWWKWK.",
+  ".KwKwWWWWWWWKWK.",
   ".KAKwwwwwwwwKAK.",
 ];
 const BODY_BACK = [
   "..KKWWWWWWWWKK..",
-  ".KWWWWWWWWWWWWK.",
-  ".KWKWWWWWWWWKWK.",
-  ".KWKWWWWWWWWKWK.",
+  ".KWWWWWWWWWWWwK.",
+  ".KWKWWWWWWWWKwK.",
+  ".KWKWWWWWWWwKwK.",
   ".KAKwwwwwwwwKAK.",
 ];
 const LEGS_STAND = [
@@ -99,12 +99,12 @@ const HAIR: Record<string, { front: Layer[]; back: Layer[] }> = {
     back: [{ y: 1, rows: [".....KKKKKK.....", "...KK######KK...", "..K###%%%#####K.", ".K#############K", ".K#############K", ".K#############K", ".K#############K", ".K#############K", ".K#############K", ".K#############K", ".K#############K", ".K#############K", ".K#############K", ".KK###########KK", "...KKKKKKKKKK..."] }],
   },
   bun: {
-    front: [{ y: -2, rows: ["....KKKK........", "...K####K.......", "...K#%##K.......", "...KK####KKK....", "...KK######KK...", "..K##%%######K..", "..K###########K.", "..K###.....###K.", "..K#..........K."] }],
-    back: [{ y: -2, rows: ["....KKKK........", "...K####K.......", "...K#%##K.......", "...KK####KKK....", "...KK######KK...", "..K##%%######K..", "..K###########K.", "..K###########K.", "..K###########K.", "..K###########K.", "..K###########K.", "..K###########K.", "..K##########%K."] }],
+    front: [{ y: -2, rows: ["......KKK.......", ".....K###K......", ".....K#%#K......", "......KKK.......", "...KK######KK...", "..K##%%######K..", "..K###########K.", "..K###.....###K.", "..K#..........K."] }],
+    back: [{ y: -2, rows: ["......KKK.......", ".....K###K......", ".....K#%#K......", "......KKK.......", "...KK######KK...", "..K##%%######K..", "..K###########K.", "..K###########K.", "..K###########K.", "..K###########K.", "..K###########K.", "..K###########K.", "..K##########%K."] }],
   },
   afro: {
-    front: [{ y: -2, rows: ["....KKKKKKK.....", "..KK#######KK...", ".K###########K..", "K#############K.", "K##%###%#######K", "K##############K", "K##############K", "K###.......####K", ".K#.........###K", ".K#..........##K", "..K#..........K."] }],
-    back: [{ y: -2, rows: ["....KKKKKKK.....", "..KK#######KK...", ".K###########K..", "K#############K.", "K##%###%#######K", "K##############K", "K##############K", "K##############K", "K##############K", "K##############K", "K##############K", ".K############K.", "..KK########KK.."] }],
+    front: [{ y: -2, rows: ["...KKK.KK.KKK...", "..K###K##K###K..", ".K############K.", "K##%#####%#####K", "K##############K", "K##############K", "K##############K", "K####......####K", ".K#.........###K", ".K#..........##K", "..K#..........K."] }],
+    back: [{ y: -2, rows: ["...KKK.KK.KKK...", "..K###K##K###K..", ".K############K.", "K##%#####%#####K", "K##############K", "K##############K", "K##############K", "K##############K", "K##############K", "K##############K", "K##############K", ".K############K.", "..KK########KK.."] }],
   },
   buzz: {
     front: [{ y: 1, rows: [".....KKKKKK.....", "...KK######KK...", "..K##########K..", "..K#.........#K."] }],
@@ -199,7 +199,7 @@ export function composeSprite(L: SpriteLook, p: SpritePose): (string | null)[][]
   const tieRows = new Set([BY + 14, BY + 15, BY + 16]);
   const color = (ch: string, y: number): string | null => {
     switch (ch) {
-      case "K": return "#1c1418";
+      case "K": return OUTLINE;
       case "S": case "A": return L.skin;
       case "s": return L.skin2;
       case "E": return "#2a1d1a";
@@ -225,7 +225,33 @@ export function composeSprite(L: SpriteLook, p: SpritePose): (string | null)[][]
       default: return null;
     }
   };
-  return g.map((row, y) => row.map((ch) => color(ch, y)));
+  const out = g.map((row, y) => row.map((ch) => color(ch, y)));
+  return selout(out, (y, x) => g[y][x] === "K");
+}
+
+/**
+ * Contorno selectivo, como en Habbo: el contorno de afuera queda casi negro,
+ * pero las líneas de adentro (entre el brazo y el cuerpo, entre las piernas,
+ * el borde de la cara contra el pelo) toman un tono oscuro del color de al lado.
+ */
+function selout(m: (string | null)[][], isLine: (y: number, x: number) => boolean) {
+  const H = m.length, W = m[0].length;
+  const at = (y: number, x: number) => (y >= 0 && y < H && x >= 0 && x < W ? m[y][x] : null);
+  return m.map((row, y) =>
+    row.map((col, x) => {
+      if (!col || !isLine(y, x)) return col;
+      const around = [at(y - 1, x), at(y + 1, x), at(y, x - 1), at(y, x + 1)];
+      if (around.some((c) => !c)) return col;
+      const fills = around.filter((c): c is string => !!c && c !== OUTLINE);
+      return fills.length ? darken(fills[fills.length - 1], 0.45) : col;
+    }),
+  );
+}
+const OUTLINE = "#1c1418";
+function darken(hex: string, k: number) {
+  const n = parseInt(hex.slice(1), 16);
+  const f = (c: number) => Math.round(c * k).toString(16).padStart(2, "0");
+  return `#${f(n >> 16)}${f((n >> 8) & 255)}${f(n & 255)}`;
 }
 
 function shadeOf(hex: string) {
@@ -238,37 +264,16 @@ function shadeOf(hex: string) {
 
 /** El gato de costado mirando a la derecha (parado, con un paso) y hecho ovillo. */
 export const CAT_W = 18;
-const CAT_BODY = [
-  "..............K.K.",
-  ".............KOKOK",
-  "K............KOOOK",
-  "OK..........KOOEOK",
-  ".OK.KKKKKKKKKOOOnK",
-  ".KOKOOrOOrOOOKOOK.",
-  "..KOOOOOOOOOOOKK..",
-  "..KOOOCCCCCOOOK...",
-];
-const CAT_LEGS = [
-  ["..KOOK....KOOK....", "..KOOK....KOOK....", "..KKKK....KKKK...."],
-  [".KOOK......KOOK...", "KOOK........KOOK..", "KKK..........KKK.."],
-];
-const CAT_SLEEP = [
-  "..................",
-  "..................",
-  "..................",
-  "..................",
-  "....KKKKKKKK.K.K..",
-  "...KOOrOOrOOKOKOK.",
-  "..KOOOOOOOOOKOOOOK",
-  "..KOOOOOOOOOKOKKOK",
-  ".KOOKKKKKOOOOOOOK.",
-  ".KOOOOOOOKKKKKKK..",
-  "..KKKKKKKK........",
-];
+const CAT_BODY = ["..............K..K", "............KOKKOK", "............KOOOOK", "............KOEOEK", "..K.........KOOnOK", ".KOK.KKKKKKKKOOOOK", ".KOKKOOrOOrOOKKKK.", "..KOOOOOOOOOOOOK..", "..KOOOOOOOOOOOOK..", "..KOOCCCCCCCOOOK.."];
+const CAT_LEGS = [["...KOOK....KOOK...", "...KKKK....KKKK..."], ["..KOOK......KOOK..", ".KKKK........KKKK."]];
+const CAT_SLEEP = ["..................", "..................", "..................", "..................", "............K..K..", "....KKKKKKKKOKKOK.", "...KOOrOOrOOKOOOOK", "..KOOOOOOOOOKOKKOK", ".KOOOOOOOOOOKOOOOK", ".KOKKKKKKKOOOKKKK.", ".KOOOOOOOOKKKK....", "..KKKKKKKK........"];
 export function catSprite(frame: 0 | 1 | "sleep"): (string | null)[][] {
   const rows = frame === "sleep" ? CAT_SLEEP : [...CAT_BODY, ...CAT_LEGS[frame]];
-  const pal: Record<string, string> = { K: "#1c1418", O: "#e08a3c", r: "#b8662a", C: "#f6dcb8", E: "#26301c", n: "#e07a7a" };
-  return rows.map((row) => [...row].map((ch) => pal[ch] ?? null));
+  const pal: Record<string, string> = { K: OUTLINE, O: "#e08a3c", r: "#b8662a", C: "#f6dcb8", E: "#26301c", n: "#e07a7a" };
+  return selout(
+    rows.map((row) => [...row].map((ch) => pal[ch] ?? null)),
+    (y, x) => rows[y][x] === "K",
+  );
 }
 
 /** Para scripts/check-oficinas.mjs: todos los mapas, con el ancho que tienen que tener. */

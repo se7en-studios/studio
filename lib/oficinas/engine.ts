@@ -1307,6 +1307,31 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     ctx.globalCompositeOperation = "source-over";
   }
 
+  /**
+   * Globos y cartelitos en pixel, como en Habbo: esquinas recortadas, borde de
+   * 2 px y la colita escalonada apuntando a `tailX` (null = sin colita).
+   */
+  function pixelBox(x: number, y: number, w: number, h: number, fill: string, border: string, tailX: number | null) {
+    const u = 2;
+    x = Math.round(x);
+    y = Math.round(y);
+    w = Math.round(w);
+    h = Math.round(h);
+    ctx.fillStyle = border;
+    ctx.fillRect(x + u, y, w - 2 * u, h);
+    ctx.fillRect(x, y + u, w, h - 2 * u);
+    ctx.fillStyle = fill;
+    ctx.fillRect(x + u, y + u, w - 2 * u, h - 2 * u);
+    if (tailX === null) return;
+    const t = Math.round(tailX / u) * u;
+    ctx.fillRect(t - 2 * u, y + h - u, 4 * u, u);
+    ctx.fillStyle = border;
+    ctx.fillRect(t - 2 * u, y + h, 4 * u, u);
+    ctx.fillRect(t - u, y + h + u, 2 * u, u);
+    ctx.fillStyle = fill;
+    ctx.fillRect(t - u, y + h, 2 * u, u);
+  }
+
   // --- Cuadro -----------------------------------------------------------------------
   function render(ts: number) {
     const W = canvas.width, H = canvas.height;
@@ -1465,18 +1490,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       ctx.font = `8px ${o.font}`;
       const w = Math.ceil(ctx.measureText(partnerLine).width) + 14, h = 17;
       const x = Math.round(sx - w / 2), y = Math.round(sy - h - 8);
-      ctx.fillStyle = "#fbf8f2";
-      ctx.strokeStyle = "rgba(28,20,30,0.8)";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(x, y, w, h, 5);
-      ctx.fill();
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(sx - 4, y + h - 0.5);
-      ctx.lineTo(sx, y + h + 6);
-      ctx.lineTo(sx + 4, y + h - 0.5);
-      ctx.fill();
+      pixelBox(x, y, w, h, "#fbf8f2", "#1c1418", sx);
       ctx.fillStyle = "#16161b";
       ctx.textBaseline = "top";
       ctx.fillText(partnerLine, x + 7, y + 5);
@@ -1498,18 +1512,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         if (label) {
           const w = Math.ceil(ctx.measureText(label).width) + 10, h = 13;
           const x = Math.round(tx - w / 2), y = Math.round(ty - h - 6 + bob);
-          ctx.fillStyle = a.you ? "#ff4d2e" : "#16161b";
-          ctx.beginPath();
-          ctx.roundRect(x, y, w, h, 3);
-          ctx.moveTo(tx - 3.5, y + h);
-          ctx.lineTo(tx, y + h + 4);
-          ctx.lineTo(tx + 3.5, y + h);
-          ctx.fill();
-          if (!a.you) {
-            ctx.strokeStyle = "rgba(255,255,255,0.35)";
-            ctx.lineWidth = 1;
-            ctx.stroke();
-          }
+          pixelBox(x, y, w, h, a.you ? "#ff4d2e" : "#16161b", a.you ? "#7a1e10" : "#5a5560", tx);
           ctx.fillStyle = "#ffffff";
           ctx.fillText(label, tx, y + h / 2 + 0.5);
           top = y - 2;
@@ -1519,13 +1522,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
           const w = Math.ceil(ctx.measureText(word).width) + 12, h = 15;
           const x = Math.round(tx - w / 2), y = Math.round(top - h - 4 - (reduced ? 0 : Math.min(1, k * 6) * 3));
           ctx.globalAlpha = Math.min(1, (1 - k) * 4);
-          ctx.fillStyle = "#fbf8f2";
-          ctx.strokeStyle = "rgba(28,20,30,0.85)";
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.roundRect(x + 0.5, y + 0.5, w, h, 5);
-          ctx.fill();
-          ctx.stroke();
+          pixelBox(x, y, w, h, "#fbf8f2", "#1c1418", null);
           ctx.fillStyle = "#16161b";
           ctx.fillText(word, tx, y + h / 2 + 1);
           ctx.globalAlpha = 1;
@@ -1595,30 +1592,14 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         const w = Math.ceil(ctx.measureText(b.text).width) + 26, h = 18;
         const x = Math.round(hx - w / 2), y = Math.round(stackY - h - 6 + (1 - rise) * 8);
         ctx.globalAlpha = Math.min(rise, (BUBBLE_MS - age) / 400, 1);
-        ctx.fillStyle = "#fbf8f2";
-        ctx.strokeStyle = "rgba(28,20,30,0.85)";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.roundRect(x + 0.5, y + 0.5, w, h, 6);
-        ctx.fill();
-        ctx.stroke();
-        if (i === bubbles.length - 1) {
-          ctx.beginPath();
-          ctx.moveTo(hx - 4, y + h);
-          ctx.lineTo(hx, y + h + 5);
-          ctx.lineTo(hx + 4, y + h);
-          ctx.fill();
-        }
+        pixelBox(x, y, w, h, "#fbf8f2", "#1c1418", i === bubbles.length - 1 ? hx : null);
         // El ícono: un signo de admiración rojo para las novedades; el punto del estudio si no
         ctx.fillStyle = b.tone === "news" ? "#ff3b30" : "#ff4d2e";
-        ctx.beginPath();
-        ctx.arc(x + 11, y + h / 2 + 0.5, 5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
+        ctx.fillRect(Math.round(x) + 5, Math.round(y) + 4, 10, 10);
         if (b.tone === "news") {
           ctx.fillStyle = "#ffffff";
-          ctx.fillRect(x + 10.5, y + 6, 1.5, 4.5);
-          ctx.fillRect(x + 10.5, y + 11.5, 1.5, 1.5);
+          ctx.fillRect(Math.round(x) + 9, Math.round(y) + 5, 2, 5);
+          ctx.fillRect(Math.round(x) + 9, Math.round(y) + 11, 2, 2);
         }
         ctx.fillStyle = "#16161b";
         ctx.fillText(b.text, x + 20, y + h / 2 + 1);
