@@ -1,10 +1,11 @@
 // Calendario del panel: tipos y fechas puras (sin servidor) para la página y el
-// componente de cliente. Junta posts de Instagram, tareas y entregas de proyectos.
+// componente de cliente. Junta posts de Instagram, tareas, entregas de proyectos,
+// renovaciones, reuniones con pedidos, cobros esperados y vencimientos de los sitios.
 import type { ContentKind } from "./content-shared";
 import type { LeadOwner } from "./db";
 import type { TaskPriority } from "./task-shared";
 
-export type EventType = "post" | "task" | "seguimiento" | "entrega" | "renovacion";
+export type EventType = "post" | "task" | "seguimiento" | "entrega" | "renovacion" | "reunion" | "cobro" | "vencimiento";
 
 export const EVENT_TYPES: { id: EventType; label: string }[] = [
   { id: "post", label: "Posts" },
@@ -12,7 +13,13 @@ export const EVENT_TYPES: { id: EventType; label: string }[] = [
   { id: "seguimiento", label: "Seguimientos" },
   { id: "entrega", label: "Entregas" },
   { id: "renovacion", label: "Renovaciones" },
+  { id: "reunion", label: "Reuniones" },
+  { id: "cobro", label: "Cobros" },
+  { id: "vencimiento", label: "Dominios y SSL" },
 ];
+
+/** Tipos que no son de nadie en particular: se ven con cualquier filtro de persona. */
+export const SHARED_TYPES: EventType[] = ["post", "renovacion", "reunion", "cobro", "vencimiento"];
 
 /** Valor del filtro de proyecto para lo que no pertenece a ninguno. */
 export const NO_PROJECT = "__sin-proyecto";
@@ -34,6 +41,8 @@ export type CalEvent = {
   detail?: string;
   /** Pedido al que pertenece un seguimiento. */
   lead?: { id: string; name: string } | null;
+  /** A dónde lleva el título, si no es la ficha del proyecto (reuniones, cobros, vencimientos). */
+  href?: string;
 };
 
 export type CalPost = {
