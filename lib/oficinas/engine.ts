@@ -37,6 +37,7 @@ import {
   furni,
   hash,
   mix,
+  studioCat,
   posterAspect,
   quadImage,
   rug,
@@ -677,6 +678,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       }
     for (const a of actors) if (a.greet && ts - a.greet.t0 > GREET_MS) a.greet = null;
   }
+  /** Una visita parada en una sala a veces saca el celular (y lo guarda para saludar). */
+  const phoneOut = (a: Actor) => a.goal.kind === "wander" && !a.moving && !a.path.length && !!a.wait && !a.greet && hash(a.seed, a.stop * 3 + 1) > 0.55;
   function updateActors(dt: number, ts: number) {
     for (const a of actors) {
       if (!a.moving && a.path.length) stepActor(a);
@@ -721,6 +724,68 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     for (const id of live) if (!liveSince.has(id)) liveSince.set(id, ts);
   }
 
+  // --- El gato del estudio -------------------------------------------------------
+  // Anda por el pasillo, la recepción y la cocina; cada tanto se echa una siesta
+  // en la alfombra de la recepción. Cuando alguien pasa al lado, le salen
+  // corazones. Con movimiento reducido se queda dormido.
+  const CAT_SPEED = 1.4;
+  const catTiles: Pt[] = [];
+  for (let y = 0; y < m.H; y++)
+    for (let x = 0; x < m.W; x++) {
+      const r = roomAt(m, x, y);
+      if (walkable(m, x, y) && (!r || r.kind === "reception" || r.kind === "kitchen")) catTiles.push({ x, y });
+    }
+  const napTiles = m.furni.filter((f) => f.k === "rug" && f.room === "recepcion").flatMap((f) => {
+    const out: Pt[] = [];
+    for (let y = f.y; y < f.y + f.d; y++) for (let x = f.x; x < f.x + f.w; x++) if (walkable(m, x, y)) out.push({ x, y });
+    return out;
+  });
+  const catStart = napTiles[1] ?? napTiles[0] ?? m.start;
+  const cat = { x: catStart.x, y: catStart.y, from: { ...catStart }, to: { ...catStart }, t: 0, moving: false, dir: "SW" as Dir, path: [] as Pt[], step: 0, until: 0, sleeping: true, heart: -Infinity };
+  function updateCat(dt: number, ts: number) {
+    if (reduced) {
+      cat.sleeping = true;
+      return;
+    }
+    if (cat.moving) {
+      cat.t += dt * CAT_SPEED;
+      cat.step += dt * CAT_SPEED * 1.6;
+      if (cat.t >= 1) Object.assign(cat, { x: cat.to.x, y: cat.to.y, moving: false });
+    }
+    if (cat.moving) return;
+    if (cat.path.length) {
+      const n = cat.path.shift() as Pt;
+      cat.dir = dirOf(n.x - cat.x, n.y - cat.y);
+      if (canStep(m, cat.x, cat.y, n.x, n.y)) Object.assign(cat, { from: { x: cat.x, y: cat.y }, to: n, moving: true, t: 0 });
+      else cat.path = [];
+      return;
+    }
+    if (ts < cat.until) return;
+    // Se despierta o termina de pasear: elige qué hacer
+    const r = Math.random();
+    if (!cat.sleeping && r < 0.25 && napTiles.length) {
+      const spot = napTiles[Math.floor(Math.random() * napTiles.length)];
+      if (spot.x === cat.x && spot.y === cat.y) Object.assign(cat, { sleeping: true, until: ts + 15_000 + Math.random() * 25_000 });
+      else cat.path = findPath(m, { x: cat.x, y: cat.y }, spot) ?? [];
+      return;
+    }
+    cat.sleeping = false;
+    const dest = catTiles[Math.floor(Math.random() * catTiles.length)];
+    cat.path = dest ? (findPath(m, { x: cat.x, y: cat.y }, dest) ?? []).slice(0, 8) : [];
+    cat.until = ts + 2500 + Math.random() * 5000;
+  }
+  const catPos = (): [number, number] => {
+    const k = cat.moving ? Math.min(1, cat.t) : 0;
+    return [cat.from.x + (cat.to.x - cat.from.x) * (cat.moving ? k : 1) + 0.5, cat.from.y + (cat.to.y - cat.from.y) * (cat.moving ? k : 1) + 0.5];
+  };
+  /** ¿Hay alguien al lado del gato? (vos en el panel; cualquiera en la landing) */
+  function catCompany() {
+    const [cx, cy] = catPos();
+    const near = (px: number, py: number) => Math.hypot(px - cx, py - cy) < 1.3;
+    if (o.public) return actors.some((a) => !a.seat && near(...actorPos(a)));
+    return near(...playerPos());
+  }
+
   function update(dt: number, ts: number) {
     for (const [id, a] of anim) {
       const t = (ts - a.t0) / 900;
@@ -758,6 +823,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         }
       }
     }
+    updateCat(dt, ts);
+    if (!reduced && ts - cat.heart > 12_000 && catCompany()) cat.heart = ts;
     updateLive(ts);
   }
   const playerPos = (): [number, number] => {
@@ -1348,7 +1415,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
           draw: () =>
             a.seat
               ? avatar(a.look, ax, ay, "SW", null, true, blink, typing)
-              : avatar(a.look, ax, ay, a.moving ? a.dir : (a.face ?? a.dir), a.moving && !reduced ? a.step % 1 : null, false, false, null, wave),
+              : avatar(a.look, ax, ay, a.moving ? a.dir : (a.face ?? a.dir), a.moving && !reduced ? a.step % 1 : null, false, false, null, wave, phoneOut(a)),
         });
       }
     } else {
@@ -1363,6 +1430,12 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         // Conectado, tipea; si no, duerme con los ojos cerrados
         people.push({ depth: seat.x + seat.y + 0.05, draw: () => avatar(otherOf(me), sx, sy, "SW", null, true, partnerAway || blink, partnerAway ? null : typing) });
       }
+    }
+    {
+      const [cx, cy] = catPos();
+      const [csx, csy] = P(cx, cy);
+      const cd = (cat.moving ? Math.max(cat.from.x + cat.from.y, cat.to.x + cat.to.y) : cat.x + cat.y) + 0.04;
+      people.push({ depth: cd, draw: () => studioCat(csx, csy, cat.dir, cat.moving ? cat.step % 1 : null, cat.sleeping, ts) });
     }
     people.sort((a, b) => a.depth - b.depth);
     let pi = 0;
@@ -1459,6 +1532,36 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         }
         ctx.textAlign = "left";
       }
+    // El gato: corazones cuando alguien pasa al lado; una zeta chiquita cuando duerme
+    {
+      const [cx, cy] = catPos();
+      const [hx, hy] = toScreen(P(cx, cy, 22));
+      const zf = ZOOMS[zi];
+      const hk = (ts - cat.heart) / 1600;
+      if (hk >= 0 && hk < 1)
+        for (let i = 0; i < 2; i++) {
+          const k = Math.min(1, Math.max(0, hk - i * 0.25) / 0.75);
+          if (k <= 0) continue;
+          const x = hx + (i ? 6 : -3) * zf + Math.sin(k * 7 + i) * 2, y = hy - k * 22 * zf, r = (2.4 + i * 0.4) * zf;
+          ctx.globalAlpha = Math.sin(k * Math.PI);
+          ctx.fillStyle = "#ff5b7a";
+          ctx.beginPath();
+          ctx.moveTo(x, y + r * 1.4);
+          ctx.bezierCurveTo(x - r * 2.2, y - r * 0.2, x - r * 0.9, y - r * 1.8, x, y - r * 0.6);
+          ctx.bezierCurveTo(x + r * 0.9, y - r * 1.8, x + r * 2.2, y - r * 0.2, x, y + r * 1.4);
+          ctx.fill();
+        }
+      if (cat.sleeping) {
+        const k = reduced ? 0.5 : (ts / 3000) % 1;
+        ctx.globalAlpha = reduced ? 0.8 : Math.sin(k * Math.PI);
+        ctx.font = `${Math.round(7 * zf)}px ${o.font}`;
+        ctx.textBaseline = "alphabetic";
+        ctx.textAlign = "left";
+        ctx.fillStyle = "#dfe6ff";
+        ctx.fillText("z", hx + 6 * zf + k * 4, hy - 2 * zf - k * 10 * zf);
+      }
+      ctx.globalAlpha = 1;
+    }
     // El otro socio, dormido: las zetas suben desde su cabeza
     if (po?.seat && partnerAway) {
       const [zx, zy] = toScreen(P(po.seat.x + 0.5, po.seat.y + 0.5, 58));
