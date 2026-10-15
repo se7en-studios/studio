@@ -1106,8 +1106,28 @@ export type Dir = "SE" | "SW" | "NE" | "NW";
  */
 export type ActorLook = Who | "guia" | `v:${string}`;
 /** El peinado: el de cada socio, la gorra del guía o, para las visitas, una de esas formas. */
-type HairStyle = "federico" | "franco" | "cap";
-type Look = { style: HairStyle; hair: string; hair2: string; skin: string; skin2: string; main: string; shade: string; collar: string; tie: string | null; pants: string; shoes: string };
+type HairStyle = "federico" | "franco" | "cap" | "long" | "bun" | "afro" | "buzz";
+type Look = {
+  style: HairStyle;
+  hair: string;
+  hair2: string;
+  skin: string;
+  skin2: string;
+  main: string;
+  shade: string;
+  collar: string;
+  tie: string | null;
+  pants: string;
+  shoes: string;
+  /** Lo que sólo tienen algunas visitas. */
+  glasses?: boolean;
+  beard?: boolean;
+  /** Color de los auriculares o de la mochila. */
+  phones?: string;
+  pack?: string;
+  /** Remera a rayas: el color de las rayas. */
+  stripes?: string;
+};
 const LOOKS: Record<Who | "guia", Look> = {
   // Federico: pelo castaño con flequillo de costado, camisa blanca y corbata negra.
   federico: { style: "federico", hair: "#3d2718", hair2: "#6b4630", skin: "#e8bb93", skin2: "#cf9a73", main: "#f1efea", shade: "#cfcbc2", collar: "#ffffff", tie: "#17171c", pants: "#25252d", shoes: "#121216" },
@@ -1132,8 +1152,26 @@ function visitorLook(id: string): Look {
   for (let i = 0; i < id.length; i++) n = (Math.imul(n, 31) + id.charCodeAt(i)) | 0;
   const pick = <T,>(arr: T[], k: number) => arr[Math.floor(hash(n, k) * arr.length)];
   const [skin, skin2] = pick(SKINS, 1), [hair, hair2] = pick(HAIRS, 2), main = pick(SHIRTS, 3);
-  const style = pick<HairStyle>(["federico", "franco", "franco", "federico", "cap"], 4);
-  v = { style, hair: style === "cap" ? pick(SHIRTS, 6) : hair, hair2: style === "cap" ? "#f1efea" : hair2, skin, skin2, main, shade: mix(main, "#000000", 0.18), collar: main, tie: null, pants: pick(PANTS, 5), shoes: hash(n, 7) > 0.5 ? "#f1efea" : "#121216" };
+  const style = pick<HairStyle>(["federico", "franco", "cap", "long", "long", "bun", "afro", "buzz"], 4);
+  const odds = (k: number, p: number) => hash(n, k) < p;
+  v = {
+    style,
+    hair: style === "cap" ? pick(SHIRTS, 6) : hair,
+    hair2: style === "cap" ? "#f1efea" : hair2,
+    skin,
+    skin2,
+    main,
+    shade: mix(main, "#000000", 0.18),
+    collar: main,
+    tie: null,
+    pants: pick(PANTS, 5),
+    shoes: hash(n, 7) > 0.5 ? "#f1efea" : "#121216",
+    glasses: odds(8, 0.3),
+    beard: style !== "long" && style !== "bun" && odds(9, 0.25),
+    phones: style !== "cap" && odds(10, 0.18) ? pick(["#17171c", "#f1efea", "#ff4d2e", "#3f7cc9"], 11) : undefined,
+    pack: odds(12, 0.3) ? pick(["#2b2f3a", "#c94f3c", "#3a6b4f", "#e2a53a"], 13) : undefined,
+    stripes: odds(14, 0.25) ? mix(main, "#ffffff", 0.55) : undefined,
+  };
   looks.set(id, v);
   return v;
 }
@@ -1142,9 +1180,9 @@ export const lookFor = (who: ActorLook): Look => (who.startsWith("v:") ? visitor
 /**
  * Dibuja a `who` parado en (sx, sy) (los pies). `phase` 0–1 es el paso; null =
  * quieto. `typing` 0–1: sentado, mueve las manos sobre el teclado. `wave` 0–1:
- * saluda con la mano levantada.
+ * saluda con la mano levantada. `phone`: mira el celular.
  */
-export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: number | null, sitting = false, blink = false, typing: number | null = null, wave: number | null = null) {
+export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: number | null, sitting = false, blink = false, typing: number | null = null, wave: number | null = null, phone = false) {
   const L = lookFor(who);
   const mirror = dir === "SW" || dir === "NW";
   const back = dir === "NE" || dir === "NW";
@@ -1166,6 +1204,21 @@ export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: 
   rrect(-13, -34 + by + s * 1.5 + tap, 5, 15, 2.5, L.shade, LINE);
   ellipse(-10.5, -18.5 + by + s * 1.5 + tap, 2.6, 2.6, L.skin2, LINE);
   rrect(-9, -36 + by, 18, 19, 5, L.main, LINE);
+  if (L.stripes) {
+    g.fillStyle = L.stripes;
+    for (let k = 0; k < 3; k++) g.fillRect(-8.3, -31 + k * 4.5 + by, 16.6, 1.6);
+  }
+  if (L.pack) {
+    // La mochila: entera de espaldas; de frente, las tiras sobre los hombros
+    if (back) {
+      rrect(-7, -35 + by, 14, 15, 4, L.pack, LINE);
+      rrect(-4.5, -28 + by, 9, 5, 2, mix(L.pack, "#000000", 0.2), LINE);
+    } else {
+      g.fillStyle = mix(L.pack, "#000000", 0.15);
+      g.fillRect(-7, -36 + by, 2.4, 12);
+      g.fillRect(5.6, -36 + by, 2.4, 12);
+    }
+  }
   if (who === "guia" && !back) {
     // La credencial del estudio colgada del cuello
     line([-1, -36 + by], [1, -27 + by], "#17171c", 0.8);
@@ -1189,7 +1242,15 @@ export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: 
     g.fillStyle = L.collar;
     g.fillRect(-5, -36 + by, 11, 2);
   }
-  if (wave === null) {
+  if (phone && !back && wave === null) {
+    // El brazo doblado y el celular frente a la cara, con la pantalla prendida
+    rrect(5, -33 + by, 5, 11, 2.5, L.main, LINE);
+    rrect(5.5, -33 + by, 9, 4.5, 2.2, L.main, LINE);
+    rrect(10.5, -38 + by, 4, 6.5, 1, "#1b1b22", LINE);
+    g.fillStyle = "#9fd3ff";
+    g.fillRect(11.1, -37.3 + by, 2.8, 4.6);
+    ellipse(12.5, -31.5 + by, 2.4, 2.4, L.skin, LINE);
+  } else if (wave === null) {
     rrect(8, -34 + by - s * 1.5 - tap, 5, 15, 2.5, L.main, LINE);
     ellipse(10.5, -18.5 + by - s * 1.5 - tap, 2.6, 2.6, L.skin, LINE);
   } else {
@@ -1220,15 +1281,42 @@ export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: 
     }
     g.fillStyle = L.skin2;
     g.fillRect(9.5, -47 + by, 1.5, 2);
+    if (L.beard) {
+      g.beginPath();
+      g.moveTo(-6, -47 + by);
+      g.lineTo(-4, -41 + by);
+      g.quadraticCurveTo(4, -36.5 + by, 11.2, -41 + by);
+      g.lineTo(11.4, -46 + by);
+      g.quadraticCurveTo(5, -42.5 + by, -6, -47 + by);
+      g.fillStyle = L.hair;
+      g.fill();
+    }
     g.beginPath();
     g.arc(5, -45 + by, 2.6, 0.15 * Math.PI, 0.85 * Math.PI);
-    g.strokeStyle = "#9a5442";
+    g.strokeStyle = L.beard ? "#e9c3a5" : "#9a5442";
     g.lineWidth = 1;
     g.stroke();
+    if (L.glasses) {
+      g.strokeStyle = "#17171c";
+      g.lineWidth = 0.9;
+      g.strokeRect(0.4, -52 + by, 4.6, 5.2);
+      g.strokeRect(5.9, -52 + by, 4.6, 5.2);
+      line([5, -50 + by], [5.9, -50 + by], "#17171c", 0.9);
+      line([0.4, -50 + by], [-8, -50 + by], "#17171c", 0.9);
+      g.fillStyle = "rgba(190,225,255,0.25)";
+      g.fillRect(0.8, -51.6 + by, 3.8, 4.4);
+      g.fillRect(6.3, -51.6 + by, 3.8, 4.4);
+    }
   } else {
     ellipse(10.5, -48 + by, 2.4, 3.4, L.skin2, LINE);
   }
   hair(who, back, by);
+  if (L.phones) {
+    // Auriculares: la vincha por arriba y el parlante sobre la oreja
+    rrect(-11.5, -64.5 + by, 24, 3.4, 1.7, L.phones, LINE);
+    const ex = back ? 10.5 : -10;
+    rrect(ex - 3, -52 + by, 6, 8, 3, L.phones, LINE);
+  }
   g.restore();
 }
 
@@ -1236,13 +1324,14 @@ function hair(who: ActorLook, back: boolean, by: number) {
   const L = lookFor(who);
   if (L.style === "cap") {
     // Gorra negra con la visera hacia adelante y el punto naranja del estudio
-    rrect(-11.5, -63 + by, 24, 13, 7, L.hair, LINE);
+    rrect(-11.5, -63 + by, 24, 10.5, 7, L.hair, LINE);
     if (back) {
       g.fillStyle = "#2a2a31";
       g.fillRect(-6, -52 + by, 13, 1.6);
       return;
     }
-    poly([[4, -52 + by], [17, -51 + by], [16, -48.5 + by], [3, -49.5 + by]], "#101014", LINE, 0.8);
+    // La visera, arriba de los ojos (no se los tapa)
+    poly([[4, -55.5 + by], [17, -54.5 + by], [16, -52.3 + by], [3, -53 + by]], "#101014", LINE, 0.8);
     ellipse(3, -58 + by, 2.2, 2.2, L.hair2, null);
     g.fillStyle = "#3d2718";
     g.fillRect(-11, -51 + by, 3, 4);
@@ -1275,20 +1364,73 @@ function hair(who: ActorLook, back: boolean, by: number) {
     poly([[-5, -61 + by], [5, -61.5 + by], [9, -58 + by], [2, -58 + by]], L.hair2);
     return;
   }
+  if (L.style === "long") {
+    // Pelo largo: cae por detrás hasta los hombros y un mechón al costado de la cara
+    if (back) {
+      rrect(-12, -62 + by, 25, 27, 8, L.hair, LINE);
+      g.fillStyle = L.hair2;
+      g.fillRect(-2, -60 + by, 2, 22);
+      return;
+    }
+    rrect(-12.5, -58 + by, 10, 22, 4, L.hair, LINE);
+    rrect(-11.5, -62.5 + by, 24.5, 10, 6, L.hair, LINE);
+    poly([[8, -56 + by], [13, -55 + by], [13, -44 + by], [10.5, -46 + by]], L.hair, LINE, 0.8);
+    poly([[-6, -61 + by], [4, -61.5 + by], [7, -58 + by], [-2, -58 + by]], L.hair2);
+    return;
+  }
+  if (L.style === "bun") {
+    // Rodete arriba
+    ellipse(-3, -64 + by, 5.5, 4.5, L.hair, LINE);
+    if (back) {
+      rrect(-11, -62 + by, 23, 17, 8, L.hair, LINE);
+      return;
+    }
+    rrect(-11.5, -62 + by, 24, 9.5, 6, L.hair, LINE);
+    rrect(-12, -57 + by, 5, 12, 2.5, L.hair, LINE);
+    poly([[-5, -60.5 + by], [5, -61 + by], [8, -58.5 + by], [0, -58.5 + by]], L.hair2);
+    return;
+  }
+  if (L.style === "afro") {
+    // Rulos grandes: una nube de círculos alrededor de la cabeza
+    const puffs: [number, number, number][] = back
+      ? [[-8, -54, 6], [0, -64, 7], [9, -60, 6], [-6, -62, 6.5], [7, -52, 5.5], [0, -54, 7]]
+      : [[-8, -57, 6], [-3, -64, 6.5], [5, -64, 6.5], [11, -58, 5], [-11, -50, 4.5]];
+    for (const [dx, dy, r] of puffs) ellipse(dx, dy + by, r, r * 0.9, L.hair, LINE);
+    for (const [dx, dy, r] of puffs) ellipse(dx, dy + by, r - 1.4, (r - 1.4) * 0.9, L.hair, null);
+    for (const [dx, dy] of [[-4, -64], [5, -63], [-8, -57]]) {
+      g.fillStyle = L.hair2;
+      g.fillRect(dx, dy + by, 1.6, 1.2);
+    }
+    return;
+  }
+  if (L.style === "buzz") {
+    // Rapado: una sombra de pelo pegada a la cabeza
+    g.save();
+    g.globalAlpha = 0.85;
+    if (back) rrect(-10.5, -60.5 + by, 22, 14, 8, L.hair, null);
+    else {
+      rrect(-10.5, -60.5 + by, 22, 7, 6, L.hair, null);
+      g.fillStyle = L.hair;
+      g.fillRect(-10.5, -55 + by, 4, 6);
+    }
+    g.restore();
+    return;
+  }
   // Franco
   if (back) {
     rrect(-11.5, -62 + by, 24, 15, 7, L.hair, LINE);
     g.fillStyle = L.hair2;
     g.fillRect(-10, -48 + by, 21, 3);
   } else {
-    rrect(-11.5, -62 + by, 24, 12, 6, L.hair, LINE);
+    // El flequillo recto termina justo arriba de los ojos
+    rrect(-11.5, -62 + by, 24, 10, 6, L.hair, LINE);
     g.fillStyle = L.hair;
-    g.fillRect(-10, -53 + by, 22, 4.5);
+    g.fillRect(-10, -55 + by, 22, 2.8);
     g.strokeStyle = LINE;
     g.lineWidth = 1;
     g.beginPath();
-    g.moveTo(-10, -48.5 + by);
-    g.lineTo(12, -48.5 + by);
+    g.moveTo(-10, -52.2 + by);
+    g.lineTo(12, -52.2 + by);
     g.stroke();
     g.fillStyle = L.hair2;
     g.fillRect(-11.5, -52 + by, 2.5, 5);
@@ -1298,4 +1440,72 @@ function hair(who: ActorLook, back: boolean, by: number) {
     g.fillStyle = L.hair2;
     g.fillRect(dx, dy + by, 1.5, 1);
   }
+}
+
+// --- El gato del estudio -------------------------------------------------------------
+
+/**
+ * El gato naranja que vive en el estudio, parado en (sx, sy). `phase` 0–1 es
+ * el paso (null = quieto); dormido, se hace un ovillo. `t`: el reloj, para la cola.
+ */
+export function studioCat(sx: number, sy: number, dir: Dir, phase: number | null, sleeping: boolean, t: number) {
+  const fur = "#e08a3c", dark = "#b8662a", belly = "#f6dcb8";
+  g.save();
+  g.translate(Math.round(sx), Math.round(sy));
+  if (dir === "SW" || dir === "NW") g.scale(-1, 1);
+  ellipse(0, 0, 10, 3.6, "rgba(0,0,0,0.22)");
+  if (sleeping) {
+    // Ovillo: el cuerpo redondo, la cola alrededor y la cabeza apoyada
+    ellipse(-1, -5, 9, 5.5, fur, LINE);
+    g.fillStyle = dark;
+    for (const x of [-5, -1.5, 2]) g.fillRect(x, -10, 1.6, 3.5);
+    g.beginPath();
+    g.moveTo(-8, -2);
+    g.quadraticCurveTo(0, 2, 7, -1.5);
+    g.strokeStyle = LINE;
+    g.lineWidth = 3.4;
+    g.stroke();
+    g.strokeStyle = fur;
+    g.lineWidth = 2.2;
+    g.stroke();
+    ellipse(6, -5.5, 4.4, 3.6, fur, LINE);
+    poly([[3.5, -8], [4.5, -11.5], [6.5, -8.6]], fur, LINE, 0.8);
+    poly([[6.5, -8.8], [8.6, -11.5], [9, -7.6]], fur, LINE, 0.8);
+    line([5.6, -5.6], [7.4, -5.4], "#3a2418", 0.8);
+    g.restore();
+    return;
+  }
+  const s = phase === null ? 0 : Math.sin(phase * Math.PI * 2);
+  // Cola: se mueve sola, aunque esté quieto
+  const sway = Math.sin(t / 420) * 2.5;
+  g.beginPath();
+  g.moveTo(-7.5, -8);
+  g.quadraticCurveTo(-13, -10, -12 + sway, -18);
+  g.strokeStyle = LINE;
+  g.lineWidth = 3.6;
+  g.lineCap = "round";
+  g.stroke();
+  g.strokeStyle = fur;
+  g.lineWidth = 2.3;
+  g.stroke();
+  g.lineCap = "butt";
+  // Patas de atrás y de adelante, a destiempo al caminar
+  for (const [x, k] of [[-6, 1], [-3, -1], [3, -1], [6, 1]] as const) rrect(x - 1.2 + s * k * 1.2, -6, 2.6, 6, 1.2, k > 0 ? dark : fur, LINE);
+  rrect(-9, -13, 17, 8.5, 4.2, fur, LINE);
+  g.fillStyle = belly;
+  g.fillRect(-5, -6.5, 10, 1.6);
+  g.fillStyle = dark;
+  for (const x of [-5.5, -2, 1.5]) g.fillRect(x, -12.6, 1.6, 3.6);
+  // Cabeza, orejas, ojos y nariz
+  ellipse(8.5, -14, 5.2, 4.6, fur, LINE);
+  poly([[5, -16.5], [5.8, -21], [8.4, -17.6]], fur, LINE, 0.8);
+  poly([[9, -17.8], [11.6, -21], [12.6, -16]], fur, LINE, 0.8);
+  g.fillStyle = "#f2a0a0";
+  g.fillRect(6.2, -18.6, 1.2, 1.4);
+  g.fillStyle = "#26301c";
+  g.fillRect(8.6, -15.6, 1.4, 2);
+  g.fillRect(11.4, -15.6, 1.2, 2);
+  g.fillStyle = "#e07a7a";
+  g.fillRect(12.6, -13.2, 1.3, 1);
+  g.restore();
 }
