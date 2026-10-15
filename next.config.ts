@@ -14,7 +14,6 @@ const nextConfig: NextConfig = {
   // que perderlo.
   async redirects() {
     return [
-      { source: "/portal", destination: "/work", permanent: true },
       { source: "/security", destination: "/tech", permanent: true },
       { source: "/design-system", destination: "/tech", permanent: true },
       { source: "/playground", destination: "/tech", permanent: true },
