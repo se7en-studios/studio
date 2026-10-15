@@ -138,8 +138,10 @@ export function RdHero() {
 
           <div className="mt-8 grid grid-cols-1 gap-8 md:mt-6 lg:-mt-[min(8.6vw,16svh)] lg:grid-cols-12">
             <motion.div
-              initial={{ opacity: 0, y: 24 }}
-              animate={ready ? { opacity: 1, y: 0 } : undefined}
+              // Sin opacity 0: el párrafo es el LCP y tiene que pintar con el HTML, no esperar al
+              // preloader ni al JS. Sólo se desliza (queda tapado por el telón mientras tanto).
+              initial={{ y: 24 }}
+              animate={ready ? { y: 0 } : undefined}
               transition={{ duration: 1, ease: EASE_OUT, delay: 0.75 }}
               className="lg:col-span-5 lg:col-start-8"
             >
