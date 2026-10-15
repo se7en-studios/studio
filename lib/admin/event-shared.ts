@@ -11,6 +11,8 @@ export const EVENT_KINDS = [
   "contenido",
   "llamadas",
   "seguridad",
+  "clientes",
+  "mantenimiento",
 ] as const;
 export type EventKind = (typeof EVENT_KINDS)[number];
 
@@ -32,6 +34,8 @@ const BY_TEXT: [EventKind, RegExp][] = [
   ["contenido", / en Instagram$/],
   ["llamadas", /^llamó a .+ por Meet$/],
   ["seguridad", /^(descargó una copia de seguridad|entró al panel|no pudo entrar al panel|cerró todas las sesiones)/],
+  ["clientes", /^((creó|editó|borró) el cliente «|(vinculó|desvinculó) el proyecto (al|del) cliente «)/],
+  ["mantenimiento", /(plan de mantenimiento|^(anotó|borró) el pedido de mantenimiento «|^pasó el pedido «.+» a |^actualizó el pedido «)/],
 ];
 
 /** El tipo real de un evento. Sólo los «proyecto» pueden ser otra cosa anotada con el tipo viejo. */

@@ -81,7 +81,7 @@ export async function savePlanAction(
       after(() =>
         logEvent({
           actor: me.who,
-          kind: "proyecto",
+          kind: "mantenimiento",
           text: before
             ? `editó el plan de mantenimiento: ${changes.map((c) => c.label.toLowerCase()).join(", ")}`
             : `creó el plan de mantenimiento de ${fmt(plan.amount, plan.currency)} por mes`,
@@ -106,7 +106,7 @@ export async function deletePlanAction(
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "mantenimiento",
         text: `sacó el plan de mantenimiento de ${fmt(gone.amount, gone.currency)} por mes`,
         project_slug: slug,
       }),
@@ -132,7 +132,7 @@ export async function createRequest(
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "mantenimiento",
         text: `anotó el pedido de mantenimiento «${request.title}»`,
         project_slug: request.project_slug,
       }),
@@ -178,7 +178,7 @@ export async function updateRequestAction(
       after(() =>
         logEvent({
           actor: me.who,
-          kind: "proyecto",
+          kind: "mantenimiento",
           text:
             only?.field === "status"
               ? `pasó el pedido «${request.title}» a ${only.after}`
@@ -202,7 +202,7 @@ export async function deleteRequest(id: string): Promise<{ error?: string }> {
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "mantenimiento",
         text: `borró el pedido de mantenimiento «${gone.title}»`,
         project_slug: gone.project_slug,
       }),

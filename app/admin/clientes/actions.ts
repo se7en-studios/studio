@@ -61,7 +61,7 @@ export async function createClient(
     id = created.id;
     await logEvent({
       actor: me.who,
-      kind: "proyecto",
+      kind: "clientes",
       text: `creó el cliente «${created.name}»`,
     });
   } catch (e) {
@@ -97,7 +97,7 @@ export async function updateClientInfo(
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "clientes",
         text: `editó el cliente «${saved.name}»: ${changes.map((c) => c.label.toLowerCase()).join(", ")}`,
         changes,
       }),
@@ -112,7 +112,7 @@ export async function deleteClient(id: string): Promise<{ error?: string }> {
     const name = await removeClient(id);
     await logEvent({
       actor: me.who,
-      kind: "proyecto",
+      kind: "clientes",
       text: `borró el cliente «${name}» (sus proyectos quedan sin cliente)`,
     });
   } catch (e) {
@@ -156,7 +156,7 @@ export async function linkProject(
     after(() =>
       logEvent({
         actor: me.who,
-        kind: "proyecto",
+        kind: "clientes",
         text: on
           ? `vinculó el proyecto al cliente «${client.name}»`
           : `desvinculó el proyecto del cliente «${client.name}»`,

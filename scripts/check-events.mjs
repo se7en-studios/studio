@@ -39,6 +39,22 @@ const cases = {
     "no pudo entrar al panel (código incorrecto)",
     "cerró todas las sesiones del panel",
   ],
+  clientes: [
+    "creó el cliente «Muzzaga»",
+    "editó el cliente «Muzzaga»: email, whatsapp",
+    "borró el cliente «Viejo» (sus proyectos quedan sin cliente)",
+    "vinculó el proyecto al cliente «Muzzaga»",
+    "desvinculó el proyecto del cliente «Muzzaga»",
+  ],
+  mantenimiento: [
+    "creó el plan de mantenimiento de USD 150 por mes",
+    "editó el plan de mantenimiento: abono, día de cobro",
+    "sacó el plan de mantenimiento de USD 150 por mes",
+    "anotó el pedido de mantenimiento «Cambiar el logo»",
+    "pasó el pedido «Cambiar el logo» a En curso",
+    "actualizó el pedido «Cambiar el logo»: prioridad",
+    "borró el pedido de mantenimiento «Cambiar el logo»",
+  ],
   proyecto: [
     "pasó el proyecto a Mantenimiento",
     "creó el proyecto",
@@ -58,6 +74,6 @@ assert.equal(E.kindOf("finanzas", "creó el proyecto"), "finanzas");
 
 // Los tipos de antes siguen siendo válidos, y todos los nuevos tienen nombre propio.
 for (const k of E.LEGACY_KINDS) assert.ok(E.EVENT_KINDS.includes(k), k);
-assert.equal(new Set(E.EVENT_KINDS).size, 9);
+assert.equal(new Set(E.EVENT_KINDS).size, 11);
 
 console.log("events OK");

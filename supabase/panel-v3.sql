@@ -9,7 +9,7 @@
 
 alter table panel_events drop constraint if exists panel_events_kind_check;
 alter table panel_events add constraint panel_events_kind_check
-  check (kind in ('archivos', 'proyecto', 'pedido', 'tarea', 'finanzas', 'cuentas', 'contenido', 'llamadas', 'seguridad'));
+  check (kind in ('archivos', 'proyecto', 'pedido', 'tarea', 'finanzas', 'cuentas', 'contenido', 'llamadas', 'seguridad', 'clientes', 'mantenimiento'));
 
 -- Los viejos, por su texto. Son las mismas reglas que kindOf() en
 -- lib/admin/event-shared.ts: si se cambia una, cambiar la otra.
@@ -28,6 +28,12 @@ where kind = 'proyecto' and text ~ '^llamó a .+ por Meet$';
 
 update panel_events set kind = 'seguridad'
 where kind = 'proyecto' and text ~ '^descargó una copia de seguridad';
+
+update panel_events set kind = 'clientes'
+where kind = 'proyecto' and text ~ '^((creó|editó|borró) el cliente «|(vinculó|desvinculó) el proyecto (al|del) cliente «)';
+
+update panel_events set kind = 'mantenimiento'
+where kind = 'proyecto' and text ~ '(plan de mantenimiento|^(anotó|borró) el pedido de mantenimiento «|^pasó el pedido «.+» a |^actualizó el pedido «)';
 
 -- Para el filtro por tipo del Registro.
 create index if not exists panel_events_kind_idx on panel_events (kind, created_at desc);

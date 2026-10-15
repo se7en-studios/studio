@@ -20,6 +20,8 @@ export const KIND_LABEL: Record<EventKind, string> = {
   contenido: "Contenido",
   llamadas: "Llamadas",
   seguridad: "Seguridad",
+  clientes: "Clientes",
+  mantenimiento: "Mantenimiento",
 };
 
 const KIND_DOT: Record<EventKind, string> = {
@@ -32,6 +34,8 @@ const KIND_DOT: Record<EventKind, string> = {
   contenido: "bg-pink-400",
   llamadas: "bg-teal-400",
   seguridad: "bg-red-400",
+  clientes: "bg-indigo-400",
+  mantenimiento: "bg-lime-400",
 };
 
 
