@@ -4,7 +4,7 @@ import { Download } from "lucide-react";
 import { panelSession } from "@/lib/admin/auth";
 import { projects } from "@/data/projects";
 import { AdminGate, PageHeader } from "../ui";
-import { AccentChip, ColorToken, MotionToken } from "./tokens";
+import { AccentChip, ColorToken, LogoStage, MotionToken } from "./tokens";
 
 export const metadata: Metadata = { title: "Marca" };
 
@@ -29,9 +29,9 @@ const MOTION = [
 ];
 
 const LOGOS = [
-  { src: "/logo.png", label: "Logo", size: "800 × 224", w: 800, h: 224, bg: "bg-background", fit: "max-w-[70%]" },
-  { src: "/logo-simbolo.png", label: "Símbolo", size: "128 × 128", w: 128, h: 128, bg: "bg-surface", fit: "h-16 w-16" },
-  { src: "/logo-simbolo.png", label: "Símbolo sobre claro", size: "128 × 128", w: 128, h: 128, bg: "bg-foreground", fit: "h-16 w-16" },
+  { src: "/logo.png", label: "Logo", size: "800 × 224", w: 800, h: 224, bg: "--background", fit: "max-w-[70%]" },
+  { src: "/logo-simbolo.png", label: "Símbolo", size: "128 × 128", w: 128, h: 128, bg: "--surface", fit: "h-16 w-16" },
+  { src: "/logo-simbolo.png", label: "Símbolo sobre claro", size: "128 × 128", w: 128, h: 128, bg: "--foreground", fit: "h-16 w-16" },
 ];
 
 export default async function MarcaPage() {
@@ -46,9 +46,9 @@ export default async function MarcaPage() {
         <div className="grid gap-3 md:grid-cols-3">
           {LOGOS.map((l) => (
             <div key={l.label} className="overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)] shadow-[var(--shadow-card)]">
-              <div className={`flex aspect-[16/9] items-center justify-center ${l.bg}`}>
+              <LogoStage bg={l.bg}>
                 <Image src={l.src} alt={l.label} width={l.w} height={l.h} className={`h-auto ${l.fit}`} />
-              </div>
+              </LogoStage>
               <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3">
                 <span>
                   <span className="block text-sm text-foreground">{l.label}</span>
