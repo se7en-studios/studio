@@ -9,6 +9,10 @@ create table if not exists site_visitors (
   last_seen timestamptz not null default now()
 );
 
+-- Si la visita es uno de los dos (con la sesión del panel abierta), quién: así
+-- aparece con su muñeco y su nombre en vez de uno al azar.
+alter table site_visitors add column if not exists who text check (who in ('franco', 'federico'));
+
 create index if not exists site_visitors_last_seen on site_visitors (last_seen);
 
 -- Igual que el resto: RLS activo y sin policies. Sólo el servidor, con la

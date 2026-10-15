@@ -100,8 +100,11 @@ export type EngineOptions = {
  * a su aire (las visitas).
  */
 export type ActorGoal = { kind: "seat"; who: Who } | { kind: "room"; room: string } | { kind: "tour" } | { kind: "wander" };
-/** `you`: la visita que está mirando; la cámara la sigue y lleva el cartelito «VOS». */
-export type ActorSpec = { id: string; look: ActorLook; goal: ActorGoal; you?: boolean };
+/**
+ * `you`: la visita que está mirando; la cámara la sigue y lleva el cartelito
+ * «VOS». `tag`: un nombre arriba de la cabeza (Franco o Federico de visita).
+ */
+export type ActorSpec = { id: string; look: ActorLook; goal: ActorGoal; you?: boolean; tag?: string };
 export type Engine = {
   setMe: (me: Who) => void;
   /** `lightUp`: la sala a la que se acaba de entrar (titila y se prende). */
@@ -504,6 +507,9 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     dest: Pt | null;
     seed: number;
     you: boolean;
+    tag: string | null;
+    /** Saludando a alguien que se cruzó: desde cuándo y qué dice. */
+    greet: { t0: number; word: string } | null;
   };
   const actors: Actor[] = [];
   const DWELL = 7000;
@@ -565,13 +571,14 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         if (JSON.stringify(a.goal) !== JSON.stringify(sp.goal)) Object.assign(a, { goal: sp.goal, stuck: false, wait: 0, face: null });
         a.look = sp.look;
         a.you = !!sp.you;
+        a.tag = sp.tag ?? null;
         continue;
       }
       // Los socios aparecen en su escritorio; el guía y las visitas, en el pasillo frente a la recepción
       const seat = sp.goal.kind === "seat" ? seatOf(sp.goal.who) : null;
       const at = seat ?? m.start;
       const seed = seedOf(sp.id);
-      actors.push({ id: sp.id, look: sp.look, goal: sp.goal, x: at.x, y: at.y, from: { ...at }, to: { ...at }, t: 0, moving: false, dir: "SW", path: [], step: 0, seat, face: null, wait: 0, stop: sp.goal.kind === "wander" ? Math.abs(seed) % 97 : 0, stuck: false, dest: null, seed, you: !!sp.you });
+      actors.push({ id: sp.id, look: sp.look, goal: sp.goal, x: at.x, y: at.y, from: { ...at }, to: { ...at }, t: 0, moving: false, dir: "SW", path: [], step: 0, seat, face: null, wait: 0, stop: sp.goal.kind === "wander" ? Math.abs(seed) % 97 : 0, stuck: false, dest: null, seed, you: !!sp.you, tag: sp.tag ?? null, greet: null });
     }
   }
   function headTo(a: Actor, to: Pt) {
@@ -637,6 +644,39 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     }
     Object.assign(a, { from: { x: a.x, y: a.y }, to: n, moving: true, t: 0 });
   }
+  // Dos que se cruzan se saludan: se miran, levantan la mano y se dicen algo.
+  // Cada par, a lo sumo una vez cada 25 s, así no se la pasan saludando.
+  const GREET_MS = 1800;
+  const WORDS = ["HOLA!", "BUENAS!", "QUÉ TAL!", "EY!", "HOLI!"];
+  const greeted = new Map<string, number>();
+  const faceTo = (dx: number, dy: number): Dir => (Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "SE" : "NW") : dy > 0 ? "SW" : "NE");
+  function greetings(ts: number) {
+    const free = actors.filter((a) => !a.seat);
+    for (let i = 0; i < free.length; i++)
+      for (let j = i + 1; j < free.length; j++) {
+        const a = free[i], b = free[j];
+        const [ax, ay] = actorPos(a), [bx, by] = actorPos(b);
+        const d = Math.hypot(ax - bx, ay - by);
+        if (d > 1.6 || d < 0.01) continue;
+        const key = a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
+        if (ts - (greeted.get(key) ?? -Infinity) < 25_000) continue;
+        greeted.set(key, ts);
+        // Cada uno tiene su forma de saludar; si les toca la misma, el segundo dice otra cosa
+        const wa = Math.abs(a.seed) % WORDS.length;
+        let wb = Math.abs(b.seed) % WORDS.length;
+        if (wb === wa) wb = (wb + 1) % WORDS.length;
+        a.greet = { t0: ts, word: WORDS[wa] };
+        b.greet = { t0: ts + 350, word: WORDS[wb] };
+        // Los que están quietos se dan vuelta para mirarse y se quedan un poco más
+        for (const [p, q] of [[a, b], [b, a]] as const) {
+          if (p.moving) continue;
+          const [px, py] = actorPos(p), [qx, qy] = actorPos(q);
+          p.face = faceTo(qx - px, qy - py);
+          if (p.wait) p.wait += GREET_MS;
+        }
+      }
+    for (const a of actors) if (a.greet && ts - a.greet.t0 > GREET_MS) a.greet = null;
+  }
   function updateActors(dt: number, ts: number) {
     for (const a of actors) {
       if (!a.moving && a.path.length) stepActor(a);
@@ -692,7 +732,10 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       }
       disp.set(id, v);
     }
-    if (o.public) updateActors(dt, ts);
+    if (o.public) {
+      updateActors(dt, ts);
+      if (!reduced) greetings(ts);
+    }
     else {
       if (!player.moving) next();
       // Quieto al lado de tu silla un momento: te sentás
@@ -1299,12 +1342,13 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     if (o.public) {
       for (const a of actors) {
         const [ax, ay] = P(...actorPos(a));
+        const wave = a.greet && ts >= a.greet.t0 ? (ts - a.greet.t0) / GREET_MS : null;
         people.push({
           depth: actorDepth(a),
           draw: () =>
             a.seat
               ? avatar(a.look, ax, ay, "SW", null, true, blink, typing)
-              : avatar(a.look, ax, ay, a.moving ? a.dir : (a.face ?? a.dir), a.moving && !reduced ? a.step % 1 : null),
+              : avatar(a.look, ax, ay, a.moving ? a.dir : (a.face ?? a.dir), a.moving && !reduced ? a.step % 1 : null, false, false, null, wave),
         });
       }
     } else {
@@ -1364,28 +1408,57 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       ctx.textBaseline = "top";
       ctx.fillText(partnerLine, x + 7, y + 5);
     }
-    // En la landing, tu muñeco lleva un cartelito con una flecha, como en Habbo
-    const mine = o.public ? actors.find((a) => a.you) : null;
-    if (mine) {
-      const [ax, ay] = actorPos(mine);
-      const [tx, ty] = toScreen(P(ax, ay, 74));
-      const bob = reduced ? 0 : Math.sin(ts / 260) * 1.5;
-      ctx.font = `8px ${o.font}`;
-      ctx.textBaseline = "middle";
-      ctx.textAlign = "center";
-      const w = Math.ceil(ctx.measureText("VOS").width) + 10, h = 13;
-      const x = Math.round(tx - w / 2), y = Math.round(ty - h - 6 + bob);
-      ctx.fillStyle = "#ff4d2e";
-      ctx.beginPath();
-      ctx.roundRect(x, y, w, h, 3);
-      ctx.moveTo(tx - 3.5, y + h);
-      ctx.lineTo(tx, y + h + 4);
-      ctx.lineTo(tx + 3.5, y + h);
-      ctx.fill();
-      ctx.fillStyle = "#ffffff";
-      ctx.fillText("VOS", tx, y + h / 2 + 0.5);
-      ctx.textAlign = "left";
-    }
+    // En la landing: arriba de cada uno, su cartelito («VOS» o el nombre de un
+    // socio) y, si está saludando, el globo con lo que dice
+    if (o.public)
+      for (const a of actors) {
+        const label = a.you ? "VOS" : a.tag?.toUpperCase();
+        const word = a.greet && ts >= a.greet.t0 ? a.greet.word : null;
+        if (!label && !word) continue;
+        const [ax, ay] = actorPos(a);
+        const [tx, ty] = toScreen(P(ax, ay, a.seat ? 60 : 74));
+        const bob = reduced ? 0 : Math.sin(ts / 260 + a.seed) * 1.5;
+        ctx.font = `8px ${o.font}`;
+        ctx.textBaseline = "middle";
+        ctx.textAlign = "center";
+        let top = ty;
+        if (label) {
+          const w = Math.ceil(ctx.measureText(label).width) + 10, h = 13;
+          const x = Math.round(tx - w / 2), y = Math.round(ty - h - 6 + bob);
+          ctx.fillStyle = a.you ? "#ff4d2e" : "#16161b";
+          ctx.beginPath();
+          ctx.roundRect(x, y, w, h, 3);
+          ctx.moveTo(tx - 3.5, y + h);
+          ctx.lineTo(tx, y + h + 4);
+          ctx.lineTo(tx + 3.5, y + h);
+          ctx.fill();
+          if (!a.you) {
+            ctx.strokeStyle = "rgba(255,255,255,0.35)";
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
+          ctx.fillStyle = "#ffffff";
+          ctx.fillText(label, tx, y + h / 2 + 0.5);
+          top = y - 2;
+        }
+        if (word) {
+          const k = (ts - (a.greet as { t0: number }).t0) / GREET_MS;
+          const w = Math.ceil(ctx.measureText(word).width) + 12, h = 15;
+          const x = Math.round(tx - w / 2), y = Math.round(top - h - 4 - (reduced ? 0 : Math.min(1, k * 6) * 3));
+          ctx.globalAlpha = Math.min(1, (1 - k) * 4);
+          ctx.fillStyle = "#fbf8f2";
+          ctx.strokeStyle = "rgba(28,20,30,0.85)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.roundRect(x + 0.5, y + 0.5, w, h, 5);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = "#16161b";
+          ctx.fillText(word, tx, y + h / 2 + 1);
+          ctx.globalAlpha = 1;
+        }
+        ctx.textAlign = "left";
+      }
     // El otro socio, dormido: las zetas suben desde su cabeza
     if (po?.seat && partnerAway) {
       const [zx, zy] = toScreen(P(po.seat.x + 0.5, po.seat.y + 0.5, 58));

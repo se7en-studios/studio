@@ -1,10 +1,12 @@
 // Las visitas que están mirando la landing ahora, para «En vivo». Cada una
-// manda una señal cada 30 s (POST /api/en-vivo/visita) y aparece en el mapa
-// como un muñeco. Una por IP: abrir diez pestañas no llena el estudio.
+// manda una señal cada 30 s (POST /admin/api/visita) y aparece en el mapa
+// como un muñeco. Una por IP: abrir diez pestañas no llena el estudio. Si la
+// visita es Franco o Federico (con la sesión del panel), aparece como él.
 // Sólo servidor: usa la service role key. Si falta supabase/visitas.sql, no
 // hay visitas y el mapa sigue andando.
 import { createHmac } from "node:crypto";
 import { db } from "@/lib/admin/db";
+import type { Who } from "@/lib/admin/oficinas-shared";
 
 /** Cuánto dura una señal: dos señales perdidas y la visita se va. */
 const WINDOW_MS = 75_000;
@@ -26,16 +28,18 @@ function keyOf(ip: string, now: number) {
 /** Lo que ve la landing de cada visita: los primeros 10 caracteres, para la ropa del muñeco. */
 const shortId = (key: string) => key.slice(0, 10);
 
-export type VisitorsNow = { you: string | null; visitors: string[]; total: number };
+/** `who`: si es uno de los dos socios. */
+export type Visitor = { id: string; who: Who | null };
+export type VisitorsNow = { you: string | null; visitors: Visitor[]; total: number };
 
-/** Registra la señal de `ip` (o la saca, si se va) y devuelve quiénes están. */
-export async function visitorHeartbeat(ip: string, leaving = false, now = Date.now()): Promise<VisitorsNow> {
+/** Registra la señal de `ip` (o la saca, si se va) y devuelve quiénes están. `who`: el socio, si tiene la sesión del panel. */
+export async function visitorHeartbeat(ip: string, leaving = false, who: Who | null = null, now = Date.now()): Promise<VisitorsNow> {
   const c = db();
   if (!c) return { you: null, visitors: [], total: 0 };
   const key = keyOf(ip, now);
   const write = leaving
     ? c.from("site_visitors").delete().eq("key", key)
-    : c.from("site_visitors").upsert({ key, last_seen: new Date(now).toISOString() });
+    : c.from("site_visitors").upsert({ key, last_seen: new Date(now).toISOString(), who });
   const { error } = await write;
   if (error) {
     if (!missingTable(error)) console.error("[visitas]", error.message);
@@ -44,7 +48,7 @@ export async function visitorHeartbeat(ip: string, leaving = false, now = Date.n
   await c.from("site_visitors").delete().lt("last_seen", new Date(now - KEEP_MS).toISOString());
   const { data, error: e2 } = await c
     .from("site_visitors")
-    .select("key")
+    .select("key, who")
     .gte("last_seen", new Date(now - WINDOW_MS).toISOString())
     .order("key")
     .limit(200);
@@ -52,9 +56,14 @@ export async function visitorHeartbeat(ip: string, leaving = false, now = Date.n
     console.error("[visitas]", e2.message);
     return { you: null, visitors: [], total: 0 };
   }
-  const keys = (data as { key: string }[]).map((r) => r.key);
+  // Cada socio una sola vez, aunque esté en la compu y en el celular (gana el que pregunta)
+  const all = data as { key: string; who: Who | null }[];
+  const seen = new Set<Who>();
+  const mine = all.find((r) => r.key === key);
+  if (mine?.who) seen.add(mine.who);
+  const rows = all.filter((r) => r === mine || !r.who || (!seen.has(r.who) && !!seen.add(r.who)));
   // Si hay más de los que entran, vos siempre estás
-  const shown = keys.slice(0, MAX_VISITORS);
-  if (!leaving && !shown.includes(key)) shown[shown.length - 1] = key;
-  return { you: leaving ? null : shortId(key), visitors: shown.map(shortId), total: keys.length };
+  const shown = rows.slice(0, MAX_VISITORS);
+  if (!leaving && mine && !shown.includes(mine)) shown[shown.length - 1] = mine;
+  return { you: leaving ? null : shortId(key), visitors: shown.map((r) => ({ id: shortId(r.key), who: r.who })), total: rows.length };
 }

@@ -1141,9 +1141,10 @@ export const lookFor = (who: ActorLook): Look => (who.startsWith("v:") ? visitor
 
 /**
  * Dibuja a `who` parado en (sx, sy) (los pies). `phase` 0–1 es el paso; null =
- * quieto. `typing` 0–1: sentado, mueve las manos sobre el teclado.
+ * quieto. `typing` 0–1: sentado, mueve las manos sobre el teclado. `wave` 0–1:
+ * saluda con la mano levantada.
  */
-export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: number | null, sitting = false, blink = false, typing: number | null = null) {
+export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: number | null, sitting = false, blink = false, typing: number | null = null, wave: number | null = null) {
   const L = lookFor(who);
   const mirror = dir === "SW" || dir === "NW";
   const back = dir === "NE" || dir === "NW";
@@ -1188,8 +1189,18 @@ export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: 
     g.fillStyle = L.collar;
     g.fillRect(-5, -36 + by, 11, 2);
   }
-  rrect(8, -34 + by - s * 1.5 - tap, 5, 15, 2.5, L.main, LINE);
-  ellipse(10.5, -18.5 + by - s * 1.5 - tap, 2.6, 2.6, L.skin, LINE);
+  if (wave === null) {
+    rrect(8, -34 + by - s * 1.5 - tap, 5, 15, 2.5, L.main, LINE);
+    ellipse(10.5, -18.5 + by - s * 1.5 - tap, 2.6, 2.6, L.skin, LINE);
+  } else {
+    // El brazo arriba, moviendo la mano de un lado al otro
+    g.save();
+    g.translate(10.5, -32 + by);
+    g.rotate(Math.PI + 0.45 + Math.sin(wave * Math.PI * 7) * 0.22);
+    rrect(-2.5, 0, 5, 15, 2.5, L.main, LINE);
+    ellipse(0, 15.5, 2.6, 2.6, L.skin, LINE);
+    g.restore();
+  }
   // cabeza
   g.fillStyle = L.skin2;
   g.fillRect(-2.5, -39 + by, 6, 4);

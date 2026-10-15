@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import type { VisitorsNow } from "@/lib/visitas";
 
 const BEAT_MS = 30_000;
-const ENDPOINT = "/api/en-vivo/visita";
+const ENDPOINT = "/admin/api/visita";
 
 export function useVisitors(): VisitorsNow | null {
   const [now, setNow] = useState<VisitorsNow | null>(null);

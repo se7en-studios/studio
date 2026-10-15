@@ -21,15 +21,28 @@ import { MapFrame } from "./en-vivo-frame";
 const NAMES: Record<Who, string> = { federico: "Federico", franco: "Franco" };
 const POLL_MS = 30_000;
 
-/** Quiénes caminan: los conectados o, si no hay nadie, el guía; y una persona por cada visita de la página. */
+/**
+ * Quiénes caminan: los conectados al panel o, si no hay nadie, el guía; y una
+ * persona por cada visita de la página. Si Franco o Federico están mirando la
+ * landing, aparecen como ellos (con su nombre arriba) y no dos veces.
+ */
 function actorsFor(online: EnVivoPublic["online"], map: MapModel, visitors: VisitorsNow | null): ActorSpec[] {
+  const list = visitors?.visitors ?? [];
+  const here = new Set(list.flatMap((v) => (v.who ? [v.who] : [])));
+  const working = online.filter((o) => !here.has(o.who));
   const staff: ActorSpec[] = !online.length
     ? [{ id: "guia", look: "guia", goal: { kind: "tour" } }]
-    : online.map((o) => {
+    : working.map((o) => {
         const room = o.room ? map.rooms.find((r) => r.slug === o.room) : null;
         return { id: o.who, look: o.who, goal: room ? { kind: "room", room: room.id } : { kind: "seat", who: o.who } };
       });
-  const guests: ActorSpec[] = (visitors?.visitors ?? []).map((v) => ({ id: `v-${v}`, look: `v:${v}`, goal: { kind: "wander" }, you: v === visitors?.you }));
+  const guests: ActorSpec[] = list.map((v) => ({
+    id: `v-${v.id}`,
+    look: v.who ?? `v:${v.id}`,
+    goal: { kind: "wander" },
+    you: v.id === visitors?.you,
+    tag: v.who ? NAMES[v.who] : undefined,
+  }));
   return [...staff, ...guests];
 }
 
