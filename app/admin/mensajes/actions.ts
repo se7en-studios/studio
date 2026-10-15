@@ -22,7 +22,9 @@ export async function sendMessage(channel: string, body: string): Promise<Messag
   // Lo propio cuenta como leído.
   await markRead(me.who, channel).catch(() => {});
   const { kind } = parseChannel(channel);
-  const path = kind === "general" ? "/admin/mensajes" : `/admin/mensajes?c=${encodeURIComponent(channel)}`;
+  // El link pasa por ntfy: un pedido va por su id (opaco); un proyecto, sin canal,
+  // porque su slug sale del nombre del cliente («p:pone-la-pava»).
+  const path = kind === "pedido" ? `/admin/mensajes?c=${encodeURIComponent(channel)}` : "/admin/mensajes";
   after(() => notifyPartner(me.who, messageNotice(PEOPLE[me.who].name, kind, path), { key: `msg:${me.who}:${channel}` }));
   return msg;
 }
