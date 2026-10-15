@@ -9,6 +9,7 @@ import {
 } from "framer-motion";
 import { ArrowDown } from "lucide-react";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
+import { useWide } from "@/lib/use-wide";
 import { projects } from "@/data/projects";
 import { useIntroReady } from "@/components/rd/intro";
 import { RdHeroRing } from "@/components/rd/hero-ring";
@@ -257,8 +258,10 @@ function HeroClip({ play }: { play: boolean }) {
     return () => window.clearInterval(id);
   }, [play]);
 
+  const wide = useWide();
   const clip = clips[i];
-  if (!clip?.video) return null;
+  // La pastilla sólo se ve desde md: en celular ni se pide el video.
+  if (!wide || !clip?.video) return null;
   return (
     <span className="relative hidden h-[0.66em] w-[1.25em] shrink-0 overflow-hidden rounded-full bg-(--ink-3) align-middle ring-1 ring-(--line) md:inline-block">
       <AnimatePresence initial={false}>
@@ -270,7 +273,6 @@ function HeroClip({ play }: { play: boolean }) {
           loop
           playsInline
           preload="metadata"
-          poster={clip.image}
           initial={{ opacity: 0, scale: 1.2 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0 }}

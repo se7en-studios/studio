@@ -11,6 +11,7 @@ import {
 import { projects } from "@/data/projects";
 import { team } from "@/data/team";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
+import { useWide } from "@/lib/use-wide";
 import { RdLabel } from "@/components/rd/primitives";
 
 type Token =
@@ -85,6 +86,7 @@ function ManifestoToken({
 }) {
   const opacity = useTransform(progress, range, [0.14, 1]);
   const scale = useTransform(progress, range, [0.6, 1]);
+  const wide = useWide();
 
   if (token.kind === "word") {
     return (
@@ -139,18 +141,26 @@ function ManifestoToken({
         style={still ? undefined : { scale }}
         className="relative inline-block h-[0.86em] w-[1.9em] translate-y-[0.1em] overflow-hidden rounded-full align-baseline"
       >
-        <video
-          className="absolute inset-0 h-full w-full object-cover"
-          autoPlay={!still}
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          poster={project.image}
-        >
-          <source src={project.video.webm} type="video/webm" />
-          <source src={project.video.mp4} type="video/mp4" />
-        </video>
+        <Image
+          src={project.image}
+          alt=""
+          fill
+          sizes="160px"
+          className="object-cover object-top"
+        />
+        {wide && !still && (
+          <video
+            className="absolute inset-0 h-full w-full object-cover"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+          >
+            <source src={project.video.webm} type="video/webm" />
+            <source src={project.video.mp4} type="video/mp4" />
+          </video>
+        )}
       </motion.span>{" "}
     </>
   );
