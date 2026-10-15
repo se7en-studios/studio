@@ -28,7 +28,9 @@ export const BACKUP_TABLES = [
 ] as const;
 
 export const ENCRYPTED_FORMAT = "se7en-respaldo-cifrado";
-export const MIN_PASSPHRASE = 12;
+// 20+: la copia mensual queda como artefacto de Actions de un repo público y se
+// puede intentar adivinar la frase sin conexión. Mejor 5 o 6 palabras al azar.
+export const MIN_PASSPHRASE = 20;
 // scrypt con N = 2^15: unos 100 ms por intento, caro para probar frases a ciegas.
 const KDF = { N: 32_768, r: 8, p: 1 };
 const AAD = ENCRYPTED_FORMAT;

@@ -107,7 +107,7 @@ assert.ok(!box.data.includes("Ana"));
 assert.equal(bk.decryptBackup(box, "una frase bastante larga"), json);
 assert.throws(() => bk.decryptBackup(box, "otra frase bastante larga"), /No se pudo descifrar/);
 assert.throws(() => bk.decryptBackup({ ...box, data: box.data.split(".").map((p, i) => (i === 3 ? flipByte(p) : p)).join(".") }, "una frase bastante larga"), /No se pudo descifrar/);
-assert.throws(() => bk.encryptBackup(json, "corta", "x"), /12 caracteres/);
+assert.throws(() => bk.encryptBackup(json, "corta", "x"), /20 caracteres/);
 assert.throws(() => bk.decryptBackup({ ...box, kdf: { ...box.kdf, N: 1 << 24 } }, "x"), /inválido/);
 
 console.log("vault OK");

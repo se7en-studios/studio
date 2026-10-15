@@ -41,6 +41,15 @@ async function lookup(
   return findMatch(found, { email, phone });
 }
 
+/** Lo que el pedido ya tiene cargado de kickoff y reunión (vacío si falta crm-v3.sql). */
+async function currentExtra(c: SupabaseClient, id: string): Promise<Partial<Record<"kickoff" | "meeting_at", string | null>>> {
+  const { data, error } = await c.from("leads").select("kickoff, meeting_at").eq("id", id).maybeSingle();
+  return error || !data ? {} : (data as Partial<Record<"kickoff" | "meeting_at", string | null>>);
+}
+
+/** Tope del texto que se copia a la nota cuando no se pisa lo que había. */
+const KEPT_NOTE_MAX = 1500;
+
 export type Intake = {
   lead: NewLead;
   /** Qué agregar al pedido existente (kickoff, meeting_at). */
@@ -63,8 +72,14 @@ export async function intakeLead({
   if (!match) return insertLead({ ...lead, ...extra });
 
   // Lo nuevo va al pedido existente; si le faltaba el email o el teléfono, se completa.
+  // Lo que el pedido ya tenía NO se pisa: cualquiera que sepa el email de un cliente
+  // puede mandar el formulario. Lo nuevo queda en la nota del historial para revisarlo.
+  const current = await currentExtra(c, match.id);
+  const keys = Object.keys(extra) as (keyof Intake["extra"])[];
+  const kept = keys.filter((k) => extra[k] && current[k]);
+  const fresh = Object.fromEntries(keys.filter((k) => !kept.includes(k)).map((k) => [k, extra[k]]));
   let patch: Record<string, unknown> = {
-    ...extra,
+    ...fresh,
     updated_at: new Date().toISOString(),
   };
   if (lead.email && !match.email) patch.email = lead.email;
@@ -79,7 +94,7 @@ export async function intakeLead({
   }
   // Sin crm-v3.sql lo nuevo no tiene dónde guardarse en el pedido: se crea uno,
   // como antes, antes que perder el kickoff o la reunión.
-  const lost = Object.keys(extra).some((k) => !(k in patch));
+  const lost = Object.keys(fresh).some((k) => !(k in patch));
   if (error || lost) {
     if (error) console.error("[leads] enganchar:", error.message);
     return insertLead({ ...lead, ...extra });
@@ -92,7 +107,11 @@ export async function intakeLead({
       .insert({
         lead_id: match.id,
         kind: "nota",
-        text: note,
+        text: kept.length
+          ? `${note} · No se reemplazó lo que ya tenía (${kept.map((k) => (k === "kickoff" ? "kickoff" : "reunión")).join(", ")}); lo que llegó: ${kept
+              .map((k) => String(extra[k]))
+              .join(" | ")}`.slice(0, KEPT_NOTE_MAX)
+          : note,
         at: new Date().toISOString(),
         actor: null,
       });

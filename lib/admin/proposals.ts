@@ -79,7 +79,7 @@ export async function insertProposal(
   const token = proposalToken(nonce);
   if (!token)
     throw new Error(
-      "Falta configurar la contraseña del panel: sin ella no se pueden firmar los links.",
+      "Falta ADMIN_SESSION_SECRET (32 caracteres o más) en Vercel: sin ella no se pueden firmar los links de las propuestas.",
     );
   const last = await client()
     .from("panel_proposals")

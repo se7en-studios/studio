@@ -98,11 +98,13 @@ function safeEqual(a: string, b: string) {
 /**
  * El token del link público de una propuesta, derivado del `nonce` de la fila con
  * una subllave propia: la base guarda sólo el nonce y el sha256 del token, así que
- * un volcado no abre propuestas, y el panel puede volver a armar el link. null sin secreto.
+ * un volcado no abre propuestas, y el panel puede volver a armar el link.
+ * Sólo con ADMIN_SESSION_SECRET fuerte: derivado de la contraseña, un volcado más
+ * una contraseña adivinable alcanzarían para armar los links. null si no está.
  */
 export function proposalToken(nonce: string): string | null {
-  const key = secret();
-  return key ? sign(`propuesta:${nonce}`, `${key}:propuesta`) : null;
+  const key = process.env.ADMIN_SESSION_SECRET;
+  return key && key.length >= MIN_SECRET ? sign(`propuesta:${nonce}`, `${key}:propuesta`) : null;
 }
 
 export function adminConfigured() {

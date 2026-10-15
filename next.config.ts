@@ -29,6 +29,16 @@ const nextConfig: NextConfig = {
           { key: "Referrer-Policy", value: "no-referrer" },
         ],
       },
+      // Las páginas públicas con token (propuestas y portal de clientes): tampoco se
+      // incrustan (aceptar y aprobar son botones) y el token no sale en el Referer.
+      ...["/propuesta/:path*", "/portal/:path*"].map((source) => ({
+        source,
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+        ],
+      })),
     ];
   },
 
