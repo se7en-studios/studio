@@ -41,6 +41,7 @@ import { mapRoom, onMapRoom } from "./presence";
 import { Face, Kbd, cn } from "./kit";
 import { ToastProvider, useModKey, useToast } from "./overlay";
 import { ringPerson } from "./llamadas/actions";
+import { RunningTimer } from "./horas/running";
 
 type NavItem = { href: string; label: string; icon: React.ReactNode; badge?: keyof Pulse; tone?: "accent" | "red" };
 
@@ -320,6 +321,7 @@ function Sidebar({
       </nav>
 
       <div className="border-t border-[var(--line)] p-3">
+        <RunningTimer className="mb-2" />
         <Link
           href="/"
           className="focus-ring mb-1 flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground"

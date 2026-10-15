@@ -25,7 +25,10 @@ import {
   Radio,
   RotateCw,
   Search,
+  Settings,
+  Users,
   Wallet,
+  Wrench,
 } from "lucide-react";
 import type { SearchIndex } from "./api/search/route";
 import { Kbd, cn } from "./kit";
@@ -37,7 +40,10 @@ const BASE: Item[] = [
   { id: "n-inicio", group: "Ir a", label: "Inicio", icon: <Home size={16} />, href: "/admin" },
   { id: "n-cuentas", group: "Ir a", label: "Cuentas (caja fuerte)", icon: <KeyRound size={16} />, href: "/admin/cuentas" },
   { id: "n-seguridad", group: "Ir a", label: "Seguridad", icon: <ShieldCheck size={16} />, href: "/admin/seguridad" },
-  { id: "n-llamadas", group: "Ir a", label: "Llamadas por Meet", icon: <Phone size={16} />, href: "/admin/llamadas" },
+  { id: "n-llamadas", group: "Ir a", label: "Llamar por Meet", icon: <Phone size={16} />, href: "/admin/llamadas" },
+  { id: "n-clientes", group: "Ir a", label: "Clientes", icon: <Users size={16} />, href: "/admin/clientes" },
+  { id: "n-mantenimiento", group: "Ir a", label: "Mantenimiento (abonos y pedidos)", icon: <Wrench size={16} />, href: "/admin/mantenimiento" },
+  { id: "n-ajustes", group: "Ir a", label: "Ajustes", icon: <Settings size={16} />, href: "/admin/ajustes" },
   { id: "n-mensajes", group: "Ir a", label: "Mensajes", icon: <MessagesSquare size={16} />, href: "/admin/mensajes" },
   { id: "n-pedidos", group: "Ir a", label: "Pedidos", icon: <Inbox size={16} />, href: "/admin/pedidos" },
   { id: "n-proyectos", group: "Ir a", label: "Proyectos", icon: <FolderKanban size={16} />, href: "/admin/proyectos" },
@@ -105,6 +111,13 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         hint: STATUS[l.status] ?? l.status,
         icon: <Inbox size={16} />,
         href: `/admin/pedidos?pedido=${l.id}`,
+      })),
+      ...(index?.clients ?? []).map((cl) => ({
+        id: `c-${cl.id}`,
+        group: "Clientes",
+        label: cl.name,
+        icon: <Users size={16} />,
+        href: `/admin/clientes/${cl.id}`,
       })),
       ...(index?.projects ?? []).map((p) => ({
         id: `p-${p.slug}`,
