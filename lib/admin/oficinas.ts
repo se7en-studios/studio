@@ -13,9 +13,9 @@ import {
   WHO,
   daysSince,
   fadeOf,
+  paceOf,
   resolveVisit,
   salaMasApagada,
-  zoneOf,
   type OficinasData,
   type OfiEvent,
   type OfiProject,
@@ -63,8 +63,11 @@ function toProject(p: PanelProject, s: ProjectState, tasks: OfiTask[], events: O
   };
 }
 
-/** Todo lo que necesita el mapa, en una ida al servidor. Sin base, los casos de la web solos. */
-export async function getOficinasData(me: Who): Promise<OficinasData> {
+/**
+ * Todo lo que necesita el mapa, en una ida al servidor. Sin base, los casos de la web solos.
+ * `light`: sólo lo que define cuán prendida está cada sala (sin tareas ni capturas), para Inicio.
+ */
+export async function getOficinasData(me: Who, { light = false } = {}): Promise<OficinasData> {
   const generatedAt = new Date().toISOString();
   if (!db()) {
     const none = { federico: null, franco: null };
@@ -85,12 +88,12 @@ export async function getOficinasData(me: Who): Promise<OficinasData> {
       if (e instanceof PanelNotReady) return new Map<string, ProjectState>();
       throw e;
     }),
-    c.from("panel_tasks").select("id, title, assignee, due, priority, project_slug").is("done_at", null).is("lead_id", null).limit(1000),
+    light ? { data: [], error: null } : c.from("panel_tasks").select("id, title, assignee, due, priority, project_slug").is("done_at", null).is("lead_id", null).limit(1000),
     c.from("panel_events").select("id, created_at, actor, kind, text, project_slug").in("kind", EVENT_KINDS).order("created_at", { ascending: false }).limit(400),
     c.from("panel_room_visits").select("who, project_slug, visited_at"),
     c.from("panel_reads").select("who, channel, last_read_at").like("channel", "p:%"),
     // Sin capturas.sql, o si falla, la tele usa la captura fija: no corta el mapa.
-    latestCaptures().catch(() => new Map<string, SiteCapture>()),
+    light ? new Map<string, SiteCapture>() : latestCaptures().catch(() => new Map<string, SiteCapture>()),
   ]);
   if (tasksRes.error && !missingTable(tasksRes.error)) fail(tasksRes.error);
   if (eventsRes.error) fail(eventsRes.error);
@@ -131,12 +134,12 @@ export type SalaMasApagada = { slug: string; name: string; accent: string; days:
  * y la misma semilla que el mapa, y cuántas siguen prendidas. null sin proyectos.
  */
 export async function getSalaMasApagada(who: Who): Promise<SalaMasApagada | null> {
-  const data = await getOficinasData(who);
+  const data = await getOficinasData(who, { light: true });
   const now = Date.now();
   const visitOf = (slug: string) => data.projects.find((p) => p.slug === slug)?.lastVisit[who] ?? null;
   const worst = salaMasApagada(data.projects, visitOf, now);
   if (!worst) return null;
-  const lit = data.projects.filter((p) => fadeOf(daysSince(p.lastVisit[who], now), zoneOf(p.status)) === 0).length;
+  const lit = data.projects.filter((p) => fadeOf(daysSince(p.lastVisit[who], now), paceOf(p.status)) === 0).length;
   const accent = data.projects.find((p) => p.slug === worst.slug)?.accent ?? "#ff4d2e";
   return { ...worst, accent, lit, total: data.projects.length };
 }
