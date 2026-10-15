@@ -2,19 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-  Gauge,
-  ShieldAlert,
-  Zap,
-  Search,
-  CheckCircle2,
-  ArrowRight,
-  Sparkles,
-  Send,
-  Clock,
-} from "lucide-react";
+import { Gauge, CheckCircle2, Send } from "lucide-react";
 import { Container } from "@/components/ui/container";
-import { Reveal } from "@/components/ui/reveal";
+
 import { useSoundFx } from "@/components/providers/sound-provider";
 import { SITE } from "@/data/site";
 import { sendLead } from "@/lib/send-lead";

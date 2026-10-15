@@ -3,23 +3,19 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import {
-  Layers,
   Radio,
   Search,
   CheckCircle2,
-  AlertTriangle,
   XCircle,
   HelpCircle,
   ArrowRight,
-  ShieldCheck,
   Zap,
   Sparkles,
-  Code2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { Reveal } from "@/components/ui/reveal";
-import { radarItems, RadarRing, RadarCategory, RadarItem } from "@/data/tech-radar";
+import { radarItems, RadarRing, RadarCategory } from "@/data/tech-radar";
 import { useSoundFx } from "@/components/providers/sound-provider";
 
 const ringConfig: Record<

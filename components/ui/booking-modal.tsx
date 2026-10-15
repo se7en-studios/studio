@@ -4,12 +4,8 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Calendar,
-  Clock,
-  Video,
   X,
   CheckCircle2,
-  Send,
-  Sparkles,
   ArrowRight,
 } from "lucide-react";
 import { SITE } from "@/data/site";

@@ -1,22 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import {
-  Zap,
-  ShieldAlert,
-  ShieldCheck,
   CheckCircle2,
   XCircle,
   ArrowRight,
   Sparkles,
-  Gauge,
-  Lock,
-  Code2,
 } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
-import { useSoundFx } from "@/components/providers/sound-provider";
 
 interface MetricRow {
   aspect: string;
@@ -101,8 +93,6 @@ const comparisonMetrics: MetricRow[] = [
 ];
 
 export function StackComparison() {
-  const [highlightTab, setHighlightTab] = useState<"se7en" | "traditional">("se7en");
-  const { playSwitch } = useSoundFx();
 
   return (
     <section className="border-t border-border py-24 md:py-32">

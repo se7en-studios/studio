@@ -1,10 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Link from "next/link";
 import {
   CheckCircle2,
-  DollarSign,
   Clock,
   Sparkles,
   Zap,
@@ -12,17 +10,13 @@ import {
   Copy,
   Check,
   Calendar,
-  Layers,
-  ShieldCheck,
-  Cpu,
-  Database,
   CreditCard,
   Bot,
   Globe2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Container } from "@/components/ui/container";
-import { Reveal } from "@/components/ui/reveal";
+
 import { useSoundFx } from "@/components/providers/sound-provider";
 import { WhatsAppLogo } from "@/components/icons/whatsapp-logo";
 import { SITE } from "@/data/site";

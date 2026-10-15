@@ -7,11 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Laptop,
   Smartphone,
-  Sparkles,
   ArrowRight,
-  ExternalLink,
-  Layers,
-  Zap,
   Info,
 } from "lucide-react";
 import { Container } from "@/components/ui/container";

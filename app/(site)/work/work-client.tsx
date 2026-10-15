@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, Sparkles, Filter, ArrowRight, Layers, LayoutGrid } from "lucide-react";
+import { Search, ArrowRight, Layers } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { Reveal } from "@/components/ui/reveal";
 import { ProjectCard } from "@/components/work/project-card";

@@ -5,13 +5,10 @@ import {
   Server,
   Database,
   Globe,
-  Cpu,
   Layers,
   ShieldCheck,
   CheckCircle2,
-  ArrowRight,
   Bot,
-  Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Container } from "@/components/ui/container";

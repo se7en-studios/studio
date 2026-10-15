@@ -3,15 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  Calendar,
   CheckCircle2,
-  Clock,
   Code2,
-  FileCode2,
-  Globe2,
   MessageSquare,
   Rocket,
-  ShieldCheck,
   Sparkles,
   ArrowRight,
 } from "lucide-react";
@@ -114,7 +109,6 @@ export function ClientJourney() {
         {/* Selector de Fases */}
         <div className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {journeyPhases.map((phase, idx) => {
-            const PhaseIcon = phase.icon;
             const isSelected = activePhaseIndex === idx;
 
             return (

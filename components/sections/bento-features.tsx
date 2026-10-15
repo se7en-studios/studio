@@ -2,20 +2,14 @@
 
 import { useState } from "react";
 import {
-  Zap,
-  Terminal as TerminalIcon,
   Globe2,
   Gauge,
-  Sparkles,
   Copy,
   Check,
-  ShieldCheck,
-  Flame,
-  ArrowUpRight,
 } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
-import { Reveal } from "@/components/ui/reveal";
+
 import { useSoundFx } from "@/components/providers/sound-provider";
 
 export function BentoFeatures() {

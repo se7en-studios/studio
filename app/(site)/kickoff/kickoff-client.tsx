@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import {
   CheckCircle2,
   FolderGit2,
@@ -13,12 +12,9 @@ import {
   Copy,
   Check,
   Send,
-  Sparkles,
-  ShieldCheck,
-  Zap,
 } from "lucide-react";
 import { Container } from "@/components/ui/container";
-import { Reveal } from "@/components/ui/reveal";
+
 import { useSoundFx } from "@/components/providers/sound-provider";
 import { SITE } from "@/data/site";
 import { sendLead } from "@/lib/send-lead";

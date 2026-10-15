@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Globe, Zap, Server, Activity, ShieldCheck, ArrowRight } from "lucide-react";
+import { ShieldCheck, ArrowRight } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import Link from "next/link";
@@ -25,7 +25,7 @@ const edgeNodes: EdgeNode[] = [
 ];
 
 export function EdgeLatencyMonitor() {
-  const [pulse, setPulse] = useState(0);
+  const [, setPulse] = useState(0); // solo fuerza el redibujado
 
   useEffect(() => {
     const interval = setInterval(() => {
