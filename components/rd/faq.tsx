@@ -3,58 +3,13 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { SITE } from "@/data/site";
+import { landingFaqs as faqs } from "@/data/faq";
 import {
   EASE_OUT,
   RdButton,
   RdLabel,
   RdLines,
 } from "@/components/rd/primitives";
-
-// El precio no se publica: se calcula con cada cliente (versión del prototipo).
-const faqs = [
-  {
-    id: "price",
-    question: "¿Cuánto cuesta un proyecto?",
-    answer:
-      "Depende del alcance, así que lo calculamos juntos: nos contás qué necesitás y te pasamos una propuesta. Antes de empezar acordamos por escrito el alcance y el precio.",
-  },
-  {
-    id: "timeline",
-    question: "¿Cuánto tarda?",
-    answer:
-      "Una landing o sitio institucional lleva entre 1 y 2 semanas. Plataformas, paneles de administración o tiendas online, entre 2 y 4 semanas. Vas viendo avances en el camino, no sólo al final.",
-  },
-  {
-    id: "payments",
-    question: "¿Cómo se paga? ¿Trabajan con clientes de afuera?",
-    answer:
-      "Sí, trabajamos 100% remoto, así que la ubicación no es un problema. Aceptamos transferencia en ARS o USD, transferencia internacional (SWIFT / ACH), Stripe, Wise y cripto (USDT / USDC).",
-  },
-  {
-    id: "communication",
-    question: "¿Cómo es el proceso y la comunicación?",
-    answer:
-      "Hablás directo con los dos fundadores, que diseñamos y programamos el proyecto. Sin intermediarios: seguimiento por WhatsApp, demos en vivo y respuesta dentro de las 24 h hábiles.",
-  },
-  {
-    id: "services-scope",
-    question: "¿Qué tipo de proyectos hacen?",
-    answer:
-      "Landing pages, sitios institucionales, plataformas web, tiendas online a medida y productos con inteligencia artificial. Todo se diseña desde cero, sin plantillas.",
-  },
-  {
-    id: "tech-stack",
-    question: "¿Con qué tecnología trabajan?",
-    answer:
-      "Next.js, React y TypeScript, con hosting en Vercel. En la práctica: sitios que cargan rápido, se indexan bien en Google y no dependen de plugins de terceros. El código queda 100% a tu nombre.",
-  },
-  {
-    id: "post-launch",
-    question: "¿Qué pasa después del lanzamiento?",
-    answer:
-      "Todos los proyectos incluyen 30 días de garantía y soporte sin costo. Después seguimos disponibles para mantener y mejorar el producto a medida que crece.",
-  },
-];
 
 export function RdFaq() {
   const [openId, setOpenId] = useState<string | null>(faqs[0]?.id ?? null);

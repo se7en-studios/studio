@@ -50,3 +50,15 @@ export const faqs: FAQItem[] = [
       "Todos los proyectos incluyen 30 días de garantía y soporte sin costo. Después seguimos disponibles para mantener y mejorar el producto a medida que crece.",
   },
 ];
+
+// La home no publica precio: se calcula con cada cliente. Parte de la misma lista
+// que /pricing para que el texto visible y el JSON-LD no se desfasen.
+export const landingFaqs: FAQItem[] = faqs.map((item) =>
+  item.id === "price"
+    ? {
+        ...item,
+        answer:
+          "Depende del alcance, así que lo calculamos juntos: nos contás qué necesitás y te pasamos una propuesta. Antes de empezar acordamos por escrito el alcance y el precio.",
+      }
+    : item,
+);

@@ -4,9 +4,9 @@ export const SITE = {
   tagline: "Experiencias y productos digitales",
   description:
     "Un estudio de dos personas de producto digital y tecnología creativa. Diseñamos y construimos experiencias digitales para marcas que avanzan.",
-  // se7enstudio.com.ar no resuelve: canonical, OG, sitemap y JSON-LD apuntaban a
-  // un dominio muerto. Cuando haya dominio propio, se cambia con la variable.
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://se7enstudio.vercel.app",
+  // Producción es www.se7en.com.ar (NEXT_PUBLIC_SITE_URL en Vercel); el fallback sólo
+  // corre en local y debe ser el mismo dominio para no emitir canonicals ajenos.
+  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.se7en.com.ar",
   email: "se7endevv@gmail.com",
   whatsapp: "https://wa.me/5492994247985",
   // ponytail: sin cuentas de estudio propias todavía (instagram.com/se7enstudio,
