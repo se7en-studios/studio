@@ -4,6 +4,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { after } from "next/server";
 import { notifyNewLead } from "./notify";
 import { upcomingMeetings, type Meeting } from "./sales-shared";
+import { allRows } from "./paged";
 
 export const STATUSES = ["nuevo", "contactado", "propuesta", "ganado", "perdido"] as const;
 export type LeadStatus = (typeof STATUSES)[number];
@@ -47,6 +48,9 @@ export type Lead = {
 
 export type NewLead = Pick<Lead, "source" | "name"> &
   Partial<Pick<Lead, "channel" | "email" | "company" | "project_type" | "budget" | "timeline" | "idea" | "owner" | "phone" | "value" | "meeting_at" | "kickoff">>;
+
+/** La tabla no existe: falta correr su archivo de supabase/ en la base. */
+export const missingTable = (e: { code?: string }) => e.code === "PGRST205" || e.code === "42P01";
 
 let client: SupabaseClient | null | undefined;
 
@@ -119,13 +123,12 @@ export function missingColumn(message: string): string | null {
 export async function listLeads(): Promise<Lead[]> {
   const c = db();
   if (!c) return [];
-  const { data, error } = await c
-    .from("leads")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(500);
+  // Todos: antes se cortaban en 500 sin avisar.
+  const { data, error } = await allRows<Lead>((from, to) =>
+    c.from("leads").select("*").order("created_at", { ascending: false }).order("id").range(from, to),
+  );
   if (error) throw new Error(error.message);
-  return (data ?? []) as Lead[];
+  return data;
 }
 
 export type LeadPatch = Partial<

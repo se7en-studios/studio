@@ -3,7 +3,7 @@
 // Acciones del CRM de pedidos: alta manual, datos de contacto, monto acordado
 // e historial de contactos. Etapa, responsable y notas siguen en ../actions.ts.
 import { after } from "next/server";
-import { getSession } from "@/lib/admin/auth";
+import { requireSession } from "@/lib/admin/auth";
 import {
   OWNERS,
   createLeadRow,
@@ -23,6 +23,7 @@ import {
   type ActivityKind,
 } from "@/lib/admin/activity-shared";
 import { logEvent } from "@/lib/admin/panel";
+import { dayIn } from "@/lib/admin/tz";
 import { leadDiff } from "@/lib/admin/lead-changes";
 import { ACTIVITY_LABEL } from "@/lib/admin/activity-shared";
 import { LOST_NOTE_MAX, isLostReason, lostReasonLabel } from "@/lib/admin/sales-shared";
@@ -36,11 +37,7 @@ const CONTACT_TEXT: Record<ActivityKind, string> = {
   nota: "una nota",
 };
 
-async function guard() {
-  const me = await getSession();
-  if (!me) throw new Error("Sesión vencida: volvé a entrar.");
-  return me;
-}
+const guard = requireSession;
 
 const UUID = /^[0-9a-f-]{36}$/i;
 function checkId(id: string) {
@@ -245,9 +242,7 @@ export async function logActivity(
       throw new Error("Fecha inválida.");
     if (
       day !==
-      new Date().toLocaleDateString("en-CA", {
-        timeZone: "America/Argentina/Buenos_Aires",
-      })
+      dayIn(Date.now())
     )
       at = when.toISOString();
   }

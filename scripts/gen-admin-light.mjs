@@ -24,6 +24,8 @@ const TEXT = {
   "emerald-400": "#059669",
   "violet-300": "#6d28d9",
   "sky-300": "#0369a1",
+  "teal-300": "#0f766e",
+  "indigo-300": "#4338ca",
   "zinc-400": "#52525b",
 };
 
@@ -37,8 +39,11 @@ const walk = (dir) => {
 };
 ROOTS.forEach(walk);
 
-const TOKEN =
-  /(?<![\w:-])(?:(?:hover|focus):)?(?:(?:bg|border|ring)-white\/(?:\[[\d.]+\]|\d+)|from-white\/(?:\[[\d.]+\]|\d+)|bg-black\/(?:20|40)|text-(?:red-300|red-400|amber-300|emerald-300|emerald-400|violet-300|sky-300|zinc-400))|\[color-scheme:dark\]/g;
+// Los colores de texto salen de TEXT: uno nuevo ahí ya entra solo en la búsqueda.
+const TOKEN = new RegExp(
+  String.raw`(?<![\w:-])(?:(?:hover|focus):)?(?:(?:bg|border|ring)-white\/(?:\[[\d.]+\]|\d+)|from-white\/(?:\[[\d.]+\]|\d+)|bg-black\/(?:20|40)|text-(?:${Object.keys(TEXT).join("|")}))|\[color-scheme:dark\]`,
+  "g",
+);
 
 const tokens = new Set();
 for (const file of files) for (const m of readFileSync(file, "utf8").matchAll(TOKEN)) tokens.add(m[0]);

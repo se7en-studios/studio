@@ -3,6 +3,7 @@
 import type { Lead, LeadOwner, LeadStatus } from "./db";
 import { isContact, type Activity } from "./activity-shared";
 import { budgetValue } from "./brief";
+import { dayIn } from "./tz";
 
 /** Monto acordado si se cargó; si no, lo que sugiere el rango del formulario. */
 export const dealValue = (l: Pick<Lead, "value" | "budget">) =>
@@ -36,10 +37,8 @@ export function winRate(leads: Pick<Lead, "status">[]): number | null {
   return decided ? won / decided : null;
 }
 
-const TZ = "America/Argentina/Buenos_Aires";
 /** "2026-10" en hora de Argentina. */
-export const monthKey = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-CA", { timeZone: TZ }).slice(0, 7);
+export const monthKey = (iso: string) => dayIn(iso).slice(0, 7);
 
 /**
  * Cuándo se ganó un pedido: la fecha de cierre (won_at, desde crm-v2.sql). Sin

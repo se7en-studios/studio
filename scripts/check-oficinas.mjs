@@ -2,6 +2,18 @@
 // la sala más apagada y que se llegue caminando a todas las salas.
 // node scripts/check-oficinas.mjs
 import assert from "node:assert/strict";
+import { register } from "node:module";
+
+// Importa el .ts directo (Node 22+); el hook deja resolver imports sin extensión.
+register(
+  "data:text/javascript," +
+    encodeURIComponent(
+      `export async function resolve(s, c, next) {
+        try { return await next(s, c); }
+        catch (e) { if (s.startsWith(".")) return next(s + ".ts", c); throw e; }
+      }`,
+    ),
+);
 
 const S = await import("../lib/admin/oficinas-shared.ts");
 

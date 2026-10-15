@@ -1,10 +1,11 @@
 // Ingresos y costos (tabla panel_finance). Los cobros de los proyectos son
 // ingresos con proyecto; los viejos de panel_payments se leen hasta correr
 // finance-v4.sql. Usa la service role key: NUNCA importar desde un componente de cliente.
-import type { LeadOwner } from "./db";
+import { missingTable, type LeadOwner } from "./db";
 import type { Entry, EntryInput, FxSource } from "./finance-shared";
 import { fetchRates, referenceRate, referenceSource } from "./fx";
 import { paymentToEntry, type Payment } from "./payment-shared";
+import { allRows } from "./paged";
 import { PanelNotReady, client } from "./panel";
 import { missingDues, type TaxCategory } from "./plata-shared";
 import { dayKey } from "./task-shared";
@@ -19,10 +20,9 @@ const missingV5 = (e: { code?: string } | null) => e?.code === "42703" || e?.cod
 const V5_FIELDS = ["fx_source", "due_on", "series"] as const;
 const withoutV5 = <T extends object>(row: T) =>
   Object.fromEntries(Object.entries(row).filter(([k]) => !(V5_FIELDS as readonly string[]).includes(k)));
-const LIMIT = 5000;
 
 function fail(e: { code?: string; message: string }): never {
-  if (e.code === "PGRST205" || e.code === "42P01") {
+  if (missingTable(e)) {
     throw new PanelNotReady("Falta correr supabase/finance.sql en Supabase.");
   }
   // Columna inexistente: falta supabase/finance-v2.sql (socios y pendientes).
@@ -51,14 +51,16 @@ const toEntry = (r: Row): Entry => ({
   plan: "series" in r && r.kind === "ingreso" && r.recurring,
 });
 
-const select = (columns: string, slug?: string) => {
-  let q = client().from("panel_finance").select(columns);
-  if (slug) q = q.eq("project_slug", slug);
-  return q
-    .order("occurred_on", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(LIMIT);
-};
+const select = (columns: string, slug?: string) =>
+  allRows<Row>((from, to) => {
+    let q = client().from("panel_finance").select(columns);
+    if (slug) q = q.eq("project_slug", slug);
+    return q
+      .order("occurred_on", { ascending: false })
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(from, to);
+  });
 
 /**
  * Todos los movimientos, o los de un proyecto. Antes genera los pendientes del
@@ -85,7 +87,7 @@ async function readEntries(slug?: string): Promise<Entry[]> {
   if (res.error?.code === "42703") res = await select(V2_COLUMNS, slug);
   if (res.error?.code === "42703") res = await select(LEGACY_COLUMNS, slug);
   if (res.error) fail(res.error);
-  return (res.data as unknown as Row[]).map(toEntry);
+  return res.data.map(toEntry);
 }
 
 /**
@@ -94,19 +96,21 @@ async function readEntries(slug?: string): Promise<Entry[]> {
  * Después de finance-v4.sql la tabla ya no está y no hay ninguno.
  */
 export async function listCobros(fx: number, slug?: string): Promise<Entry[]> {
-  let q = client()
-    .from("panel_payments")
-    .select("id, created_at, project_slug, paid_on, amount, note, created_by, owner");
-  if (slug) q = q.eq("project_slug", slug);
-  const { data, error } = await q.order("paid_on", { ascending: false }).limit(LIMIT);
+  const { data, error } = await allRows<Omit<Payment, "amount"> & { amount: string | number }>((from, to) => {
+    let q = client()
+      .from("panel_payments")
+      .select("id, created_at, project_slug, paid_on, amount, note, created_by, owner");
+    if (slug) q = q.eq("project_slug", slug);
+    return q.order("paid_on", { ascending: false }).order("id").range(from, to);
+  });
   if (error) {
-    if (error.code === "PGRST205" || error.code === "42P01") return [];
+    if (missingTable(error)) return [];
     // Falta finance-v3.sql: se avisa (la página muestra el paso) en vez de perder los ingresos en silencio.
     if (error.code === "42703")
       throw new PanelNotReady("Falta correr supabase/finance-v3.sql en Supabase.");
     throw new Error(error.message);
   }
-  return (data as (Omit<Payment, "amount"> & { amount: string | number })[]).map((p) =>
+  return data.map((p) =>
     paymentToEntry({ ...p, amount: Number(p.amount) }, fx),
   );
 }

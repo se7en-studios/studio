@@ -3,12 +3,11 @@
 // mandó una en los últimos 3 minutos. Usa la service role key: NUNCA importar
 // este archivo desde un componente de cliente.
 import { projects as cases } from "@/data/projects";
-import { db } from "./db";
+import { db, missingTable } from "./db";
 import type { Who } from "./oficinas-shared";
 
 const SLUG = /^[a-z0-9-]{1,64}$/;
 const WINDOW_MS = 3 * 60_000;
-const missingTable = (e: { code?: string }) => e.code === "PGRST205" || e.code === "42P01";
 
 /** Lo que ve el público: quién está y, si es un caso de la web, en qué sala. */
 export type OnlineNow = { who: Who; room: string | null };

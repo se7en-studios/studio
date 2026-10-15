@@ -4,7 +4,7 @@
 // app/admin/api/messages: las acciones se despachan de a una y un polling por
 // acá trabaría todo lo demás que se toca en el panel.
 import { after } from "next/server";
-import { getSession } from "@/lib/admin/auth";
+import { requireSession } from "@/lib/admin/auth";
 import { messageNotice } from "@/lib/admin/digest";
 import { notifyPartner } from "@/lib/admin/notify";
 import { PEOPLE } from "@/lib/admin/people";
@@ -12,11 +12,7 @@ import { attachmentTargets, editMessage, insertMessage, markRead, removeMessage 
 import { MAX_ATTACHMENTS, cleanAttachments, isChannel, parseChannel, type Attachment, type Message } from "@/lib/admin/message-shared";
 import { MAX_FILE_BYTES, PanelNotReady } from "@/lib/admin/panel";
 
-async function guard() {
-  const me = await getSession();
-  if (!me) throw new Error("Sesión vencida: volvé a entrar.");
-  return me;
-}
+const guard = requireSession;
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -43,7 +39,9 @@ export async function sendMessage(channel: string, body: string, attachments: At
   // Lo propio cuenta como leído.
   await markRead(me.who, channel).catch(() => {});
   const { kind } = parseChannel(channel);
-  const path = kind === "general" ? "/admin/mensajes" : `/admin/mensajes?c=${encodeURIComponent(channel)}`;
+  // El link pasa por ntfy: un pedido va por su id (opaco); un proyecto, sin canal,
+  // porque su slug sale del nombre del cliente («p:pone-la-pava»).
+  const path = kind === "pedido" ? `/admin/mensajes?c=${encodeURIComponent(channel)}` : "/admin/mensajes";
   after(() => notifyPartner(me.who, messageNotice(PEOPLE[me.who].name, kind, path), { key: `msg:${me.who}:${channel}` }));
   return msg;
 }

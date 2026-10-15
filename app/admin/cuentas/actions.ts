@@ -8,6 +8,7 @@ import { after } from "next/server";
 import {
   checkPassword,
   getSession,
+  requireSession,
   lockVault,
   unlockVault,
   vaultUnlocked,
@@ -38,8 +39,7 @@ type Fail = { error: string; needPassword?: boolean };
 export type VaultResult<T> = T | Fail;
 
 async function guard() {
-  const me = await getSession();
-  if (!me) throw new Error("Sesión vencida: volvé a entrar.");
+  const me = await requireSession();
   if (!vaultReady()) throw new Error("Falta cargar VAULT_KEY en Vercel.");
   return me;
 }
@@ -92,7 +92,7 @@ export async function saveAccount(
     const clean = cleanAccount(input, { creating: !id });
     if (!clean.ok) return { error: clean.error };
     const v = clean.value;
-    if (id && (v.secret || v.notes || (v.url ?? null) !== (await accountUrl(id)))) {
+    if (id && (v.secret || v.notes || v.clearNotes || (v.url ?? null) !== (await accountUrl(id)))) {
       const closed = await ensureOpen(me.who, password);
       if (closed) return closed;
     }
@@ -105,7 +105,7 @@ export async function saveAccount(
       logEvent({
         actor: me.who,
         kind: "cuentas",
-        text: `${id ? (v.secret ? "cambió la clave de" : "editó") : "guardó la cuenta"} ${name(account)} en Cuentas`,
+        text: `${id ? (v.secret ? "cambió la clave de" : v.clearNotes ? "borró las notas de" : "editó") : "guardó la cuenta"} ${name(account)} en Cuentas`,
       }),
     );
     return { account };

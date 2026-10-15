@@ -7,7 +7,7 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
-import { OWNERS, type LeadOwner } from "./db";
+import { OWNERS, db, missingTable, type LeadOwner } from "./db";
 import { base32Decode, verifyTotp } from "./totp";
 
 export type Session = { who: LeadOwner };
@@ -158,6 +158,45 @@ export async function lockVault() {
   (await cookies()).delete({ name: VAULT_COOKIE, path: "/admin" });
 }
 
+// «Cerrar todas las sesiones» (supabase/security-v2.sql): las cookies firmadas antes
+// de session_epoch dejan de valer. La cookie no guarda cuándo se firmó, pero no
+// hace falta: siempre vence TTL_MS después. Se relee cada 30 s como mucho, así no
+// cuesta una consulta por pedido; en la instancia que corta vale al instante.
+const EPOCH_KEY = "session_epoch";
+const EPOCH_TTL_MS = 30_000;
+let epoch: { at: number; value: number } | null = null;
+
+/** Desde cuándo (ms) valen las sesiones. 0 si nunca se cortaron o falta la tabla. */
+export async function sessionEpoch(): Promise<number> {
+  if (epoch && Date.now() - epoch.at < EPOCH_TTL_MS) return epoch.value;
+  const c = db();
+  if (!c) return 0;
+  const { data, error } = await c.from("panel_settings").select("value").eq("key", EPOCH_KEY).maybeSingle();
+  // Sin la tabla, como antes. Si la base falla, se sigue con lo último que se leyó.
+  if (error && !missingTable(error)) {
+    console.error("[admin] leer session_epoch:", error.message);
+    return epoch?.value ?? 0;
+  }
+  epoch = { at: Date.now(), value: Number((data as { value: string } | null)?.value) || 0 };
+  return epoch.value;
+}
+
+/** Corta todas las sesiones abiertas. false si falta correr supabase/security-v2.sql. */
+export async function revokeAllSessions(): Promise<boolean> {
+  const c = db();
+  if (!c) throw new Error("Falta conectar la base de datos.");
+  const now = Date.now();
+  const { error } = await c
+    .from("panel_settings")
+    .upsert({ key: EPOCH_KEY, value: String(now), updated_at: new Date(now).toISOString() });
+  if (error) {
+    if (missingTable(error)) return false;
+    throw new Error(error.message);
+  }
+  epoch = { at: now, value: now };
+  return true;
+}
+
 /**
  * null si no hay sesión válida. Las cookies viejas (sin quién) no valen: hay
  * que volver a entrar. Con cache(): el layout, la página y las acciones de un
@@ -172,8 +211,18 @@ export const getSession = cache(async function getSession(): Promise<Session | n
   if (!exp || !who || !mac || Number(exp) < Date.now()) return null;
   if (!safeEqual(mac, sign(`${exp}.${who}`, key))) return null;
   if (!(OWNERS as readonly string[]).includes(who)) return null;
+  if (Number(exp) - TTL_MS < (await sessionEpoch())) return null;
   return { who: who as LeadOwner };
 });
+
+const SESSION_EXPIRED = "Sesión vencida: volvé a entrar.";
+
+/** Para las acciones del panel: la sesión, o un error que la UI muestra tal cual. */
+export async function requireSession(): Promise<Session> {
+  const me = await getSession();
+  if (!me) throw new Error(SESSION_EXPIRED);
+  return me;
+}
 
 /**
  * Para las páginas del panel: siempre por pedido (la sesión y los datos no

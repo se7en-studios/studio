@@ -2,9 +2,10 @@
 // service role key: NUNCA importar este archivo desde un componente de cliente
 // (los tipos sí, con `import type`).
 import { projects as cases } from "@/data/projects";
-import { db, type LeadOwner } from "./db";
+import { db, missingTable, type LeadOwner } from "./db";
 import type { Change } from "./changes";
 import { LEGACY_KINDS, kindOf, type EventKind } from "./event-shared";
+import { projectChannel } from "./message-shared";
 
 export const BUCKET = "panel";
 /** Máximo por archivo del plan Free de Supabase. panel.sql lo repite en el bucket. */
@@ -85,20 +86,23 @@ export function client() {
   return c;
 }
 
-export function fail(e: { code?: string; message: string }): never {
-  if (e.code === "PGRST205" || e.code === "42P01") {
-    throw new PanelNotReady("Faltan las tablas del panel en Supabase.");
-  }
-  throw new Error(e.message);
-}
+export type Fail = (e: { code?: string; message: string }) => never;
+
+/**
+ * Un error de la base: si falta la tabla, PanelNotReady con `notReady` (la página
+ * muestra cómo activarlo, «Falta correr supabase/x.sql…»); si no, el error tal cual.
+ */
+export const failMissing =
+  (notReady: string): Fail =>
+  (e) => {
+    if (missingTable(e)) throw new PanelNotReady(notReady);
+    throw new Error(e.message);
+  };
+
+export const fail: Fail = failMissing("Faltan las tablas del panel en Supabase.");
 
 /** Para las tablas de panel-v2.sql: si faltan, el aviso dice qué archivo correr. */
-export function failV2(e: { code?: string; message: string }): never {
-  if (e.code === "PGRST205" || e.code === "42P01") {
-    throw new PanelNotReady("Falta correr supabase/panel-v2.sql en Supabase.");
-  }
-  throw new Error(e.message);
-}
+export const failV2: Fail = failMissing("Falta correr supabase/panel-v2.sql en Supabase.");
 
 const IMAGE_EXT = /\.(jpe?g|png|webp|gif|avif|svg)$/i;
 
@@ -274,7 +278,7 @@ export async function insertProject(p: {
 
 /**
  * Borra un proyecto del panel: desvincula sus tareas, saca sus archivos de
- * Storage y de la tabla, y borra la fila. Devuelve el nombre y cuántos
+ * Storage y de la tabla, borra su chat y su captura, y borra la fila. Devuelve el nombre y cuántos
  * archivos se fueron, para contarlo en el feed.
  *
  * Los casos de data/projects.ts NO se pueden borrar desde acá: viven en el
@@ -326,17 +330,35 @@ export async function removeProject(slug: string): Promise<{ name: string; files
   // con el mismo slug heredaría etapa, cliente y responsable del borrado.
   // Si panel-v2.sql todavía no corrió no hay nada que limpiar.
   const state = await c.from("panel_project_state").delete().eq("slug", slug);
-  if (state.error && state.error.code !== "PGRST205" && state.error.code !== "42P01") fail(state.error);
+  if (state.error && !missingTable(state.error)) fail(state.error);
   // Lo mismo con los cobros viejos (payments.sql): sin FK, quedarían colgados del slug.
   const paid = await c.from("panel_payments").delete().eq("project_slug", slug);
-  if (paid.error && paid.error.code !== "PGRST205" && paid.error.code !== "42P01") fail(paid.error);
+  if (paid.error && !missingTable(paid.error)) fail(paid.error);
   // Los movimientos de Finanzas no se borran (la plata entró igual): quedan sin
   // proyecto, para que uno nuevo con el mismo slug no herede sus cobros.
   const money = await c.from("panel_finance").update({ project_slug: null }).eq("project_slug", slug);
-  if (money.error && money.error.code !== "PGRST205" && money.error.code !== "42P01") fail(money.error);
+  if (money.error && !missingTable(money.error)) fail(money.error);
   // Y las visitas de «En vivo» (oficinas.sql): un proyecto nuevo con el mismo slug arranca apagado.
   const seen = await c.from("panel_room_visits").delete().eq("project_slug", slug);
-  if (seen.error && seen.error.code !== "PGRST205" && seen.error.code !== "42P01") fail(seen.error);
+  if (seen.error && !missingTable(seen.error)) fail(seen.error);
+  // Su chat (panel-v2.sql): sin esto, un proyecto nuevo con el mismo slug abre la
+  // conversación del borrado. Va también lo leído de ese canal.
+  const channel = projectChannel(slug);
+  const chat = await c.from("panel_messages").delete().eq("channel", channel);
+  if (chat.error && !missingTable(chat.error)) fail(chat.error);
+  const reads = await c.from("panel_reads").delete().eq("channel", channel);
+  if (reads.error && !missingTable(reads.error)) fail(reads.error);
+  // Y su captura (capturas.sql): la imagen del bucket y la fila. «capturas» es
+  // CAPTURE_BUCKET de capturas.ts, que importa este archivo.
+  const shot = await c.from("panel_site_captures").select("path").eq("project_slug", slug).maybeSingle();
+  if (shot.error && !missingTable(shot.error)) fail(shot.error);
+  const shotPath = (shot.data as { path: string } | null)?.path;
+  if (shotPath) {
+    const gone = await c.storage.from("capturas").remove([shotPath]);
+    if (gone.error) console.error("[panel] borrar captura:", gone.error.message);
+    const row = await c.from("panel_site_captures").delete().eq("project_slug", slug);
+    if (row.error) fail(row.error);
+  }
 
   const del = await c.from("panel_projects").delete().eq("slug", slug);
   if (del.error) fail(del.error);

@@ -3,7 +3,7 @@
 // Sin revalidatePath: las listas de tareas son optimistas (ver use-tasks.ts) y
 // las páginas del panel se leen de nuevo al navegar. El registro va con after().
 import { after } from "next/server";
-import { getSession } from "@/lib/admin/auth";
+import { requireSession } from "@/lib/admin/auth";
 import { OWNERS } from "@/lib/admin/db";
 import { taskAssignedNotice } from "@/lib/admin/digest";
 import { notifyPartner } from "@/lib/admin/notify";
@@ -13,11 +13,7 @@ import { taskDiff } from "@/lib/admin/task-changes";
 import { cleanInput, dayKey, nextDue, type Task, type TaskInput } from "@/lib/admin/task-shared";
 import { getTask, insertTask, patchTask, removeTask, taskLinks } from "@/lib/admin/tasks";
 
-async function guard() {
-  const me = await getSession();
-  if (!me) throw new Error("Sesión vencida: volvé a entrar.");
-  return me;
-}
+const guard = requireSession;
 
 const quote = (t: Pick<Task, "title">) => `«${t.title}»`;
 const UUID = /^[0-9a-f-]{36}$/i;

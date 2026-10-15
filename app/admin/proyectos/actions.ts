@@ -2,7 +2,7 @@
 
 import { after } from "next/server";
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/admin/auth";
+import { requireSession } from "@/lib/admin/auth";
 import { OWNERS, db, type Lead } from "@/lib/admin/db";
 import { dateLabel, diff, usd } from "@/lib/admin/changes";
 import { PEOPLE } from "@/lib/admin/people";
@@ -17,6 +17,7 @@ import { clientForLead, setProjectClient } from "@/lib/admin/clients";
 import { stateForLead, upsertState } from "@/lib/admin/projects";
 import { TASK_TEMPLATES, isTemplate, templateTasks } from "@/lib/admin/task-shared";
 import { insertTasks } from "@/lib/admin/tasks";
+import { dayIn } from "@/lib/admin/tz";
 import {
   PROJECT_STATUS,
   cleanStateInput,
@@ -43,11 +44,7 @@ import {
 
 type FileInfo = { name: string; size: number; type: string };
 
-async function guard() {
-  const me = await getSession();
-  if (!me) throw new Error("Sesión vencida: volvé a entrar.");
-  return me;
-}
+const guard = requireSession;
 
 function message(e: unknown) {
   return e instanceof PanelNotReady || e instanceof Error ? e.message : "Algo falló. Probá de nuevo.";
@@ -419,7 +416,7 @@ export async function projectFromLead(leadId: string): Promise<{ slug?: string; 
           client: linked?.client.name ?? (lead.company ? `${lead.name} · ${lead.company}` : lead.name),
           lead_id: lead.id,
           budget: lead.value ?? null,
-          start_date: new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }),
+          start_date: dayIn(Date.now()),
           notes: lead.idea ?? "",
         },
         OWNERS,

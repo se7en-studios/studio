@@ -1,6 +1,7 @@
 // Verifica las fechas, los estados y las plantillas de las tareas:
 // node scripts/check-tasks.mjs
 import assert from "node:assert/strict";
+import "./ts-hook.mjs";
 
 const { bucket, nextDue, cleanInput, dueLabel, TASK_TEMPLATES, isTemplate, templateTasks } = await import("../lib/admin/task-shared.ts");
 

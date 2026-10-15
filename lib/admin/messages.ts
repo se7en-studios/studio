@@ -1,6 +1,7 @@
 // Mensajes entre el equipo (tablas panel_messages y panel_reads). Usa la
 // service role key: NUNCA importar este archivo desde un componente de cliente.
 import type { LeadOwner } from "./db";
+import { allRows } from "./paged";
 import { BUCKET, PanelNotReady, client, failV2, safeName, sign } from "./panel";
 import {
   MESSAGE_MAX,
@@ -141,14 +142,16 @@ export async function channelSummaries(who: LeadOwner): Promise<ChannelSummary[]
   const since = new Date(Date.now() - WINDOW_DAYS * 86_400_000).toISOString();
   const c = client();
   const [msgs, reads] = await Promise.all([
-    c.from("panel_messages").select(COLUMNS).gte("created_at", since).order("created_at", { ascending: false }).limit(3000),
+    allRows<Message>((from, to) =>
+      c.from("panel_messages").select(COLUMNS).gte("created_at", since).order("created_at", { ascending: false }).order("id").range(from, to),
+    ),
     c.from("panel_reads").select("channel, last_read_at").eq("who", who),
   ]);
   if (msgs.error) failV2(msgs.error);
   if (reads.error) failV2(reads.error);
   const read = new Map((reads.data as { channel: string; last_read_at: string }[]).map((r) => [r.channel, r.last_read_at]));
   const by = new Map<Channel, ChannelSummary>();
-  for (const m of msgs.data as Message[]) {
+  for (const m of msgs.data) {
     const s = by.get(m.channel) ?? { channel: m.channel, last: m, unread: 0 };
     const seen = read.get(m.channel);
     if (m.author !== who && (!seen || m.created_at > seen)) s.unread++;
@@ -165,13 +168,15 @@ export async function unreadTotal(who: LeadOwner): Promise<number> {
   const since = new Date(Date.now() - WINDOW_DAYS * 86_400_000).toISOString();
   const c = client();
   const [msgs, reads] = await Promise.all([
-    c.from("panel_messages").select("channel, created_at").neq("author", who).gte("created_at", since).limit(2000),
+    allRows<{ channel: string; created_at: string }>((from, to) =>
+      c.from("panel_messages").select("channel, created_at").neq("author", who).gte("created_at", since).order("created_at").order("id").range(from, to),
+    ),
     c.from("panel_reads").select("channel, last_read_at").eq("who", who),
   ]);
   if (msgs.error) failV2(msgs.error);
   if (reads.error) failV2(reads.error);
   const read = new Map((reads.data as { channel: string; last_read_at: string }[]).map((r) => [r.channel, r.last_read_at]));
-  return (msgs.data as { channel: string; created_at: string }[]).filter((m) => {
+  return msgs.data.filter((m) => {
     const seen = read.get(m.channel);
     return !seen || m.created_at > seen;
   }).length;

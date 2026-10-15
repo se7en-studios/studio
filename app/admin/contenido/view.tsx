@@ -14,6 +14,7 @@ import {
   type ContentPost,
   type PostInput,
 } from "@/lib/admin/content-shared";
+import { dayIn } from "@/lib/admin/tz";
 import { Card, Chip, Empty, btnGhost, btnPrimary, btnSecondary, cn, input, label } from "../kit";
 import { Dialog, useToast } from "../overlay";
 import { markPublished, savePost } from "./actions";
@@ -32,8 +33,7 @@ const KIND_TONE: Record<ContentPost["kind"], string> = {
   perfil: "text-muted border-[var(--line-strong)]",
 };
 
-const TZ = "America/Argentina/Buenos_Aires";
-const todayKey = () => new Date().toLocaleDateString("en-CA", { timeZone: TZ });
+const todayKey = () => dayIn(Date.now());
 
 function dateLabel(day: string) {
   // Mediodía UTC: el día no se corre por la zona horaria.

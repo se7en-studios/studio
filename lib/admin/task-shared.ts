@@ -1,6 +1,7 @@
 // Tipos y fechas de las tareas. Puro y sin dependencias de servidor: lo usan
 // las páginas y los componentes de cliente.
 import type { LeadOwner } from "./db";
+import { dayIn } from "./tz";
 
 export const PRIORITIES = ["alta", "media", "baja"] as const;
 export type TaskPriority = (typeof PRIORITIES)[number];
@@ -49,13 +50,9 @@ export type TaskLinks = {
 export const TITLE_MAX = 200;
 export const NOTES_MAX = 5000;
 
-const TZ = "America/Argentina/Buenos_Aires";
-
 /** YYYY-MM-DD de hoy (o de hoy + n días) en hora de Argentina. */
 export function dayKey(offsetDays = 0, from = Date.now()) {
-  return new Date(from + offsetDays * 86_400_000).toLocaleDateString("en-CA", {
-    timeZone: TZ,
-  });
+  return dayIn(from + offsetDays * 86_400_000);
 }
 
 const daysBetween = (a: string, b: string) =>

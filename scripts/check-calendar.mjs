@@ -35,6 +35,9 @@ const expected = [
   ["Historias: encuesta", null], ["Armar las 6 destacadas", null], ["Foto de perfil, nombre, bio y contacto", null],
   ["Reel: ¿Qué incluye tu web?", null], ["Reel: 4 cosas que hacemos muy bien", null],
   ["Carrusel: 7 preguntas antes de contratar una web", null], ["Reel: De una idea a tu web en vivo", null],
+  // Palabras completas: «pone» está adentro de «componente», «sentinel» de «sentinela».
+  ["Reel: cada componente cuenta", null], ["Carrusel: la sentinela del sitio", null], ["Reel: Apexito", null],
+  ["Reel: ¿Poné-La-Pava?", "pone-la-pava"], ["Caso: TAKEFYY.", "takefyy"],
 ];
 for (const [title, slug] of expected) assert.equal(projectOfTitle(title, projects), slug, title);
 

@@ -1,6 +1,6 @@
 // Herramientas y suscripciones (tabla panel_tools). Usa la service role key:
 // NUNCA importar desde un componente de cliente.
-import { PanelNotReady, client } from "./panel";
+import { client, failMissing } from "./panel";
 import { dayKey } from "./task-shared";
 import { priceBefore, type Tool, type ToolInput, type ToolPrice } from "./tool-shared";
 
@@ -9,14 +9,7 @@ const OLD_COLUMNS = "id, created_at, name, amount, currency, cycle, renews_on, o
 const COLUMNS = `${OLD_COLUMNS}, ended_on, prices`;
 const missingV5 = (e: { code?: string } | null) => e?.code === "42703" || e?.code === "PGRST204";
 
-function fail(e: { code?: string; message: string }): never {
-  if (e.code === "PGRST205" || e.code === "42P01") {
-    throw new PanelNotReady(
-      "Falta correr supabase/finance-v2.sql en Supabase.",
-    );
-  }
-  throw new Error(e.message);
-}
+const fail = failMissing("Falta correr supabase/finance-v2.sql en Supabase.");
 
 /** numeric llega como string desde PostgREST. */
 type Row = Omit<Tool, "amount"> & { amount: string | number };
