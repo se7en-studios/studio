@@ -18,9 +18,16 @@ export type Tool = {
   renews_on: string;
   owner: Owner;
   notes: string;
+  /** YYYY-MM-DD: se dio de baja; cuenta como costo hasta ese mes (finance-v5.sql). */
+  ended_on?: string | null;
+  /** Precios anteriores, del más viejo al más nuevo (finance-v5.sql): los meses pasados quedan con el de entonces. */
+  prices?: ToolPrice[];
 };
 
-export type ToolInput = Omit<Tool, "id" | "created_at">;
+/** Un precio viejo de una herramienta: valió hasta `until` (el último día del mes anterior al cambio), con la cotización de ese momento. */
+export type ToolPrice = Pick<Tool, "amount" | "currency" | "cycle"> & { until: string; fx: number };
+
+export type ToolInput = Omit<Tool, "id" | "created_at" | "ended_on" | "prices">;
 
 /** Herramientas conocidas: nombre sugerido y logo en public/logos/<id>.svg. */
 export const TOOL_PRESETS = [
@@ -51,7 +58,7 @@ export function logoOf(name: string): string | null {
 const DAY_MS = 86_400_000;
 
 /** Suma meses a una fecha sin pasarse de mes (31/01 + 1 mes = 28/02). */
-function addMonthsClamped(day: string, n: number): string {
+export function addMonthsClamped(day: string, n: number): string {
   const [y, m, d] = day.split("-").map(Number);
   const first = new Date(Date.UTC(y, m - 1 + n, 1));
   const last = new Date(
@@ -83,30 +90,59 @@ export function monthlyIn(t: Pick<Tool, "amount" | "currency" | "cycle">, to: Cu
 }
 
 /**
+ * El precio que tenía antes del cambio de hoy, si cambió: vale hasta el último
+ * día del mes anterior. null si no cambió o si se cargó este mismo mes (no hay
+ * meses pasados que proteger).
+ */
+export function priceBefore(
+  old: Pick<Tool, "amount" | "currency" | "cycle" | "created_at">,
+  next: Pick<Tool, "amount" | "currency" | "cycle">,
+  today: string,
+  fx: number,
+): ToolPrice | null {
+  const same = old.amount === next.amount && old.currency === next.currency && old.cycle === next.cycle;
+  if (same || dayKey(0, Date.parse(old.created_at)).slice(0, 7) >= today.slice(0, 7)) return null;
+  const lastOfPrev = new Date(Date.parse(`${today.slice(0, 7)}-01T00:00:00Z`) - DAY_MS).toISOString().slice(0, 10);
+  return { amount: old.amount, currency: old.currency, cycle: old.cycle, until: lastOfPrev, fx };
+}
+
+/**
  * Cada herramienta como costo fijo mensual (lo anual, prorrateado) desde el mes
- * en que se cargó, para que entre en los costos y el resultado. La cotización es
- * la de hoy; sin ella no se puede convertir una herramienta en pesos.
+ * en que se cargó hasta que se dio de baja, para que entre en los costos y el
+ * resultado. Cada precio viejo cuenta en sus meses con su cotización; el actual,
+ * con la de hoy (sin ella no se puede convertir una herramienta en pesos).
+ * El tramo actual tiene id `tool-<id>`; los viejos, `tool-<id>-<n>`.
  */
 export function toolEntries(tools: Tool[], fx: number): Entry[] {
-  return tools
-    .filter((t) => t.amount > 0 && (t.currency === "USD" || fx > 0))
-    .map((t) => ({
-      id: `tool-${t.id}`,
-      kind: "costo",
-      occurred_on: dayKey(0, Date.parse(t.created_at)),
-      currency: t.currency,
-      amount: Math.round(monthlyIn(t, t.currency, fx) * 100) / 100,
-      fx,
-      category: "herramientas",
-      description: t.cycle === "anual" ? `${t.name} (anual, prorrateado)` : t.name,
-      project_slug: null,
-      recurring: true,
-      until: null,
-      owner: t.owner,
-      status: "pagado",
-      created_by: null,
-      source: "herramienta",
-    }));
+  return tools.flatMap((t) => {
+    let from = dayKey(0, Date.parse(t.created_at));
+    const parts: (ToolPrice & { from: string; id: string })[] = [];
+    (t.prices ?? []).forEach((p, i) => {
+      if (p.until >= from) parts.push({ ...p, from, id: `tool-${t.id}-${i}` });
+      from = new Date(Date.parse(`${p.until}T00:00:00Z`) + DAY_MS).toISOString().slice(0, 10);
+    });
+    if (!t.ended_on || t.ended_on >= from)
+      parts.push({ amount: t.amount, currency: t.currency, cycle: t.cycle, fx, until: t.ended_on ?? "", from, id: `tool-${t.id}` });
+    return parts
+      .filter((p) => p.amount > 0 && (p.currency === "USD" || p.fx > 0))
+      .map((p): Entry => ({
+        id: p.id,
+        kind: "costo",
+        occurred_on: p.from,
+        currency: p.currency,
+        amount: Math.round(monthlyIn(p, p.currency, p.fx) * 100) / 100,
+        fx: p.fx,
+        category: "herramientas",
+        description: p.cycle === "anual" ? `${t.name} (anual, prorrateado)` : t.name,
+        project_slug: null,
+        recurring: true,
+        until: p.until || null,
+        owner: t.owner,
+        status: "pagado",
+        created_by: null,
+        source: "herramienta",
+      }));
+  });
 }
 
 export type CleanedTool = { ok: true; value: ToolInput } | { ok: false; error: string };
