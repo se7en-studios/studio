@@ -43,13 +43,21 @@ const MEETINGS_BACK_DAYS = 90;
  * Lo del negocio que no se arrastra ni se tilda desde el calendario: reuniones con
  * pedidos, cobros esperados (ingresos pendientes) y vencimientos de dominio y SSL.
  */
-function businessEvents(
-  meetings: Meeting[],
-  entries: Entry[],
-  checks: Map<string, SiteCheck>,
-  plans: Plan[],
-  names: Map<string, string>,
-): CalEvent[] {
+type Business = { meetings: Meeting[]; entries: Entry[]; checks: Map<string, SiteCheck>; plans: Plan[]; now: number };
+
+/** Lo del negocio, fuera del render (depende de la hora). Si falta alguna tabla, ese tipo no aparece y el resto sigue. */
+async function loadBusiness(): Promise<Business> {
+  const now = Date.now();
+  const [meetings, entries, checks, plans] = await Promise.all([
+    safe<Meeting[]>(listMeetings(now - MEETINGS_BACK_DAYS * 86_400_000), [], []),
+    safe<Entry[]>(listEntries(), [], []),
+    safe<Map<string, SiteCheck>>(latestChecks(), new Map(), []),
+    safe<Plan[]>(listPlans(), [], []),
+  ]);
+  return { meetings, entries, checks, plans, now };
+}
+
+function businessEvents({ meetings, entries, checks, plans, now }: Business, names: Map<string, string>): CalEvent[] {
   const manual = manualDomains(plans);
   const expiries = [...new Set([...checks.keys(), ...manual.keys()])].flatMap((slug) => {
     const c = checks.get(slug);
@@ -69,7 +77,7 @@ function businessEvents(
       title: `Reunión: ${m.name}`,
       project: null,
       owner: null,
-      done: Date.parse(m.at) < Date.now(),
+      done: Date.parse(m.at) < now,
       detail: timeLabel(m.at),
       href: `/admin/pedidos?pedido=${m.lead_id}`,
     })),
@@ -131,13 +139,7 @@ export default async function CalendarioPage() {
     // Sin la tabla de herramientas el calendario sigue sin renovaciones, sin avisar de más.
     safe<Tool[]>(listTools(), [], []),
   ]);
-  // Lo del negocio: si falta alguna tabla, ese tipo no aparece y el resto sigue.
-  const [meetings, entries, checks, plans] = await Promise.all([
-    safe<Meeting[]>(listMeetings(Date.now() - MEETINGS_BACK_DAYS * 86_400_000), [], []),
-    safe<Entry[]>(listEntries(), [], []),
-    safe<Map<string, SiteCheck>>(latestChecks(), new Map(), []),
-    safe<Plan[]>(listPlans(), [], []),
-  ]);
+  const business = await loadBusiness();
 
   const deliveries: Delivery[] = projects.flatMap((p) => {
     const s = states.get(p.slug) ?? defaultState(p.slug, p.isCase);
@@ -159,7 +161,7 @@ export default async function CalendarioPage() {
     project: projectOfTitle(p.title, projects),
   }));
   const today = dayKey();
-  const extra = businessEvents(meetings, entries, checks, plans, new Map(projects.map((p) => [p.slug, p.name])));
+  const extra = businessEvents(business, new Map(projects.map((p) => [p.slug, p.name])));
 
   return (
     <div className="space-y-6">
