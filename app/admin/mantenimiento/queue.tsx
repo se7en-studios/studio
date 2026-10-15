@@ -232,6 +232,8 @@ export function RequestQueue({
                     </Link>
                     {" · "}
                     {shortDate(r.created_at)}
+                    {/* Sin socio que lo cargó = lo pidió el cliente desde el portal. */}
+                    {!r.created_by && <span className="text-accent"> · del cliente</span>}
                     {r.done_at && ` → hecho ${shortDate(r.done_at)}`}
                     {r.due && (
                       <span className={late ? "text-red-400" : undefined}>

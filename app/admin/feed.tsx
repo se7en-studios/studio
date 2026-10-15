@@ -108,7 +108,7 @@ function Row({
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-[13px] leading-snug text-foreground/80">
-          <span className="font-medium text-foreground">{e.actor ? PEOPLE[e.actor].name : "Alguien"}</span> {e.text}
+          <span className="font-medium text-foreground">{e.actor ? PEOPLE[e.actor].name : e.text.startsWith("«") ? "El cliente" : "Alguien"}</span> {e.text}
           {project && e.project_slug && (
             <>
               {" en "}

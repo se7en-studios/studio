@@ -31,6 +31,7 @@ import { dayKey, type Task, type TaskLinks } from "@/lib/admin/task-shared";
 import { listTasks, taskLinks } from "@/lib/admin/tasks";
 import { listTime } from "@/lib/admin/time";
 import type { TimeEntry } from "@/lib/admin/time-shared";
+import { sharedFileIds } from "@/lib/admin/portal";
 import { EventList } from "../../feed";
 import { Hours } from "../../horas/timer";
 import { Card, CardLink, Face, Progress, StatusPill, TabLinks, btnPrimary, btnSecondary, usd } from "../../kit";
@@ -39,6 +40,7 @@ import { AdminGate, SetupNotice, bytes } from "../../ui";
 import { DeleteProject } from "./delete-project";
 import { FileCard } from "./file-card";
 import { Payments } from "./payments";
+import { PortalApprovals } from "./portal-approvals";
 import { ProjectTasks } from "./project-tasks";
 import { EditInfo, StatePanel } from "./state-panel";
 import { Uploader } from "./uploader";
@@ -119,6 +121,8 @@ export default async function ProjectPage({ params, searchParams }: Props) {
   // En la lista sí funciona, porque ahí listProjects pasa las suyas.
   const files = filesR?.value.length ?? countR?.value ?? 0;
   const base = `/admin/proyectos/${project.slug}`;
+  // Qué archivos ve el cliente en su portal (portal.sql); null = sin la columna, no se muestra el botón.
+  const shared = tab === "archivos" ? await sharedFileIds(slug).catch(() => null) : null;
 
   return (
     <div className="space-y-6">
@@ -243,6 +247,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
               ) : (
                 <Hours slug={project.slug} initial={timeR?.value ?? []} me={me.who} today={dayKey()} />
               )}
+              <PortalApprovals slug={project.slug} />
               {tasksR?.value ? (
                 <ProjectTasks slug={project.slug} tasks={tasksR.value} links={linksR?.value ?? { leads: [], projects: [] }} me={me.who} owner={state.owner} />
               ) : null}
@@ -270,7 +275,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
       {tab === "cambios" &&
         (eventsR?.missing ? <SetupNotice reason={eventsR.missing} /> : <div className="max-w-3xl"><EventList events={eventsR?.value ?? []} names={{}} grouped hideProject /></div>)}
 
-      {tab === "archivos" && <Files project={project} files={filesR?.value ?? []} missing={filesR?.missing ?? null} carpeta={carpeta} base={base} />}
+      {tab === "archivos" && <Files project={project} files={filesR?.value ?? []} missing={filesR?.missing ?? null} carpeta={carpeta} base={base} shared={shared} />}
     </div>
   );
 }
@@ -281,12 +286,14 @@ function Files({
   missing,
   carpeta,
   base,
+  shared,
 }: {
   project: NonNullable<Awaited<ReturnType<typeof getProject>>>;
   files: PanelFile[];
   missing: string | null;
   carpeta?: string;
   base: string;
+  shared: Set<string> | null;
 }) {
   const current = carpeta === WEB && project.isCase ? WEB : carpeta && isFolder(carpeta) ? carpeta : null;
   const visible = current ? files.filter((f) => f.folder === current) : files;
@@ -357,6 +364,7 @@ function Files({
               key={f.id}
               file={f}
               folder={current ? undefined : folderLabel(f.folder)}
+              shared={shared ? shared.has(f.id) : undefined}
               meta={[bytes(f.size), f.uploaded_by && PEOPLE[f.uploaded_by].name, ago(f.created_at)].filter(Boolean).join(" · ")}
             />
           ))}

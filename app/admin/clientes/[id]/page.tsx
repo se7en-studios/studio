@@ -51,6 +51,7 @@ import {
   DeleteClient,
   ProjectLinks,
 } from "./client-parts";
+import { PortalCard } from "./portal-card";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -328,6 +329,8 @@ export default async function ClientPage({ params }: Props) {
           >
             <AccountLinks clientId={client.id} initial={accounts} />
           </Card>
+
+          <PortalCard clientId={client.id} whatsapp={client.whatsapp} name={client.contact || client.name} />
         </div>
       </div>
 
