@@ -34,7 +34,14 @@ assert.throws(() => crypto.decrypt(sealed, aad.replace("secret", "notes"), key),
 // Otra llave, o un dato alterado, no abren nada.
 assert.throws(() => crypto.decrypt(sealed, aad, Buffer.alloc(32, 8)), /No se pudo descifrar/);
 const [v, iv, tag, data] = sealed.split(".");
-const flipped = data.slice(0, -2) + (data.endsWith("A") ? "B" : "A") + data.slice(-1);
+// Se invierte un bit del primer byte: siempre cambia el dato (cambiar una letra del
+// base64 a veces no, si cae en los bits de relleno o ya era esa letra).
+const flipByte = (b64) => {
+  const buf = Buffer.from(b64, "base64url");
+  buf[0] ^= 1;
+  return buf.toString("base64url");
+};
+const flipped = flipByte(data);
 assert.throws(() => crypto.decrypt([v, iv, tag, flipped].join("."), aad, key));
 assert.throws(() => crypto.decrypt("basura", aad, key), /inválido/);
 // Un tag recortado o un IV de otro largo no se aceptan (GCM sin largo fijo permitiría tags cortos).
@@ -94,7 +101,7 @@ assert.ok(bk.isEncryptedBackup(box));
 assert.ok(!box.data.includes("Ana"));
 assert.equal(bk.decryptBackup(box, "una frase bastante larga"), json);
 assert.throws(() => bk.decryptBackup(box, "otra frase bastante larga"), /No se pudo descifrar/);
-assert.throws(() => bk.decryptBackup({ ...box, data: box.data.slice(0, -4) + "AAAA" }, "una frase bastante larga"), /No se pudo descifrar/);
+assert.throws(() => bk.decryptBackup({ ...box, data: box.data.split(".").map((p, i) => (i === 3 ? flipByte(p) : p)).join(".") }, "una frase bastante larga"), /No se pudo descifrar/);
 assert.throws(() => bk.encryptBackup(json, "corta", "x"), /12 caracteres/);
 assert.throws(() => bk.decryptBackup({ ...box, kdf: { ...box.kdf, N: 1 << 24 } }, "x"), /inválido/);
 
