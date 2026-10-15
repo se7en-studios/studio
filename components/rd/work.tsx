@@ -241,7 +241,7 @@ function Card({
       </div>
       <div
         className={`relative mx-3 overflow-hidden rounded-[1.4rem] bg-(--ink-3) ${
-          pinned ? "flex-1" : "aspect-[16/10]"
+          pinned ? "flex-1" : "aspect-[4/3] md:aspect-[16/10]"
         }`}
       >
         <Image
@@ -290,7 +290,7 @@ function Card({
           >
             {project.name}
           </h3>
-          <p className="rd-body mt-2 truncate text-sm text-(--paper)/70 md:text-base">
+          <p className="rd-body mt-2 text-sm text-(--paper)/70 md:truncate md:text-base">
             {before}
             {highlight && <span style={{ color: accent }}>{highlight}</span>}
             {after}
