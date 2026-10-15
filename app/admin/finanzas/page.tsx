@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { panelSession } from "@/lib/admin/auth";
-import { listCobros, listEntries } from "@/lib/admin/finance";
+import { listCobros, listEntries, listTaxCategories } from "@/lib/admin/finance";
 import type { Entry } from "@/lib/admin/finance-shared";
 import { fetchRates, referenceRate } from "@/lib/admin/fx";
 import {
@@ -16,6 +16,7 @@ import { listTools } from "@/lib/admin/tools";
 import { dayKey } from "@/lib/admin/task-shared";
 import { AdminGate, PageHeader, SetupNotice } from "../ui";
 import { FinanceSetup } from "./setup";
+import { TABS } from "./tabs";
 import { FinanceView } from "./view";
 
 export const metadata: Metadata = { title: "Finanzas" };
@@ -34,11 +35,11 @@ async function optional<T>(p: Promise<T>, fallback: T): Promise<T> {
 export default async function FinanzasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ nuevo?: string }>;
+  searchParams: Promise<{ nuevo?: string; tab?: string }>;
 }) {
   const me = await panelSession();
   if (!me) return <AdminGate />;
-  const { nuevo } = await searchParams;
+  const { nuevo, tab } = await searchParams;
 
   const rates = await fetchRates();
   let manual: Entry[] = [];
@@ -53,11 +54,12 @@ export default async function FinanzasPage({
   // Sin cotización del día, los cobros se convierten con la del último movimiento cargado a mano.
   const fx =
     referenceRate(rates) || (manual.find((m) => m.currency === "ARS")?.fx ?? 0);
-  const [cobros, projects, states, tools] = await Promise.all([
+  const [cobros, projects, states, tools, taxCategories] = await Promise.all([
     optional(listCobros(fx), [] as Entry[]),
     optional(listProjects(), caseProjects() as PanelProject[]),
     optional(listStates(), null),
     optional(listTools(), null),
+    optional(listTaxCategories(), null),
   ]);
 
   // Monto acordado y etapa de cada proyecto: con eso y los ingresos, la vista
@@ -92,6 +94,8 @@ export default async function FinanzasPage({
           today={dayKey()}
           me={me.who}
           initialAdd={nuevo === "1"}
+          initialTab={TABS.find((t) => t === tab) ?? "resumen"}
+          taxCategories={taxCategories}
         />
       )}
     </div>

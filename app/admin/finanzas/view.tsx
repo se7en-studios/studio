@@ -18,6 +18,7 @@ import {
   fmt,
   forPartner,
   groupTotals,
+  isWithdrawal,
   margin,
   periodMonths,
   pick,
@@ -30,6 +31,7 @@ import {
   type Period,
 } from "@/lib/admin/finance-shared";
 import type { LeadOwner } from "@/lib/admin/db";
+import type { TaxCategory } from "@/lib/admin/plata-shared";
 import { paymentToEntry, receivables, type Billable, type Payment } from "@/lib/admin/payment-shared";
 import { toolEntries, type Tool } from "@/lib/admin/tool-shared";
 import type { Rates } from "@/lib/admin/fx";
@@ -52,6 +54,8 @@ import { Partners } from "./partners";
 import { PaymentForm } from "./payment-form";
 import { OWNER_LABEL } from "./owner";
 import { Pending, type OwedProject } from "./pending";
+import { Collections, TaxMeters } from "./plata";
+import type { Tab } from "./tabs";
 import { ByOwner, SummaryTable } from "./summary-table";
 import { Tools } from "./tools";
 
@@ -60,8 +64,7 @@ const NO_PROJECT = "__sin-proyecto";
 // ponytail: apagada por ahora, hay costos individuales de cada socio. Poner en true para volver a ver quién le debe a quién (todo a 50/50).
 const SHOW_PARTNERS = false;
 const PERIOD_IDS = PERIODS.map((p) => p.id);
-const TABS = ["resumen", "movimientos", "pendientes", "herramientas"] as const;
-type Tab = (typeof TABS)[number];
+
 
 type Props = {
   entries: Entry[];
@@ -78,6 +81,10 @@ type Props = {
   me: LeadOwner;
   /** Desde un link (?nuevo=1): abre el formulario de alta. */
   initialAdd?: boolean;
+  /** La pestaña de ?tab= (link directo a Pendientes, etc.). */
+  initialTab: Tab;
+  /** Categoría de monotributo de cada socio; null si falta finance-v5.sql. */
+  taxCategories: Partial<Record<LeadOwner, TaxCategory>> | null;
 };
 
 export function FinanceView({
@@ -90,6 +97,8 @@ export function FinanceView({
   today,
   me,
   initialAdd = false,
+  initialTab,
+  taxCategories,
 }: Props) {
   const flash = useToast();
   const [items, setItems] = useState(entries);
@@ -106,10 +115,19 @@ export function FinanceView({
   const [project, setProject] = useState("todos");
   // De quién: cada uno ve lo suyo (sus costos individuales) o todo junto.
   const [who, setWho] = useState<"todos" | Owner>("todos");
-  const [tab, setTab] = useStoredChoice<Tab>("panel:finanzas:vista", "resumen", TABS);
+  // La pestaña va en la URL (?tab=pendientes): se puede pasar el link o volver con atrás.
+  const [tab, setTabState] = useState<Tab>(initialTab);
+  function setTab(next: Tab) {
+    setTabState(next);
+    const url = new URL(window.location.href);
+    if (next === "resumen") url.searchParams.delete("tab");
+    else url.searchParams.set("tab", next);
+    window.history.replaceState(null, "", url);
+  }
   const [copyFrom, setCopyFrom] = useState<Entry | null>(null);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [toolList, setToolList] = useState(tools ?? []);
+  const activeTools = toolList.filter((t) => !t.ended_on);
   const [editing, setEditing] = useState<Entry | null>(null);
   const [editingTool, setEditingTool] = useState<Tool | "new" | null>(null);
   const [adding, setAdding] = useState<"movimiento" | "pendiente" | null>(
@@ -170,6 +188,8 @@ export function FinanceView({
   const evenSplit = Math.abs(split.franco.in - split.federico.in) < 1;
   const result = ingreso - costo;
   const pendingItems = scoped.filter((e) => e.status === "pendiente");
+  // Ingresos recurrentes (finance-v5.sql): no cuentan solos, cada mes generan un pendiente.
+  const plans = scoped.filter((e) => e.plan);
   // Lo que falta cobrar, con la misma cuenta que Inicio y la ficha del proyecto.
   // Se calcula sobre los movimientos sin filtrar: cobrar no es de un socio en particular.
   const owing = useMemo(() => receivables(billable, items, today), [billable, items, today]);
@@ -193,7 +213,7 @@ export function FinanceView({
 
   const costRows = [
     ...groupTotals(
-      occ.filter((o) => o.entry.kind === "costo"),
+      occ.filter((o) => o.entry.kind === "costo" && !isWithdrawal(o.entry)),
       (o) => o.entry.category,
     ),
   ].map(([key, t]) => ({
@@ -233,6 +253,7 @@ export function FinanceView({
     });
   }
 
+  // Dada de baja (finance-v5.sql) sigue en la lista interna: sus meses pagados siguen siendo costo.
   function removeTool(id: string) {
     const before = toolList;
     setToolList((xs) => xs.filter((x) => x.id !== id));
@@ -241,7 +262,13 @@ export function FinanceView({
       if (res.error) {
         setToolList(before);
         flash(res.error, "error");
-      } else flash("Herramienta quitada", "ok");
+        return;
+      }
+      if (res.ended_on) {
+        const ended_on = res.ended_on;
+        setToolList(before.map((x) => (x.id === id ? { ...x, ended_on } : x)));
+      }
+      flash("Herramienta quitada", "ok");
     });
   }
 
@@ -251,7 +278,8 @@ export function FinanceView({
 
   function editRow(shown: Entry) {
     const e = original(shown);
-    const tool = toolList.find((t) => `tool-${t.id}` === e.id);
+    // Un precio viejo (`tool-<id>-<n>`) también abre la herramienta.
+    const tool = toolList.find((t) => e.id.startsWith(`tool-${t.id}`));
     if (tool) return setEditingTool(tool);
     if (e.source === "cobro")
       return setEditingPayment({
@@ -280,7 +308,7 @@ export function FinanceView({
   }
 
   function remove(id: string) {
-    if (id.startsWith("tool-")) return removeTool(id.slice(5));
+    if (id.startsWith("tool-")) return removeTool(id.slice(5, 41));
     if (id.startsWith("cobro-")) return removeCobro(id);
     const before = items;
     setItems((xs) => xs.filter((x) => x.id !== id));
@@ -406,9 +434,17 @@ export function FinanceView({
           value={fmt(result, currency)}
           tone={result < 0 ? "red" : result > 0 ? "green" : undefined}
           hint={
-            margin(ingreso, costo) === null
-              ? `≈ ${fmt(otherTot.ingreso - otherTot.costo, other)}`
-              : `Margen ${margin(ingreso, costo)}% · ≈ ${fmt(otherTot.ingreso - otherTot.costo, other)}`
+            <>
+              <span className="block truncate">
+                {margin(ingreso, costo) === null
+                  ? `≈ ${fmt(otherTot.ingreso - otherTot.costo, other)}`
+                  : `Margen ${margin(ingreso, costo)}% · ≈ ${fmt(otherTot.ingreso - otherTot.costo, other)}`}
+              </span>
+              {/* Los retiros no son costo: se muestran aparte, no restan del resultado. */}
+              {pick(tot, currency).retiro > 0 && (
+                <span className="block truncate">Retiros de socios: {fmt(pick(tot, currency).retiro, currency)}</span>
+              )}
+            </>
           }
         />
         <Kpi
@@ -441,7 +477,7 @@ export function FinanceView({
             id: "pendientes",
             label: `Pendientes (${pendingItems.length + owedShown.length})`,
           },
-          { id: "herramientas", label: `Herramientas (${toolList.length})` },
+          { id: "herramientas", label: `Herramientas (${activeTools.length})` },
         ]}
       />
 
@@ -464,6 +500,7 @@ export function FinanceView({
               tone="ingreso"
             />
           </div>
+          <TaxMeters entries={items} today={today} categories={taxCategories} />
           {SHOW_PARTNERS && (
             <Partners occ={occ} currency={currency} result={result} />
           )}
@@ -483,8 +520,11 @@ export function FinanceView({
       )}
 
       {tab === "pendientes" && (
+        <div className="space-y-4">
+        <Collections entries={scoped} today={today} />
         <Pending
           entries={pendingItems}
+          plans={plans}
           owed={owedShown}
           today={today}
           projectName={projectName}
@@ -492,11 +532,12 @@ export function FinanceView({
           onEdit={(e) => setEditing(original(e))}
           onAdd={() => setAdding("pendiente")}
         />
+        </div>
       )}
 
       {tab === "herramientas" && (
         <Tools
-          list={tools === null ? null : toolList}
+          list={tools === null ? null : activeTools}
           setList={setToolList}
           editing={editingTool}
           setEditing={setEditingTool}
@@ -571,6 +612,8 @@ function downloadCsv(
     "Se repite",
     "Hasta",
     "Origen",
+    "Fuente cotización",
+    "Vencimiento",
   ];
   const rows = entries.map((e) => [
     e.occurred_on,
@@ -590,6 +633,8 @@ function downloadCsv(
       : e.source === "herramienta"
         ? "herramienta"
         : "manual",
+    e.fx_source ?? "",
+    e.due_on ?? "",
   ]);
   // BOM: sin él Excel abre los acentos rotos.
   const blob = new Blob(
