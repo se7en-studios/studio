@@ -219,9 +219,9 @@ export default async function AdminHome() {
           value={fixedIncome ? usdShort(fixedIncome.usd) : "—"}
           href="/admin/mantenimiento"
           hint={
-            fixedIncome
+            fixedIncome?.sites
               ? `${fixedIncome.sites} ${fixedIncome.sites === 1 ? "abono" : "abonos"} por mes · ${active.length} en curso`
-              : `${maintenance.length} en mantenimiento · ${projects.length} proyectos`
+              : `Cargá los abonos en Mantenimiento`
           }
           icon={<Repeat size={14} />}
         />
