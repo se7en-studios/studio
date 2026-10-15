@@ -92,6 +92,26 @@ export function RdFooter() {
           >
             WhatsApp
           </a>
+          {SITE.social.instagram && (
+            <a
+              href={SITE.social.instagram}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rd-link"
+            >
+              Instagram
+            </a>
+          )}
+          {SITE.social.linkedin && (
+            <a
+              href={SITE.social.linkedin}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rd-link"
+            >
+              LinkedIn
+            </a>
+          )}
           {/* El sitio anterior ya no es la home. */}
           <Link href="/services" className="rd-link">
             Sitio actual
