@@ -239,6 +239,11 @@ assert.deepEqual(pl.missingDues(had, "2026-10-14").map((d) => d.series), ["plan1
 // Con «hasta», no pasa de ese mes; un recurrente sin plan (sin finance-v5.sql) no genera nada.
 assert.equal(pl.missingDues([{ ...abono, until: "2026-09-15" }], "2026-12-01").length, 2);
 assert.equal(pl.missingDues([{ ...abono, plan: false }], "2026-12-01").length, 0);
+// Si el proyecto tiene plan en Mantenimiento, ese módulo genera el cobro: el recurrente de «mantenimiento» no genera otro.
+const abonoMant = { ...abono, category: "mantenimiento" };
+assert.equal(pl.missingDues([abonoMant], "2026-10-14", new Set(["muzzaga"])).length, 0);
+assert.equal(pl.missingDues([abonoMant], "2026-10-14", new Set(["otro"])).length, 3);
+assert.equal(pl.missingDues([abono], "2026-10-14", new Set(["muzzaga"])).length, 3);
 // La forma que usa Mantenimiento: clave propia por sitio.
 const mant = pl.monthlyDues(
   { key: "abono:apex", start: "2026-10-10", until: null, entry: { kind: "ingreso", currency: "USD", amount: 80, fx: 1500, category: "mantenimiento", description: "Abono", project_slug: "apex", owner: "ambos" } },

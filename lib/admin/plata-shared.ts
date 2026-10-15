@@ -95,10 +95,15 @@ export function planOf(e: Entry): MonthlyPlan {
 }
 
 /** Los pendientes de los planes de Finanzas que faltan generar hasta hoy. */
-export function missingDues(entries: Entry[], today: string): EntryInput[] {
+/**
+ * `abonos`: proyectos con plan en Mantenimiento. Ese módulo genera su cobro del
+ * mes, así que un ingreso recurrente de «mantenimiento» del mismo proyecto no
+ * genera otro (si no, se cobraría dos veces).
+ */
+export function missingDues(entries: Entry[], today: string, abonos: ReadonlySet<string> = new Set()): EntryInput[] {
   const have = new Set(entries.map((e) => e.series).filter(Boolean));
   return entries
-    .filter((e) => e.plan)
+    .filter((e) => e.plan && !(e.category === "mantenimiento" && e.project_slug && abonos.has(e.project_slug)))
     .flatMap((e) => monthlyDues(planOf(e), today))
     .filter((d) => !have.has(d.series));
 }

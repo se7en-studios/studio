@@ -66,10 +66,17 @@ const select = (columns: string, slug?: string) => {
  * y la ficha los ven igual sin depender de quién abrió qué primero.
  */
 export async function listEntries(slug?: string): Promise<Entry[]> {
-  const entries = await readEntries(slug);
-  const due = missingDues(entries, dayKey());
+  const [entries, abonos] = await Promise.all([readEntries(slug), maintenanceSlugs()]);
+  const due = missingDues(entries, dayKey(), abonos);
   if (!due.length) return entries;
   return (await insertDues(due)) ? readEntries(slug) : entries;
+}
+
+/** Proyectos con plan activo en Mantenimiento; vacío si falta maintenance.sql. */
+async function maintenanceSlugs(): Promise<Set<string>> {
+  const { data, error } = await client().from("panel_maintenance_plans").select("project_slug").eq("active", true);
+  if (error) return new Set();
+  return new Set((data as { project_slug: string }[]).map((r) => r.project_slug));
 }
 
 async function readEntries(slug?: string): Promise<Entry[]> {
@@ -134,7 +141,8 @@ async function write(
   return res.data ? toEntry(res.data as Row) : null;
 }
 
-export async function insertEntry(input: EntryInput, by: LeadOwner): Promise<Entry> {
+/** `by` es null cuando lo genera el sistema (cobros de mantenimiento). */
+export async function insertEntry(input: EntryInput, by: LeadOwner | null): Promise<Entry> {
   const entry = await write(
     (row, columns) => client().from("panel_finance").insert(row).select(columns).single(),
     { ...input, created_by: by },

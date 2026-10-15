@@ -3,7 +3,7 @@
 // componente de cliente.
 import { monthLabel } from "./calendar-shared";
 import type { LeadOwner } from "./db";
-import { currentFx } from "./finance";
+import { currentFx, insertEntry } from "./finance";
 import { cleanEntry, type Entry } from "./finance-shared";
 import {
   dueCharges,
@@ -166,7 +166,7 @@ export async function ensureCharges(today: string): Promise<number> {
   const due = dueCharges(plans, done, today);
   if (!due.length) return 0;
 
-  const fx = await currentFx();
+  const { fx, source } = await currentFx();
   if (!fx) {
     console.error(
       "[mantenimiento] sin cotización: los cobros del mes se generan en la próxima visita.",
@@ -181,6 +181,7 @@ export async function ensureCharges(today: string): Promise<number> {
       currency: d.currency,
       amount: d.amount,
       fx,
+      fx_source: source,
       occurred_on: d.due_on,
       description: `Abono de ${monthLabel(d.period)}`,
       project_slug: d.project_slug,
@@ -207,24 +208,24 @@ export async function ensureCharges(today: string): Promise<number> {
       .select("project_slug");
     if (claim.error) fail(claim.error);
     if (!claim.data?.length) continue;
-    const ins = await c
-      .from("panel_finance")
-      .insert({ ...entry.value, created_by: null })
-      .select("id")
-      .single();
-    if (ins.error) {
+    // insertEntry reintenta sin las columnas de finance-v5.sql si todavía no se corrió.
+    const ins = await insertEntry(entry.value, null).then(
+      (data) => ({ data, error: null }),
+      (e: unknown) => ({ data: null, error: { message: e instanceof Error ? e.message : String(e) } }),
+    );
+    if (ins.error || !ins.data) {
       // Sin el ingreso, se libera el mes para reintentar en la próxima.
       await c
         .from("panel_maintenance_charges")
         .delete()
         .eq("project_slug", d.project_slug)
         .eq("period", d.period);
-      console.error("[mantenimiento] generar cobro:", ins.error.message);
+      console.error("[mantenimiento] generar cobro:", ins.error?.message);
       continue;
     }
     const link = await c
       .from("panel_maintenance_charges")
-      .update({ finance_id: (ins.data as { id: string }).id })
+      .update({ finance_id: ins.data.id })
       .eq("project_slug", d.project_slug)
       .eq("period", d.period);
     if (link.error)
