@@ -42,7 +42,10 @@ export async function login(_: LoginState, form: FormData): Promise<LoginState> 
   if (await isLimitedStrict("admin_login", ip, MAX_LOGIN_ATTEMPTS + 1, LOCKOUT_WINDOW_MS)) {
     return { error: "Demasiados intentos fallidos. Probá de nuevo en 15 minutos." };
   }
-  if (!checkPassword(pass, who)) return { error: "Contraseña incorrecta." };
+  if (!checkPassword(pass, who)) {
+    after(() => logEvent({ actor: who, kind: "seguridad", text: "no pudo entrar al panel (contraseña incorrecta)" }));
+    return { error: "Contraseña incorrecta." };
+  }
   // Segundo paso: con la contraseña bien, se pide el código de la app (si tiene uno activado).
   if (hasTotp(who)) {
     const code = String(form.get("code") ?? "").trim();
@@ -51,11 +54,15 @@ export async function login(_: LoginState, form: FormData): Promise<LoginState> 
     if (await isLimitedStrict("admin_totp", who, MAX_CODE_ATTEMPTS + 1, LOCKOUT_WINDOW_MS)) {
       return { needCode: true, error: "Demasiados códigos incorrectos en esta cuenta. Probá de nuevo en 15 minutos." };
     }
-    if (!checkTotp(who, code)) return { needCode: true, error: "Código incorrecto o vencido." };
+    if (!checkTotp(who, code)) {
+      after(() => logEvent({ actor: who, kind: "seguridad", text: "no pudo entrar al panel (código incorrecto)" }));
+      return { needCode: true, error: "Código incorrecto o vencido." };
+    }
     await clearHits("admin_totp", who);
   }
   await clearHits("admin_login", ip);
   await startSession(who);
+  after(() => logEvent({ actor: who, kind: "seguridad", text: "entró al panel" }));
   // Acá sí: el layout tiene que pasar de la pantalla de login al panel.
   revalidatePath("/admin", "layout");
   return {};

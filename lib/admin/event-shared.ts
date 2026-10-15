@@ -18,6 +18,9 @@ export type EventKind = (typeof EVENT_KINDS)[number];
 export const LEGACY_KINDS: readonly EventKind[] = ["archivos", "proyecto", "pedido", "tarea"];
 
 /**
+ * (Los ingresos al panel y el corte de sesiones también se reclasifican en
+ * supabase/security-v2.sql.)
+ *
  * Antes de los tipos nuevos, Finanzas, Cuentas, Contenido, Llamadas y la copia
  * de seguridad se anotaban como «proyecto». Por el texto se sabe qué eran. Son
  * las mismas reglas con las que supabase/panel-v3.sql reclasifica los viejos:
@@ -28,7 +31,7 @@ const BY_TEXT: [EventKind, RegExp][] = [
   ["cuentas", / (en|de) Cuentas$/],
   ["contenido", / en Instagram$/],
   ["llamadas", /^llamó a .+ por Meet$/],
-  ["seguridad", /^descargó una copia de seguridad/],
+  ["seguridad", /^(descargó una copia de seguridad|entró al panel|no pudo entrar al panel|cerró todas las sesiones)/],
 ];
 
 /** El tipo real de un evento. Sólo los «proyecto» pueden ser otra cosa anotada con el tipo viejo. */
