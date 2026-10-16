@@ -52,7 +52,7 @@ export default async function MarcaPage() {
               <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3">
                 <span>
                   <span className="block text-sm text-foreground">{l.label}</span>
-                  <span className="text-[11px] font-medium tracking-wide text-muted uppercase">PNG · {l.size}</span>
+                  <span className="font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">PNG · {l.size}</span>
                 </span>
                 <a
                   href={l.src}
@@ -135,7 +135,7 @@ export default async function MarcaPage() {
 function SectionTitle({ children, hint }: { children: React.ReactNode; hint?: string }) {
   return (
     <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-      <h2 className="text-xl text-foreground">{children}</h2>
+      <h2 className="adm-title text-[18px] text-foreground">{children}</h2>
       {hint && <p className="text-xs text-muted">{hint}</p>}
     </div>
   );

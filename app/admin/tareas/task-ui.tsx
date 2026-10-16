@@ -291,7 +291,7 @@ export function LinkPicker({
 }
 
 const Label = ({ children }: { children: React.ReactNode }) => (
-  <p className="mb-1.5 text-[11px] font-medium tracking-wide text-muted uppercase">
+  <p className="mb-1.5 font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">
     {children}
   </p>
 );

@@ -151,7 +151,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
               <span className="rounded-md bg-emerald-400/10 px-1.5 py-0.5 text-[11px] text-emerald-300 ring-1 ring-emerald-400/20 ring-inset">En la web</span>
             )}
           </div>
-          <h1 className="mt-2 flex items-center gap-3 text-[26px] leading-[1.1] font-semibold tracking-[-0.03em] md:text-[32px]">
+          <h1 className="adm-display mt-2 flex items-center gap-3 text-[clamp(30px,4.2vw,52px)]">
             <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: project.accent }} />
             {project.name}
           </h1>
@@ -159,13 +159,13 @@ export default async function ProjectPage({ params, searchParams }: Props) {
 
           <dl className="mt-5 grid max-w-2xl grid-cols-2 gap-x-6 gap-y-3 rounded-xl border border-[var(--line)] bg-[var(--well-soft)] p-4 sm:grid-cols-4">
             <div>
-              <dt className="text-[11px] font-medium tracking-[0.1em] text-muted uppercase">Responsable</dt>
+              <dt className="font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">Responsable</dt>
               <dd className="mt-1 flex items-center gap-1.5 text-[13px]">
                 <Face who={state.owner} size={20} /> {state.owner ? PEOPLE[state.owner].name : "Sin asignar"}
               </dd>
             </div>
             <div>
-              <dt className="text-[11px] font-medium tracking-[0.1em] text-muted uppercase">Avance</dt>
+              <dt className="font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">Avance</dt>
               <dd className="mt-1.5 flex items-center gap-2 text-[13px] tabular-nums">
                 <span className="w-16">
                   <Progress value={state.progress} accent={project.accent} />
@@ -174,13 +174,13 @@ export default async function ProjectPage({ params, searchParams }: Props) {
               </dd>
             </div>
             <div>
-              <dt className="text-[11px] font-medium tracking-[0.1em] text-muted uppercase">Entrega</dt>
+              <dt className="font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">Entrega</dt>
               <dd className="mt-1 text-[13px]">
                 {state.due ? new Date(`${state.due}T12:00:00`).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" }) : "—"}
               </dd>
             </div>
             <div>
-              <dt className="text-[11px] font-medium tracking-[0.1em] text-muted uppercase">Monto</dt>
+              <dt className="font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">Monto</dt>
               <dd className="mt-1 text-[13px]">{usd(state.budget)}</dd>
             </div>
           </dl>

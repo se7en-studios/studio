@@ -9,7 +9,7 @@ export default function AdminNotFound() {
       <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--line-strong)] bg-white/[0.04] text-muted">
         <SearchX size={22} />
       </span>
-      <h1 className="text-[20px] font-semibold tracking-[-0.01em]">
+      <h1 className="adm-display text-[28px]">
         No encontramos eso
       </h1>
       <p className="mt-2 text-[14px] text-muted">

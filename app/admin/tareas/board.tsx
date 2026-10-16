@@ -215,7 +215,7 @@ export function TasksBoard({
             return (
               <section key={b.id}>
                 <h2
-                  className={`mb-2 flex items-baseline gap-2 px-1 text-[11px] font-semibold tracking-[0.12em] uppercase ${
+                  className={`mb-2 flex items-baseline gap-2 px-1 font-mono text-[10.5px] tracking-[0.13em] uppercase ${
                     b.id === "vencidas"
                       ? "text-red-400"
                       : b.id === "hoy"

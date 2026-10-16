@@ -74,7 +74,7 @@ export function DayEvents({
         if (!rows.length) return null;
         return (
           <section key={s.type}>
-            <h3 className="mb-1.5 text-[11px] font-medium tracking-wide text-muted uppercase">
+            <h3 className="mb-1.5 font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">
               {s.label}
             </h3>
             <ul className="divide-y divide-[var(--line)] overflow-hidden rounded-lg border border-[var(--line)]">

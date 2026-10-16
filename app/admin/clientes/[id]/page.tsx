@@ -134,7 +134,7 @@ export default async function ClientPage({ params }: Props) {
 
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-[26px] leading-[1.1] font-semibold tracking-[-0.03em] md:text-[32px]">
+          <h1 className="adm-display text-[clamp(30px,4.2vw,52px)] text-balance">
             {client.name}
           </h1>
           <p className="mt-1.5 text-[14px] text-muted">

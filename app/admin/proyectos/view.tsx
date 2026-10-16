@@ -185,7 +185,7 @@ export function ProjectsView({
                 >
                   <header className="flex items-center gap-2 px-1.5 pt-1 pb-2.5">
                     <span className={cn("h-2 w-2 rounded-full", PROJECT_STATUS[st].dot)} />
-                    <h2 className="text-[13px] font-semibold">{PROJECT_STATUS[st].label}</h2>
+                    <h2 className="adm-title text-[12px]">{PROJECT_STATUS[st].label}</h2>
                     <span className="rounded-full bg-white/[0.06] px-1.5 py-px font-mono text-[11px] text-muted">{items.length}</span>
                   </header>
                   {items.length ? (

@@ -209,7 +209,8 @@ export function AdminShell({
                 {total > 0 && <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-accent" />}
               </button>
               <Image src="/logo-simbolo.png" alt="" width={22} height={22} className="h-[22px] w-[22px]" />
-              <span className="text-[13px] font-medium">Se7en · Panel</span>
+              <Wordmark className="text-[16px]" />
+              <span className="adm-label">Panel</span>
               <button onClick={() => setPalette(true)} aria-label="Buscar" className="focus-ring ml-auto rounded-lg p-2 text-muted hover:text-foreground">
                 <Search size={18} />
               </button>
@@ -250,20 +251,16 @@ function Sidebar({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--line-strong)] bg-gradient-to-b from-white/[0.08] to-transparent shadow-[0_0_18px_-4px_var(--accent)]">
-          <Image src="/logo-simbolo.png" alt="" width={20} height={20} className="h-5 w-5" />
-        </span>
-        <span className="min-w-0 leading-tight">
-          <span className="block truncate text-[13px] font-semibold">Se7en Studio</span>
-          <span className="block text-[11px] text-muted">Panel del equipo</span>
-        </span>
+      <div className="flex items-center gap-2.5 px-5 pt-5 pb-4">
+        <Image src="/logo-simbolo.png" alt="" width={26} height={26} className="h-[26px] w-[26px]" />
+        <Wordmark className="text-[19px]" />
+        <span className="adm-label ml-auto">Panel</span>
       </div>
 
       <div className="px-3">
         <button
           onClick={onSearch}
-          className="focus-ring flex w-full items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--well-soft)] px-2.5 py-2 text-[13px] text-muted transition-colors hover:border-[var(--line-strong)] hover:text-foreground"
+          className="focus-ring flex w-full items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--well-soft)] py-2 pr-2 pl-3 text-[13px] text-muted transition-colors hover:border-[var(--line-strong)] hover:text-foreground"
         >
           <Search size={14} />
           Buscar o saltar a…
@@ -277,7 +274,7 @@ function Sidebar({
       <nav aria-label="Secciones del panel" className="admin-scroll mt-4 flex-1 overflow-y-auto px-3">
         {NAV.map((group, gi) => (
           <div key={group.title ?? gi} className="mb-5">
-            {group.title && <p className="mb-1.5 px-2.5 text-[11px] font-medium tracking-[0.12em] text-muted uppercase">{group.title}</p>}
+            {group.title && <p className="adm-label mb-1.5 px-2.5">{group.title}</p>}
             <ul className="space-y-px">
               {group.items.map((item) => {
                 const on = isActive(item.href);
@@ -288,19 +285,18 @@ function Sidebar({
                       href={item.href}
                       aria-current={on ? "page" : undefined}
                       className={cn(
-                        "focus-ring group relative flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[14px] transition-colors",
-                        on ? "bg-white/[0.07] font-medium text-foreground" : "text-muted hover:bg-white/[0.04] hover:text-foreground",
+                        "focus-ring group relative flex items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-[14px] transition-colors",
+                        on ? "bg-foreground font-medium text-background" : "text-muted hover:bg-white/[0.04] hover:text-foreground",
                       )}
                     >
-                      {on && <span aria-hidden className="absolute top-1.5 bottom-1.5 -left-3 w-[3px] rounded-r-full bg-accent shadow-[0_0_10px_var(--accent)]" />}
-                      <span className={cn("transition-colors", on ? "text-accent" : "text-muted group-hover:text-foreground")}>{item.icon}</span>
+                      <span className={cn("transition-colors", on ? "text-background" : "text-muted group-hover:text-foreground")}>{item.icon}</span>
                       {item.label}
                       <Pending />
                       {n > 0 && (
                         <span
                           className={cn(
                             "ml-auto min-w-[20px] rounded-full px-1.5 py-px text-center font-mono text-[11px] font-medium",
-                            item.tone === "red" ? "bg-red-500/15 text-red-300" : "bg-accent text-background",
+                            item.tone === "red" ? "bg-red-500 text-white" : "bg-accent text-background",
                           )}
                         >
                           {n}
@@ -324,7 +320,7 @@ function Sidebar({
         <RunningTimer className="mb-2" />
         <Link
           href="/"
-          className="focus-ring mb-1 flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground"
+          className="focus-ring mb-1 flex items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-[13px] text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground"
         >
           <ArrowUpRight size={16} /> Ver el sitio
         </Link>
@@ -332,17 +328,17 @@ function Sidebar({
           href="/admin/ajustes"
           aria-current={inSettings ? "page" : undefined}
           className={cn(
-            "focus-ring mb-1 flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] transition-colors",
-            inSettings ? "bg-white/[0.07] font-medium text-foreground" : "text-muted hover:bg-white/[0.04] hover:text-foreground",
+            "focus-ring mb-1 flex items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-[13px] transition-colors",
+            inSettings ? "bg-foreground font-medium text-background" : "text-muted hover:bg-white/[0.04] hover:text-foreground",
           )}
         >
           <Settings size={16} /> Ajustes
           <Pending />
         </Link>
-        <div className="flex items-center gap-2.5 rounded-lg border border-[var(--line)] bg-white/[0.02] px-2 py-1.5">
+        <div className="flex items-center gap-2.5 rounded-xl border border-[var(--line)] px-2 py-2">
           <span className="relative">
             <Face who={who} size={28} />
-            <span className="absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--panel-0)] bg-emerald-400" />
+            <span className="absolute -right-0.5 bottom-0 h-2.5 w-2.5 rounded-full border-2 border-[var(--panel-0)] bg-emerald-400" />
           </span>
           <span className="min-w-0 flex-1 leading-tight">
             <span className="block truncate text-[13px] font-medium">{PEOPLE[who].name}</span>
@@ -379,11 +375,10 @@ function LiveLink({ on }: { on: boolean }) {
       href="/admin/oficinas"
       aria-current={on ? "page" : undefined}
       className={cn(
-        "focus-ring group relative flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[14px] transition-colors",
-        on ? "bg-white/[0.07] font-medium text-foreground" : "text-muted hover:bg-white/[0.04] hover:text-foreground",
+        "focus-ring group relative flex items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-[14px] transition-colors",
+        on ? "bg-foreground font-medium text-background" : "text-muted hover:bg-white/[0.04] hover:text-foreground",
       )}
     >
-      {on && <span aria-hidden className="absolute top-1.5 bottom-1.5 -left-3 w-[3px] rounded-r-full bg-accent shadow-[0_0_10px_var(--accent)]" />}
       <span aria-hidden className="relative flex h-4 w-4 items-center justify-center">
         <span className="h-2 w-2 rounded-full bg-emerald-400" />
       </span>
@@ -426,6 +421,15 @@ function CallButton({ other, myRoom }: { other: LeadOwner; myRoom: string | null
     >
       <Phone size={16} />
     </button>
+  );
+}
+
+/** «SE7EN» en Archivo ancha, con el 7 en naranja (como en la landing). */
+function Wordmark({ className }: { className?: string }) {
+  return (
+    <span className={cn("adm-display leading-none", className)}>
+      Se<span className="text-accent">7</span>en
+    </span>
   );
 }
 

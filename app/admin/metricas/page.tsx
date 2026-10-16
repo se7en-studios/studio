@@ -108,7 +108,7 @@ export default async function NumerosPage({ searchParams }: Props) {
       />
 
       <section className="space-y-4">
-        <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-foreground">
+        <h2 className="adm-title text-[16px] text-foreground">
           Embudo de ventas
         </h2>
         <MetricsView leads={leads} activities={activities} />

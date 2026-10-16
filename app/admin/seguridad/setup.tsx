@@ -129,7 +129,7 @@ export function TotpSetup({
           >
             <label
               htmlFor="totp-code"
-              className="block text-[11px] font-medium tracking-wide text-muted uppercase"
+              className="block font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase"
             >
               Código de la app
             </label>

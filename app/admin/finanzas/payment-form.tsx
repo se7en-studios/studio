@@ -56,7 +56,7 @@ export function PaymentForm({
     <Dialog onClose={onClose} label="Editar cobro" width="max-w-lg">
       <form onSubmit={submit} className="flex max-h-[92dvh] flex-col">
         <header className="flex items-center justify-between border-b border-[var(--line)] px-5 py-3.5">
-          <h2 className="text-[15px] font-semibold">
+          <h2 className="adm-title text-[15px]">
             Editar cobro de proyecto
           </h2>
           <button

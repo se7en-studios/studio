@@ -135,7 +135,7 @@ function CallCard({
               <div>
                 <label
                   htmlFor="meet-link"
-                  className="mb-1 block text-[11px] font-medium tracking-wide text-muted uppercase"
+                  className="mb-1 block font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase"
                 >
                   Pegá acá el link de la sala que se abrió
                 </label>

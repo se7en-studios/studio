@@ -88,7 +88,7 @@ function Stat({
       <dt className="text-[12px] text-muted">{label}</dt>
       <dd
         className={cn(
-          "mt-1 text-[17px] font-semibold tracking-[-0.01em] tabular-nums",
+          "adm-num mt-1 text-[24px] leading-none tabular-nums",
           tone,
         )}
       >

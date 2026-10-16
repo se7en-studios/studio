@@ -167,7 +167,7 @@ function CopyField({ value, label }: { value: string; label: string }) {
   }
   return (
     <div>
-      <p className="mb-1 text-[11px] font-medium tracking-wide text-muted uppercase">
+      <p className="mb-1 font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">
         {label}
       </p>
       <div className="flex items-center gap-2">

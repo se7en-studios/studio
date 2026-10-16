@@ -407,7 +407,7 @@ export function Dashboard({
                 >
                   <header className="flex items-center gap-2 px-1.5 pt-1 pb-2.5">
                     <span className={cn("h-2 w-2 rounded-full", col.dot)} />
-                    <h2 className="text-[13px] font-semibold">{col.label}</h2>
+                    <h2 className="adm-title text-[12px]">{col.label}</h2>
                     <span className="rounded-full bg-white/[0.06] px-1.5 py-px font-mono text-[11px] text-muted">{items.length}</span>
                     <span className="ml-auto text-[11px] text-muted">{value ? usdShort(value) : col.hint}</span>
                   </header>

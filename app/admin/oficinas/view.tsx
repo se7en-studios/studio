@@ -320,11 +320,11 @@ const Eyebrow = ({ children }: { children: React.ReactNode }) => (
   <p className="font-mono text-[11px] tracking-[0.14em] text-accent uppercase">{children}</p>
 );
 const Title = ({ children }: { children: React.ReactNode }) => (
-  <h2 className="mt-1.5 text-[24px] leading-[1.1] font-semibold tracking-[-0.02em] text-foreground">{children}</h2>
+  <h2 className="adm-display mt-2 text-[26px] text-foreground">{children}</h2>
 );
 const Section = ({ title, n, children }: { title: string; n?: number; children: React.ReactNode }) => (
   <section>
-    <h3 className="mb-1 flex items-center gap-2 text-[13px] font-semibold text-foreground">
+    <h3 className="adm-title mb-1 flex items-center gap-2 text-[12px] text-foreground">
       {title}
       {n !== undefined && <span className="font-mono text-[11px] font-normal text-muted">{n}</span>}
     </h3>
@@ -418,7 +418,7 @@ function Hall({ data, bySlug, map, visits, me, now, onGo }: { data: OficinasData
         </div>
       )}
       <section>
-        <h3 className="mb-1 flex items-center gap-2 text-[13px] font-semibold text-foreground">
+        <h3 className="adm-title mb-1 flex items-center gap-2 text-[12px] text-foreground">
           Salas <span className="font-mono text-[11px] font-normal text-muted">{rows.length}</span>
         </h3>
         <ul className="space-y-px">
@@ -512,7 +512,7 @@ function ProjectRoom({ p, room, me, prev, otherVisit, now, onOut }: { p: OfiProj
       </Section>
       {p.notes && (
         <section>
-          <h3 className="mb-1.5 text-[13px] font-semibold text-foreground">Notas</h3>
+          <h3 className="adm-title mb-1.5 text-[12px] text-foreground">Notas</h3>
           <p className="rounded-lg border border-[var(--line)] bg-[var(--well)] px-3 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap text-foreground">{p.notes}</p>
         </section>
       )}

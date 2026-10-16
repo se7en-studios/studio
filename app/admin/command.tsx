@@ -227,27 +227,26 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
           lastGroup = item.group;
           return (
             <li key={item.id} role="option" aria-selected={i === active}>
-              {head && <p className="px-2.5 pt-3 pb-1 text-[11px] font-semibold tracking-[0.12em] text-muted uppercase">{item.group}</p>}
+              {head && <p className="adm-label px-2.5 pt-3 pb-1">{item.group}</p>}
               <button
                 data-i={i}
                 onMouseMove={() => setActive(i)}
                 onClick={() => go(item)}
                 className={cn(
                   "relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[14px] transition-colors",
-                  i === active ? "bg-white/[0.07] text-foreground" : "text-foreground/85",
+                  i === active ? "bg-foreground text-background" : "text-foreground/85",
                 )}
               >
-                {i === active && <span aria-hidden className="absolute top-2 bottom-2 left-0 w-[3px] rounded-r-full bg-accent" />}
-                <span className={i === active ? "text-accent" : "text-muted"}>{item.icon}</span>
+                <span className={i === active ? "text-background" : "text-muted"}>{item.icon}</span>
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                {item.hint && <span className="shrink-0 text-[12px] text-muted">{item.hint}</span>}
-                {i === active && <CornerDownLeft size={14} className="shrink-0 text-muted" />}
+                {item.hint && <span className={cn("shrink-0 text-[12px]", i === active ? "text-background/70" : "text-muted")}>{item.hint}</span>}
+                {i === active && <CornerDownLeft size={14} className="shrink-0 text-background/70" />}
               </button>
             </li>
           );
         })}
       </ul>
-      <div className="flex items-center gap-4 border-t border-[var(--line)] bg-white/[0.012] px-4 py-2 text-[11px] text-muted">
+      <div className="flex items-center gap-4 border-t border-[var(--line)] px-4 py-2 text-[11px] text-muted">
         <span className="flex items-center gap-1">
           <Kbd>↑</Kbd>
           <Kbd>↓</Kbd> navegar

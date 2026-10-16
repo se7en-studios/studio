@@ -205,7 +205,7 @@ export function Payments({
         </button>
         <div className="col-span-2 flex flex-wrap items-end gap-x-4 gap-y-2 sm:col-span-4">
           <div>
-            <span className="mb-1.5 block text-[11px] font-medium tracking-wide text-muted uppercase">Es</span>
+            <span className="mb-1.5 block font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">Es</span>
             <Segmented
               value={mode}
               onChange={setMode}
@@ -218,7 +218,7 @@ export function Payments({
           </div>
           {due && (
             <label className="block">
-              <span className="mb-1.5 block text-[11px] font-medium tracking-wide text-muted uppercase">Cuotas</span>
+              <span className="mb-1.5 block font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">Cuotas</span>
               <input
                 type="number"
                 min={1}
@@ -232,11 +232,11 @@ export function Payments({
             </label>
           )}
           <div>
-            <span className="mb-1.5 block text-[11px] font-medium tracking-wide text-muted uppercase">Quién lo cobró</span>
+            <span className="mb-1.5 block font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">Quién lo cobró</span>
             <OwnerPicker value={owner} onChange={setOwner} legend="Quién cobró" />
           </div>
           <div>
-            <span className="mb-1.5 block text-[11px] font-medium tracking-wide text-muted uppercase">Es de</span>
+            <span className="mb-1.5 block font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">Es de</span>
             <Segmented
               value={category}
               onChange={setCategory}

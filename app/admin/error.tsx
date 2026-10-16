@@ -27,7 +27,7 @@ export default function AdminError({
       <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-red-500/30 bg-red-500/10 text-red-400">
         <TriangleAlert size={22} />
       </span>
-      <h1 className="text-[20px] font-semibold tracking-[-0.01em]">
+      <h1 className="adm-display text-[28px]">
         Algo salió mal
       </h1>
       <p className="mt-2 text-[14px] text-muted">

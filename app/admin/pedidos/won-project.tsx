@@ -20,7 +20,7 @@ export function WonProject({ leadId, slug }: { leadId: string; slug: string | nu
   return (
     <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-400/20 bg-emerald-400/[0.05] px-3.5 py-3">
       <p className="text-[13px]">
-        <span className="block text-[11px] font-medium tracking-wide text-emerald-300 uppercase">Ganado</span>
+        <span className="block font-mono text-[10.5px] tracking-[0.13em] text-emerald-300 uppercase">Ganado</span>
         {slug
           ? "Este pedido ya tiene su proyecto."
           : "Pasalo a proyecto: el cliente (nuevo o uno que ya tengan) con su contacto, el monto, el responsable y las tareas pasan solos."}
