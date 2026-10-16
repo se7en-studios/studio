@@ -281,7 +281,7 @@ export function CalendarView({
             Hoy
           </button>
         </div>
-        <h2 className="mr-auto ml-2 text-[18px] font-semibold first-letter:uppercase">
+        <h2 className="adm-title mr-auto ml-2 text-[18px]">
           {monthLabel(ym)}
         </h2>
         <Segmented

@@ -9,14 +9,15 @@ import { LoginForm } from "./login-form";
 export function AdminGate() {
   return (
     <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-6 py-16">
-      <div aria-hidden className="pointer-events-none absolute top-[-20%] left-1/2 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(255,77,46,0.16),transparent)]" />
-      <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)]" />
+      {/* Los anillos del logo, grandes y cruzados detrás del formulario. */}
+      <div aria-hidden className="pointer-events-none absolute top-1/2 left-1/2 h-[min(150vw,980px)] w-[min(92vw,640px)] -translate-x-1/2 -translate-y-1/2 -rotate-[32deg] rounded-[50%] border border-[var(--line-strong)]" />
+      <div aria-hidden className="pointer-events-none absolute top-1/2 left-1/2 h-[min(150vw,980px)] w-[min(92vw,640px)] -translate-x-1/2 -translate-y-1/2 rotate-[24deg] rounded-[50%] border border-accent/45" />
       {adminConfigured() ? (
         <LoginForm />
       ) : (
         <div className="relative max-w-md rounded-2xl border border-border bg-surface p-8">
-          <p className="font-mono text-[11px] tracking-widest text-accent uppercase">Panel</p>
-          <h1 className="mt-3 text-2xl text-foreground">Falta la contraseña del panel</h1>
+          <p className="adm-label">Panel</p>
+          <h1 className="adm-display mt-3 text-[28px] text-foreground">Falta la contraseña del panel</h1>
           <p className="mt-3 text-sm leading-relaxed text-muted [&_code]:rounded [&_code]:bg-background [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-foreground">
             Cargá la variable <code>ADMIN_PASSWORD</code> en Vercel (Settings → Environment Variables) y volvé a
             deployar. No va en el código porque el repositorio es público.

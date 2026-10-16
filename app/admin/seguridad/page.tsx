@@ -173,7 +173,7 @@ function BackupCard({ monthly }: { monthly: boolean }) {
           Supabase no hace copias solo.
         </p>
         <form method="post" action="/admin/api/respaldo" className="space-y-2">
-          <label htmlFor="backup-frase" className="block text-[11px] font-medium tracking-wide text-muted uppercase">
+          <label htmlFor="backup-frase" className="block font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">
             Frase para cifrarla (recomendado)
           </label>
           <div className="flex flex-wrap gap-2">

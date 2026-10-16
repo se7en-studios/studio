@@ -27,7 +27,7 @@ function Field({
   const [draft, setDraft] = useState(value);
   return (
     <label className="block">
-      <span className="text-[11px] font-medium tracking-wide text-muted uppercase">
+      <span className="font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">
         {label}
       </span>
       <span className="mt-1 flex items-center rounded-lg border border-[var(--line-strong)] bg-[var(--well)] focus-within:border-accent">

@@ -32,7 +32,7 @@ function NewClientDialog({ onClose }: { onClose: () => void }) {
     <Dialog onClose={onClose} label="Nuevo cliente">
       <form action={action} className="p-6">
         <div className="flex items-start justify-between gap-4">
-          <h2 className="text-[20px] font-semibold tracking-[-0.01em]">Nuevo cliente</h2>
+          <h2 className="adm-display text-[24px]">Nuevo cliente</h2>
           <button type="button" onClick={onClose} aria-label="Cancelar" className="focus-ring rounded-lg p-1.5 text-muted hover:bg-white/[0.06] hover:text-foreground">
             <X size={16} />
           </button>

@@ -321,7 +321,7 @@ export function NumberLines({
                 <p className="mt-0.5 text-[11px] text-muted">{l.rule}</p>
               </div>
             </div>
-            <p className="pl-[22px] text-[20px] leading-none font-semibold tracking-[-0.02em] text-foreground tabular-nums md:pl-0 md:text-right">
+            <p className="adm-num pl-[22px] text-[26px] leading-none text-foreground tabular-nums md:pl-0 md:text-right">
               {l.value}
             </p>
             <p className="pl-[22px] text-[12px] tabular-nums md:pl-0 md:text-right">
@@ -359,7 +359,7 @@ export function RateTable({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[520px] text-[13px]">
             <thead>
-              <tr className="text-left text-[11px] tracking-wide text-muted uppercase">
+              <tr className="text-left font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">
                 <th className="px-4 py-2 font-normal">Proyecto</th>
                 <th className="px-2 py-2 text-right font-normal">Cobrado</th>
                 <th className="px-2 py-2 text-right font-normal">Horas</th>

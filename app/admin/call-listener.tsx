@@ -136,7 +136,7 @@ export function CallListener({
           />
           <Face who={incoming.from} size={72} />
         </span>
-        <h2 className="text-[18px] font-semibold tracking-[-0.01em]">
+        <h2 className="adm-title text-[18px]">
           {from} te está llamando
         </h2>
         <p className="mt-1 text-[13px] text-muted">Llamada de Google Meet</p>

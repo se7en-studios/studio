@@ -13,7 +13,7 @@ import { join } from "node:path";
 
 const ROOTS = ["app/admin", "lib/admin"];
 const OUT = "app/admin/admin-light.css";
-const TINT = "15, 18, 30"; // tinta fría: el equivalente claro del blanco translúcido
+const TINT = "11, 11, 12"; // la tinta de la landing: el equivalente claro del blanco translúcido
 
 // Texto con color de estado: el tono 300/400 es para fondo oscuro; en claro, uno más profundo.
 const TEXT = {

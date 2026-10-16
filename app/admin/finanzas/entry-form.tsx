@@ -141,7 +141,7 @@ export function EntryForm({
     <Dialog onClose={onClose} label={title} width="max-w-xl">
       <form onSubmit={submit} className="flex max-h-[92dvh] flex-col">
         <header className="flex items-center justify-between border-b border-[var(--line)] px-5 py-3.5">
-          <h2 className="text-[15px] font-semibold">{title}</h2>
+          <h2 className="adm-title text-[15px]">{title}</h2>
           <button
             type="button"
             onClick={onClose}

@@ -231,7 +231,7 @@ function GroupTable({
     <div className="-mx-1 overflow-x-auto">
       <table className="w-full min-w-[420px] text-sm">
         <thead>
-          <tr className="text-left text-[11px] font-medium tracking-wide text-muted uppercase">
+          <tr className="text-left font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">
             <th className="px-1 pb-2 font-normal">Nombre</th>
             <th className="px-1 pb-2 font-normal">Pedidos</th>
             <th className="px-1 pb-2 text-right font-normal">Ganados</th>

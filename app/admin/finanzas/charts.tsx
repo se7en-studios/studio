@@ -172,7 +172,7 @@ export function ProjectProfit({
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[480px] text-left text-[13px]">
-            <thead className="text-[11px] tracking-wide text-muted uppercase">
+            <thead className="font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">
               <tr className="border-b border-[var(--line)]">
                 <th className="px-4 py-2 font-medium">Proyecto</th>
                 <th className="px-2 py-2 text-right font-medium">Ingresos</th>

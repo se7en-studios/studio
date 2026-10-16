@@ -98,7 +98,7 @@ export function Sites({
       {rows.length ? (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-[13px]">
-            <thead className="text-[11px] tracking-wide text-muted uppercase">
+            <thead className="font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">
               <tr className="border-b border-[var(--line)]">
                 <th className="px-4 py-2 font-medium">Sitio</th>
                 <th className="px-3 py-2 font-medium">Abono</th>
@@ -285,7 +285,7 @@ function PlanDialog({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[12px] text-muted">Plan de mantenimiento</p>
-            <h2 className="mt-0.5 text-[20px] font-semibold">{name}</h2>
+            <h2 className="adm-display mt-1 text-[24px]">{name}</h2>
           </div>
           <button
             type="button"

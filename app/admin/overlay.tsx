@@ -88,7 +88,7 @@ export function Drawer({
         aria-modal="true"
         aria-label={label}
         className={cn(
-          "admin-drawer relative flex outline-none h-full w-full flex-col border-l border-[var(--line-strong)] bg-[var(--panel)] shadow-[-30px_0_80px_-20px_rgba(0,0,0,0.7)]",
+          "admin-drawer relative flex outline-none h-full w-full flex-col border-l border-[var(--line-strong)] bg-[var(--panel)] shadow-[var(--shadow-pop)]",
           width,
         )}
       >
@@ -203,7 +203,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         <p
           key={toast.id}
           role={toast.tone === "error" ? "alert" : "status"}
-          className={`admin-pop fixed bottom-5 left-1/2 z-[90] flex max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-2 rounded-lg border bg-[var(--panel-3)] px-3.5 py-2 text-[13px] text-foreground shadow-[0_20px_50px_-10px_rgba(0,0,0,0.7)] ${style.box}`}
+          className={`admin-pop fixed bottom-5 left-1/2 z-[90] flex max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-2 rounded-2xl border bg-[var(--panel-3)] px-4 py-2 text-[13px] text-foreground shadow-[var(--shadow-pop)] ${style.box}`}
         >
           {style.icon}
           {toast.msg}

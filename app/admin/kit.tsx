@@ -14,28 +14,32 @@ export const cn = (...xs: (string | false | null | undefined)[]) => xs.filter(Bo
  * - Texto: 11 (etiquetas, meta chica) · 12 (meta) · 13 (cuerpo) · 14 (cuerpo
  *   destacado) · 20 (títulos de sección) · 24/28 (título de página). Nada de
  *   medios píxeles.
- * - Radios: `rounded-md` chips y controles adentro de otro control ·
- *   `rounded-lg` botones, inputs y tarjetas chicas · `rounded-xl` tarjetas y
- *   paneles · `rounded-2xl` sólo diálogos.
+ * - Radios (redefinidos en globals.css): `rounded-md` chips y controles
+ *   adentro de otro control · `rounded-lg` inputs y tarjetas chicas ·
+ *   `rounded-xl` tarjetas y paneles · `rounded-2xl` sólo diálogos. Botones,
+ *   pestañas y filtros son pastillas (`rounded-full`).
  * - Fondos: los tokens de .admin-app en globals.css (--bg, --panel-0…3,
- *   --well). Nada de hex sueltos.
- * - El acento es para la acción principal, lo nuevo y lo no leído.
+ *   --well). Nada de hex sueltos. Planos, sin sombras: el filo lo da el borde.
+ * - Títulos en Archivo ancha (`adm-display`, `adm-title`), cifras en
+ *   `adm-num`, etiquetas en mono mayúscula (`adm-label`).
+ * - El acento es para la acción principal, lo nuevo y lo no leído. Lo elegido
+ *   (sección, filtro, pestaña) se invierte: papel sobre tinta.
  */
 
 /** Botones. `btn` + una variante. */
 export const btn =
-  "focus-ring inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-40";
-export const btnPrimary = `${btn} bg-accent text-background shadow-[var(--shadow-btn)] hover:bg-[var(--accent-hover)]`;
-export const btnSecondary = `${btn} border border-[var(--line-strong)] bg-white/[0.03] text-foreground hover:bg-white/[0.07]`;
+  "focus-ring inline-flex items-center justify-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-semibold whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-40";
+export const btnPrimary = `${btn} bg-accent text-background hover:bg-foreground`;
+export const btnSecondary = `${btn} border border-[var(--line-strong)] text-foreground hover:border-foreground`;
 export const btnGhost = `${btn} text-muted hover:bg-white/[0.05] hover:text-foreground`;
 export const btnDanger = `${btn} bg-red-500/90 text-white hover:bg-red-500`;
 
 export const input =
   "focus-ring w-full rounded-lg border border-[var(--line-strong)] bg-[var(--well)] px-3 py-2 text-[13px] text-foreground placeholder:text-muted/60 transition-[border-color,box-shadow,background-color] focus:border-accent/70 focus:bg-black/40 focus:shadow-[0_0_0_3px_var(--accent-soft)]";
-export const label = "mb-1.5 block text-[11px] font-medium tracking-wide text-muted uppercase";
+export const label = "mb-1.5 block font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase";
 /** El input de búsqueda: va adentro de un <label className="relative …"> con el ícono de lupa en left-3. */
 export const searchInput =
-  "focus-ring w-full rounded-lg border border-[var(--line)] bg-[var(--panel)] py-2 pr-3 pl-9 text-[13px] text-foreground placeholder:text-muted/70 transition-[border-color,box-shadow] focus:border-accent/60 focus:shadow-[0_0_0_3px_var(--accent-soft)]";
+  "focus-ring w-full rounded-full border border-[var(--line)] bg-[var(--panel)] py-2 pr-3 pl-9 text-[13px] text-foreground placeholder:text-muted/70 transition-[border-color,box-shadow] focus:border-accent/60 focus:shadow-[0_0_0_3px_var(--accent-soft)]";
 
 /** Elegir una opción entre pocas (vista, período, filtro). */
 export function Segmented<T extends string>({
@@ -50,7 +54,7 @@ export function Segmented<T extends string>({
   label?: string;
 }) {
   return (
-    <div className="flex rounded-lg border border-[var(--line)] bg-[var(--well-soft)] p-0.5 text-[13px]" role="group" aria-label={aria}>
+    <div className="flex rounded-full border border-[var(--line)] bg-[var(--well-soft)] p-0.5 text-[13px]" role="group" aria-label={aria}>
       {options.map((o) => (
         <button
           key={o.id}
@@ -58,8 +62,8 @@ export function Segmented<T extends string>({
           onClick={() => onChange(o.id)}
           aria-pressed={value === o.id}
           className={cn(
-            "focus-ring flex items-center rounded-md px-2.5 py-1.5 whitespace-nowrap transition-colors",
-            value === o.id ? "bg-[var(--panel-3)] text-foreground shadow-[var(--shadow-card)]" : "text-muted hover:text-foreground",
+            "focus-ring flex items-center rounded-full px-3 py-1.5 whitespace-nowrap transition-colors",
+            value === o.id ? "bg-foreground font-medium text-background" : "text-muted hover:text-foreground",
           )}
         >
           {o.label}
@@ -77,8 +81,8 @@ export function Chip({ on, onClick, children, className }: { on: boolean; onClic
       onClick={onClick}
       aria-pressed={on}
       className={cn(
-        "focus-ring inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[12px] transition-colors",
-        on ? "border-accent/60 bg-accent/15 text-foreground" : "border-[var(--line-strong)] text-muted hover:bg-white/[0.04] hover:text-foreground",
+        "focus-ring inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] transition-colors",
+        on ? "border-foreground bg-foreground text-background" : "border-[var(--line-strong)] text-muted hover:border-foreground hover:text-foreground",
         className,
       )}
     >
@@ -104,8 +108,8 @@ export function PageHeader({
   return (
     <header className="flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
-        {eyebrow && <p className="mb-2 font-mono text-[11px] tracking-[0.14em] text-muted uppercase">{eyebrow}</p>}
-        <h1 className="adm-display text-[26px] text-balance text-foreground md:text-[34px]">
+        {eyebrow && <p className="adm-label mb-3">{eyebrow}</p>}
+        <h1 className="adm-display text-[clamp(30px,4.2vw,52px)] text-balance text-foreground">
           {title}
           {accent && (
             <>
@@ -114,7 +118,7 @@ export function PageHeader({
             </>
           )}
         </h1>
-        {children && <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-muted">{children}</p>}
+        {children && <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-muted">{children}</p>}
       </div>
       {right && <div className="flex flex-wrap items-center gap-2">{right}</div>}
     </header>
@@ -139,17 +143,17 @@ export function Card({
   return (
     <section
       className={cn(
-        "overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)] shadow-[var(--shadow-card)]",
+        "overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)]",
         className,
       )}
     >
       {title && (
-        <header className="flex items-center justify-between gap-3 border-b border-[var(--line)] bg-white/[0.012] px-4 py-3">
-          <h2 className="flex min-w-0 items-center gap-2 text-[13px] font-semibold tracking-[-0.005em] text-foreground">
-            {icon && <span className="text-accent/80">{icon}</span>}
+        <header className="flex items-center justify-between gap-3 border-b border-[var(--line)] px-4 py-3">
+          <h2 className="adm-title flex min-w-0 items-center gap-2 text-[13px] text-foreground">
+            {icon && <span className="text-muted">{icon}</span>}
             <span className="truncate">{title}</span>
             {count !== undefined && count !== null && (
-              <span className="rounded-full bg-white/[0.06] px-2 py-px font-mono text-[11px] font-normal text-muted">{count}</span>
+              <span className="rounded-full border border-[var(--line-strong)] px-2 py-px font-mono text-[10.5px] font-normal tracking-normal text-muted">{count}</span>
             )}
           </h2>
           {action}
@@ -162,7 +166,7 @@ export function Card({
 
 export function CardLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <Link href={href} className="focus-ring shrink-0 rounded-md px-1.5 py-0.5 text-[12px] text-muted transition-colors hover:bg-white/[0.05] hover:text-foreground">
+    <Link href={href} className="focus-ring shrink-0 rounded-full px-2 py-1 font-mono text-[10.5px] tracking-[0.12em] text-muted uppercase transition-colors hover:bg-white/[0.05] hover:text-foreground">
       {children}
     </Link>
   );
@@ -182,7 +186,7 @@ const TONE: Record<NonNullable<Tone>, string> = {
  * columnas de md/xl.
  */
 export const kpiRow =
-  "-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] *:w-[44%] *:shrink-0 *:snap-start md:mx-0 md:grid md:overflow-visible md:px-0 md:pb-0 md:*:w-auto";
+  "-mx-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] *:w-[44%] *:shrink-0 *:snap-start md:mx-0 md:grid md:overflow-visible md:px-0 md:pb-0 md:*:w-auto";
 
 /** Número grande con etiqueta. Con `href` es un link. */
 export function Kpi({
@@ -204,22 +208,22 @@ export function Kpi({
   const filled = tone === "accent";
   const body = (
     <>
-      <p className={cn("flex items-center justify-between gap-2 font-mono text-[11px] tracking-[0.1em] uppercase", filled ? "text-background/90" : "text-muted")}>
+      <p className={cn("flex items-center justify-between gap-2 font-mono text-[10.5px] tracking-[0.13em] uppercase", filled ? "text-background/80" : "text-muted")}>
         {label}
         {icon && <span>{icon}</span>}
       </p>
-      <p className={cn("adm-num mt-3 text-[34px] leading-none tabular-nums", filled ? "text-background" : tone ? TONE[tone] : "text-foreground")}>
+      <p className={cn("adm-num mt-3 text-[40px] leading-[0.9] tabular-nums", filled ? "text-background" : tone ? TONE[tone] : "text-foreground")}>
         {value}
       </p>
-      {hint && <p className={cn("mt-2 truncate text-[12px]", filled ? "text-background" : "text-muted")}>{hint}</p>}
+      {hint && <p className={cn("mt-2 truncate text-[12px]", filled ? "text-background/80" : "text-muted")}>{hint}</p>}
     </>
   );
   const cls = cn(
-    "block h-full rounded-xl border p-4 shadow-[var(--shadow-card)]",
+    "block h-full rounded-xl border p-4",
     filled ? "border-transparent bg-accent" : "border-[var(--line)] bg-[var(--panel)]",
   );
   return href ? (
-    <Link href={href} className={cn("focus-ring transition-[border-color,background-color,transform] hover:-translate-y-px hover:border-[var(--line-strong)]", filled ? "hover:bg-[var(--accent-hover)]" : "hover:bg-[var(--panel-2)]", cls)}>
+    <Link href={href} className={cn("focus-ring transition-[border-color,background-color,transform] duration-300 hover:-translate-y-0.5", filled ? "hover:bg-[var(--accent-hover)]" : "hover:border-[var(--line-strong)]", cls)}>
       {body}
     </Link>
   ) : (
@@ -227,8 +231,13 @@ export function Kpi({
   );
 }
 
+/**
+ * Cara de una persona. Elipse vertical (1:1,14), como los retratos y los anillos
+ * del logo en la landing; `size` es el ancho.
+ */
 export function Face({ who, size = 22, ring, alt }: { who: LeadOwner | null; size?: number; ring?: boolean; /** Vacío si el nombre está al lado. */ alt?: string }) {
   const p = who ? PEOPLE[who] : null;
+  const box = { width: size, height: Math.round(size * 1.14) };
   if (p?.image) {
     return (
       <Image
@@ -237,8 +246,8 @@ export function Face({ who, size = 22, ring, alt }: { who: LeadOwner | null; siz
         title={p.name}
         width={size * 2}
         height={size * 2}
-        className={cn("shrink-0 rounded-full object-cover", ring && "ring-2 ring-[var(--panel)]")}
-        style={{ width: size, height: size }}
+        className={cn("shrink-0 rounded-[50%] object-cover", ring && "ring-2 ring-[var(--panel)]")}
+        style={box}
       />
     );
   }
@@ -246,8 +255,8 @@ export function Face({ who, size = 22, ring, alt }: { who: LeadOwner | null; siz
     return (
       <span
         title={p.name}
-        className="flex shrink-0 items-center justify-center rounded-full bg-white/10 text-[11px] text-foreground"
-        style={{ width: size, height: size }}
+        className="flex shrink-0 items-center justify-center rounded-[50%] bg-accent font-mono text-[11px] font-bold text-background"
+        style={box}
       >
         {p.name[0]}
       </span>
@@ -256,8 +265,8 @@ export function Face({ who, size = 22, ring, alt }: { who: LeadOwner | null; siz
   return (
     <span
       title="Sin asignar"
-      className="shrink-0 rounded-full border border-dashed border-white/25"
-      style={{ width: size, height: size }}
+      className="shrink-0 rounded-[50%] border border-dashed border-white/25"
+      style={box}
     />
   );
 }
@@ -265,7 +274,7 @@ export function Face({ who, size = 22, ring, alt }: { who: LeadOwner | null; siz
 export function StatusPill({ status, className }: { status: ProjectStatus; className?: string }) {
   const s = PROJECT_STATUS[status];
   return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset", s.tone, className)}>
+    <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-mono text-[10.5px] tracking-[0.04em] uppercase ring-1 ring-inset", s.tone, className)}>
       <span className={cn("h-1.5 w-1.5 rounded-full", s.dot)} />
       {s.label}
     </span>
@@ -274,7 +283,7 @@ export function StatusPill({ status, className }: { status: ProjectStatus; class
 
 export function Progress({ value, accent, label = "Avance" }: { value: number; accent?: string; label?: string }) {
   return (
-    <span className="block h-1 w-full overflow-hidden rounded-full bg-white/[0.07]" role="progressbar" aria-label={label} aria-valuenow={value} aria-valuemin={0} aria-valuemax={100}>
+    <span className="block h-1 w-full overflow-hidden rounded-full bg-[var(--panel-3)]" role="progressbar" aria-label={label} aria-valuenow={value} aria-valuemin={0} aria-valuemax={100}>
       <span
         className="block h-full rounded-full bg-accent transition-[width] duration-500"
         style={{ width: `${Math.max(0, Math.min(100, value))}%`, background: accent }}
@@ -287,11 +296,11 @@ export function Empty({ icon, title, children }: { icon?: React.ReactNode; title
   return (
     <div className="flex flex-col items-center px-6 py-10 text-center">
       {icon && (
-        <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--line-strong)] bg-white/[0.03] text-muted shadow-[var(--shadow-card)]">
+        <span className="mb-4 flex h-[50px] w-11 items-center justify-center rounded-[50%] border border-[var(--line-strong)] text-muted outline outline-offset-4 outline-[var(--line)]">
           {icon}
         </span>
       )}
-      <p className="text-[13px] font-medium text-foreground">{title}</p>
+      <p className="adm-title text-[13px] text-foreground">{title}</p>
       {children && <p className="mt-1 max-w-sm text-[13px] text-muted">{children}</p>}
     </div>
   );
@@ -324,12 +333,12 @@ export function TabLinks({
               aria-current={on ? "page" : undefined}
               className={cn(
                 "focus-ring relative flex items-center gap-1.5 px-3 pt-1 pb-2.5 text-[13px] transition-colors",
-                on ? "text-foreground" : "text-muted hover:text-foreground",
+                on ? "font-semibold text-foreground" : "text-muted hover:text-foreground",
               )}
             >
               {t.label}
               {t.count !== undefined && t.count > 0 && <span className="font-mono text-[11px] text-muted">{t.count}</span>}
-              {on && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-accent shadow-[0_0_10px_var(--accent)]" />}
+              {on && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-foreground" />}
             </Link>
           );
         })}

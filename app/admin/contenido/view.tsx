@@ -252,7 +252,7 @@ const isImg = (f: ContentFile) => f.mime.startsWith("image/");
 function Files({ files }: { files: ContentFile[] }) {
   return (
     <div>
-      <p className="mb-2 text-[11px] font-medium tracking-wide text-muted uppercase">
+      <p className="mb-2 font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">
         Archivos, en este orden
       </p>
       <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-6">
@@ -355,7 +355,7 @@ function PostDialog({
     <Dialog onClose={onClose} label={post ? "Editar post" : "Nuevo post"}>
       <form onSubmit={submit} className="admin-scroll max-h-[92dvh] overflow-y-auto p-6">
         <div className="flex items-start justify-between gap-4">
-          <h2 className="text-[20px] font-semibold tracking-[-0.01em]">{post ? "Editar post" : "Nuevo post"}</h2>
+          <h2 className="adm-display text-[24px]">{post ? "Editar post" : "Nuevo post"}</h2>
           <button type="button" onClick={onClose} aria-label="Cancelar" className="focus-ring rounded-lg p-1.5 text-muted hover:bg-white/[0.06] hover:text-foreground">
             <X size={16} />
           </button>

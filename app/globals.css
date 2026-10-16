@@ -460,14 +460,41 @@ body:has(.admin-app)::after {
 }
 
 /* Voz de marca del panel, la misma de la landing: títulos en Archivo ancha,
-   cifras en Archivo condensada y el acento en Instrument Serif. */
+   cifras en Archivo condensada, el acento en Instrument Serif y las etiquetas
+   en Chivo Mono. */
 .admin-app .adm-display {
   font-family: var(--font-wide), var(--font-sans), system-ui, sans-serif;
-  font-variation-settings: "wdth" 118;
+  font-variation-settings: "wdth" 125;
   text-transform: uppercase;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.035em;
   font-weight: 800;
-  line-height: 0.95;
+  line-height: 0.9;
+}
+/* Título de tarjeta o de bloque: la misma Archivo ancha, en chico. */
+.admin-app .adm-title {
+  font-family: var(--font-wide), var(--font-sans), system-ui, sans-serif;
+  font-variation-settings: "wdth" 115;
+  text-transform: uppercase;
+  letter-spacing: -0.015em;
+  font-weight: 800;
+}
+.admin-app .adm-label {
+  font-family: var(--font-chivo-mono), ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+/* Encabezados de tabla como etiquetas. En la capa base: una utilidad puesta
+   en el <th> (alineación, ancho) sigue mandando. */
+@layer base {
+  .admin-app th {
+    font-family: var(--font-chivo-mono), ui-monospace, monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 10.5px;
+    font-weight: 500;
+  }
 }
 .admin-app .adm-num {
   font-family: var(--font-wide), var(--font-sans), system-ui, sans-serif;
@@ -488,30 +515,37 @@ body:has(.admin-app)::after {
 
 /* Superficies del panel, de abajo hacia arriba: fondo → sidebar → tarjeta →
    hover/realce → lo que flota (toasts, menús). `--well` es lo hundido
-   (campos, citas). Todo color de fondo del panel sale de acá. */
+   (campos, citas). Todo color de fondo del panel sale de acá.
+   Tinta, papel y señal de la landing: bloques planos con filo, sin brillos
+   ni sombras, y esquinas más redondas (los radios de Tailwind se redefinen
+   acá, así rounded-lg/xl/2xl cambian en todo el panel de una vez). */
 .admin-app {
-  --bg: #08080a;
-  --panel-0: #0a0a0c;
-  --panel: #0c0c0e;
-  --panel-2: #131316;
-  --panel-3: #18181b;
-  --well: rgba(0, 0, 0, 0.3);
-  --well-soft: rgba(0, 0, 0, 0.2);
-  --line: rgba(245, 245, 244, 0.07);
-  --line-strong: rgba(245, 245, 244, 0.12);
+  --background: #0b0b0c;
+  --foreground: #f2eee6;
+  --muted: #9a958d;
+  --border: rgba(242, 238, 230, 0.1);
+  --surface: #141416;
+  --surface-2: #1c1c1f;
+  --bg: #0b0b0c;
+  --panel-0: #111113;
+  --panel: #141416;
+  --panel-2: #1c1c1f;
+  --panel-3: #26262a;
+  --well: rgba(0, 0, 0, 0.28);
+  --well-soft: rgba(0, 0, 0, 0.18);
+  --line: rgba(242, 238, 230, 0.09);
+  --line-strong: rgba(242, 238, 230, 0.2);
   --accent-hover: #ff6347;
-  /* Profundidad: filo de luz arriba de cada superficie, sombra al apoyar, y un
-     resplandor de marca muy bajo en la esquina del fondo. */
-  --hi: rgba(255, 255, 255, 0.045);
-  --shadow-card: inset 0 1px 0 var(--hi), 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
-  --shadow-btn: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 1px 2px rgba(0, 0, 0, 0.45), 0 4px 14px -4px rgba(255, 77, 46, 0.45);
-  --shadow-pop: 0 0 0 1px var(--line-strong), 0 24px 60px -16px rgba(0, 0, 0, 0.7);
-  --glow: rgba(255, 77, 46, 0.075);
+  --hi: transparent;
+  --shadow-card: none;
+  --shadow-btn: none;
+  --shadow-pop: 0 0 0 1px var(--line-strong), 0 24px 60px -24px rgba(0, 0, 0, 0.7);
+  --glow: transparent;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1.125rem;
+  --radius-2xl: 1.5rem;
   background-color: var(--bg);
-  background-image:
-    radial-gradient(900px 420px at 92% -8%, var(--glow), transparent 70%),
-    radial-gradient(700px 360px at -5% 0%, rgba(255, 255, 255, 0.02), transparent 70%);
-  background-attachment: fixed;
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -604,42 +638,39 @@ body:has(.admin-app)::after {
 .admin-app[data-theme="light"] {
   color-scheme: light;
   --background: #f2eee6;
-  --foreground: #15151a;
-  --muted: #62626b;
-  --border: rgba(15, 18, 30, 0.1);
+  --foreground: #0b0b0c;
+  --muted: #5d5952;
+  --border: rgba(11, 11, 12, 0.1);
   --surface: #fbf9f4;
   --surface-2: #ebe5d9;
   --accent: #d1371a;
   --accent-soft: rgba(209, 55, 26, 0.1);
   --accent-hover: #bb3017;
-  --bg: #ece7dc;
-  --panel-0: #e4ded1;
+  --bg: #f2eee6;
+  --panel-0: #ebe5d9;
   --panel: #fbf9f4;
   --panel-2: #f4f0e8;
-  --panel-3: #fbf9f4;
-  --well: rgba(15, 18, 30, 0.045);
-  --well-soft: rgba(15, 18, 30, 0.03);
-  --line: rgba(15, 18, 30, 0.09);
-  --line-strong: rgba(15, 18, 30, 0.17);
-  --hi: rgba(255, 255, 255, 0.9);
-  --shadow-card: inset 0 1px 0 var(--hi), 0 1px 2px rgba(15, 18, 30, 0.06), 0 8px 24px -14px rgba(15, 18, 30, 0.18);
-  --shadow-btn: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 1px 2px rgba(15, 18, 30, 0.25), 0 4px 14px -4px rgba(209, 55, 26, 0.4);
-  --shadow-pop: 0 0 0 1px var(--line-strong), 0 24px 60px -16px rgba(15, 18, 30, 0.3);
-  --glow: rgba(209, 55, 26, 0.05);
-  background-image:
-    radial-gradient(900px 420px at 92% -8%, var(--glow), transparent 70%),
-    radial-gradient(700px 360px at -5% 0%, rgba(255, 255, 255, 0.6), transparent 70%);
+  --panel-3: #fffdf8;
+  --well: rgba(11, 11, 12, 0.045);
+  --well-soft: rgba(11, 11, 12, 0.03);
+  --line: rgba(11, 11, 12, 0.1);
+  --line-strong: rgba(11, 11, 12, 0.22);
+  --hi: transparent;
+  --shadow-card: none;
+  --shadow-btn: none;
+  --shadow-pop: 0 0 0 1px var(--line-strong), 0 24px 50px -28px rgba(11, 11, 12, 0.35);
+  --glow: transparent;
 }
 :root:has(.admin-app[data-theme="light"]) {
   color-scheme: light;
 }
 body:has(.admin-app[data-theme="light"]) {
-  background: #ece7dc;
+  background: #f2eee6;
 }
 .admin-app[data-theme="light"] .admin-scroll {
-  scrollbar-color: rgba(15, 18, 30, 0.22) transparent;
+  scrollbar-color: rgba(11, 11, 12, 0.22) transparent;
 }
 .admin-app[data-theme="light"] .admin-skeleton {
-  background: linear-gradient(90deg, rgba(15, 18, 30, 0.04) 25%, rgba(15, 18, 30, 0.09) 50%, rgba(15, 18, 30, 0.04) 75%);
+  background: linear-gradient(90deg, rgba(11, 11, 12, 0.04) 25%, rgba(11, 11, 12, 0.09) 50%, rgba(11, 11, 12, 0.04) 75%);
   background-size: 200% 100%;
 }

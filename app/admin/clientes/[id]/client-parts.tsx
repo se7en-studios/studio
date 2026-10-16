@@ -290,7 +290,7 @@ export function DeleteClient({ id, name }: { id: string; name: string }) {
       {open && (
         <Dialog onClose={() => setOpen(false)} label="Borrar cliente">
           <div className="p-6">
-            <h2 className="text-[20px] font-semibold">¿Borrar a {name}?</h2>
+            <h2 className="adm-display text-[22px]">¿Borrar a {name}?</h2>
             <p className="mt-2 text-[13px] text-muted">
               Sus proyectos, cobros y cuentas no se borran: quedan sin cliente.
             </p>

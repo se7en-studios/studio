@@ -7,7 +7,7 @@ import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
 import { login, type LoginState } from "./actions";
 
 const CARD =
-  "relative w-full max-w-sm rounded-2xl border border-white/10 bg-[var(--panel)]/90 p-8 shadow-[0_40px_120px_-30px_rgba(255,77,46,0.4),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl";
+  "relative w-full max-w-sm rounded-2xl border border-[var(--line-strong)] bg-[var(--panel)] p-8";
 
 export function LoginForm() {
   const [state, action, pending] = useActionState<LoginState, FormData>(login, {});
@@ -19,12 +19,12 @@ export function LoginForm() {
       <form action={action} className={CARD}>
         <input type="hidden" name="who" value={kept.who} />
         <input type="hidden" name="password" value={kept.password} />
-        <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-b from-white/[0.08] to-transparent">
-          <Image src="/logo-simbolo.png" alt="" width={24} height={24} className="h-6 w-6" />
-        </span>
-        <h1 className="mt-5 text-[20px] font-semibold tracking-[-0.02em] text-foreground">Código de verificación</h1>
-        <p className="mt-1 text-[13px] text-muted">Abrí tu app de autenticación y escribí el código de 6 dígitos.</p>
-        <label htmlFor="code" className="mt-6 mb-2 block font-mono text-[11px] tracking-widest text-muted uppercase">
+        <Image src="/logo-simbolo.png" alt="" width={32} height={32} className="h-8 w-8" />
+        <h1 className="adm-display mt-6 text-[30px] text-foreground">
+          Un paso <span className="adm-serif">más.</span>
+        </h1>
+        <p className="mt-3 text-[13px] text-muted">Abrí tu app de autenticación y escribí el código de 6 dígitos.</p>
+        <label htmlFor="code" className="mt-6 mb-2 block font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">
           Código
         </label>
         <input
@@ -36,13 +36,13 @@ export function LoginForm() {
           required
           maxLength={10}
           aria-invalid={Boolean(state.error)}
-          className="focus-ring w-full rounded-xl border border-white/10 bg-[var(--well)] px-4 py-3 text-center font-mono text-[20px] tracking-[0.3em] text-foreground focus:border-accent aria-[invalid=true]:border-red-500/60"
+          className="focus-ring w-full rounded-xl border border-[var(--line-strong)] bg-[var(--well)] px-4 py-3 text-center font-mono text-[20px] tracking-[0.3em] text-foreground focus:border-accent aria-[invalid=true]:border-red-500/60"
         />
         {state.error && <p className="mt-2 text-sm text-red-400">{state.error}</p>}
         <button
           type="submit"
           disabled={pending}
-          className="focus-ring mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-medium text-background shadow-[var(--shadow-btn)] transition-[opacity,background-color] hover:bg-[var(--accent-hover)] disabled:opacity-60"
+          className="focus-ring mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-background transition-[opacity,background-color] hover:bg-foreground disabled:opacity-60"
         >
           {pending ? "Verificando…" : "Entrar"}
           <ArrowRight size={16} />
@@ -59,26 +59,26 @@ export function LoginForm() {
       }}
       className={CARD}
     >
-      <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-b from-white/[0.08] to-transparent">
-        <Image src="/logo-simbolo.png" alt="" width={24} height={24} className="h-6 w-6" />
-      </span>
-      <h1 className="mt-5 text-[20px] font-semibold tracking-[-0.02em] text-foreground">Se7en Studio · Panel</h1>
-      <p className="mt-1 text-[13px] text-muted">Pedidos, proyectos, tareas y mensajes del equipo.</p>
+      <Image src="/logo-simbolo.png" alt="" width={32} height={32} className="h-8 w-8" />
+      <h1 className="adm-display mt-6 text-[34px] text-foreground">
+        Se<span className="text-accent">7</span>en <span className="adm-serif">Panel</span>
+      </h1>
+      <p className="mt-3 text-[13px] text-muted">Pedidos, proyectos, tareas y mensajes del equipo.</p>
 
       {/* La contraseña es compartida: esto es lo que le dice al feed quién hizo qué. */}
       <fieldset className="mt-7">
-        <legend className="mb-2 block font-mono text-[11px] tracking-widest text-muted uppercase">¿Quién sos?</legend>
+        <legend className="mb-2 block font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">¿Quién sos?</legend>
         <div className="grid grid-cols-2 gap-2">
           {PEOPLE_IDS.map((o) => (
             <label
               key={o}
-              className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-white/10 bg-[var(--well)] py-1.5 pr-4 pl-1.5 text-sm text-muted transition-colors hover:text-foreground has-[:checked]:border-accent has-[:checked]:bg-accent/10 has-[:checked]:text-foreground has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent"
+              className="flex cursor-pointer items-center gap-2.5 rounded-full border border-[var(--line-strong)] py-1.5 pr-4 pl-1.5 text-sm text-muted transition-colors hover:border-foreground hover:text-foreground has-[:checked]:border-foreground has-[:checked]:bg-foreground has-[:checked]:font-medium has-[:checked]:text-background has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent"
             >
               <input type="radio" name="who" value={o} required className="sr-only" />
               {PEOPLE[o].image ? (
-                <Image src={PEOPLE[o].image} alt="" width={28} height={28} className="h-7 w-7 rounded-full object-cover" />
+                <Image src={PEOPLE[o].image} alt="" width={28} height={28} className="h-8 w-7 rounded-[50%] object-cover" />
               ) : (
-                <span className="h-7 w-7 rounded-full bg-white/10" />
+                <span className="h-8 w-7 rounded-[50%] bg-white/10" />
               )}
               {PEOPLE[o].name}
             </label>
@@ -86,7 +86,7 @@ export function LoginForm() {
         </div>
       </fieldset>
 
-      <label htmlFor="password" className="mt-6 mb-2 block font-mono text-[11px] tracking-widest text-muted uppercase">
+      <label htmlFor="password" className="mt-6 mb-2 block font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">
         Contraseña
       </label>
       <input
@@ -96,14 +96,14 @@ export function LoginForm() {
         required
         autoComplete="current-password"
         aria-invalid={Boolean(state.error)}
-        className="focus-ring w-full rounded-xl border border-white/10 bg-[var(--well)] px-4 py-3 text-foreground focus:border-accent aria-[invalid=true]:border-red-500/60"
+        className="focus-ring w-full rounded-xl border border-[var(--line-strong)] bg-[var(--well)] px-4 py-3 text-foreground focus:border-accent aria-[invalid=true]:border-red-500/60"
       />
       {state.error && <p className="mt-2 text-sm text-red-400">{state.error}</p>}
 
       <button
         type="submit"
         disabled={pending}
-        className="focus-ring mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-medium text-background shadow-[var(--shadow-btn)] transition-[opacity,background-color] hover:bg-[var(--accent-hover)] disabled:opacity-60"
+        className="focus-ring mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-background transition-[opacity,background-color] hover:bg-foreground disabled:opacity-60"
       >
         {pending ? "Entrando…" : "Entrar"}
         <ArrowRight size={16} />

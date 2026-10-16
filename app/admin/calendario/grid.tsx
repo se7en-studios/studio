@@ -76,7 +76,7 @@ export function MonthGrid({
 }) {
   return (
     <div className="overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)] shadow-[var(--shadow-card)]">
-      <div className="grid grid-cols-7 border-b border-[var(--line)] bg-white/[0.012] text-center text-[11px] font-medium tracking-wide text-muted uppercase">
+      <div className="grid grid-cols-7 border-b border-[var(--line)] bg-white/[0.012] text-center font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">
         {WEEKDAYS.map((d) => (
           <div key={d} className="py-2">
             {d}

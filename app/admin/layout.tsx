@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 /** El color de la barra del celular sigue al tema elegido en el panel. */
 export async function generateViewport(): Promise<Viewport> {
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
-  return { themeColor: theme === "light" ? "#ece7dc" : "#0a0a0b" };
+  return { themeColor: theme === "light" ? "#f2eee6" : "#0b0b0c" };
 }
 
 // Sólo arma el marco del panel. El chequeo de sesión de verdad está en cada

@@ -28,7 +28,7 @@ function NewProjectDialog({ onClose }: { onClose: () => void }) {
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[12px] text-muted">Proyecto del estudio</p>
-            <h2 className="mt-0.5 text-[20px] font-semibold tracking-[-0.01em]">Nuevo proyecto</h2>
+            <h2 className="adm-display mt-1 text-[24px]">Nuevo proyecto</h2>
           </div>
           <button type="button" onClick={onClose} aria-label="Cancelar" className="focus-ring rounded-lg p-1.5 text-muted hover:bg-white/[0.06] hover:text-foreground">
             <X size={16} />

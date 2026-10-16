@@ -91,7 +91,7 @@ function NewLeadDialog({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[12px] text-muted">Cargar a mano</p>
-            <h2 className="mt-0.5 text-[20px] font-semibold tracking-[-0.01em] text-foreground">Nuevo pedido</h2>
+            <h2 className="adm-display mt-1 text-[24px] text-foreground">Nuevo pedido</h2>
           </div>
           <button
             type="button"
