@@ -322,6 +322,21 @@ function Card({
     return () => io.disconnect();
   }, [reduced]);
 
+  // El recorrido del sitio en video (desde tablet): llena la ventana de la compu o la tarjeta entera
+  const media = project.video && !reduced && wide && (
+    <video
+      ref={videoRef}
+      className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-[1.2s] ease-(--ease-out) group-hover:scale-[1.04]"
+      muted
+      loop
+      playsInline
+      preload="none"
+    >
+      <source src={project.video.webm} type="video/webm" />
+      <source src={project.video.mp4} type="video/mp4" />
+    </video>
+  );
+
   const tagline = brand?.tagline ?? project.shortDescription;
   const highlight = brand?.highlight;
   const at = highlight ? tagline.indexOf(highlight) : -1;
@@ -350,51 +365,63 @@ function Card({
           pinned
             ? "flex-1"
             : phoneShot
-              ? "md:aspect-[16/10]"
+              ? "aspect-[5/4] md:aspect-[16/10]"
               : "aspect-[4/3] md:aspect-[16/10]"
         }`}
+        style={
+          phoneShot
+            ? { background: `linear-gradient(160deg, ${accent}40, transparent 65%)` }
+            : undefined
+        }
       >
-        {phoneShot && (
-          <div
-            className="flex justify-center px-6 pt-10 pb-6 md:hidden"
-            style={{
-              background: `linear-gradient(160deg, ${accent}40, transparent 65%)`,
-            }}
-          >
-            <div className="relative aspect-[390/844] w-[46%] overflow-hidden rounded-[1.6rem] border-[5px] border-(--ink) shadow-2xl ring-1 ring-(--line)">
+        {phoneShot ? (
+          <>
+            {/* Cómo se ve en la compu: una ventana del navegador con el sitio */}
+            <div className="absolute top-[9%] left-[6%] w-[80%] overflow-hidden rounded-lg border border-(--line) bg-(--ink) shadow-2xl transition-transform duration-[1.2s] ease-(--ease-out) group-hover:-translate-y-1 md:w-[72%]">
+              <div className="flex h-3 items-center gap-1 px-2 md:h-4" aria-hidden>
+                {[0, 1, 2].map((i) => (
+                  <span key={i} className="h-1 w-1 rounded-full bg-(--paper)/30 md:h-1.5 md:w-1.5" />
+                ))}
+              </div>
+              <div className="relative aspect-[16/10]">
+                <Image
+                  src={project.image}
+                  alt={`${project.name}: ${project.shortDescription}`}
+                  fill
+                  sizes="(min-width: 768px) 46vw, 72vw"
+                  className="object-cover object-top"
+                />
+                {media}
+              </div>
+            </div>
+            {/* Y en el celular: más chico, adelante y a la derecha */}
+            <div className="absolute right-[6%] bottom-[7%] aspect-[390/844] w-[27%] overflow-hidden rounded-[0.9rem] border-[3px] border-(--ink) shadow-[0_18px_40px_-12px_rgba(0,0,0,0.8)] ring-1 ring-(--line) md:w-[21%] md:rounded-[1.2rem] md:border-4">
               <Image
                 src={phoneShot}
                 alt={`${project.name} en celular`}
                 fill
-                sizes="240px"
+                sizes="(min-width: 768px) 14vw, 26vw"
                 className="object-cover object-top"
               />
             </div>
-          </div>
-        )}
-        <Image
-          src={project.image}
-          alt={`${project.name}: ${project.shortDescription}`}
-          fill
-          sizes="(min-width: 1024px) 58vw, 100vw"
-          className={`object-cover object-top transition-transform duration-[1.2s] ease-(--ease-out) group-hover:scale-[1.04] ${phoneShot ? "max-md:hidden" : ""}`}
-        />
-        {project.video && !reduced && wide && (
-          <video
-            ref={videoRef}
-            className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-[1.2s] ease-(--ease-out) group-hover:scale-[1.04]"
-            muted
-            loop
-            playsInline
-            preload="none"
-          >
-            <source src={project.video.webm} type="video/webm" />
-            <source src={project.video.mp4} type="video/mp4" />
-          </video>
+          </>
+        ) : (
+          <>
+            <Image
+              src={project.image}
+              alt={`${project.name}: ${project.shortDescription}`}
+              fill
+              sizes="(min-width: 1024px) 58vw, 100vw"
+              className="object-cover object-top transition-transform duration-[1.2s] ease-(--ease-out) group-hover:scale-[1.04]"
+            />
+            {media}
+          </>
         )}
         {project.impactMetric && (
           <span
-            className="rd-label absolute top-4 left-4 rounded-full px-3 py-1.5 text-[10px] font-bold text-(--ink)"
+            className={`rd-label absolute left-4 rounded-full px-3 py-1.5 text-[10px] font-bold text-(--ink) ${
+              phoneShot ? "bottom-4" : "top-4"
+            }`}
             style={{ background: accent }}
           >
             {project.impactMetric}
