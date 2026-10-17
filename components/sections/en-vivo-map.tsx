@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpRight } from "lucide-react";
-import { createEngine, type ActorSpec, type Engine, type RoomLooks } from "@/lib/oficinas/engine";
+import { ArrowUpRight, Minus, Plus } from "lucide-react";
+import { ZOOMS, createEngine, type ActorSpec, type Engine, type RoomLooks } from "@/lib/oficinas/engine";
 import type { EnVivoPublic } from "@/app/api/en-vivo/route";
 import type { VisitorsNow } from "@/lib/visitas";
 import { buildMap, hourIn, ledMessages, periodOf, themeOf, type MapModel, type Who } from "@/lib/admin/oficinas-shared";
@@ -52,7 +52,22 @@ function audience(v: VisitorsNow | null) {
   return v.total === 1 ? "Sólo vos mirando" : `Vos y ${v.total - 1} ${v.total === 2 ? "persona más" : "personas más"} mirando`;
 }
 
-export function EnVivoMap({ active, visitors }: { active: boolean; visitors: VisitorsNow | null }) {
+export function EnVivoMap({
+  active,
+  visitors,
+  fill = false,
+  hold = false,
+  onReady,
+}: {
+  active: boolean;
+  visitors: VisitorsNow | null;
+  /** Ocupa todo el contenedor (la oficina a pantalla completa del arcade) en vez de la ventanita 16:10. */
+  fill?: boolean;
+  /** Armado pero quieto (no dibuja): el arcade lo prepara mientras pasa el zoom y lo suelta al abrirse. */
+  hold?: boolean;
+  /** Avisa cuando el mapa ya se dibuja (llegaron las capturas y arrancó el motor). */
+  onReady?: () => void;
+}) {
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [engine, setEngine] = useState<Engine | null>(null);
@@ -101,6 +116,8 @@ export function EnVivoMap({ active, visitors }: { active: boolean; visitors: Vis
       me: "federico",
       font: pixel.style.fontFamily,
       public: true,
+      // A pantalla completa: zoom a escala ~1 y con tope de densidad (ver fillZoom)
+      ...(fill ? { zoom: fillZoom(), maxDpr: FILL_DPR } : {}),
       onRoom: (id) => {
         const slug = map.rooms.find((r) => r.id === id)?.slug;
         if (slug) router.push(`/work/${slug}`);
@@ -120,16 +137,20 @@ export function EnVivoMap({ active, visitors }: { active: boolean; visitors: Vis
       e.destroy();
       setEngine(null);
     };
-  }, [captures, map, bySlug, projects, router]);
+  }, [captures, map, bySlug, projects, router, fill]);
+
+  useEffect(() => {
+    if (engine) onReady?.();
+  }, [engine, onReady]);
 
   useEffect(() => {
     if (engine && online) engine.setActors(actorsFor(online, map, visitors));
   }, [engine, online, map, visitors]);
 
   useEffect(() => {
-    engine?.setPaused(!active);
+    engine?.setPaused(!active || hold);
     if (active) engine?.setPeriod(periodOf(hourIn(Date.now())));
-  }, [engine, active]);
+  }, [engine, active, hold]);
 
   const status = !online
     ? "Conectando…"
@@ -139,16 +160,21 @@ export function EnVivoMap({ active, visitors }: { active: boolean; visitors: Vis
   const hovered = hover ? map.rooms.find((r) => r.id === hover) : null;
   const hp = hovered?.slug ? bySlug.get(hovered.slug) : null;
 
+  const Frame = fill ? FillFrame : MapFrame;
+  // A pantalla completa los carteles se separan del borde (y de la muesca del celular)
+  const top = fill ? "top-[max(1rem,env(safe-area-inset-top))] left-4 md:top-6 md:left-6" : "top-2 left-2";
+  const bottom = fill ? "bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 md:bottom-6 md:left-6" : "bottom-2 left-2";
+
   return (
-    <MapFrame>
+    <Frame>
       <canvas
         ref={canvasRef}
         role="img"
         aria-label="El estudio de se7en como un mapa: cada sala es un proyecto en producción, con su sitio en la tele."
         className="block h-full w-full cursor-pointer"
-        style={{ touchAction: "pan-y" }}
+        style={{ touchAction: fill ? "none" : "pan-y" }}
       />
-      <div className="pointer-events-none absolute top-2 left-2 max-w-[calc(100%-16px)] rounded-md border border-white/10 bg-[rgba(10,10,14,0.78)] px-2 py-1.5 text-[#f1ede6]" aria-live="polite">
+      <div className={`pointer-events-none absolute ${top} max-w-[calc(100%-16px)] rounded-md border border-white/10 bg-[rgba(10,10,14,0.78)] px-2 py-1.5 text-[#f1ede6]`} aria-live="polite">
         <p className={`flex items-center gap-1.5 text-[11px] leading-none uppercase ${pixel.className}`}>
           <span className="relative flex h-1.5 w-1.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#ff4d2e] opacity-60 motion-reduce:animate-none" />
@@ -160,7 +186,7 @@ export function EnVivoMap({ active, visitors }: { active: boolean; visitors: Vis
         {audience(visitors) && <p className="truncate font-mono text-[10px] leading-snug text-[#ffb199]">{audience(visitors)}</p>}
       </div>
       {hp && (
-        <div className="pointer-events-none absolute bottom-2 left-2 max-w-[calc(100%-16px)] rounded-md border border-white/10 bg-[rgba(10,10,14,0.82)] px-2 py-1.5 text-[#f1ede6]">
+        <div className={`pointer-events-none absolute ${bottom} max-w-[calc(100%-16px)] rounded-md border border-white/10 bg-[rgba(10,10,14,0.82)] px-2 py-1.5 text-[#f1ede6]`}>
           <p className={`truncate text-[11px] leading-none uppercase ${pixel.className}`} style={{ color: hp.accent }}>
             {hp.name}
           </p>
@@ -169,6 +195,39 @@ export function EnVivoMap({ active, visitors }: { active: boolean; visitors: Vis
           </p>
         </div>
       )}
-    </MapFrame>
+      {fill && engine && (
+        <div className="absolute right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] flex flex-col gap-1.5 md:right-6 md:bottom-6">
+          {([[1, "Acercar", Plus], [-1, "Alejar", Minus]] as const).map(([step, label, Icon]) => (
+            <button
+              key={label}
+              type="button"
+              aria-label={label}
+              onClick={() => engine.zoomBy(step)}
+              className="grid h-10 w-10 place-items-center rounded-md border border-white/10 bg-[rgba(10,10,14,0.78)] text-[#f1ede6] transition-colors hover:border-white/30"
+            >
+              <Icon size={16} aria-hidden />
+            </button>
+          ))}
+        </div>
+      )}
+    </Frame>
   );
+}
+
+/** Tope de densidad del lienzo a pantalla completa (en retina, 2x cuadruplicaba los píxeles). */
+const FILL_DPR = 1.5;
+
+/**
+ * El zoom de arranque a pantalla completa: el que deja el dibujo a escala ~1
+ * (zoom × densidad). Ahí el arte horneado se copia tal cual; con otras escalas
+ * la placa lo tiene que remuestrear y el cuadro tarda hasta el doble.
+ */
+function fillZoom() {
+  const d = Math.min(FILL_DPR, window.devicePixelRatio || 1);
+  return ZOOMS.reduce((a, b) => (Math.abs(b * d - 1) < Math.abs(a * d - 1) ? b : a));
+}
+
+/** A pantalla completa: sin la ventanita, el mapa ocupa todo lo que le den. */
+function FillFrame({ children }: { children?: React.ReactNode }) {
+  return <div className="relative h-full w-full overflow-hidden bg-[#07070a]">{children}</div>;
 }

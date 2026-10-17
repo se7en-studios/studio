@@ -23,7 +23,7 @@ export function RdFaq() {
       <div className="rd-wrap grid gap-12 lg:grid-cols-12">
         <div className="lg:col-span-5">
           <div className="lg:sticky lg:top-28">
-            <RdLabel index="07" className="text-(--paper)/60">
+            <RdLabel index="08" className="text-(--paper)/60">
               Preguntas
             </RdLabel>
             <RdLines
