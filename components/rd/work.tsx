@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import Image from "next/image";
 import {
   m,
@@ -18,7 +19,8 @@ import type { Project } from "@/types";
 import { RdButton, RdLines } from "./primitives";
 
 // Trabajos: carril horizontal que avanza con el scroll vertical (sticky) en
-// desktop; columna de tarjetas en mobile / reduced motion.
+// desktop; en celular, tablet o sin movimiento, un carrusel que se desliza con
+// el dedo (la sección queda del alto de una tarjeta, no de ocho).
 
 const sorted = [...projects].sort((a, b) => a.order - b.order);
 
@@ -73,14 +75,9 @@ export function RdWork() {
       className="relative bg-(--ink)"
       style={pinned ? { height: `calc(${overflow}px + 100svh)` } : undefined}
     >
-      <div
-        className={
-          pinned
-            ? "sticky top-0 flex h-screen flex-col justify-center overflow-hidden"
-            : "py-24"
-        }
-      >
-        {pinned && (
+      {!pinned && <Rail />}
+      {pinned && (
+        <div className="sticky top-0 flex h-screen flex-col justify-center overflow-hidden">
           <div
             aria-hidden
             className="pointer-events-none absolute inset-0 transition-[background] duration-1000"
@@ -88,23 +85,17 @@ export function RdWork() {
               background: `radial-gradient(60% 55% at 60% 55%, ${accent}2e, transparent 70%)`,
             }}
           />
-        )}
-        <m.div
-          ref={trackRef}
-          style={pinned ? { x } : undefined}
-          className={
-            pinned
-              ? "relative flex w-max items-stretch gap-6 pr-[8vw] pl-(--gutter)"
-              : "rd-wrap relative flex flex-col gap-6"
-          }
-        >
-          <Header pinned={pinned} />
-          {sorted.map((p, i) => (
-            <Card key={p.slug} project={p} index={i} pinned={pinned} />
-          ))}
-          <EndCard pinned={pinned} />
-        </m.div>
-        {pinned && (
+          <m.div
+            ref={trackRef}
+            style={{ x }}
+            className="relative flex w-max items-stretch gap-6 pr-[8vw] pl-(--gutter)"
+          >
+            <Header pinned />
+            {sorted.map((p, i) => (
+              <Card key={p.slug} project={p} index={i} pinned />
+            ))}
+            <EndCard pinned />
+          </m.div>
           <div className="rd-wrap absolute inset-x-0 bottom-6 flex items-center gap-6">
             <span className="rd-label tabular-nums text-(--paper)/70">
               {String(active + 1).padStart(2, "0")} /{" "}
@@ -120,9 +111,105 @@ export function RdWork() {
               {sorted[active]?.name}
             </span>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </section>
+  );
+}
+
+/** Ancho de cada tarjeta del carrusel: se asoma la siguiente para que se entienda que sigue. */
+const SLIDE = "w-[84vw] shrink-0 snap-start sm:w-[62vw] lg:w-[44vw]";
+
+/**
+ * Celular, tablet y sin movimiento: las tarjetas en fila, con scroll horizontal
+ * nativo y encastre en cada una. Abajo, en qué tarjeta vas, una barra y flechas
+ * (para mouse y teclado; con el dedo se desliza).
+ */
+function Rail() {
+  const railRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  const reduced = useReducedMotion();
+  const [active, setActive] = useState(0);
+  const [moved, setMoved] = useState(false);
+  const count = sorted.length + 1;
+
+  useEffect(() => {
+    const rail = railRef.current;
+    if (!rail) return;
+    const onScroll = () => {
+      const max = rail.scrollWidth - rail.clientWidth;
+      const k = max > 0 ? rail.scrollLeft / max : 0;
+      if (barRef.current) barRef.current.style.transform = `scaleX(${Math.max(1 / count, k)})`;
+      setActive(Math.round(k * (count - 1)));
+      if (rail.scrollLeft > 8) setMoved(true);
+    };
+    onScroll();
+    rail.addEventListener("scroll", onScroll, { passive: true });
+    return () => rail.removeEventListener("scroll", onScroll);
+  }, [count]);
+
+  /** Una tarjeta para un lado o para el otro. */
+  const go = (dir: 1 | -1) => {
+    const rail = railRef.current;
+    const first = rail?.firstElementChild as HTMLElement | null;
+    if (!rail || !first) return;
+    const gap = parseFloat(getComputedStyle(rail).columnGap) || 0;
+    rail.scrollBy({ left: dir * (first.offsetWidth + gap), behavior: reduced ? "auto" : "smooth" });
+  };
+
+  const current = sorted[active];
+  return (
+    <div className="py-24">
+      <div className="rd-wrap">
+        <Header pinned={false} />
+      </div>
+      <div
+        ref={railRef}
+        role="region"
+        aria-label="Trabajos: deslizá para ver los demás"
+        tabIndex={0}
+        className="flex snap-x snap-mandatory scroll-px-(--gutter) gap-4 overflow-x-auto overscroll-x-contain px-(--gutter) [scrollbar-width:none] focus-visible:outline-offset-[-2px] [&::-webkit-scrollbar]:hidden"
+      >
+        {sorted.map((p, i) => (
+          <Card key={p.slug} project={p} index={i} pinned={false} />
+        ))}
+        <EndCard pinned={false} />
+      </div>
+      <div className="rd-wrap mt-6 flex items-center gap-4">
+        <span className="rd-label shrink-0 tabular-nums text-(--paper)/70">
+          {String(active + 1).padStart(2, "0")} / {String(count).padStart(2, "0")}
+        </span>
+        <div className="h-px flex-1 bg-(--line)">
+          <div
+            ref={barRef}
+            className="h-px origin-left bg-(--signal) transition-transform duration-150"
+            style={{ transform: `scaleX(${1 / count})` }}
+          />
+        </div>
+        <span className="rd-label hidden max-w-[40%] truncate text-(--paper)/70 sm:block">
+          {current ? current.name : "¿Y el tuyo?"}
+        </span>
+        {!moved && (
+          <span className="rd-label shrink-0 text-(--paper)/60 sm:hidden" aria-hidden>
+            Deslizá →
+          </span>
+        )}
+        <div className="flex shrink-0 gap-2 max-sm:hidden">
+          {([[-1, "Anterior", ArrowLeft], [1, "Siguiente", ArrowRight]] as const).map(([dir, label, Icon]) => (
+            <button
+              key={label}
+              type="button"
+              aria-label={`Trabajo ${label.toLowerCase()}`}
+              onClick={() => go(dir)}
+              disabled={dir === -1 ? active === 0 : active === count - 1}
+              className="grid h-11 w-11 place-items-center rounded-full border border-(--line) text-(--paper) transition-colors duration-300 hover:border-(--paper) hover:bg-(--paper) hover:text-(--ink) disabled:pointer-events-none disabled:opacity-30"
+            >
+              <Icon size={18} aria-hidden />
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -165,7 +252,7 @@ function EndCard({ pinned }: { pinned: boolean }) {
   return (
     <div
       className={`flex shrink-0 flex-col justify-center gap-8 rounded-[2rem] bg-(--signal) p-8 text-(--ink) md:p-12 ${
-        pinned ? "h-[72vh] w-[34vw]" : "min-h-[60vh]"
+        pinned ? "h-[72vh] w-[34vw]" : SLIDE
       }`}
     >
       <p className="rd-label">( ¿Y el tuyo? )</p>
@@ -249,7 +336,7 @@ function Card({
       href={`/work/${project.slug}`}
       data-cursor="Ver caso"
       className={`group relative flex shrink-0 flex-col overflow-hidden rounded-[2rem] border border-(--line) bg-(--ink-2) ${
-        pinned ? "h-[72vh] w-[min(52vw,940px)]" : "w-full"
+        pinned ? "h-[72vh] w-[min(52vw,940px)]" : SLIDE
       }`}
     >
       <div className="flex items-center justify-between gap-4 px-6 pt-5 pb-4 md:px-8">
@@ -269,12 +356,12 @@ function Card({
       >
         {phoneShot && (
           <div
-            className="flex justify-center px-6 pt-14 pb-7 md:hidden"
+            className="flex justify-center px-6 pt-10 pb-6 md:hidden"
             style={{
               background: `linear-gradient(160deg, ${accent}40, transparent 65%)`,
             }}
           >
-            <div className="relative aspect-[390/844] w-[58%] overflow-hidden rounded-[1.6rem] border-[5px] border-(--ink) shadow-2xl ring-1 ring-(--line)">
+            <div className="relative aspect-[390/844] w-[46%] overflow-hidden rounded-[1.6rem] border-[5px] border-(--ink) shadow-2xl ring-1 ring-(--line)">
               <Image
                 src={phoneShot}
                 alt={`${project.name} en celular`}
