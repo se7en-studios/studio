@@ -394,15 +394,22 @@ function Card({
                 {media}
               </div>
             </div>
-            {/* Y en el celular: más chico, adelante y a la derecha */}
-            <div className="absolute right-[6%] bottom-[7%] aspect-[390/844] w-[27%] overflow-hidden rounded-[0.9rem] border-[3px] border-(--ink) shadow-[0_18px_40px_-12px_rgba(0,0,0,0.8)] ring-1 ring-(--line) md:w-[21%] md:rounded-[1.2rem] md:border-4">
-              <Image
-                src={phoneShot}
-                alt={`${project.name} en celular`}
-                fill
-                sizes="(min-width: 768px) 14vw, 26vw"
-                className="object-cover object-top"
-              />
+            {/* Y en el celular: más chico, adelante y a la derecha. El marco va con
+                fondo y no con borde: el color de los bordes lo pisa globals.css. */}
+            <div className="absolute right-[6%] bottom-[7%] w-[27%] rounded-[1rem] bg-[#2b2b31] p-[3px] shadow-[0_18px_40px_-12px_rgba(0,0,0,0.85)] ring-1 ring-white/30 md:w-[21%] md:rounded-[1.3rem] md:p-1">
+              <div className="relative aspect-[390/844] overflow-hidden rounded-[0.8rem] bg-black md:rounded-[1.05rem]">
+                <Image
+                  src={phoneShot}
+                  alt={`${project.name} en celular`}
+                  fill
+                  sizes="(min-width: 768px) 14vw, 26vw"
+                  className="object-cover object-top"
+                />
+                <span
+                  aria-hidden
+                  className="absolute top-[2.2%] left-1/2 h-[3.4%] w-[30%] -translate-x-1/2 rounded-full bg-black"
+                />
+              </div>
             </div>
           </>
         ) : (
