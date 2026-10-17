@@ -93,6 +93,10 @@ export type EngineOptions = {
   public?: boolean;
   /** Para los sonidos (lib/oficinas/sound.ts): pasos, entrar a una sala, novedades, tubos. */
   onCue?: (c: Cue) => void;
+  /** Zoom inicial (uno de ZOOMS). Sin esto, 0.65 en pantallas chicas y 1 en el resto. */
+  zoom?: number;
+  /** Tope de densidad de píxeles del lienzo (2.5 si no se pasa). */
+  maxDpr?: number;
 };
 
 /**
@@ -130,7 +134,7 @@ export type Engine = {
   destroy: () => void;
 };
 
-const ZOOMS = [0.5, 0.65, 0.8, 1, 1.25, 1.5];
+export const ZOOMS = [0.5, 0.65, 0.8, 1, 1.25, 1.5];
 /** Ancho/alto de lo que muestra la tele (abajo de la barra del navegador). */
 const TV_ASPECT = 64 / 38.7;
 /**
@@ -190,6 +194,11 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
   const darkC = document.createElement("canvas");
   const dctx = darkC.getContext("2d") as CanvasRenderingContext2D;
+  // El piso no se mueve: se dibuja acá una vez y en cada cuadro sólo se copia (ver render)
+  const floorC = document.createElement("canvas");
+  const fctx = floorC.getContext("2d") as CanvasRenderingContext2D;
+  let floorKey = "";
+  let artRev = 0;
   // La proyección (P) depende de la vista: se fija antes de precalcular posiciones.
   begin(ctx, view);
   const byId = new Map(m.rooms.map((r) => [r.id, r]));
@@ -206,6 +215,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   let bubbles: Bubble[] = [];
   let motes: Mote[] = [];
   let zi = ZOOMS.indexOf(canvas.clientWidth < 640 ? 0.65 : 1);
+  if (o.zoom !== undefined && ZOOMS.includes(o.zoom)) zi = ZOOMS.indexOf(o.zoom);
   let dpr = 1, scale = 1, offX = 0, offY = 0;
   const cam = { x: 0, y: 0, ready: false };
   const disp = new Map<string, number>();
@@ -235,6 +245,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     const poster = m.decor.find((dc) => dc.room === r.id && dc.k === "brand");
     const imgs: BrandImages = { logo: null, mark: null };
     const bake = () => {
+      artRev++;
       const prev = arts.get(r.id);
       arts.set(r.id, { ...bakeBrand(inf.name, inf.accent, inf.brand ?? null, poster ? posterAspect(poster) : 2, imgs), ...imgs, site: prev?.site ?? null, page: prev?.page ?? null });
     };
@@ -1332,6 +1343,32 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     ctx.fillRect(t - u, y + h, 2 * u, u);
   }
 
+  /** El piso entero, sobre el contexto de art (begin): baldosas, alfombras, polvo y el borde del edificio. */
+  function drawFloor() {
+    for (let y = 0; y < m.H; y++)
+      for (let x = 0; x < m.W; x++) {
+        setFade(fadeOfId(m.region[y][x] === "hall" ? null : m.region[y][x]));
+        floorTile(x, y, matAt(x, y), m.archiveY !== null && y >= m.archiveY && x === 7 && m.region[y][x] === "hall");
+      }
+    for (const f of m.furni) {
+      if (!DECALS.has(f.k)) continue;
+      const r = f.room ? byId.get(f.room) : null;
+      setFade(fadeOfId(f.room));
+      const art = artOf(f.room);
+      if (f.k !== "rug") decal(f, accentOf(f.room), art);
+      else if (r?.kind === "office") rug(f, r.who === "franco" ? "#8f8257" : "#33333f", r.who === "franco" ? "#e2d5a3" : "#ff4d2e");
+      else if (r?.kind === "reception") rug(f, "#b8442c", "#ffb199");
+      else if (art) brandRug(f, art.rug);
+      else {
+        const acc = accentOf(f.room);
+        rug(f, mix(acc, "#2a2228", 0.4), mix(acc, "#f1ede6", 0.35));
+      }
+    }
+    setFade(0);
+    for (const r of m.rooms) if (r.kind === "project") decay(r, fadeOfId(r.id));
+    slab(m, matAt);
+  }
+
   // --- Cuadro -----------------------------------------------------------------------
   function render(ts: number) {
     const W = canvas.width, H = canvas.height;
@@ -1361,31 +1398,24 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     const vx0 = -offX / scale - 80, vy0 = -offY / scale - 80, vx1 = vx0 + vw + 160, vy1 = vy0 + vh + 220;
     const visible = (ax: number, ay: number) => ax > vx0 && ax < vx1 && ay > vy0 && ay < vy1;
 
-    // Piso, alfombras, polvo y el borde del edificio
-    for (let y = 0; y < m.H; y++)
-      for (let x = 0; x < m.W; x++) {
-        const [ax, ay] = P(x + 0.5, y + 0.5);
-        if (!visible(ax, ay)) continue;
-        setFade(fadeOfId(m.region[y][x] === "hall" ? null : m.region[y][x]));
-        floorTile(x, y, matAt(x, y), m.archiveY !== null && y >= m.archiveY && x === 7 && m.region[y][x] === "hall");
-      }
-    for (const f of m.furni) {
-      if (!DECALS.has(f.k)) continue;
-      const r = f.room ? byId.get(f.room) : null;
-      setFade(fadeOfId(f.room));
-      const art = artOf(f.room);
-      if (f.k !== "rug") decal(f, accentOf(f.room), art);
-      else if (r?.kind === "office") rug(f, r.who === "franco" ? "#8f8257" : "#33333f", r.who === "franco" ? "#e2d5a3" : "#ff4d2e");
-      else if (r?.kind === "reception") rug(f, "#b8442c", "#ffb199");
-      else if (art) brandRug(f, art.rug);
-      else {
-        const acc = accentOf(f.room);
-        rug(f, mix(acc, "#2a2228", 0.4), mix(acc, "#f1ede6", 0.35));
-      }
+    // Piso, alfombras, polvo y el borde del edificio. Son la mitad de las figuras
+    // de cada cuadro y no se mueven: se dibujan una vez en su lienzo (en
+    // coordenadas del mundo) y en cada cuadro se copian con el corrimiento de la
+    // cámara. Se rehacen si cambia el zoom, si una sala se prende o se apaga, o
+    // si llega el arte de una marca.
+    const key = `${scale}|${artRev}|${m.rooms.map((r) => fadeOfId(r.id).toFixed(3)).join(",")}`;
+    if (key !== floorKey) {
+      floorKey = key;
+      floorC.width = Math.ceil(view.width * scale);
+      floorC.height = Math.ceil(view.height * scale);
+      fctx.setTransform(scale, 0, 0, scale, 0, 0);
+      begin(fctx, view);
+      drawFloor();
+      begin(ctx, view);
     }
-    setFade(0);
-    for (const r of m.rooms) if (r.kind === "project") decay(r, fadeOfId(r.id));
-    slab(m, matAt);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(floorC, offX, offY);
+    ctx.setTransform(scale, 0, 0, scale, offX, offY);
     // Al pasar el mouse por una sala se marca su contorno, para saber a dónde vas
     const hovered = hover ? roomAt(m, hover.x, hover.y) : null;
     if (hovered && hovered.kind !== "storage") {
@@ -1679,7 +1709,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   }
 
   function resize() {
-    dpr = Math.min(2.5, window.devicePixelRatio || 1);
+    dpr = Math.min(o.maxDpr ?? 2.5, window.devicePixelRatio || 1);
     canvas.width = Math.max(1, Math.round(canvas.clientWidth * dpr));
     canvas.height = Math.max(1, Math.round(canvas.clientHeight * dpr));
     darkC.width = canvas.width;

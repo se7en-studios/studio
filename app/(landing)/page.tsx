@@ -6,6 +6,7 @@ import { RdWork } from "@/components/rd/work";
 import { RdServices } from "@/components/rd/services";
 import { RdProcess } from "@/components/rd/process";
 import { RdTestimonials } from "@/components/rd/testimonials";
+import { RdArcade } from "@/components/rd/arcade";
 import { RdTeam } from "@/components/rd/team";
 import { RdFaq } from "@/components/rd/faq";
 import { RdContact } from "@/components/rd/contact";
@@ -22,6 +23,7 @@ export default function Home() {
       <RdServices />
       <RdProcess />
       <RdTestimonials />
+      <RdArcade />
       <RdTeam />
       <RdFaq />
       <RdContact />
