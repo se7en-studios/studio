@@ -20,6 +20,8 @@ import {
   type Who,
 } from "@/lib/admin/oficinas-shared";
 import {
+  AVATAR_REACH,
+  CAT_REACH,
   HH,
   HW,
   P,
@@ -52,6 +54,7 @@ import {
   type Dir,
   type Glow,
   type Material,
+  type Reach,
   type RoomArt,
   type WallStyle,
   type XY,
@@ -166,6 +169,8 @@ const LED_ROWS = 12;
 const LED_SPEED = 16; // columnas por segundo
 const LED_HOLD = 4000;
 const LED_AMBER = "#ffb347";
+/** El fondo de afuera del edificio. */
+const BG = "#07070a";
 /** Un mensaje ya pasado a puntos: qué filas se prenden en cada columna y de qué color. */
 type LedBake = { cols: number; mask: Uint16Array; color: string[] };
 /** Globo de chat arriba del muñeco. */
@@ -174,7 +179,24 @@ const BUBBLE_MS = 4200;
 /** Motas de luz que suben cuando una sala apagada se vuelve a prender. */
 type Mote = { x: number; y: number; t0: number; col: string };
 
-type Item = { depth: number; order: number; x: number; ax: number; ay: number; draw: () => void };
+/** Un rectángulo en px del mundo (o, ya pasado a la pantalla, en px enteros del lienzo). */
+type Box = { x0: number; y0: number; x1: number; y1: number };
+/**
+ * Lo que se ordena por profundidad: una pared, el arco o un mueble. `box`: hasta
+ * dónde llega su dibujo. `glows`: lo que prende arriba de la oscuridad.
+ * `ghost`: si ahora se vuelve casi transparente porque tapa al que camina.
+ */
+type Item = { depth: number; order: number; x: number; ax: number; ay: number; box: Box; glows: Glow[]; ghost?: () => boolean; draw: () => void };
+/** Alguien (o el gato) para intercalar con los muebles: `box`, el rectángulo que ocupa. */
+type Person = { depth: number; box: Box; draw: () => void };
+/**
+ * Más píxeles que esto por lienzo de lo quieto (un zoom grande en retina) y se
+ * dibuja todo directo en cada cuadro: no vale la memoria.
+ */
+const LAYER_PX = 16e6;
+const touches = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+/** El rectángulo de algo parado en (sx, sy), los pies (el arte los redondea), que llega hasta `k`. */
+const around = (sx: number, sy: number, k: Reach): Box => ({ x0: Math.round(sx) - k.x - 2, x1: Math.round(sx) + k.x + 2, y0: Math.round(sy) - k.up - 2, y1: Math.round(sy) + k.down + 2 });
 
 const rgba = (hex: string, a: number) => {
   const n = parseInt(hex.slice(1, 7), 16);
@@ -194,11 +216,16 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
   const darkC = document.createElement("canvas");
   const dctx = darkC.getContext("2d") as CanvasRenderingContext2D;
-  // El piso no se mueve: se dibuja acá una vez y en cada cuadro sólo se copia (ver render)
+  // Lo quieto (el piso en uno; paredes y muebles en otro) se dibuja acá una vez
+  // y en cada cuadro sólo se copia (ver render)
   const floorC = document.createElement("canvas");
   const fctx = floorC.getContext("2d") as CanvasRenderingContext2D;
-  let floorKey = "";
+  const itemsC = document.createElement("canvas");
+  const ictx = itemsC.getContext("2d") as CanvasRenderingContext2D;
+  let floorKey = "", itemsKey = "";
   let artRev = 0;
+  /** Dónde dibujan las paredes y el arco: la pantalla o el lienzo de lo quieto. */
+  let dst = ctx;
   // La proyección (P) depende de la vista: se fija antes de precalcular posiciones.
   begin(ctx, view);
   const byId = new Map(m.rooms.map((r) => [r.id, r]));
@@ -298,8 +325,11 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   // --- Lo que se ordena por profundidad: paredes, arco y muebles ----------------
   const items: Item[] = [];
   let glows: Glow[] = [];
-  const litDecor = new Set<string>();
+  /** Las pantallas de pared, una por cartel aunque ocupe varios tramos. */
+  const wallGlows = new Map<string, Glow>();
   const playerBox = { x0: 0, y0: 0, x1: 0, y1: 0, depth: 0 };
+  /** Lo que ocupa en pantalla (px del mundo) un volumen de [x0, x1] × [y0, y1] baldosas y z1 de alto, con margen para los contornos. */
+  const reach = (x0: number, y0: number, x1: number, y1: number, z1: number, pad = 3): Box => ({ x0: P(x0, y1)[0] - pad, x1: P(x1, y0)[0] + pad, y0: P(x0, y0, z1)[1] - pad, y1: P(x1, y1)[1] + pad });
 
   function wallStyle(side: "L" | "R", kind: "rail" | "wall" | "tall", owner: string | null): WallStyle {
     const r = owner ? byId.get(owner) : null;
@@ -324,36 +354,40 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         const segBox = side === "L" ? { x0: P(x, y + 1)[0] - 8, x1: P(x, y)[0], y0: P(x, y, h)[1], y1: P(x, y + 1)[1] } : { x0: P(x, y)[0], x1: P(x + 1, y)[0] + 8, y0: P(x, y, h)[1], y1: P(x + 1, y)[1] };
         const depth = x + y - 0.5;
         const [ax, ay] = P(x + 0.5, y + 0.5);
+        // Las pantallas de pared (tele, mapa) se prenden por arriba de la oscuridad, una sola vez.
+        const lit = door
+          ? []
+          : here.flatMap((dc) => {
+              const scr = decorScreen(dc);
+              if (!scr) return [];
+              let gl = wallGlows.get(dc.id);
+              if (!gl) wallGlows.set(dc.id, (gl = { t: "screen", quad: scr.quad, kind: scr.kind, accent: accentOf(dc.room), room: dc.room }));
+              return [gl];
+            });
+        // Si la pared tapa al que camina atrás, se vuelve casi transparente.
+        const ghost = kind === "wall" ? () => depth > playerBox.depth && segBox.x1 > playerBox.x0 && segBox.x0 < playerBox.x1 && segBox.y1 > playerBox.y0 && segBox.y0 < playerBox.y1 : undefined;
         items.push({
-          depth, order: 0, x, ax, ay,
+          depth, order: 0, x, ax, ay, glows: lit, ghost,
+          // El espesor de la pared (y algo más) y las jambas de la puerta, un poco más altas
+          box: side === "L" ? reach(x - 0.2, y, x, y + 1, h + 4) : reach(x, y - 0.2, x + 1, y, h + 4),
           draw: () => {
-            // Si la pared tapa al que camina atrás, se vuelve casi transparente.
-            const ghost = kind === "wall" && depth > playerBox.depth && segBox.x1 > playerBox.x0 && segBox.x0 < playerBox.x1 && segBox.y1 > playerBox.y0 && segBox.y0 < playerBox.y1;
-            if (ghost) ctx.globalAlpha = 0.28;
+            if (ghost?.()) dst.globalAlpha = 0.28;
             setFade(fadeOfId(owner));
             wallSegment(side, x, y, kind, wallStyle(side, kind, owner), door);
             if (here.length && !door) {
-              ctx.save();
-              ctx.beginPath();
-              ctx.moveTo(face[0][0], face[0][1]);
-              for (let i = 1; i < 4; i++) ctx.lineTo(face[i][0], face[i][1]);
-              ctx.closePath();
-              ctx.clip();
+              dst.save();
+              dst.beginPath();
+              dst.moveTo(face[0][0], face[0][1]);
+              for (let i = 1; i < 4; i++) dst.lineTo(face[i][0], face[i][1]);
+              dst.closePath();
+              dst.clip();
               for (const dc of here) {
                 setFade(fadeOfId(dc.room));
                 decor(dc, accentOf(dc.room), period, artOf(dc.room));
               }
-              ctx.restore();
-              // Las pantallas de pared (tele, mapa) se prenden por arriba de la oscuridad, una sola vez.
-              for (const dc of here) {
-                const scr = decorScreen(dc);
-                if (scr && !litDecor.has(dc.id)) {
-                  litDecor.add(dc.id);
-                  glows.push({ t: "screen", quad: scr.quad, kind: scr.kind, accent: accentOf(dc.room), room: dc.room });
-                }
-              }
+              dst.restore();
             }
-            ctx.globalAlpha = 1;
+            dst.globalAlpha = 1;
           },
         });
       }
@@ -361,7 +395,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     const ay0 = m.archiveY, { x0, x1 } = m.spine;
     const [ax, ay] = P(x0 + 0.5, ay0 + 0.5);
     items.push({
-      depth: x0 + ay0 - 0.6, order: 0, x: x0, ax, ay,
+      depth: x0 + ay0 - 0.6, order: 0, x: x0, ax, ay, glows: [],
+      box: reach(x0 - 0.12, ay0 - 0.12, x1 + 0.12, ay0 + 0.12, 106),
       draw: () => {
         setFade(0);
         archPost(x0, ay0);
@@ -382,15 +417,15 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     }
   }
   function poly(pts: XY[], fill: string) {
-    ctx.beginPath();
-    ctx.moveTo(pts[0][0], pts[0][1]);
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
-    ctx.closePath();
-    ctx.fillStyle = fill;
-    ctx.fill();
-    ctx.strokeStyle = "rgba(28,20,30,0.5)";
-    ctx.lineWidth = 1;
-    ctx.stroke();
+    dst.beginPath();
+    dst.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) dst.lineTo(pts[i][0], pts[i][1]);
+    dst.closePath();
+    dst.fillStyle = fill;
+    dst.fill();
+    dst.strokeStyle = "rgba(28,20,30,0.5)";
+    dst.lineWidth = 1;
+    dst.stroke();
   }
   const COVERABLE = new Set(["desk", "chair", "sofa"]);
   for (const f of m.furni) {
@@ -398,13 +433,18 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     const r = f.room ? byId.get(f.room) : null;
     const status = r?.id ? o.info[r.id]?.status ?? "" : "";
     const [ax, ay] = P(f.x + f.w / 2, f.y + f.d / 2);
-    items.push({
-      depth: f.x + f.w - 1 + f.y + f.d - 1, order: 1, x: f.x, ax, ay,
+    const it: Item = {
+      depth: f.x + f.w - 1 + f.y + f.d - 1, order: 1, x: f.x, ax, ay, glows: [],
+      // Ningún mueble pasa de 70 px de alto ni se sale más que un poco de sus baldosas
+      box: reach(f.x - 0.15, f.y - 0.15, f.x + f.w + 0.15, f.y + f.d + 0.15, 70, 6),
       draw: () => {
         setFade(fadeOfId(f.room));
-        furni(f, { accent: accentOf(f.room), status, covered: status === "pausado" && COVERABLE.has(f.k), kind: r?.kind ?? "hall", glows });
+        // Lo que prende se anota cada vez que se dibuja (es siempre lo mismo)
+        it.glows = [];
+        furni(f, { accent: accentOf(f.room), status, covered: status === "pausado" && COVERABLE.has(f.k), kind: r?.kind ?? "hall", glows: it.glows });
       },
-    });
+    };
+    items.push(it);
   }
   items.sort((a, b) => a.depth - b.depth || a.order - b.order || a.x - b.x);
 
@@ -1343,10 +1383,14 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     ctx.fillRect(t - u, y + h, 2 * u, u);
   }
 
-  /** El piso entero, sobre el contexto de art (begin): baldosas, alfombras, polvo y el borde del edificio. */
-  function drawFloor() {
+  /**
+   * El piso, sobre el contexto de art (begin): baldosas, alfombras, polvo y el
+   * borde del edificio. Con `near`, sólo las baldosas que están a la vista.
+   */
+  function drawFloor(near?: (ax: number, ay: number) => boolean) {
     for (let y = 0; y < m.H; y++)
       for (let x = 0; x < m.W; x++) {
+        if (near && !near(...P(x + 0.5, y + 0.5))) continue;
         setFade(fadeOfId(m.region[y][x] === "hall" ? null : m.region[y][x]));
         floorTile(x, y, matAt(x, y), m.archiveY !== null && y >= m.archiveY && x === 7 && m.region[y][x] === "hall");
       }
@@ -1369,53 +1413,11 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     slab(m, matAt);
   }
 
-  // --- Cuadro -----------------------------------------------------------------------
-  function render(ts: number) {
-    const W = canvas.width, H = canvas.height;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = "#07070a";
-    ctx.fillRect(0, 0, W, H);
-    scale = ZOOMS[zi] * dpr;
-    const focus = o.public ? focusActor() : null;
-    // Sin nadie en el mapa, la cámara mira la recepción
-    const [pxT, pyT] = o.public ? (focus ? actorPos(focus) : [7.5, 3]) : playerPos();
-    const [wx, wy] = P(pxT, pyT);
-    const vw = W / scale, vh = H / scale;
-    const tx = view.width <= vw ? view.width / 2 : Math.max(vw / 2, Math.min(view.width - vw / 2, wx));
-    const ty = view.height <= vh ? view.height / 2 : Math.max(vh / 2, Math.min(view.height - vh / 2, wy - 30));
-    if (!cam.ready || reduced) {
-      cam.x = tx;
-      cam.y = ty;
-      cam.ready = true;
-    } else {
-      cam.x += (tx - cam.x) * 0.12;
-      cam.y += (ty - cam.y) * 0.12;
-    }
-    offX = Math.round(W / 2 - cam.x * scale);
-    offY = Math.round(H / 2 - cam.y * scale);
-    ctx.setTransform(scale, 0, 0, scale, offX, offY);
-    begin(ctx, view);
-    const vx0 = -offX / scale - 80, vy0 = -offY / scale - 80, vx1 = vx0 + vw + 160, vy1 = vy0 + vh + 220;
-    const visible = (ax: number, ay: number) => ax > vx0 && ax < vx1 && ay > vy0 && ay < vy1;
-
-    // Piso, alfombras, polvo y el borde del edificio. Son la mitad de las figuras
-    // de cada cuadro y no se mueven: se dibujan una vez en su lienzo (en
-    // coordenadas del mundo) y en cada cuadro se copian con el corrimiento de la
-    // cámara. Se rehacen si cambia el zoom, si una sala se prende o se apaga, o
-    // si llega el arte de una marca.
-    const key = `${scale}|${artRev}|${m.rooms.map((r) => fadeOfId(r.id).toFixed(3)).join(",")}`;
-    if (key !== floorKey) {
-      floorKey = key;
-      floorC.width = Math.ceil(view.width * scale);
-      floorC.height = Math.ceil(view.height * scale);
-      fctx.setTransform(scale, 0, 0, scale, 0, 0);
-      begin(fctx, view);
-      drawFloor();
-      begin(ctx, view);
-    }
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.drawImage(floorC, offX, offY);
-    ctx.setTransform(scale, 0, 0, scale, offX, offY);
+  /** Lo que se marca sobre el piso, abajo de los muebles: la sala y la baldosa bajo el mouse y a dónde vas. */
+  function floorMarks(ts: number) {
+    // El trazo como lo deja el piso: así sale igual en cada rectángulo que se rehace
+    ctx.lineJoin = "round";
+    ctx.lineWidth = 1;
     // Al pasar el mouse por una sala se marca su contorno, para saber a dónde vas
     const hovered = hover ? roomAt(m, hover.x, hover.y) : null;
     if (hovered && hovered.kind !== "storage") {
@@ -1450,16 +1452,133 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         ctx.stroke();
       }
     }
+  }
+  /** Dibuja `fn` en un lienzo de lo quieto: el mundo entero, a la escala de ahora. */
+  function paint(cv: HTMLCanvasElement, g: CanvasRenderingContext2D, w: number, h: number, fn: () => void) {
+    if (cv.width !== w || cv.height !== h) {
+      cv.width = w;
+      cv.height = h;
+    } else {
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.clearRect(0, 0, w, h);
+    }
+    g.setTransform(scale, 0, 0, scale, 0, 0);
+    dst = g;
+    begin(g, view);
+    fn();
+    dst = ctx;
+    begin(ctx, view);
+  }
+  /** Copia un lienzo de lo quieto con el corrimiento de la cámara. */
+  function blit(cv: HTMLCanvasElement) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(cv, offX, offY);
+    ctx.setTransform(scale, 0, 0, scale, offX, offY);
+  }
+  /** Paredes y muebles (en su orden) con la gente intercalada por profundidad. */
+  function layered(list: Item[], people: Person[]) {
+    let pi = 0;
+    for (const it of list) {
+      while (pi < people.length && people[pi].depth < it.depth + (it.order === 0 ? 0 : 0.01)) {
+        setFade(0);
+        people[pi++].draw();
+      }
+      it.draw();
+    }
+    while (pi < people.length) {
+      setFade(0);
+      people[pi++].draw();
+    }
+  }
+  /** Las cajas del mundo pasadas a la pantalla (px enteros, con uno de margen); las que se pisan, juntas en una. */
+  function onScreen(boxes: Box[], W: number, H: number): Box[] {
+    const out: Box[] = [];
+    for (const b of boxes) {
+      const r = { x0: Math.max(0, Math.floor(b.x0 * scale + offX) - 1), y0: Math.max(0, Math.floor(b.y0 * scale + offY) - 1), x1: Math.min(W, Math.ceil(b.x1 * scale + offX) + 1), y1: Math.min(H, Math.ceil(b.y1 * scale + offY) + 1) };
+      if (r.x1 > r.x0 && r.y1 > r.y0) out.push(r);
+    }
+    for (let merged = true; merged; ) {
+      merged = false;
+      for (let i = 0; i < out.length && !merged; i++)
+        for (let j = i + 1; j < out.length; j++) {
+          const a = out[i], b = out[j];
+          if (!touches(a, b)) continue;
+          out[i] = { x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) };
+          out.splice(j, 1);
+          merged = true;
+          break;
+        }
+    }
+    return out;
+  }
+
+  // --- Cuadro -----------------------------------------------------------------------
+  function render(ts: number) {
+    const W = canvas.width, H = canvas.height;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, W, H);
+    scale = ZOOMS[zi] * dpr;
+    const focus = o.public ? focusActor() : null;
+    // Sin nadie en el mapa, la cámara mira la recepción
+    const [pxT, pyT] = o.public ? (focus ? actorPos(focus) : [7.5, 3]) : playerPos();
+    const [wx, wy] = P(pxT, pyT);
+    const vw = W / scale, vh = H / scale;
+    const tx = view.width <= vw ? view.width / 2 : Math.max(vw / 2, Math.min(view.width - vw / 2, wx));
+    const ty = view.height <= vh ? view.height / 2 : Math.max(vh / 2, Math.min(view.height - vh / 2, wy - 30));
+    if (!cam.ready || reduced) {
+      cam.x = tx;
+      cam.y = ty;
+      cam.ready = true;
+    } else {
+      cam.x += (tx - cam.x) * 0.12;
+      cam.y += (ty - cam.y) * 0.12;
+    }
+    offX = Math.round(W / 2 - cam.x * scale);
+    offY = Math.round(H / 2 - cam.y * scale);
+    ctx.setTransform(scale, 0, 0, scale, offX, offY);
+    begin(ctx, view);
+    const vx0 = -offX / scale - 80, vy0 = -offY / scale - 80, vx1 = vx0 + vw + 160, vy1 = vy0 + vh + 220;
+    const visible = (ax: number, ay: number) => ax > vx0 && ax < vx1 && ay > vy0 && ay < vy1;
+
+    // Lo quieto es casi todo lo que hay que dibujar: el piso (baldosas, alfombras,
+    // polvo y el borde del edificio) en un lienzo y las paredes y los muebles en
+    // otro, en coordenadas del mundo. En cada cuadro sólo se copian con el
+    // corrimiento de la cámara. Se rehacen si cambia el zoom, si una sala se
+    // prende o se apaga, si llega el arte de una marca o (por las ventanas) si
+    // cambia la hora. Mientras titilan los tubos de una sala, o si los lienzos no
+    // entran en memoria, se dibuja todo directo, como antes.
+    const lw = Math.ceil(view.width * scale), lh = Math.ceil(view.height * scale);
+    const baked = !anim.size && lw * lh <= LAYER_PX;
+    if (baked) {
+      const fk = `${scale}|${artRev}|${m.rooms.map((r) => fadeOfId(r.id).toFixed(3)).join(",")}`;
+      if (fk !== floorKey) {
+        floorKey = fk;
+        paint(floorC, fctx, lw, lh, () => drawFloor());
+      }
+      if (`${fk}|${period}` !== itemsKey) {
+        itemsKey = `${fk}|${period}`;
+        // Sin transparencias: la pared que tapa a alguien se rehace en su rectángulo (abajo)
+        playerBox.depth = Infinity;
+        paint(itemsC, ictx, lw, lh, () => {
+          for (const it of items) it.draw();
+        });
+      }
+      blit(floorC);
+      floorMarks(ts);
+      blit(itemsC);
+    } else {
+      drawFloor(visible);
+      floorMarks(ts);
+    }
 
     // Personas, ordenadas con lo demás por profundidad
-    glows = [];
-    litDecor.clear();
     const [psx, psy] = P(pxT, pyT);
     const pDepth = o.public ? (focus ? actorDepth(focus) : -1) : player.moving ? Math.max(player.from.x + player.from.y, player.to.x + player.to.y) + 0.05 : player.x + player.y + 0.05;
     Object.assign(playerBox, { x0: psx - 14, x1: psx + 14, y0: psy - 66, y1: psy, depth: pDepth });
     const blink = !reduced && ts % 4300 < 140;
     const typing = reduced ? null : (ts / 260) % 1;
-    const people: { depth: number; draw: () => void }[] = [];
+    const people: Person[] = [];
     const po = byId.get(`off-${otherOf(me)}`);
     if (o.public) {
       for (const a of actors) {
@@ -1467,6 +1586,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         const wave = a.greet && ts >= a.greet.t0 ? (ts - a.greet.t0) / GREET_MS : null;
         people.push({
           depth: actorDepth(a),
+          box: around(ax, ay, AVATAR_REACH),
           draw: () =>
             a.seat
               ? avatar(a.look, ax, ay, "SW", null, true, blink, typing)
@@ -1477,34 +1597,55 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       const seat = sitting ? ownSeat() : null;
       if (seat) {
         const [sx, sy] = P(seat.x + 0.5, seat.y + 0.5);
-        people.push({ depth: seat.x + seat.y + 0.05, draw: () => avatar(me, sx, sy, "SW", null, true, blink, typing) });
-      } else people.push({ depth: pDepth, draw: () => avatar(me, psx, psy, player.dir, player.moving && !reduced ? player.step % 1 : null) });
+        people.push({ depth: seat.x + seat.y + 0.05, box: around(sx, sy, AVATAR_REACH), draw: () => avatar(me, sx, sy, "SW", null, true, blink, typing) });
+      } else people.push({ depth: pDepth, box: around(psx, psy, AVATAR_REACH), draw: () => avatar(me, psx, psy, player.dir, player.moving && !reduced ? player.step % 1 : null) });
       if (po?.seat) {
         const seat = po.seat;
         const [sx, sy] = P(seat.x + 0.5, seat.y + 0.5);
         // Conectado, tipea; si no, duerme con los ojos cerrados
-        people.push({ depth: seat.x + seat.y + 0.05, draw: () => avatar(otherOf(me), sx, sy, "SW", null, true, partnerAway || blink, partnerAway ? null : typing) });
+        people.push({ depth: seat.x + seat.y + 0.05, box: around(sx, sy, AVATAR_REACH), draw: () => avatar(otherOf(me), sx, sy, "SW", null, true, partnerAway || blink, partnerAway ? null : typing) });
       }
     }
     {
       const [cx, cy] = catPos();
       const [csx, csy] = P(cx, cy);
       const cd = (cat.moving ? Math.max(cat.from.x + cat.from.y, cat.to.x + cat.to.y) : cat.x + cat.y) + 0.04;
-      people.push({ depth: cd, draw: () => studioCat(csx, csy, cat.dir, cat.moving ? cat.step % 1 : null, cat.sleeping) });
+      people.push({ depth: cd, box: around(csx, csy, CAT_REACH), draw: () => studioCat(csx, csy, cat.dir, cat.moving ? cat.step % 1 : null, cat.sleeping) });
     }
     people.sort((a, b) => a.depth - b.depth);
-    let pi = 0;
-    for (const it of items) {
-      while (pi < people.length && people[pi].depth < it.depth + (it.order === 0 ? 0 : 0.01)) {
-        setFade(0);
-        people[pi++].draw();
+    if (baked) {
+      // Lo que se mueve va en su rectángulo: ahí se vuelve a copiar el piso y se
+      // dibuja de nuevo, en orden, todo lo que lo toca (así lo tapan los muebles
+      // que tiene adelante). Las paredes que se vuelven transparentes van enteras.
+      const boxes = people.map((p) => p.box);
+      for (const it of items) if (it.ghost?.()) boxes.push(it.box);
+      for (const r of onScreen(boxes, W, H)) {
+        const wb: Box = { x0: (r.x0 - offX) / scale, y0: (r.y0 - offY) / scale, x1: (r.x1 - offX) / scale, y1: (r.y1 - offY) / scale };
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.beginPath();
+        ctx.rect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0);
+        ctx.clip();
+        // Desde el fondo: el piso tiene las juntas entre baldosas un poco transparentes
+        ctx.fillStyle = BG;
+        ctx.fillRect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0);
+        ctx.drawImage(floorC, offX, offY);
+        ctx.setTransform(scale, 0, 0, scale, offX, offY);
+        floorMarks(ts);
+        layered(items.filter((it) => touches(it.box, wb)), people.filter((p) => touches(p.box, wb)));
+        ctx.restore();
       }
-      if (visible(it.ax, it.ay)) it.draw();
-    }
-    while (pi < people.length) {
-      setFade(0);
-      people[pi++].draw();
-    }
+    } else layered(items.filter((it) => visible(it.ax, it.ay)), people);
+    // Lo que prende arriba de la oscuridad: lo de las paredes y los muebles que están a la vista, una vez cada cosa
+    glows = [];
+    const seen = new Set<Glow>();
+    for (const it of items)
+      if (visible(it.ax, it.ay))
+        for (const gl of it.glows)
+          if (!seen.has(gl)) {
+            seen.add(gl);
+            glows.push(gl);
+          }
 
     drawDark();
     emissives(ts);
@@ -1797,6 +1938,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       current = null;
       tuneTv(null);
       cancelAnimationFrame(raf);
+      // Los lienzos de lo quieto ocupan bastante memoria: se sueltan ya
+      for (const c of [floorC, itemsC]) c.width = c.height = 0;
       mq.removeEventListener("change", onMq);
       canvas.removeEventListener("pointerdown", onDown);
       canvas.removeEventListener("click", onClick);

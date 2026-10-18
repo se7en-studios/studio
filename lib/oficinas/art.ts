@@ -1173,6 +1173,12 @@ export const lookFor = (who: ActorLook): Look => (who.startsWith("v:") ? visitor
 // estira sin suavizar, así los puntos quedan nítidos con cualquier zoom.
 /** Cuántos px del mundo mide cada punto del muñeco. */
 const PIX = 2.7;
+/** Lo mismo para el gato. */
+const CAT_PX = 2.2;
+/** Hasta dónde llega lo que se mueve, desde los pies y en px del mundo (con la sombra, el paso y sentado): el motor rehace ese rectángulo en cada cuadro. */
+export type Reach = { x: number; up: number; down: number };
+export const AVATAR_REACH: Reach = { x: Math.max(10, SPRITE_W - 10) * PIX, up: (SPRITE_H + 1) * PIX, down: 11 };
+export const CAT_REACH: Reach = { x: (CAT_W / 2) * CAT_PX, up: Math.max(catSprite(0).length, catSprite(1).length, catSprite("sleep").length) * CAT_PX, down: 4 };
 const sprites = new Map<string, HTMLCanvasElement>();
 function spriteOf(key: string, build: () => (string | null)[][]): HTMLCanvasElement {
   let c = sprites.get(key);
@@ -1231,7 +1237,7 @@ export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: 
 export function studioCat(sx: number, sy: number, dir: Dir, phase: number | null, sleeping: boolean) {
   const frame: 0 | 1 | "sleep" = sleeping ? "sleep" : phase !== null && Math.floor(phase * 4) % 2 === 0 ? 1 : 0;
   const img = spriteOf(`cat|${frame}`, () => catSprite(frame));
-  const C = 2.2;
+  const C = CAT_PX;
   g.save();
   g.translate(Math.round(sx), Math.round(sy));
   if (dir === "SW" || dir === "NW") g.scale(-1, 1);
