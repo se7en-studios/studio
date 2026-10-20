@@ -141,7 +141,7 @@ for (const n of [0, 1, 4, 5, 8, 9, 18]) {
   const offices = m.rooms.filter((r) => r.kind === "office");
   assert.deepEqual(offices.map((r) => [r.who, r.area]).sort(), [["federico", "design"], ["franco", "dev"]], "Franco en Desarrollo y Federico en Diseño");
   for (const r of offices) assert.ok(r.seat && S.roomAt(m, r.seat.x, r.seat.y)?.id === r.id, `${r.id}: el escritorio queda adentro`);
-  assert.deepEqual(m.rooms.filter((r) => r.kind !== "project").map(S.studioRoomName), ["Desarrollo", "Recepción", "Diseño", "Reuniones", "Chill-out"]);
+  assert.deepEqual(m.rooms.filter((r) => r.kind !== "project").map(S.studioRoomName), ["Recepción", "Desarrollo", "Diseño", "Reuniones", "Chill-out"]);
   // El Chill-out es abierto al eje; Reuniones tiene puerta
   const lounge = m.rooms.find((r) => r.kind === "lounge");
   for (let y = lounge.y; y < lounge.y + lounge.d; y++) assert.ok(S.canStep(m, lounge.x - 1, y, lounge.x, y) || !S.walkable(m, lounge.x, y), `Chill-out abierto en la fila ${y}`);

@@ -226,11 +226,11 @@ export function EnVivoMap({
         />
         <LiveBox status={status} audience={audience(visitors)} className="top-2 left-2" />
         {hp && (
-          <div className="pointer-events-none absolute bottom-2 left-2 max-w-[calc(100%-16px)] rounded-lg bg-[rgba(12,10,20,0.86)] px-2.5 py-1.5 text-[#f5f3ff] ring-1 ring-white/10">
+          <div className="pointer-events-none absolute bottom-2 left-2 max-w-[calc(100%-16px)] rounded-lg bg-[rgba(11,11,12,0.86)] px-2.5 py-1.5 text-[#f2eee6] ring-1 ring-white/10">
             <p className="truncate text-[12px] leading-none font-bold" style={{ color: hp.accent }}>
               {hp.name}
             </p>
-            <p className="mt-1 flex items-center gap-1 text-[11px] leading-none text-[#b9b4cc]">
+            <p className="mt-1 flex items-center gap-1 text-[11px] leading-none text-[#b9b4ab]">
               ver el caso <ArrowUpRight size={11} aria-hidden />
             </p>
           </div>
@@ -243,7 +243,7 @@ export function EnVivoMap({
   const rooms = map.rooms.filter((r) => r.kind !== "storage" && r.kind !== "kitchen").sort((a, b) => +(b.kind === "reception") - +(a.kind === "reception"));
   const picked = selected ? map.rooms.find((r) => r.id === selected) ?? null : null;
   return (
-    <div className={`relative h-full w-full overflow-hidden bg-[#0a0a14] text-[#f5f3ff] ${archivo.className}`}>
+    <div className={`relative h-full w-full overflow-hidden bg-[#0b0b0c] text-[#f2eee6] ${archivo.className}`}>
       <TopBar onClose={onClose} onNavigate={onNavigate} />
       <div className="absolute inset-x-0 top-[calc(52px+env(safe-area-inset-top))] bottom-0">
         <canvas
@@ -262,14 +262,14 @@ export function EnVivoMap({
                 type="button"
                 aria-label={label}
                 onClick={() => engine.zoomBy(step)}
-                className="grid h-10 w-10 place-items-center rounded-xl bg-[rgba(12,10,20,0.86)] text-[#f5f3ff] ring-1 ring-white/10 transition-colors hover:bg-[#8b5cf6] focus-visible:outline-2 focus-visible:outline-[#a78bfa]"
+                className="grid h-10 w-10 place-items-center rounded-xl bg-[rgba(11,11,12,0.86)] text-[#f2eee6] ring-1 ring-white/10 transition-colors hover:bg-[#ff4d2e] focus-visible:outline-2 focus-visible:outline-[#ff6a4f]"
               >
                 <Icon size={16} aria-hidden />
               </button>
             ))}
           </div>
         )}
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0a0a14] via-[rgba(10,10,20,0.75)] to-transparent pt-10 pb-[max(10px,env(safe-area-inset-bottom))]">
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0b0b0c] via-[rgba(10,10,20,0.75)] to-transparent pt-10 pb-[max(10px,env(safe-area-inset-bottom))]">
           {picked && (
             <RoomCard
               room={picked}
@@ -296,16 +296,16 @@ function roomName(r: MapRoom, bySlug: Map<string, OfiProject>) {
 /** El cartel de arriba: en vivo, quién está y quién mira. */
 function LiveBox({ status, audience, hovered, className }: { status: string; audience: string | null; hovered?: string | null; className: string }) {
   return (
-    <div className={`pointer-events-none absolute max-w-[min(70%,360px)] rounded-xl bg-[rgba(12,10,20,0.86)] px-3 py-2 ring-1 ring-white/10 ${className}`} aria-live="polite">
-      <p className="flex items-center gap-1.5 text-[11px] leading-none font-extrabold tracking-[0.12em] text-[#c4b5fd] uppercase">
+    <div className={`pointer-events-none absolute max-w-[min(70%,360px)] rounded-xl bg-[rgba(11,11,12,0.86)] px-3 py-2 ring-1 ring-white/10 ${className}`} aria-live="polite">
+      <p className="flex items-center gap-1.5 text-[11px] leading-none font-extrabold tracking-[0.12em] text-[#ffb199] uppercase">
         <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#8b5cf6] opacity-70 motion-reduce:animate-none" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-[#a78bfa]" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#ff4d2e] opacity-70 motion-reduce:animate-none" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-[#ff6a4f]" />
         </span>
         En vivo
       </p>
-      <p className="mt-1.5 line-clamp-2 text-[12px] leading-snug text-[#e9e5f7]">{status}</p>
-      {audience && <p className="truncate text-[11px] leading-snug text-[#a78bfa]">{audience}</p>}
+      <p className="mt-1.5 line-clamp-2 text-[12px] leading-snug text-[#f2eee6]">{status}</p>
+      {audience && <p className="truncate text-[11px] leading-snug text-[#ff6a4f]">{audience}</p>}
       {hovered && <p className="mt-1 truncate text-[11px] leading-snug font-bold text-white">→ {hovered}</p>}
     </div>
   );
@@ -335,23 +335,23 @@ function TopBar({ onClose, onNavigate }: { onClose?: () => void; onNavigate?: (h
     </a>
   );
   return (
-    <header className="absolute inset-x-0 top-0 z-20 h-[calc(52px+env(safe-area-inset-top))] bg-[#0d0b16] pt-[env(safe-area-inset-top)]">
+    <header className="absolute inset-x-0 top-0 z-20 h-[calc(52px+env(safe-area-inset-top))] bg-[#0b0b0c] pt-[env(safe-area-inset-top)]">
       <div className="flex h-[52px] items-center gap-2 px-3 md:gap-4 md:px-5">
         <span className="flex min-w-0 items-center gap-2">
           <Image src="/logo-simbolo.png" alt="" width={26} height={26} className="h-[26px] w-[26px] shrink-0" />
           <span className="truncate text-[14px] font-extrabold tracking-tight">
-            Se7en <span className="text-[#a78bfa]">Office</span>
+            Se7en <span className="text-[#ff6a4f]">Office</span>
           </span>
         </span>
         <nav aria-label="Secciones de la web" className="ml-auto hidden items-center gap-1 md:flex">
-          {NAV.map((n) => link(n, "rounded-lg px-3 py-2 text-[13px] font-semibold text-[#d9d4ea] transition-colors hover:bg-[#8b5cf6]/20 hover:text-white focus-visible:outline-2 focus-visible:outline-[#a78bfa]"))}
+          {NAV.map((n) => link(n, "rounded-lg px-3 py-2 text-[13px] font-semibold text-[#e6e0d4] transition-colors hover:bg-[#ff4d2e]/20 hover:text-white focus-visible:outline-2 focus-visible:outline-[#ff6a4f]"))}
         </nav>
         <button
           type="button"
           aria-expanded={open}
           aria-controls="oficina-menu"
           onClick={() => setOpen((v) => !v)}
-          className="ml-auto flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-semibold text-[#d9d4ea] ring-1 ring-white/10 md:hidden"
+          className="ml-auto flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-semibold text-[#e6e0d4] ring-1 ring-white/10 md:hidden"
         >
           <Menu size={16} aria-hidden /> Menú
         </button>
@@ -360,21 +360,21 @@ function TopBar({ onClose, onNavigate }: { onClose?: () => void; onNavigate?: (h
             type="button"
             data-office-close
             onClick={onClose}
-            className="flex h-9 items-center gap-1.5 rounded-lg bg-[#8b5cf6] px-3 text-[13px] font-bold text-white transition-colors hover:bg-[#7c4dff] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c4b5fd]"
+            className="flex h-9 items-center gap-1.5 rounded-lg bg-[#ff4d2e] px-3 text-[13px] font-bold text-[#0b0b0c] transition-colors hover:bg-[#ff6a4f] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffb199]"
           >
             <X size={15} aria-hidden /> Salir
           </button>
         )}
       </div>
-      <span aria-hidden className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#8b5cf6] to-transparent" />
+      <span aria-hidden className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#ff4d2e] to-transparent" />
       {open && (
-        <nav id="oficina-menu" aria-label="Secciones de la web" className="absolute top-full right-3 mt-2 w-56 rounded-xl bg-[#14111f] p-1.5 shadow-2xl ring-1 ring-[#8b5cf6]/40 md:hidden">
-          {NAV.map((n) => link(n, "block rounded-lg px-3 py-2.5 text-[14px] font-semibold text-[#e9e5f7] hover:bg-[#8b5cf6]/20"))}
+        <nav id="oficina-menu" aria-label="Secciones de la web" className="absolute top-full right-3 mt-2 w-56 rounded-xl bg-[#151517] p-1.5 shadow-2xl ring-1 ring-[#ff4d2e]/40 md:hidden">
+          {NAV.map((n) => link(n, "block rounded-lg px-3 py-2.5 text-[14px] font-semibold text-[#f2eee6] hover:bg-[#ff4d2e]/20"))}
           <span aria-hidden className="mx-3 my-1.5 block h-px bg-white/10" />
-          <a href={SITE.whatsapp} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between rounded-lg px-3 py-2.5 text-[14px] font-semibold text-[#c4b5fd] hover:bg-[#8b5cf6]/20">
+          <a href={SITE.whatsapp} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between rounded-lg px-3 py-2.5 text-[14px] font-semibold text-[#ffb199] hover:bg-[#ff4d2e]/20">
             WhatsApp <ArrowUpRight size={14} aria-hidden />
           </a>
-          <a href={`mailto:${SITE.email}`} className="block truncate rounded-lg px-3 py-2.5 text-[13px] text-[#b9b4cc] hover:bg-[#8b5cf6]/20">
+          <a href={`mailto:${SITE.email}`} className="block truncate rounded-lg px-3 py-2.5 text-[13px] text-[#b9b4ab] hover:bg-[#ff4d2e]/20">
             {SITE.email}
           </a>
         </nav>
@@ -408,7 +408,7 @@ function RoomRail({ rooms, bySlug, where, selected, onPick }: { rooms: MapRoom[]
   const step = (k: number) => onPick(rooms[(Math.max(idx, k > 0 ? -1 : 0) + k + rooms.length) % rooms.length].id);
   return (
     <div className="flex items-center gap-1.5 px-3 md:gap-2 md:px-4">
-      <button type="button" aria-label="Sala anterior" onClick={() => step(-1)} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[rgba(12,10,20,0.9)] ring-1 ring-white/10 hover:bg-[#8b5cf6]">
+      <button type="button" aria-label="Sala anterior" onClick={() => step(-1)} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[rgba(11,11,12,0.9)] ring-1 ring-white/10 hover:bg-[#ff4d2e]">
         <ChevronLeft size={18} aria-hidden />
       </button>
       <div ref={rail} role="list" aria-label="Salas de la oficina" className="flex min-w-0 flex-1 snap-x gap-1.5 overflow-x-auto py-1 [scrollbar-width:none] md:gap-2 [&::-webkit-scrollbar]:hidden">
@@ -423,11 +423,11 @@ function RoomRail({ rooms, bySlug, where, selected, onPick }: { rooms: MapRoom[]
                 data-room={r.id}
                 aria-pressed={on}
                 onClick={() => onPick(r.id)}
-                className={`flex h-10 items-center gap-2 rounded-xl px-3 text-[13px] font-semibold whitespace-nowrap ring-1 transition-colors focus-visible:outline-2 focus-visible:outline-[#c4b5fd] ${
-                  on ? "bg-[#8b5cf6] text-white ring-[#c4b5fd]" : "bg-[rgba(12,10,20,0.9)] text-[#e9e5f7] ring-white/10 hover:bg-[#241d3d]"
+                className={`flex h-10 items-center gap-2 rounded-xl px-3 text-[13px] font-semibold whitespace-nowrap ring-1 transition-colors focus-visible:outline-2 focus-visible:outline-[#ffb199] ${
+                  on ? "bg-[#ff4d2e] text-[#0b0b0c] ring-[#ffb199]" : "bg-[rgba(11,11,12,0.9)] text-[#f2eee6] ring-white/10 hover:bg-[#26262a]"
                 }`}
               >
-                <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-black/40" style={{ background: p?.accent ?? "#a78bfa" }} />
+                <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-black/40" style={{ background: p?.accent ?? "#ff6a4f" }} />
                 {p?.name ?? studioRoomName(r)}
                 {here.length > 0 && (
                   <>
@@ -440,7 +440,7 @@ function RoomRail({ rooms, bySlug, where, selected, onPick }: { rooms: MapRoom[]
           );
         })}
       </div>
-      <button type="button" aria-label="Sala siguiente" onClick={() => step(1)} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[rgba(12,10,20,0.9)] ring-1 ring-white/10 hover:bg-[#8b5cf6]">
+      <button type="button" aria-label="Sala siguiente" onClick={() => step(1)} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[rgba(11,11,12,0.9)] ring-1 ring-white/10 hover:bg-[#ff4d2e]">
         <ChevronRight size={18} aria-hidden />
       </button>
     </div>
@@ -467,7 +467,7 @@ function RoomCard({
   onClose: () => void;
   onNavigate?: (hash: string) => void;
 }) {
-  let kicker = "", title = "", accent = "#a78bfa";
+  let kicker = "", title = "", accent = "#ff6a4f";
   let body: ReactNode = null;
   let actions: Action[] = [];
   let mark: string | null = null;
@@ -486,10 +486,10 @@ function RoomCard({
     title = `El escritorio de ${NAMES[who]}`;
     body = (
       <>
-        <span className="block text-[#c4b5fd]">{t?.role}</span>
+        <span className="block text-[#ffb199]">{t?.role}</span>
         {t?.focus?.join(" · ")}
         <span className="mt-1.5 flex items-center gap-1.5 text-[12px]">
-          <span className={`h-2 w-2 rounded-full ${o ? "bg-[#5ad1a8]" : "bg-[#5a5670]"}`} aria-hidden />
+          <span className={`h-2 w-2 rounded-full ${o ? "bg-[#5ad1a8]" : "bg-[#5d5952]"}`} aria-hidden />
           {!o ? `${NAMES[who]} no está conectado ahora` : o.room ? `${NAMES[who]} está en la sala de ${bySlug.get(o.room)?.name ?? o.room}` : `${NAMES[who]} está en su escritorio`}
         </span>
       </>
@@ -513,9 +513,9 @@ function RoomCard({
       <ol className="mt-0.5 space-y-0.5">
         {steps.map((s) => (
           <li key={s.number} className="flex gap-2">
-            <span className="font-bold text-[#a78bfa] tabular-nums">{s.number}</span>
+            <span className="font-bold text-[#ff6a4f] tabular-nums">{s.number}</span>
             <span>
-              {s.title} <span className="text-[#8f8aa6]">· {s.duration}</span>
+              {s.title} <span className="text-[#8d8982]">· {s.duration}</span>
             </span>
           </li>
         ))}
@@ -532,18 +532,18 @@ function RoomCard({
     ];
   }
   const btn = (primary?: boolean) =>
-    `inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c4b5fd] ${
-      primary ? "bg-[#8b5cf6] text-white hover:bg-[#7c4dff]" : "bg-white/8 text-[#e9e5f7] ring-1 ring-white/15 hover:bg-white/15"
+    `inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffb199] ${
+      primary ? "bg-[#ff4d2e] text-[#0b0b0c] hover:bg-[#ff6a4f]" : "bg-white/8 text-[#f2eee6] ring-1 ring-white/15 hover:bg-white/15"
     }`;
   return (
     <section
       aria-label={title}
-      className="mx-3 mb-2 rounded-2xl bg-[rgba(16,13,28,0.96)] p-3.5 shadow-2xl ring-1 ring-white/10 md:mx-4 md:mb-3 md:w-[380px] md:p-4"
+      className="mx-3 mb-2 rounded-2xl bg-[rgba(21,21,23,0.96)] p-3.5 shadow-2xl ring-1 ring-white/10 md:mx-4 md:mb-3 md:w-[380px] md:p-4"
       style={{ boxShadow: `inset 0 3px 0 ${accent}, 0 20px 50px rgba(0,0,0,0.5)` }}
     >
       <div className="flex items-start gap-3">
         {mark && (
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#0a0a14] ring-1 ring-white/10">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#0b0b0c] ring-1 ring-white/10">
             <Image src={mark} alt="" width={28} height={28} className="h-7 w-7 object-contain" />
           </span>
         )}
@@ -553,11 +553,11 @@ function RoomCard({
           </p>
           <h2 className="mt-0.5 text-[17px] leading-tight font-extrabold text-white">{title}</h2>
         </div>
-        <button type="button" aria-label="Cerrar la ficha" onClick={onClose} className="-mt-1 -mr-1 grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[#b9b4cc] hover:bg-white/10 hover:text-white">
+        <button type="button" aria-label="Cerrar la ficha" onClick={onClose} className="-mt-1 -mr-1 grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[#b9b4ab] hover:bg-white/10 hover:text-white">
           <X size={16} aria-hidden />
         </button>
       </div>
-      {body && <div className="mt-2 text-[13px] leading-snug text-[#cfc9e3]">{body}</div>}
+      {body && <div className="mt-2 text-[13px] leading-snug text-[#d9d4cb]">{body}</div>}
       {here.length > 0 && (
         <p className="mt-2 flex items-center gap-2 text-[12px] font-semibold text-[#5ad1a8]">
           <Faces who={here} size={20} />

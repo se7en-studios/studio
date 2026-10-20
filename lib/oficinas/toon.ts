@@ -78,8 +78,8 @@ const LOOKS: Record<Who | "guia", ToonLook> = {
     sleeves: "long", knit: true,
   },
   guia: {
-    style: "cap", hair: "#2a2238", hair2: "#8b5cf6", skin: "#cf966f", skin2: "#b07650",
-    main: "#7c4dff", shade: "#5f35d6", collar: null, tie: null, pants: "#262a3c", shoes: "#f3f1fb",
+    style: "cap", hair: "#ff4d2e", hair2: "#0b0b0c", skin: "#cf966f", skin2: "#b07650",
+    main: "#1e1e21", shade: "#151517", collar: null, tie: null, pants: "#3d3d43", shoes: "#f2eee6",
     sleeves: "short", badge: true,
   },
 };
@@ -88,7 +88,7 @@ const SKINS: [string, string][] = [["#f4cfad", "#dcae88"], ["#ecbf98", "#d39e77"
 const HAIRS: [string, string][] = [["#17161c", "#3a3946"], ["#3f2919", "#6d4831"], ["#7b4b25", "#a36b3c"], ["#d9b56c", "#f1d394"], ["#bcb8c4", "#e0dce8"], ["#a4362c", "#cb5743"]];
 /** Ropa de las visitas: tonos que conviven con la paleta del estudio. */
 // Sin blanco ni beige: una visita no se tiene que confundir con un socio
-const SHIRTS = ["#4f7fd0", "#3a9e7d", "#d9a441", "#8f63d6", "#d65a5a", "#2f3346", "#d97fae", "#47aeb0", "#7f8f45", "#5b5bd6", "#c46a3a"];
+const SHIRTS = ["#4f7fd0", "#3a9e7d", "#d9a441", "#d65a5a", "#2f3346", "#d97fae", "#47aeb0", "#7f8f45", "#3f6e8c", "#c46a3a"];
 const PANTS = ["#23222e", "#2d3a5c", "#4a3c2c", "#565c66", "#1f3a33", "#3a2f52"];
 
 const hash = (x: number, y: number) => {
@@ -128,7 +128,7 @@ function visitorLook(id: string): ToonLook {
     sleeves: shirt || odds(16, 0.25) ? "long" : "short",
     glasses: odds(8, 0.3),
     beard: style !== "long" && style !== "bun" && odds(9, 0.25),
-    phones: style !== "cap" && odds(10, 0.18) ? pick(["#17161c", "#f3f1fb", "#8b5cf6", "#4f7fd0"], 11) : undefined,
+    phones: style !== "cap" && odds(10, 0.18) ? pick(["#17161c", "#f3f1fb", "#ff4d2e", "#4f7fd0"], 11) : undefined,
     pack: odds(12, 0.3) ? pick(["#2f3346", "#c4553f", "#3a6b55", "#d9a441"], 13) : undefined,
     stripes: !shirt && odds(14, 0.25) ? "#f3f1fb" : undefined,
   };
@@ -144,7 +144,7 @@ export function toonLook(who: ActorLook): ToonLook {
 // --- Dibujo ---------------------------------------------------------------------
 
 type G = CanvasRenderingContext2D;
-const LW = 1.6;
+const LW = 1.15;
 
 function fillStroke(g: G, fill: string, lw = LW) {
   g.fillStyle = fill;
@@ -162,7 +162,7 @@ function ell(g: G, x: number, y: number, rx: number, ry: number, fill: string, l
     g.fill();
   } else fillStroke(g, fill, lw);
 }
-/** Un brazo o una pierna: un caño redondeado con su contorno. */
+/** Un brazo o una pierna de fideo: un caño fino con su contorno. */
 function limb(g: G, pts: [number, number][], w: number, fill: string) {
   g.lineCap = "round";
   g.lineJoin = "round";
@@ -177,55 +177,61 @@ function limb(g: G, pts: [number, number][], w: number, fill: string) {
   g.stroke();
   g.lineCap = "butt";
 }
+/** La mano: un mitón con el pulgar, como en los dibujos animados. */
+function hand(g: G, x: number, y: number, skin: string, up = false) {
+  ell(g, x, y, 2.5, 2.3, skin, 1);
+  ell(g, x + 1.6, y + (up ? -1.6 : -1), 1, 1.3, skin, 0.9);
+}
 
-/** El muñeco entero, mirando a la derecha, con los pies en (0, 0). */
+/**
+ * El muñeco entero, mirando a la derecha, con los pies en (0, 0). Estilo
+ * sitcom animada: cabeza alta, ojos saltones que se salen del perfil, nariz
+ * larga, la mandíbula marcada y brazos y piernas finitos. Colores planos y
+ * trazo fino de tinta: es una capa más arriba del fondo.
+ */
 export function drawToon(g: G, L: ToonLook, p: ToonPose) {
   const f = p.walk;
   const moving = f !== null;
-  // Al dar el paso el cuerpo sube un poco; sentado, baja hasta la silla
-  const lift = moving && f % 2 === 1 ? -1.2 : 0;
-  const sy = p.sit ? 10 : 0;
-  const by = lift + sy;
-  const swing = moving ? [2.4, 0, -2.4, 0][f] : 0;
+  const bob = moving && f % 2 === 1 ? -1.1 : 0;
+  const sy = p.sit ? 11 : 0;
+  const by = bob + sy;
+  const swing = moving ? [2.8, 0, -2.8, 0][f] : 0;
 
-  // Sombra
-  if (!p.sit) ell(g, 0, 0, 12.5, 4.6, "rgba(6,4,16,0.32)", null);
+  if (!p.sit) ell(g, 0, 0, 11, 4, "rgba(11,11,12,0.3)", null);
 
   // Piernas y zapatos
   if (p.sit) {
-    // Sentado: los muslos para adelante y las piernas colgando (la mesa las tapa casi siempre)
-    limb(g, [[-2.5, -7], [6.5, -6.5], [7.5, 1]], 5.4, L.pants);
-    limb(g, [[2.5, -7.5], [10, -7], [11, 0.5]], 5.4, L.pants);
-    ell(g, 9, 1.8, 4, 2.2, L.shoes);
-    ell(g, 12.5, 1.4, 4, 2.2, L.shoes);
+    limb(g, [[-2, -5], [6.5, -5], [7, 1]], 4.2, L.pants);
+    limb(g, [[2, -5.5], [9.5, -5.5], [10.5, 0.5]], 4.2, L.pants);
+    ell(g, 8.6, 1.6, 3.6, 2, L.shoes);
+    ell(g, 12, 1.2, 3.6, 2, L.shoes);
   } else {
-    const back = p.back;
     for (const side of [-1, 1] as const) {
       const sw = side === -1 ? swing : -swing;
       const up = moving && ((side === -1 && f === 0) || (side === 1 && f === 2)) ? 1.6 : 0;
-      const x = side * 3.3 + sw;
-      limb(g, [[side * 3.1, -16 + by], [x, -3.2 - up]], 5.6, L.pants);
-      ell(g, x + (back ? -0.6 : 1.3), -1.7 - up, 4.3, 2.5, L.shoes);
+      const x = side * 2.8 + sw;
+      limb(g, [[side * 2.6, -15 + by], [x, -3 - up]], 4.2, L.pants);
+      ell(g, x + (p.back ? -0.6 : 1.6), -1.8 - up, 3.9, 2.3, L.shoes);
     }
   }
 
-  // Mochila (de frente se ven las tiras; de espaldas, la mochila)
   if (L.pack && p.back) {
     g.beginPath();
-    g.roundRect(-7.5, -34 + by, 15, 16, 4);
+    g.roundRect(-6.5, -31 + by, 13, 14, 3.5);
     fillStroke(g, L.pack);
   }
 
-  // Torso
-  const top = -35.5 + by, waist = -16.5 + by;
+  // Torso: hombros caídos y un poco de panza
+  const top = -33 + by, waist = -15 + by;
   const torso = () => {
     g.beginPath();
-    g.moveTo(-9.6, top + 4);
-    g.quadraticCurveTo(-9.8, top, -5.5, top);
-    g.lineTo(5.5, top);
-    g.quadraticCurveTo(9.8, top, 9.6, top + 4);
-    g.lineTo(8.2, waist);
-    g.lineTo(-8.2, waist);
+    g.moveTo(-6.2, top + 1.5);
+    g.quadraticCurveTo(-6.6, top - 0.6, -3.4, top - 0.6);
+    g.lineTo(3.8, top - 0.6);
+    g.quadraticCurveTo(7.2, top - 0.6, 7, top + 2.4);
+    g.quadraticCurveTo(8.6, waist - 6, 7.8, waist);
+    g.lineTo(-7.2, waist);
+    g.quadraticCurveTo(-7.6, waist - 7, -6.2, top + 1.5);
     g.closePath();
   };
   torso();
@@ -234,22 +240,18 @@ export function drawToon(g: G, L: ToonLook, p: ToonPose) {
   g.save();
   torso();
   g.clip();
-  // Volumen: el costado de atrás en sombra
-  g.fillStyle = L.shade;
-  if (p.back) g.fillRect(-10, top, 6, 30);
-  else g.fillRect(3.5, top, 7, 30);
   if (L.stripes) {
     g.fillStyle = L.stripes;
-    for (let yy = top + 6; yy < waist; yy += 4.5) g.fillRect(-10, yy, 20, 1.6);
+    for (let yy = top + 4; yy < waist; yy += 4.2) g.fillRect(-9, yy, 18, 1.5);
   }
   if (L.knit) {
     g.fillStyle = L.shade;
-    g.fillRect(-10, waist - 2.6, 20, 2.6);
-    g.strokeStyle = shade(L.main, 0.12);
-    g.lineWidth = 0.6;
-    for (let xx = -8; xx < 9; xx += 2.2) {
+    g.fillRect(-9, waist - 2.4, 18, 2.4);
+    g.strokeStyle = L.shade;
+    g.lineWidth = 0.55;
+    for (let xx = -6; xx < 8; xx += 2) {
       g.beginPath();
-      g.moveTo(xx, top + 6);
+      g.moveTo(xx, top + 4);
       g.lineTo(xx, waist - 3);
       g.stroke();
     }
@@ -262,257 +264,262 @@ export function drawToon(g: G, L: ToonLook, p: ToonPose) {
   g.stroke();
 
   if (!p.back) {
-    // Cuello de la camisa y corbata
     if (L.collar) {
-      g.beginPath();
-      g.moveTo(-4.4, top - 0.4);
-      g.lineTo(0.8, top + 4.6);
-      g.lineTo(-1.6, top + 6.2);
-      g.lineTo(-5.8, top + 1.2);
-      g.closePath();
-      fillStroke(g, L.collar, 1.1);
-      g.beginPath();
-      g.moveTo(5.6, top - 0.4);
-      g.lineTo(0.8, top + 4.6);
-      g.lineTo(3.4, top + 6.2);
-      g.lineTo(7, top + 1.2);
-      g.closePath();
-      fillStroke(g, L.collar, 1.1);
+      for (const [a, b, c2] of [[[-3.6, top - 0.8], [1, top + 3.8], [-3.8, top + 2.6]], [[5.2, top - 0.8], [1, top + 3.8], [5.6, top + 2.4]]] as [number, number][][]) {
+        g.beginPath();
+        g.moveTo(a[0], a[1]);
+        g.lineTo(b[0], b[1]);
+        g.lineTo(c2[0], c2[1]);
+        g.closePath();
+        fillStroke(g, L.collar, 0.9);
+      }
     }
     if (L.tie) {
       g.beginPath();
-      g.moveTo(-0.6, top + 4.4);
-      g.lineTo(2.2, top + 4.4);
-      g.lineTo(2.9, waist - 3);
-      g.lineTo(0.8, waist - 0.6);
-      g.lineTo(-1.3, waist - 3);
+      g.moveTo(0.1, top + 3.4);
+      g.lineTo(2, top + 3.4);
+      g.lineTo(2.6, waist - 2.6);
+      g.lineTo(1, waist - 0.6);
+      g.lineTo(-0.6, waist - 2.6);
       g.closePath();
-      fillStroke(g, L.tie, 1);
+      fillStroke(g, L.tie, 0.9);
     }
     if (L.badge) {
-      g.strokeStyle = "#f3f1fb";
-      g.lineWidth = 0.9;
+      g.strokeStyle = "#f2eee6";
+      g.lineWidth = 0.8;
       g.beginPath();
-      g.moveTo(-3.2, top + 0.5);
-      g.lineTo(-1.4, top + 10);
-      g.lineTo(1.2, top + 0.5);
+      g.moveTo(-2.4, top);
+      g.lineTo(-0.8, top + 8.5);
+      g.lineTo(1.6, top);
       g.stroke();
       g.beginPath();
-      g.roundRect(-3.9, top + 9.6, 5.2, 6.6, 1);
-      fillStroke(g, "#f3f1fb", 1);
-      g.fillStyle = "#8b5cf6";
-      g.fillRect(-3.4, top + 10.2, 4.2, 1.6);
+      g.roundRect(-3.2, top + 8, 4.8, 6, 0.8);
+      fillStroke(g, "#f2eee6", 0.9);
+      g.fillStyle = "#ff4d2e";
+      g.fillRect(-2.7, top + 8.6, 3.8, 1.6);
     }
     if (L.pack) {
       g.strokeStyle = L.pack;
-      g.lineWidth = 2;
-      for (const x of [-6.2, 6.6]) {
+      g.lineWidth = 1.8;
+      for (const x of [-4.6, 5.4]) {
         g.beginPath();
-        g.moveTo(x, top + 0.5);
-        g.lineTo(x * 0.92, waist - 1);
+        g.moveTo(x, top);
+        g.lineTo(x * 1.05, waist - 1);
         g.stroke();
       }
     }
   }
 
-  // Brazos
+  // Brazos de fideo
   const sleeve = L.sleeves === "long" ? L.main : L.skin;
-  const shoulderY = top + 3.5;
-  const arm = (side: -1 | 1, hand: [number, number], elbow?: [number, number]) => {
-    const sh: [number, number] = [side * 8.6, shoulderY];
-    const pts: [number, number][] = elbow ? [sh, elbow, hand] : [sh, hand];
+  const shoulderY = top + 2.6;
+  const arm = (side: -1 | 1, h: [number, number], elbow?: [number, number], up = false) => {
+    const sh: [number, number] = [side * 6, shoulderY];
+    const pts: [number, number][] = elbow ? [sh, elbow, h] : [sh, h];
+    limb(g, pts, 3.3, sleeve);
     if (L.sleeves === "short") {
-      // La manga corta: el primer tramo con la remera
-      const mid: [number, number] = elbow ?? [(sh[0] + hand[0]) / 2, (sh[1] + hand[1]) / 2];
-      limb(g, pts, 5, L.skin);
-      limb(g, [sh, [sh[0] + (mid[0] - sh[0]) * 0.55, sh[1] + (mid[1] - sh[1]) * 0.55]], 5.6, L.main);
-    } else {
-      limb(g, pts, 5, sleeve);
-      if (L.knit) {
-        const k: [number, number] = [hand[0] + (pts[pts.length - 2][0] - hand[0]) * 0.22, hand[1] + (pts[pts.length - 2][1] - hand[1]) * 0.22];
-        limb(g, [k, hand], 4.2, L.shade);
-      }
+      const mid: [number, number] = elbow ?? [(sh[0] + h[0]) / 2, (sh[1] + h[1]) / 2];
+      limb(g, [sh, [sh[0] + (mid[0] - sh[0]) * 0.45, sh[1] + (mid[1] - sh[1]) * 0.45]], 4.4, L.main);
+    } else if (L.knit) {
+      const prev = pts[pts.length - 2];
+      limb(g, [[h[0] + (prev[0] - h[0]) * 0.2, h[1] + (prev[1] - h[1]) * 0.2], h], 3.6, L.shade);
     }
-    ell(g, hand[0], hand[1], 2.7, 2.7, L.skin, 1.2);
+    hand(g, h[0], h[1], L.skin, up);
   };
   const aSwing = moving ? -swing * 1.1 : 0;
   if (p.sit && p.type !== null) {
     const k = p.type ? 1 : -1;
-    arm(-1, [8, -24 + sy + k * 0.8], [-6, -24 + sy]);
-    arm(1, [13.5, -24 + sy - k * 0.8], [9, -22 + sy]);
+    arm(-1, [8, -21 + sy + k * 0.8], [-4.5, -22 + sy]);
+    arm(1, [12.5, -21 + sy - k * 0.8], [8.5, -20 + sy]);
   } else if (p.phone && !p.back) {
-    arm(-1, [-9.5 + aSwing, waist - 1]);
-    arm(1, [6, top + 9], [9.5, top + 15]);
-    // El celular, con la pantalla prendida
+    arm(-1, [-8.4 + aSwing, waist - 1]);
+    arm(1, [6.4, top + 7.6], [8.6, top + 13]);
     g.beginPath();
-    g.roundRect(3.4, top + 3.2, 5, 8, 1.2);
-    fillStroke(g, "#1b1a24", 1.1);
-    g.fillStyle = "#a78bfa";
-    g.fillRect(4.3, top + 4.2, 3.2, 5.6);
+    g.roundRect(3.8, top + 1.6, 4.4, 7.4, 1);
+    fillStroke(g, "#1e1e21", 1);
+    g.fillStyle = "#ffb199";
+    g.fillRect(4.6, top + 2.5, 2.8, 5.2);
   } else {
-    arm(-1, [-10.2 + aSwing, waist - 1.5]);
-    if (p.wave !== null) arm(1, [14 + p.wave * 1.6, top - 9 - p.wave * 1.4], [12, top + 2]);
-    else arm(1, [10.2 - aSwing, waist - 1.5]);
+    arm(-1, [-8.6 + aSwing, waist - 0.5]);
+    if (p.wave !== null) arm(1, [12.5 + p.wave * 1.6, top - 9 - p.wave * 1.2], [10.5, top + 0.5], true);
+    else arm(1, [8.8 - aSwing, waist - 0.5]);
   }
 
-  // Cuello y cabeza
-  const hy = -49 + by; // centro de la cabeza
+  // Cuello finito y la cabeza
+  const hy = -47 + by;
   g.beginPath();
-  g.rect(-2.8, top - 3.5, 5.8, 4.5);
-  g.fillStyle = L.skin2;
+  g.rect(-1.6, top - 4.5, 4.4, 5);
+  g.fillStyle = L.skin;
   g.fill();
+  g.strokeStyle = INK;
+  g.lineWidth = 0.9;
+  g.beginPath();
+  g.moveTo(-1.6, top - 4.5);
+  g.lineTo(-1.6, top);
+  g.moveTo(2.8, top - 4.5);
+  g.lineTo(2.8, top);
+  g.stroke();
   if (L.style === "long" || L.style === "bun") backHair(g, L, hy, p.back);
-  head(g, L, hy);
   if (p.back) {
-    ears(g, L, hy, true);
+    headBack(g, L, hy);
     hairBack(g, L, hy);
     return;
   }
-  ears(g, L, hy, false);
-  face(g, L, hy, p);
+  head(g, L, hy);
   hairFront(g, L, hy);
-  if (L.glasses) {
-    g.strokeStyle = INK;
-    g.lineWidth = 1.2;
-    for (const ex of [-2.2, 5.4]) {
-      g.beginPath();
-      g.roundRect(ex - 3.3, hy - 2.6, 6.6, 5.6, 1.6);
-      g.stroke();
-    }
-    g.beginPath();
-    g.moveTo(1.1, hy - 0.4);
-    g.lineTo(2.1, hy - 0.4);
-    g.stroke();
-  }
+  face(g, L, hy, p);
   if (L.phones) {
     g.strokeStyle = L.phones;
-    g.lineWidth = 2.2;
+    g.lineWidth = 2;
     g.beginPath();
-    g.arc(0.5, hy - 2, 12.6, Math.PI * 1.05, Math.PI * 1.95);
+    g.arc(0, hy - 2, 11.6, Math.PI * 1.05, Math.PI * 1.85);
     g.stroke();
-    ell(g, -11.5, hy + 0.5, 2.6, 4, L.phones, 1.1);
+    ell(g, -4.6, hy + 0.6, 2.6, 3.6, L.phones, 1);
   }
 }
 
+/** La cabeza de perfil a tres cuartos: nuca redonda, frente alta y la mandíbula que sale para adelante. */
+function headPath(g: G, hy: number) {
+  g.beginPath();
+  g.moveTo(-7.8, hy + 4);
+  g.bezierCurveTo(-9.6, hy - 2, -9.4, hy - 10, -5.6, hy - 13.4);
+  g.bezierCurveTo(-1.6, hy - 16.4, 6.4, hy - 15.4, 9, hy - 10.6);
+  g.lineTo(10.4, hy - 1);
+  g.bezierCurveTo(13.6, hy + 1.4, 13.8, hy + 8, 10.6, hy + 10);
+  g.bezierCurveTo(7.4, hy + 11.8, 1.4, hy + 11.2, -1.6, hy + 8.6);
+  g.bezierCurveTo(-3.6, hy + 7, -6, hy + 6.2, -7.8, hy + 4);
+  g.closePath();
+}
 function head(g: G, L: ToonLook, hy: number) {
-  g.beginPath();
-  g.roundRect(-11.5, hy - 11.5, 23, 23, [10.5, 10.5, 9, 9]);
+  headPath(g, hy);
   fillStroke(g, L.skin);
-  // Sombra suave del costado
-  g.save();
+  // La oreja, atrás
+  ell(g, -4.8, hy + 0.8, 2.4, 3.2, L.skin, 1);
+  g.strokeStyle = INK;
+  g.lineWidth = 0.8;
   g.beginPath();
-  g.roundRect(-11.5, hy - 11.5, 23, 23, [10.5, 10.5, 9, 9]);
-  g.clip();
-  g.fillStyle = L.skin2;
-  g.globalAlpha = 0.45;
-  g.fillRect(-12, hy + 6.5, 24, 6);
-  g.globalAlpha = 1;
-  g.restore();
+  g.arc(-4.6, hy + 0.9, 1.2, Math.PI * 0.6, Math.PI * 1.5);
+  g.stroke();
 }
-
-function ears(g: G, L: ToonLook, hy: number, back: boolean) {
-  if (L.style === "long" || L.style === "afro") return;
-  for (const x of back ? [-11.4, 11.4] : [-11.2]) {
-    ell(g, x, hy + 1, 2.4, 3.4, L.skin, 1.2);
-    ell(g, x, hy + 1, 0.9, 1.6, L.skin2, null);
-  }
+function headBack(g: G, L: ToonLook, hy: number) {
+  g.beginPath();
+  g.moveTo(-8.6, hy + 4);
+  g.bezierCurveTo(-10.4, hy - 4, -9, hy - 13.6, 0, hy - 14.8);
+  g.bezierCurveTo(9, hy - 13.6, 10.4, hy - 4, 8.6, hy + 4);
+  g.bezierCurveTo(6, hy + 9.4, -6, hy + 9.4, -8.6, hy + 4);
+  g.closePath();
+  fillStroke(g, L.skin);
+  for (const x of [-9.2, 9.2]) ell(g, x, hy + 0.6, 2, 3, L.skin, 1);
 }
 
 function face(g: G, L: ToonLook, hy: number, p: ToonPose) {
-  const look = p.phone ? 0.9 : 0;
-  // Ojos grandes, corridos hacia donde mira
-  for (const ex of [-2.2, 5.4]) {
-    if (p.blink) {
-      g.strokeStyle = INK;
-      g.lineWidth = 1.4;
-      g.beginPath();
-      g.arc(ex, hy - 0.6, 2.6, 0.15 * Math.PI, 0.85 * Math.PI);
-      g.stroke();
-    } else {
-      ell(g, ex, hy - 1, 3, 3.7, "#ffffff", 1.15);
-      ell(g, ex + 0.9, hy - 0.4 + look, 1.55, 1.75, INK, null);
-      ell(g, ex + 0.4, hy - 1.3 + look, 0.5, 0.5, "#ffffff", null);
-    }
-  }
-  // Cejas
-  g.strokeStyle = shade(L.hair, -0.05);
-  g.lineCap = "round";
-  g.lineWidth = 1.7;
-  for (const ex of [-2.2, 5.4]) {
+  const down = p.phone ? 1.6 : 0;
+  // La boca, en la mandíbula
+  const mx = 9.6, my = hy + 6;
+  if (p.talk === 1) {
     g.beginPath();
-    g.moveTo(ex - 2.4, hy - 6);
-    g.lineTo(ex + 2.3, hy - 6.6);
-    g.stroke();
-  }
-  g.lineCap = "butt";
-  // Nariz
-  g.beginPath();
-  g.moveTo(8.2, hy + 0.2);
-  g.quadraticCurveTo(10.8, hy + 2.6, 8.4, hy + 3.9);
-  g.fillStyle = L.skin2;
-  g.fill();
-  g.strokeStyle = INK;
-  g.lineWidth = 1.05;
-  g.stroke();
-  // Boca: la sonrisa de siempre, o abierta si está hablando
-  const mx = 3.4, my = hy + 6.4;
-  if (p.talk !== null && p.talk === 1) {
-    ell(g, mx, my + 0.4, 2.6, 2.2, "#3a1626", 1.1);
-    ell(g, mx, my + 1.4, 1.5, 0.8, "#e0607a", null);
+    g.moveTo(mx - 3.4, my - 1);
+    g.quadraticCurveTo(mx + 0.6, my + 5.4, mx + 3.4, my - 1.2);
+    g.closePath();
+    fillStroke(g, "#3a1626", 1);
+    ell(g, mx, my + 1.6, 1.4, 0.7, "#e0607a", null);
   } else if (L.grin) {
     g.beginPath();
-    g.moveTo(mx - 3.6, my - 0.6);
-    g.quadraticCurveTo(mx, my + 0.1, mx + 3.8, my - 0.9);
-    g.quadraticCurveTo(mx + 0.4, my + 5, mx - 3.6, my - 0.6);
-    fillStroke(g, "#ffffff", 1.1);
+    g.moveTo(mx - 3.8, my - 1.2);
+    g.quadraticCurveTo(mx, my - 0.2, mx + 3.4, my - 1.6);
+    g.quadraticCurveTo(mx + 0.4, my + 4, mx - 3.8, my - 1.2);
+    fillStroke(g, "#ffffff", 1);
   } else {
     g.beginPath();
-    g.moveTo(mx - 3, my - 0.5);
-    g.quadraticCurveTo(mx + 0.2, my + 2.6, mx + 3.2, my - 0.8);
+    g.moveTo(mx - 3.4, my - 0.6);
+    g.quadraticCurveTo(mx, my + 2.4, mx + 3, my - 1.2);
     g.strokeStyle = INK;
-    g.lineWidth = 1.3;
+    g.lineWidth = 1.1;
     g.lineCap = "round";
     g.stroke();
     g.lineCap = "butt";
   }
   if (L.beard) {
     g.beginPath();
-    g.moveTo(-10.6, hy + 2);
-    g.quadraticCurveTo(-9, hy + 12, 1, hy + 11.8);
-    g.quadraticCurveTo(10, hy + 11.5, 11, hy + 3);
-    g.quadraticCurveTo(8, hy + 9.5, 3.4, hy + 9);
-    g.quadraticCurveTo(-4, hy + 9.8, -10.6, hy + 2);
-    fillStroke(g, L.hair, 1.1);
+    g.moveTo(-1.4, hy + 3);
+    g.bezierCurveTo(2, hy + 4, 9, hy + 2.6, 12.4, hy + 3);
+    g.bezierCurveTo(13.6, hy + 8, 11, hy + 11, 6, hy + 11);
+    g.bezierCurveTo(2, hy + 11, -1, hy + 9.6, -1.4, hy + 3);
+    g.closePath();
+    g.fillStyle = L.hair;
+    g.globalAlpha = 0.85;
+    g.fill();
+    g.globalAlpha = 1;
+  }
+  // La nariz larga, para adelante
+  g.beginPath();
+  g.moveTo(9, hy - 2);
+  g.bezierCurveTo(12, hy - 2.6, 15.6, hy - 1.4, 15.2, hy + 1);
+  g.bezierCurveTo(14.8, hy + 2.8, 11.6, hy + 2.8, 9.6, hy + 2);
+  fillStroke(g, L.skin, 1.05);
+  // Los ojos saltones: el de atrás primero, el de adelante se sale del perfil
+  for (const [ex, ey, r] of [[3.4, hy - 5.4, 4.3], [8.8, hy - 5, 4.5]] as [number, number, number][]) {
+    ell(g, ex, ey, r, r, "#ffffff", 1.05);
+    if (p.blink) {
+      // Los párpados bajan: la mitad de arriba del color de la piel
+      g.save();
+      g.beginPath();
+      g.arc(ex, ey, r - 0.5, 0, Math.PI * 2);
+      g.clip();
+      g.fillStyle = L.skin;
+      g.fillRect(ex - r, ey - r, r * 2, r + 0.6);
+      g.restore();
+      g.strokeStyle = INK;
+      g.lineWidth = 1;
+      g.beginPath();
+      g.moveTo(ex - r + 0.4, ey + 0.6);
+      g.lineTo(ex + r - 0.4, ey + 0.6);
+      g.stroke();
+    } else ell(g, ex + 1.4, ey + 0.4 + down, 1.15, 1.25, INK, null);
+  }
+  if (L.glasses) {
+    g.strokeStyle = INK;
+    g.lineWidth = 1.1;
+    for (const [ex, ey, r] of [[3.4, hy - 5.4, 5.2], [8.8, hy - 5, 5.4]] as [number, number, number][]) {
+      g.beginPath();
+      g.arc(ex, ey, r, 0, Math.PI * 2);
+      g.stroke();
+    }
   }
 }
 
-/** El pelo, de frente. Lo que define a cada uno: el flequillo. */
+/** El pelo, de frente. Lo que define a cada uno es el flequillo. */
 function hairFront(g: G, L: ToonLook, hy: number) {
   const H = L.hair, H2 = L.hair2;
   g.beginPath();
   switch (L.style) {
     case "federico": {
-      // Castaño, con volumen arriba y el flequillo desordenado en puntas
-      g.moveTo(-11.8, hy + 3.5);
-      g.quadraticCurveTo(-13.6, hy - 9, -6, hy - 14.6);
-      g.quadraticCurveTo(2, hy - 17.4, 9, hy - 14);
-      g.quadraticCurveTo(13.8, hy - 10, 12.2, hy - 1.5);
-      g.lineTo(10.4, hy - 5.6);
-      g.lineTo(8.6, hy - 2.6);
-      g.lineTo(6.6, hy - 6.4);
-      g.lineTo(3.8, hy - 3);
-      g.lineTo(1.6, hy - 6.8);
-      g.lineTo(-1.6, hy - 3.6);
-      g.lineTo(-3.6, hy - 7);
-      g.lineTo(-6.8, hy - 4.6);
-      g.lineTo(-8.6, hy - 6.6);
-      g.lineTo(-10, hy - 2);
+      // Castaño y desordenado, con puntas para arriba y el flequillo para adelante
+      g.moveTo(-8.2, hy + 2);
+      g.lineTo(-9.4, hy - 6);
+      g.lineTo(-8.6, hy - 12.4);
+      g.lineTo(-7.4, hy - 16.6);
+      g.lineTo(-4.4, hy - 15.4);
+      g.lineTo(-2.4, hy - 19.4);
+      g.lineTo(0.6, hy - 16);
+      g.lineTo(3.6, hy - 19.6);
+      g.lineTo(5.4, hy - 15.4);
+      g.lineTo(9.2, hy - 17.2);
+      g.lineTo(9.4, hy - 12.6);
+      g.lineTo(12.8, hy - 11);
+      g.lineTo(9.6, hy - 9);
+      g.lineTo(7, hy - 10.4);
+      g.lineTo(4.6, hy - 8.6);
+      g.lineTo(2, hy - 10.6);
+      g.lineTo(-0.6, hy - 9);
+      g.lineTo(-3.6, hy - 6.6);
+      g.lineTo(-5.4, hy - 2.4);
       g.closePath();
       fillStroke(g, H);
       g.strokeStyle = H2;
-      g.lineWidth = 1.3;
+      g.lineWidth = 1.1;
       g.lineCap = "round";
-      for (const [x0, y0, x1, y1] of [[-6, -12.4, -1.8, -13.6], [1.6, -14, 6.4, -12.2]]) {
+      for (const [x0, y0, x1, y1] of [[-5.6, -11, -2.6, -14], [1.4, -12.4, 4.2, -15.2]]) {
         g.beginPath();
         g.moveTo(x0, hy + y0);
         g.lineTo(x1, hy + y1);
@@ -522,103 +529,72 @@ function hairFront(g: G, L: ToonLook, hy: number) {
       break;
     }
     case "franco": {
-      // Negro, alto y texturado, con el flequillo recto y los costados rebajados
-      g.save();
-      g.beginPath();
-      g.roundRect(-11.5, hy - 11.5, 23, 23, [10.5, 10.5, 9, 9]);
-      g.clip();
-      g.fillStyle = "rgba(40,30,36,0.55)";
-      g.fillRect(-12, hy - 5, 3.4, 8);
-      g.restore();
-      g.beginPath();
-      g.moveTo(-11.4, hy - 3.2);
-      g.quadraticCurveTo(-13.2, hy - 10, -9.6, hy - 13.6);
-      g.quadraticCurveTo(-8.6, hy - 17.4, -4.6, hy - 16.6);
-      g.quadraticCurveTo(-2.4, hy - 19.2, 1.4, hy - 17.8);
-      g.quadraticCurveTo(4.6, hy - 19.4, 7.6, hy - 16.6);
-      g.quadraticCurveTo(11.6, hy - 16.2, 12.2, hy - 11.6);
-      g.quadraticCurveTo(13.8, hy - 7.6, 12, hy - 3.4);
-      g.lineTo(11.4, hy - 4.6);
-      g.quadraticCurveTo(0.5, hy - 3.2, -10.6, hy - 4.4);
+      // Negro, con volumen arriba, el flequillo recto y los costados rebajados
+      g.moveTo(-8.6, hy + 1);
+      g.bezierCurveTo(-10.6, hy - 6, -9.6, hy - 15, -3, hy - 17.4);
+      g.bezierCurveTo(2, hy - 19.4, 9.6, hy - 17.4, 11.4, hy - 11.6);
+      g.lineTo(11.6, hy - 8.6);
+      g.lineTo(-1.4, hy - 8.4);
+      g.lineTo(-3.8, hy - 6.4);
+      g.lineTo(-6.2, hy - 1.6);
       g.closePath();
       fillStroke(g, H);
       g.strokeStyle = H2;
-      g.lineWidth = 1.1;
-      for (const [x, y] of [[-6.5, -13.2], [-1.5, -14.6], [3.6, -14.2], [8.2, -12.2], [-3.8, -10], [1.6, -10.6], [6.2, -9.2]]) {
+      g.lineWidth = 1;
+      for (const [x, y] of [[-5.6, -13.4], [-1, -15.4], [3.8, -15.2], [8, -13], [-3, -11], [1.8, -11.6], [6.2, -10.6]]) {
         g.beginPath();
-        g.arc(x, hy + y, 1.6, Math.PI * 1.1, Math.PI * 1.9);
+        g.arc(x, hy + y, 1.5, Math.PI * 1.1, Math.PI * 1.9);
         g.stroke();
       }
       break;
     }
     case "cap": {
-      // Gorra con visera hacia adelante
-      g.moveTo(-11.8, hy - 2);
-      g.quadraticCurveTo(-12.4, hy - 15.6, 0.5, hy - 15.8);
-      g.quadraticCurveTo(12.6, hy - 15.6, 12, hy - 4.4);
+      // Gorra con la visera para adelante
+      g.moveTo(-8.8, hy - 4);
+      g.bezierCurveTo(-9.6, hy - 14, -2, hy - 17.6, 3, hy - 16.6);
+      g.bezierCurveTo(8.6, hy - 15.6, 10.4, hy - 11, 10.2, hy - 8.4);
+      g.lineTo(-8.8, hy - 6);
       g.closePath();
       fillStroke(g, H);
       g.beginPath();
-      g.moveTo(5, hy - 5.2);
-      g.quadraticCurveTo(16, hy - 6.8, 18, hy - 3.4);
-      g.quadraticCurveTo(12, hy - 2.2, 5, hy - 3.6);
+      g.moveTo(8, hy - 9.4);
+      g.quadraticCurveTo(15.6, hy - 10.4, 17.4, hy - 7.6);
+      g.quadraticCurveTo(12.6, hy - 6.6, 7.4, hy - 7.6);
       g.closePath();
-      fillStroke(g, shade(H, 0.25), 1.3);
-      ell(g, -1, hy - 10, 2.4, 2.4, H2, 1);
+      fillStroke(g, shade(H, 0.22), 1.05);
+      ell(g, 1, hy - 12, 2.2, 2.2, H2, 0.9);
       break;
     }
     case "long":
-    case "bun": {
-      g.moveTo(-11.8, hy + 2);
-      g.quadraticCurveTo(-13, hy - 14, 0.5, hy - 14.6);
-      g.quadraticCurveTo(13.4, hy - 14, 12, hy - 2);
-      g.quadraticCurveTo(7, hy - 7.6, 1, hy - 6.6);
-      g.quadraticCurveTo(-6, hy - 6.4, -11.8, hy + 2);
+    case "bun":
+    case "short":
+    case "side": {
+      g.moveTo(-8.6, hy + 2);
+      g.bezierCurveTo(-10.6, hy - 6, -9.4, hy - 15, -2.4, hy - 16.6);
+      g.bezierCurveTo(4.6, hy - 17.8, 10.6, hy - 14.6, 11, hy - 8.4);
+      if (L.style === "side") {
+        g.lineTo(8.6, hy - 9.6);
+        g.quadraticCurveTo(2.6, hy - 12.6, -2.6, hy - 7.4);
+      } else g.quadraticCurveTo(4, hy - 10.6, -2.6, hy - 8.4);
+      g.lineTo(-5.6, hy - 2.4);
       g.closePath();
       fillStroke(g, H);
-      if (L.style === "bun") ell(g, -1, hy - 16.8, 5, 4.2, H, LW);
+      if (L.style === "bun") ell(g, -3.6, hy - 17.4, 4.6, 3.8, H, LW);
       break;
     }
     case "afro":
-      cloud(g, [[-10, -6, 6], [-7, -13, 6.5], [0, -16, 7], [7, -13, 6.5], [10.5, -6, 5.6]], hy, H);
+      cloud(g, [[-7.6, -6, 6.4], [-4.6, -13.6, 7], [2.4, -16, 7.4], [8.6, -12.6, 6], [-8.4, 1, 4.4]], hy, H);
       break;
     case "buzz": {
-      g.moveTo(-11.4, hy - 2);
-      g.quadraticCurveTo(-12, hy - 13.6, 0.5, hy - 13.4);
-      g.quadraticCurveTo(12.4, hy - 13.6, 11.8, hy - 2.6);
-      g.quadraticCurveTo(0.5, hy - 9, -11.4, hy - 2);
+      g.moveTo(-8.4, hy - 1);
+      g.bezierCurveTo(-9.4, hy - 10, -4, hy - 15.4, 1, hy - 15);
+      g.bezierCurveTo(6.6, hy - 14.6, 9.8, hy - 11.4, 9.8, hy - 8.8);
+      g.quadraticCurveTo(2, hy - 10.6, -4.4, hy - 6.4);
       g.closePath();
-      fillStroke(g, H, 1.2);
-      break;
-    }
-    case "short": {
-      // Corto y parejo, con el flequillo redondeado
-      g.moveTo(-11.8, hy + 1);
-      g.quadraticCurveTo(-13.2, hy - 14.6, 0.5, hy - 15.4);
-      g.quadraticCurveTo(13.6, hy - 14.6, 12, hy + 0.5);
-      g.quadraticCurveTo(11, hy - 6.4, 4, hy - 6.6);
-      g.quadraticCurveTo(-4, hy - 5.4, -9.6, hy - 5.6);
-      g.quadraticCurveTo(-11, hy - 3, -11.8, hy + 1);
-      g.closePath();
-      fillStroke(g, H);
-      break;
-    }
-    case "side": {
-      // Raya al costado: el pelo cae de derecha a izquierda
-      g.moveTo(-11.8, hy + 0.5);
-      g.quadraticCurveTo(-13.4, hy - 14.4, -1, hy - 15.6);
-      g.quadraticCurveTo(13.2, hy - 15.4, 12.2, hy - 1);
-      g.lineTo(10.6, hy - 9.2);
-      g.quadraticCurveTo(2, hy - 10.6, -5.4, hy - 4.2);
-      g.quadraticCurveTo(-9, hy - 2.4, -11.8, hy + 0.5);
-      g.closePath();
-      fillStroke(g, H);
-      g.strokeStyle = L.hair2;
-      g.lineWidth = 1.2;
-      g.beginPath();
-      g.moveTo(8.6, hy - 13);
-      g.quadraticCurveTo(2, hy - 12, -3, hy - 7.4);
-      g.stroke();
+      g.fillStyle = H;
+      g.globalAlpha = 0.85;
+      g.fill();
+      g.globalAlpha = 1;
       break;
     }
   }
@@ -767,7 +743,7 @@ export function drawCat(g: G, frame: 0 | 1 | "sleep" | "sit") {
   ell(g, 6.4, frame === "sit" ? -5 : -7.6, 2.8, 3.4, WHITE, null);
   // Cabeza, orejas y collar
   const hx = 9, hy = frame === "sit" ? -14 : -15;
-  g.strokeStyle = "#8b5cf6";
+  g.strokeStyle = "#ff4d2e";
   g.lineWidth = 1.6;
   g.beginPath();
   g.arc(hx - 0.6, hy + 2.4, 4.4, 0.2 * Math.PI, 0.85 * Math.PI);

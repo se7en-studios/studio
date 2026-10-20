@@ -26,28 +26,32 @@ export function viewOf(m: MapModel): View {
   return { ox: m.H * HW + pad, oy: TALL + pad, width: (m.W + m.H) * HW + pad * 2, height: (m.W + m.H) * HH + TALL + SLAB + pad * 2 };
 }
 
-/** La paleta del estudio. Los acentos de color (cian, verde, amarillo…) son de las marcas, en sus salas. */
+/**
+ * La paleta de la marca, la misma de la landing (rd.css): tinta, papel, grises
+ * y el naranja de señal. Los demás colores (verde, amarillo, cian…) son de cada
+ * marca y van sólo en su sala; el verde de las plantas, en el jardín.
+ */
 export const PAL = {
-  ink: "#0c0a14",
-  char: "#1b1a24",
-  char2: "#252431",
-  char3: "#33323f",
-  grey: "#4a4958",
-  grey2: "#6e6d80",
-  night: "#161b36",
-  night2: "#1f2649",
-  night3: "#2b3463",
-  night4: "#3a4479",
-  violet: "#8b5cf6",
-  violet2: "#a78bfa",
-  violet3: "#c4b5fd",
-  purple: "#6d28d9",
-  deep: "#3b1d7a",
-  white: "#f5f3ff",
-  paper: "#e9e5f7",
+  ink: "#0b0b0c",
+  ink2: "#151517",
+  ink3: "#1e1e21",
+  char: "#26262a",
+  char2: "#303035",
+  char3: "#3d3d43",
+  grey: "#5d5952",
+  grey2: "#8d8982",
+  grey3: "#b9b4ab",
+  paper: "#f2eee6",
+  paper2: "#e6e0d4",
+  white: "#fbfaf7",
+  signal: "#ff4d2e",
+  signal2: "#ff6a4f",
+  signal3: "#ffb199",
+  deep: "#c4381c",
+  wood: "#c8925c",
 } as const;
-/** El naranja del logo de se7en: sólo donde va el logo. */
-const SIGNAL = "#ff4d2e";
+/** El naranja del logo de se7en. */
+const SIGNAL = PAL.signal;
 
 // --- Pincel -----------------------------------------------------------------
 
@@ -113,9 +117,10 @@ const c = (h: string) => {
 };
 const dark = (h: string, k: number) => mix(h, "#000000", k);
 const lite = (h: string, k: number) => mix(h, "#ffffff", k);
-const OUT = "rgba(12,10,20,0.9)";
-const OUT_SOFT = "rgba(12,10,20,0.5)";
-const LW = 1.25;
+// Trazo fino de tinta, como en los fondos de un dibujo animado
+const OUT = "rgba(11,11,12,0.88)";
+const OUT_SOFT = "rgba(11,11,12,0.45)";
+const LW = 1.05;
 
 export function hash(x: number, y: number) {
   let h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263)) | 0;
@@ -445,7 +450,7 @@ export function bakeSlogan(family: string | null, aspect: number): HTMLCanvasEle
     const w = t.measureText(a + (b ?? "")).width;
     let x = (cv.width - w) / 2;
     // Contorno de tinta y el relleno: «Cero» en violeta, el resto en blanco
-    for (const [s, col] of (b ? [[a, PAL.violet2], [b, PAL.white]] : [[a, PAL.white]]) as [string, string][]) {
+    for (const [s, col] of (b ? [[a, PAL.signal2], [b, PAL.white]] : [[a, PAL.white]]) as [string, string][]) {
       t.lineJoin = "round";
       t.lineWidth = px * 0.16;
       t.strokeStyle = PAL.ink;
@@ -467,23 +472,25 @@ function faceRect(face: Facing, plane: number, start: number, u0: number, u1: nu
 
 // --- Piso ---------------------------------------------------------------------
 
-export type Material = "hall" | "reception" | "dev" | "design" | "meeting" | "lounge" | "wood" | "parquet" | "gallery" | "kitchen" | "storage";
+export type Material = "hall" | "reception" | "dev" | "design" | "meeting" | "lounge" | "wood" | "parquet" | "gallery" | "kitchen" | "storage" | "grass";
 
+// Pisos claros y paredes oscuras, como en un dibujo animado: se lee todo de un vistazo.
 const FLOOR: Record<Material, [string, string]> = {
-  hall: ["#2a2939", "#272636"],
-  reception: ["#3d3760", "#39335b"],
-  dev: ["#202849", "#1e2645"],
-  design: ["#30264d", "#2d2449"],
-  meeting: ["#2c3253", "#29304f"],
-  lounge: ["#3d2867", "#392562"],
-  wood: ["#3c3447", "#383143"],
-  parquet: ["#41322f", "#3d2f2b"],
-  gallery: ["#24212f", "#221f2d"],
-  kitchen: ["#ebe8f5", "#2c2b3c"],
-  storage: ["#393847", "#363544"],
+  hall: ["#ddd6ca", "#d6cfc2"],
+  reception: ["#ece6da", "#e5dfd2"],
+  dev: ["#46464c", "#424248"],
+  design: ["#d9b88d", "#d2b186"],
+  meeting: ["#d2cdc5", "#ccc7bf"],
+  lounge: ["#34343a", "#313137"],
+  wood: ["#d4b990", "#cdb289"],
+  parquet: ["#9a7350", "#936d4b"],
+  gallery: ["#cfc8bc", "#c9c2b6"],
+  kitchen: ["#f2eee6", "#2c2c30"],
+  storage: ["#bdb7ad", "#b7b1a7"],
+  grass: ["#3f6b3a", "#3c6737"],
 };
-const PLANKS = new Set<Material>(["wood", "parquet", "meeting"]);
-const CARPET = new Set<Material>(["dev", "design", "lounge", "reception"]);
+const PLANKS = new Set<Material>(["wood", "parquet", "design"]);
+const CARPET = new Set<Material>(["dev", "lounge"]);
 
 /** `runner`: «axis» marca el eje de circulación (las flechitas van hacia el ala de proyectos); «gallery», la alfombra del Archivo. */
 export function floorTile(x: number, y: number, mat: Material, runner: "axis" | "gallery" | null = null) {
@@ -494,51 +501,73 @@ export function floorTile(x: number, y: number, mat: Material, runner: "axis" | 
       poly([P(x + u, y + v), P(x + u + 0.5, y + v), P(x + u + 0.5, y + v + 0.5), P(x + u, y + v + 0.5)], c(i === 0 || i === 3 ? a : b));
     }
   } else poly([P(x, y), P(x + 1, y), P(x + 1, y + 1), P(x, y + 1)], c((x + y) % 2 ? a : b));
+  if (mat === "grass") {
+    // El pasto: unas matitas más claras y más oscuras, sin juntas
+    for (let i = 0; i < 5; i++) {
+      const p = P(x + hash(x * 5 + i, y), y + hash(x, y * 3 + i));
+      g.fillStyle = c(i % 2 ? "#4f8045" : "#335a30");
+      g.fillRect(p[0], p[1] - 1.5, 1.2, 2.5);
+    }
+    return;
+  }
   if (PLANKS.has(mat)) {
-    const seam = c(dark(a, 0.22));
+    const seam = c(dark(a, 0.16));
     for (const v of [1 / 3, 2 / 3]) {
-      if (mat === "parquet") line(P(x + v, y), P(x + v, y + 1), seam, 0.8);
-      else line(P(x, y + v), P(x + 1, y + v), seam, 0.8);
+      if (mat === "parquet") line(P(x + v, y), P(x + v, y + 1), seam, 0.7);
+      else line(P(x, y + v), P(x + 1, y + v), seam, 0.7);
     }
     const j = hash(x, y) * 0.8 + 0.1;
-    if (mat !== "parquet") line(P(x + j, y), P(x + j, y + 1 / 3), seam, 0.8);
+    if (mat !== "parquet") line(P(x + j, y), P(x + j, y + 1 / 3), seam, 0.7);
   }
   if (CARPET.has(mat)) {
-    g.fillStyle = c(lite(a, 0.1));
+    g.fillStyle = c(lite(a, 0.08));
     for (let i = 0; i < 4; i++) {
       const p = P(x + hash(x * 3 + i, y), y + hash(x, y * 5 + i));
       g.fillRect(p[0], p[1], 1.6, 1);
     }
   }
   if (runner === "axis") {
-    // El eje: una franja oscura con bordes violeta y flechitas hacia el ala de proyectos
-    poly([P(x + 0.24, y), P(x + 0.76, y), P(x + 0.76, y + 1), P(x + 0.24, y + 1)], c("#1d1c2b"));
-    line(P(x + 0.24, y), P(x + 0.24, y + 1), c(PAL.violet), 1.3);
-    line(P(x + 0.76, y), P(x + 0.76, y + 1), c(PAL.violet), 1.3);
-    poly([P(x + 0.36, y + 0.32), P(x + 0.5, y + 0.6), P(x + 0.64, y + 0.32), P(x + 0.5, y + 0.46)], c(mix(PAL.violet, "#1d1c2b", 0.35)));
+    // El eje: una franja de tinta con los bordes naranjas y flechitas hacia el ala de proyectos
+    poly([P(x + 0.26, y), P(x + 0.74, y), P(x + 0.74, y + 1), P(x + 0.26, y + 1)], c(PAL.ink3));
+    line(P(x + 0.26, y), P(x + 0.26, y + 1), c(PAL.signal), 1.3);
+    line(P(x + 0.74, y), P(x + 0.74, y + 1), c(PAL.signal), 1.3);
+    poly([P(x + 0.38, y + 0.32), P(x + 0.5, y + 0.6), P(x + 0.62, y + 0.32), P(x + 0.5, y + 0.46)], c(PAL.signal));
   } else if (runner === "gallery") {
-    poly([P(x + 0.18, y), P(x + 0.82, y), P(x + 0.82, y + 1), P(x + 0.18, y + 1)], c("#3b1d5e"));
-    line(P(x + 0.18, y), P(x + 0.18, y + 1), c(PAL.violet3), 1);
-    line(P(x + 0.82, y), P(x + 0.82, y + 1), c(PAL.violet3), 1);
+    poly([P(x + 0.18, y), P(x + 0.82, y), P(x + 0.82, y + 1), P(x + 0.18, y + 1)], c(PAL.ink3));
+    line(P(x + 0.18, y), P(x + 0.18, y + 1), c(PAL.signal3), 1);
+    line(P(x + 0.82, y), P(x + 0.82, y + 1), c(PAL.signal3), 1);
   }
-  // Las juntas: una línea oscura en los bordes de atrás de cada baldosa
-  const j = c(dark(a, 0.3));
-  line(P(x, y + 1), P(x, y), j, 0.8);
-  line(P(x, y), P(x + 1, y), j, 0.8);
+  // Las juntas: una línea fina en los bordes de atrás de cada baldosa
+  const j = c(dark(a, 0.18));
+  line(P(x, y + 1), P(x, y), j, 0.7);
+  line(P(x, y), P(x + 1, y), j, 0.7);
 }
 
-/** El espesor del piso del edificio, en los dos bordes de adelante, con el filo violeta. */
+/** El borde de tierra del jardín (adelante y a la derecha) donde ya no hay nada. */
+export function earth(x: number, y: number, front: boolean, right: boolean) {
+  if (front) poly([P(x, y + 1, 0), P(x + 1, y + 1, 0), P(x + 1, y + 1, -SLAB), P(x, y + 1, -SLAB)], c("#3b2a1d"), OUT_SOFT);
+  if (right) poly([P(x + 1, y, 0), P(x + 1, y + 1, 0), P(x + 1, y + 1, -SLAB), P(x + 1, y, -SLAB)], c("#2b1f15"), OUT_SOFT);
+}
+
+/**
+ * El espesor del piso de cada sector, en los bordes que dan al jardín: como el
+ * edificio no es un rectángulo, se mira baldosa por baldosa.
+ */
 export function slab(m: MapModel, matAt: (x: number, y: number) => Material) {
-  for (let x = 0; x < m.W; x++) {
-    const base = FLOOR[matAt(x, m.H - 1)][0];
-    poly([P(x, m.H, 0), P(x + 1, m.H, 0), P(x + 1, m.H, -SLAB), P(x, m.H, -SLAB)], dark(base, 0.5), OUT_SOFT);
-  }
-  for (let y = 0; y < m.H; y++) {
-    const base = FLOOR[matAt(m.W - 1, y)][0];
-    poly([P(m.W, y, 0), P(m.W, y + 1, 0), P(m.W, y + 1, -SLAB), P(m.W, y, -SLAB)], dark(base, 0.62), OUT_SOFT);
-  }
-  line(P(0, m.H), P(m.W, m.H), PAL.violet, 1.6);
-  line(P(m.W, m.H), P(m.W, 0), PAL.violet, 1.6);
+  const built = (x: number, y: number) => x >= 0 && y >= 0 && x < m.W && y < m.H && m.region[y][x] !== "out";
+  for (let y = 0; y < m.H; y++)
+    for (let x = 0; x < m.W; x++) {
+      if (!built(x, y)) continue;
+      const base = FLOOR[matAt(x, y)][0];
+      if (!built(x, y + 1)) {
+        poly([P(x, y + 1, 0), P(x + 1, y + 1, 0), P(x + 1, y + 1, -SLAB), P(x, y + 1, -SLAB)], c(PAL.char2), OUT);
+        line(P(x, y + 1, -1), P(x + 1, y + 1, -1), c(dark(base, 0.25)), 1.4);
+      }
+      if (!built(x + 1, y)) {
+        poly([P(x + 1, y, 0), P(x + 1, y + 1, 0), P(x + 1, y + 1, -SLAB), P(x + 1, y, -SLAB)], c(PAL.ink3), OUT);
+        line(P(x + 1, y, -1), P(x + 1, y + 1, -1), c(dark(base, 0.25)), 1.4);
+      }
+    }
 }
 
 /** Lo que va pintado en el piso según el tema: la cancha de pádel, la colchoneta y el felpudo de la puerta. */
@@ -569,6 +598,11 @@ export function decal(f: Furni, accent: string, art: RoomArt | null) {
     // La red, en el medio de la cancha
     poly([P(x + w / 2, y + 0.12, 9), P(x + w / 2, y + d - 0.12, 9), P(x + w / 2, y + d - 0.12, 0), P(x + w / 2, y + 0.12, 0)], "rgba(18,18,24,0.4)");
     line(P(x + w / 2, y + 0.12, 9), P(x + w / 2, y + d - 0.12, 9), L, 1.4);
+  } else if (f.k === "pond") {
+    // Un estanque chico en el jardín, con su borde de piedras
+    poly([P(x + 0.1, y + 0.2), P(x + w - 0.2, y + 0.1), P(x + w - 0.1, y + d - 0.2), P(x + 0.2, y + d - 0.1)], c("#8d8982"), OUT);
+    poly([P(x + 0.25, y + 0.32), P(x + w - 0.32, y + 0.25), P(x + w - 0.25, y + d - 0.32), P(x + 0.32, y + d - 0.25)], c("#3f7ea6"));
+    poly([P(x + 0.5, y + 0.55), P(x + 1, y + 0.45), P(x + 1.1, y + 0.6), P(x + 0.6, y + 0.7)], c("#7fb4d4"));
   } else if (f.k === "yogamat") {
     poly([P(x + 0.18, y + 0.05), P(x + 0.82, y + 0.05), P(x + 0.82, y + d - 0.05), P(x + 0.18, y + d - 0.05)], c(accent), OUT);
     line(P(x + 0.18, y + 0.3), P(x + 0.82, y + 0.3), c(dark(accent, 0.25)), 1);
@@ -594,8 +628,34 @@ export function rug(f: Furni, color: string, edge: string) {
 // --- Paredes ----------------------------------------------------------------------
 
 export type WallStyle = { face: string; cap: string; stripe?: string };
-/** Un tramo de pared en el borde de atrás de la baldosa (x, y). Arriba, el corte de la pared: la «tapa» violeta. */
-export function wallSegment(side: "L" | "R", x: number, y: number, kind: "rail" | "wall" | "tall", s: WallStyle, door: boolean) {
+/** Alto del vidrio de Reuniones. */
+const GLASS = 52;
+/**
+ * Un tramo de pared en el borde de atrás de la baldosa (x, y). Arriba, el corte
+ * de la pared en tinta; las altas llevan además el filo naranja. El vidrio es
+ * un marco fino con el panel casi transparente: se ve todo lo de adentro.
+ */
+export function wallSegment(side: "L" | "R", x: number, y: number, kind: "rail" | "wall" | "tall" | "glass", s: WallStyle, door: boolean) {
+  const fc: Facing = side === "L" ? "x" : "y";
+  const start = side === "L" ? y : x;
+  const plane = side === "L" ? x : y;
+  if (kind === "glass") {
+    const post = (u: number) => {
+      if (side === "L") box(x - 0.05, y + u, 0, 0.05, 0.06, GLASS, PAL.ink3, { line: null });
+      else box(x + u, y - 0.05, 0, 0.06, 0.05, GLASS, PAL.ink3, { line: null });
+    };
+    if (door) {
+      post(0);
+      post(0.94);
+      return;
+    }
+    faceRect(fc, plane - 0.01, start, 0, 1, 2, GLASS, "rgba(196,224,236,0.22)");
+    faceRect(fc, plane - 0.01, start, 0.08, 0.5, GLASS - 22, GLASS - 6, "rgba(255,255,255,0.18)");
+    faceRect(fc, plane - 0.01, start, 0, 1, 0, 3, c(PAL.ink3));
+    faceRect(fc, plane - 0.01, start, 0, 1, GLASS - 2, GLASS, c(PAL.ink3));
+    post(0);
+    return;
+  }
   const h = kind === "tall" ? TALL : kind === "wall" ? WALL : RAIL;
   const face = s.face, top = s.cap;
   // L: pared en el plano x = x (cara que mira a +x). R: en el plano y = y (cara que mira a +y).
@@ -605,11 +665,8 @@ export function wallSegment(side: "L" | "R", x: number, y: number, kind: "rail" 
   };
   if (!door) {
     seg(0, 1, 0, h);
-    const fc: Facing = side === "L" ? "x" : "y";
-    const start = side === "L" ? y : x;
-    const plane = side === "L" ? x : y;
-    if (kind !== "rail") faceRect(fc, plane, start, 0, 1, 0, 5, c(dark(face, 0.4)));
-    if (kind === "tall") faceRect(fc, plane, start, 0, 1, h - 7, h - 5, c(mix(face, PAL.violet, 0.35)));
+    if (kind !== "rail") faceRect(fc, plane, start, 0, 1, 0, 5, c(dark(face, 0.35)));
+    if (kind === "tall") faceRect(fc, plane, start, 0, 1, h - 6, h - 4, c(PAL.signal));
     if (s.stripe && kind === "wall") faceRect(fc, plane, start, 0, 1, h - 7, h - 3.5, c(s.stripe));
     return;
   }
@@ -619,8 +676,8 @@ export function wallSegment(side: "L" | "R", x: number, y: number, kind: "rail" 
   seg(0.86, 1, 0, post);
 }
 
-/** ¿Este cartel va en una pared alta (el borde del edificio)? */
-const onTall = (dc: Decor) => (dc.side === "L" && dc.x === 0) || (dc.side === "R" && dc.y === 0);
+/** ¿Este cartel va en una pared alta (el borde de atrás de un sector)? */
+const onTall = (dc: Decor) => dc.tall ?? ((dc.side === "L" && dc.x === 0) || (dc.side === "R" && dc.y === 0));
 
 /** Lo que va colgado en una pared (ventana, pizarrón, tele…). Se recorta al tramo que se está dibujando. */
 export function decor(dc: Decor, accent: string, period: Period, art: RoomArt | null = null, studio: StudioArt | null = null) {
@@ -646,13 +703,13 @@ export function decor(dc: Decor, accent: string, period: Period, art: RoomArt | 
           R(u, u + w, 48, 48 + h, k % 2 ? city.far : city.near);
           for (let fy = 51; fy < 46 + h; fy += 4)
             for (let fx = u + 0.025; fx < u + w - 0.035; fx += 0.05)
-              if (hash(Math.round(fx * 97), fy + k * 31) < city.lit) R(fx, fx + 0.022, fy, fy + 1.6, hash(fy, k) > 0.7 ? "#ffd27a" : PAL.violet3);
+              if (hash(Math.round(fx * 97), fy + k * 31) < city.lit) R(fx, fx + 0.022, fy, fy + 1.6, hash(fy, k) > 0.7 ? "#ffd27a" : PAL.signal3);
           u += w;
         }
         if (period === "noche") for (let s = 0; s < 3; s++) R(i + 0.25 + hash(i, s) * 0.5, i + 0.27 + hash(i, s) * 0.5, 84 + hash(s, i) * 10, 85.4 + hash(s, i) * 10, "#ffffff");
         R(i + 0.17, i + 0.83, 70, 72.5, PAL.paper);
         R(i + 0.485, i + 0.515, 48, 96, PAL.paper);
-        R(i + 0.06, i + 0.94, 39, 43, PAL.violet2, OUT);
+        R(i + 0.06, i + 0.94, 39, 43, PAL.char3, OUT);
       }
       break;
     }
@@ -695,17 +752,17 @@ export function decor(dc: Decor, accent: string, period: Period, art: RoomArt | 
       // Pizarrón con post-its de colores (sin palabras: nada que inventar)
       R(0.1, L - 0.1, z0, z1, PAL.grey, OUT);
       R(0.14, L - 0.14, z0 + 2, z1 - 2, PAL.white);
-      ["#fde68a", PAL.violet3, "#fbcfe8", "#a5f3fc", PAL.violet2, "#fde68a", "#fbcfe8"].forEach((col, i) => {
+      ["#fde68a", PAL.signal3, PAL.white, "#fde68a", PAL.signal2, PAL.paper2, PAL.signal3].forEach((col, i) => {
         const u = 0.28 + i * ((L - 0.56) / 7);
         const zz = z0 + 6 + (i % 2) * 7 + (z1 - z0 - 24) * 0.3;
         R(u, u + 0.2, zz, zz + 6.5, col, OUT_SOFT);
       });
-      R(0.24, 0.24 + (L - 0.5) * 0.6, z0 + 4, z0 + 5, PAL.violet);
+      R(0.24, 0.24 + (L - 0.5) * 0.6, z0 + 4, z0 + 5, PAL.signal);
       break;
     case "moodboard":
       R(0.1, L - 0.1, z0, z1, "#6e5135", OUT);
       R(0.14, L - 0.14, z0 + 2, z1 - 2, "#a98258");
-      [PAL.violet, PAL.deep, PAL.violet3, PAL.char, PAL.white, PAL.violet2, "#fbcfe8"].forEach((col, i) => {
+      [PAL.signal, PAL.deep, PAL.signal3, PAL.char, PAL.white, PAL.signal2, PAL.grey3].forEach((col, i) => {
         const u = 0.22 + (i % 4) * ((L - 0.4) / 4.3);
         const zz = z0 + 5 + Math.floor(i / 4) * ((z1 - z0) * 0.45);
         if (u + 0.24 < L - 0.12) R(u, u + 0.24, zz, zz + (z1 - z0) * 0.32, col, OUT_SOFT);
@@ -714,7 +771,7 @@ export function decor(dc: Decor, accent: string, period: Period, art: RoomArt | 
     case "swatches":
       // Las muestras de color del área de diseño: la paleta del estudio en tiras
       R(0.12, L - 0.12, z0 - 4, z1 + 4, PAL.white, OUT);
-      [PAL.ink, PAL.night3, PAL.deep, PAL.purple, PAL.violet, PAL.violet2, PAL.violet3].forEach((col, i) => {
+      [PAL.ink, PAL.char3, PAL.grey2, PAL.paper2, PAL.deep, PAL.signal, PAL.signal3].forEach((col, i) => {
         const zz = z0 - 1 + i * ((z1 - z0 + 2) / 7);
         R(0.2, L - 0.2, zz, zz + (z1 - z0) / 7 - 1, col);
       });
@@ -727,13 +784,13 @@ export function decor(dc: Decor, accent: string, period: Period, art: RoomArt | 
         R(u, u + 0.34, zz, zz + 9, col, OUT);
         R(u + 0.05, u + 0.29, zz + 5.5, zz + 6.5, PAL.white);
       };
-      bx(0.3, z1 - 16, PAL.violet);
-      bx(L - 0.66, z1 - 16, PAL.night4);
-      bx(L / 2 - 0.17, z0 + 7, PAL.purple);
+      bx(0.3, z1 - 16, PAL.signal);
+      bx(L - 0.66, z1 - 16, PAL.grey);
+      bx(L / 2 - 0.17, z0 + 7, PAL.deep);
       R(0.64, L - 0.66, z1 - 11.5, z1 - 10.5, PAL.ink);
       R(L / 2 - 0.01, L / 2 + 0.01, z0 + 16, z1 - 16, PAL.ink);
-      R(L - 0.5, L - 0.3, z0 + 6, z0 + 14, PAL.night3, OUT_SOFT);
-      R(L - 0.5, L - 0.3, z0 + 13, z0 + 15, PAL.violet3);
+      R(L - 0.5, L - 0.3, z0 + 6, z0 + 14, PAL.char3, OUT_SOFT);
+      R(L - 0.5, L - 0.3, z0 + 13, z0 + 15, PAL.signal3);
       break;
     }
     case "tv":
@@ -818,13 +875,13 @@ export function tickerQuad(dc: Decor): XY[] {
   return [onFace(fc, plane, start, 0.16, 54), onFace(fc, plane, start, dc.len - 0.16, 54), onFace(fc, plane, start, dc.len - 0.16, 34), onFace(fc, plane, start, 0.16, 34)];
 }
 
-export const SKY: Record<Period, string> = { manana: "#e9a7a0", dia: "#8fb9f2", tarde: "#c86c8a", noche: "#0d1233" };
+export const SKY: Record<Period, string> = { manana: "#f0b39a", dia: "#9cc7ef", tarde: "#e07a5a", noche: "#0e1220" };
 /** Los edificios de afuera según la hora, y qué parte de sus ventanas está prendida. */
 const CITY: Record<Period, { near: string; far: string; lit: number }> = {
-  manana: { near: "#7c5a86", far: "#9a76a0", lit: 0.04 },
-  dia: { near: "#5d79b6", far: "#7d97cc", lit: 0 },
-  tarde: { near: "#4a2c5c", far: "#633a70", lit: 0.2 },
-  noche: { near: "#121a3d", far: "#1a2350", lit: 0.42 },
+  manana: { near: "#8a6e66", far: "#a58a7f", lit: 0.04 },
+  dia: { near: "#6f86a8", far: "#8ea2bf", lit: 0 },
+  tarde: { near: "#5a3a3a", far: "#734a44", lit: 0.2 },
+  noche: { near: "#14161f", far: "#1c1f2b", lit: 0.42 },
 };
 
 // --- Muebles --------------------------------------------------------------------
@@ -842,15 +899,17 @@ export type Glow =
 export type FurniCtx = { accent: string; status: string; covered: boolean; kind: string; area?: Area; glows: Glow[] };
 
 const WOOD = "#a77d57";
+/** Las tapas de madera de escritorios y mesas, y sus cantos. */
+const DESK = { top: PAL.wood, left: "#b07c4a", right: "#94653c" };
 const METAL = PAL.char2;
-const TOP = PAL.paper; // el laminado de escritorios y mesas
+const TOP = PAL.wood; // la madera de escritorios y mesas
 const LEG = PAL.char3;
-const SEAT = "#5b3fd1";
+const SEAT = PAL.ink3;
 
 function sheet(x: number, y: number, w: number, d: number, h: number) {
-  box(x + 0.04, y + 0.04, 0, w - 0.08, d - 0.08, h, "#e9e5f2", { top: "#f5f3fb", right: "#cdc8de" });
-  line(P(x + w * 0.3, y + d, h), P(x + w * 0.35, y + d, 2), c("#cdc8de"));
-  line(P(x + w * 0.7, y + d, h), P(x + w * 0.66, y + d, 2), c("#cdc8de"));
+  box(x + 0.04, y + 0.04, 0, w - 0.08, d - 0.08, h, "#efebe3", { top: "#f7f4ee", right: "#d3cec4" });
+  line(P(x + w * 0.3, y + d, h), P(x + w * 0.35, y + d, 2), c("#d3cec4"));
+  line(P(x + w * 0.7, y + d, h), P(x + w * 0.66, y + d, 2), c("#d3cec4"));
 }
 
 function monitor(fx: number, fy: number, face: Facing, kind: ScreenKind, ctx: FurniCtx, room: string | null, z = 27) {
@@ -884,7 +943,7 @@ export function furni(f: Furni, ctx: FurniCtx) {
     case "desk":
     case "desk2": {
       for (const [lx, ly] of [[x + 0.08, y + 0.08], [x + w - 0.16, y + 0.08], [x + 0.08, y + d - 0.16], [x + w - 0.16, y + d - 0.16]]) box(lx, ly, 0, 0.08, 0.08, 24, LEG);
-      box(x + 0.04, y + 0.04, 24, w - 0.08, d - 0.08, 4, TOP, { left: PAL.violet3, right: mix(PAL.violet3, "#000000", 0.25) });
+      box(x + 0.04, y + 0.04, 24, w - 0.08, d - 0.08, 4, TOP, { left: DESK.left, right: DESK.right });
       if (ctx.covered) { sheet(x, y, w, d, 34); break; }
       if (ctx.kind === "office" && ctx.area === "dev") {
         // El escritorio de Franco: el monitor en su brazo, la notebook con el
@@ -892,7 +951,7 @@ export function furni(f: Furni, ctx: FurniCtx) {
         box(x + 0.32, y + 0.22, 28, 0.86, 0.1, 24, PAL.char);
         box(x + 0.7, y + 0.3, 28, 0.08, 0.08, 4, METAL);
         box(x + 1.2, y + 0.35, 28, 0.62, 0.42, 1.5, PAL.grey);
-        box(x + 1.2, y + 0.7, 29.5, 0.62, 0.05, 16, "#c9c6d6", { left: "#b9b5c8" });
+        box(x + 1.2, y + 0.7, 29.5, 0.62, 0.05, 16, "#cfccc6", { left: "#bdbab3" });
         const [sx, sy] = P(x + 1.51, y + 0.75, 38);
         for (const r of [3.4, 2.4, 1.4]) {
           g.beginPath();
@@ -905,18 +964,18 @@ export function furni(f: Furni, ctx: FurniCtx) {
         ellipse(dx, dy - 3, 3.4, 2.8, c("#ffd84d"), OUT, 1);
         ellipse(dx + 2.4, dy - 6.6, 2.2, 2.2, c("#ffd84d"), OUT, 1);
         ellipse(dx + 4.2, dy - 6.2, 1.4, 0.7, c("#ff8a3d"), null);
-        mug(x + 2.7, y + 0.35, 28, PAL.violet, ctx, f.room);
+        mug(x + 2.7, y + 0.35, 28, PAL.signal, ctx, f.room);
       } else if (ctx.kind === "office") {
         // El de Federico: el monitor grande (se ve la espalda), la tableta con el lápiz y los lápices de colores
-        box(x + 0.25, y + 0.25, 28, 1.3, 0.12, 30, "#dcd8ea", { top: "#efedf7" });
+        box(x + 0.25, y + 0.25, 28, 1.3, 0.12, 30, "#dedad3", { top: "#efece6" });
         box(x + 0.8, y + 0.37, 28, 0.2, 0.16, 6, PAL.grey2);
         const [lx, ly] = P(x + 0.9, y + 0.37, 46);
-        ellipse(lx, ly, 3.2, 3.6, c(PAL.violet3), null);
+        ellipse(lx, ly, 3.2, 3.6, c(PAL.signal), null);
         box(x + 1.75, y + 0.35, 28, 0.62, 0.4, 1.4, PAL.char);
-        box(x + 1.82, y + 0.42, 29.4, 0.48, 0.26, 0.2, PAL.night4, { line: null });
+        box(x + 1.82, y + 0.42, 29.4, 0.48, 0.26, 0.2, PAL.grey, { line: null });
         line(P(x + 2, y + 0.5, 30.5), P(x + 2.35, y + 0.6, 31.5), c(PAL.white), 1.2);
-        cyl(x + 2.75, y + 0.4, 28, 2.4, 6, PAL.violet, PAL.deep);
-        for (const [i, col] of ["#ff6b6b", "#ffd84d", "#5ad1a8", PAL.violet3].entries()) {
+        cyl(x + 2.75, y + 0.4, 28, 2.4, 6, PAL.signal, PAL.deep);
+        for (const [i, col] of [PAL.signal, "#ffd84d", PAL.ink3, PAL.signal3].entries()) {
           const [px, py] = P(x + 2.75, y + 0.4, 34);
           line([px - 1.5 + i, py], [px - 2.2 + i * 1.5, py - 6], c(col), 1.3);
         }
@@ -950,17 +1009,17 @@ export function furni(f: Furni, ctx: FurniCtx) {
     }
     case "stool":
       box(x + 0.46, y + 0.46, 0, 0.08, 0.08, 14, PAL.char3, { line: null });
-      cyl(x + 0.5, y + 0.5, 14, 6.4, 3, SEAT, PAL.violet2);
+      cyl(x + 0.5, y + 0.5, 14, 6.4, 3, SEAT, PAL.signal2);
       break;
     case "plant":
       plant(x, y, acc);
       break;
     case "shelf": {
       if (face === "y") {
-        box(x + 0.08, y + 0.1, 0, 0.84, 0.38, 58, PAL.night3);
+        box(x + 0.08, y + 0.1, 0, 0.84, 0.38, 58, PAL.char3);
         books("y", y + 0.48, x + 0.12, 0.76);
       } else {
-        box(x + 0.1, y + 0.08, 0, 0.38, 0.84, 58, PAL.night3);
+        box(x + 0.1, y + 0.08, 0, 0.38, 0.84, 58, PAL.char3);
         books("x", x + 0.48, y + 0.12, 0.76);
       }
       break;
@@ -972,12 +1031,12 @@ export function furni(f: Furni, ctx: FurniCtx) {
         faceRect("y", y + 0.585, x + 0.16, 0.06, 0.62, z, z + 5.5, c(PAL.char3), OUT_SOFT);
         ctx.glows.push({ t: "led", at: onFace("y", y + 0.59, x + 0.16, 0.54, z + 2.7), i: i + Math.round(x * 7 + y * 3), room: f.room });
       }
-      faceRect("y", y + 0.585, x + 0.16, 0.06, 0.62, 58, 60, c(PAL.violet));
+      faceRect("y", y + 0.585, x + 0.16, 0.06, 0.62, 58, 60, c(PAL.signal));
       break;
     }
     case "sofa": {
-      const col = ctx.kind === "lounge" ? "#6d4bd8" : ctx.kind === "reception" ? PAL.night3 : "#4b3a8f";
-      const cush = ctx.kind === "reception" ? PAL.violet : lite(col, 0.14);
+      const col = ctx.kind === "lounge" ? PAL.signal : ctx.kind === "reception" ? PAL.char3 : PAL.char2;
+      const cush = ctx.kind === "reception" ? PAL.signal : lite(col, 0.14);
       if (ctx.covered) { sheet(x, y, w, d, 30); break; }
       if (face === "y") {
         box(x + 0.05, y + 0.1, 10, w - 0.1, 0.26, 20, col);
@@ -999,7 +1058,7 @@ export function furni(f: Furni, ctx: FurniCtx) {
       cyl(x + 0.5, y + 0.5, 0, 6, 2.5, PAL.char, PAL.char2);
       box(x + 0.46, y + 0.46, 3, 0.08, 0.08, 38, PAL.char3, { line: null });
       const [cx, cy] = P(x + 0.5, y + 0.5, 41);
-      poly([[cx - 6, cy - 9], [cx + 6, cy - 9], [cx + 10, cy + 2], [cx - 10, cy + 2]], c(PAL.violet2), OUT);
+      poly([[cx - 6, cy - 9], [cx + 6, cy - 9], [cx + 10, cy + 2], [cx - 10, cy + 2]], c(PAL.paper), OUT);
       ellipse(cx, cy + 2, 10, 3, c("#fff4d6"), OUT);
       ctx.glows.push({ t: "lamp", at: [cx, cy + 3], room: f.room });
       break;
@@ -1022,25 +1081,25 @@ export function furni(f: Furni, ctx: FurniCtx) {
     case "counter": {
       // El mostrador de la recepción: frente oscuro con la línea violeta, tapa clara
       box(x, y + 0.15, 0, w, 0.7, 30, PAL.char2, { top: TOP });
-      faceRect("y", y + 0.85, x, 0.15, w - 0.15, 8, 11, c(PAL.violet));
-      faceRect("y", y + 0.85, x, 0.15, w - 0.15, 13, 14, c(PAL.violet3));
+      faceRect("y", y + 0.85, x, 0.15, w - 0.15, 8, 11, c(PAL.signal));
+      faceRect("y", y + 0.85, x, 0.15, w - 0.15, 13, 14, c(PAL.signal3));
       box(x + w / 2 - 0.4, y + 0.3, 30, 0.6, 0.08, 16, PAL.char);
       box(x + w - 0.55, y + 0.4, 30, 0.2, 0.2, 2, "#d4af37");
       cyl(x + w - 0.45, y + 0.5, 32, 2.4, 2.4, "#e6c65a", "#f3dc84");
-      mug(x + 0.45, y + 0.45, 30, PAL.violet, ctx, f.room);
+      mug(x + 0.45, y + 0.45, 30, PAL.signal, ctx, f.room);
       break;
     }
     case "cooler":
       box(x + 0.3, y + 0.3, 0, 0.4, 0.4, 32, PAL.paper);
       box(x + 0.34, y + 0.34, 32, 0.32, 0.32, 16, "#9cc8f2", { top: "#c5e2ff", right: "#77a8d8" });
-      faceRect("y", y + 0.705, x + 0.3, 0.16, 0.24, 20, 23, c(PAL.violet));
+      faceRect("y", y + 0.705, x + 0.3, 0.16, 0.24, 20, 23, c(PAL.signal));
       // Las burbujas que suben por el bidón (las anima el motor)
       ctx.glows.push({ t: "bubble", at: P(x + 0.5, y + 0.67, 33), room: f.room });
       break;
     case "bench":
       box(x + 0.1, y + 0.32, 0, 0.06, 0.06, 12, LEG, { line: null });
       box(x + w - 0.16, y + 0.32, 0, 0.06, 0.06, 12, LEG, { line: null });
-      box(x + 0.05, y + 0.25, 12, w - 0.1, 0.5, 4, PAL.violet);
+      box(x + 0.05, y + 0.25, 12, w - 0.1, 0.5, 4, PAL.wood);
       break;
     case "pedestal":
       box(x + 0.25, y + 0.25, 0, 0.5, 0.5, 30, PAL.paper);
@@ -1073,7 +1132,7 @@ export function furni(f: Furni, ctx: FurniCtx) {
       break;
     case "kitchen":
       box(x, y + 0.1, 0, w, 0.6, 28, PAL.paper, { top: PAL.grey2 });
-      for (let i = 1; i < w; i++) faceRect("y", y + 0.7, x, i - 0.01, i + 0.01, 4, 26, c("#bcb8cc"));
+      for (let i = 1; i < w; i++) faceRect("y", y + 0.7, x, i - 0.01, i + 0.01, 4, 26, c("#c4bfb5"));
       box(x + 1.15, y + 0.15, 28, 0.4, 0.34, 18, PAL.char2);
       ctx.glows.push({ t: "led", at: onFace("y", y + 0.49, x + 1.15, 0.3, 40), i: -1, room: f.room });
       ctx.glows.push({ t: "steam", at: P(x + 1.35, y + 0.32, 47), room: f.room });
@@ -1081,13 +1140,13 @@ export function furni(f: Furni, ctx: FurniCtx) {
     case "fridge":
       box(x + 0.15, y + 0.15, 0, 0.7, 0.6, 62, PAL.paper, { top: PAL.white });
       faceRect("y", y + 0.755, x + 0.15, 0.55, 0.6, 30, 44, c(PAL.grey2));
-      faceRect("y", y + 0.755, x + 0.15, 0.1, 0.2, 48, 52, c(PAL.violet));
+      faceRect("y", y + 0.755, x + 0.15, 0.1, 0.2, 48, 52, c(PAL.signal));
       break;
     // --- Las salas del estudio ---
     case "beanbag": {
       // Un puf: una gota aplastada con su costura
       const [bx, by] = P(x + 0.5, y + 0.5, 0);
-      const col = ctx.kind === "lounge" ? (hash(x, y) > 0.5 ? PAL.violet : "#4f7fd0") : PAL.purple;
+      const col = ctx.kind === "lounge" ? (hash(x, y) > 0.5 ? PAL.signal2 : PAL.char3) : PAL.grey;
       g.beginPath();
       g.moveTo(bx - 15, by - 2);
       g.quadraticCurveTo(bx - 16, by - 17, bx - 2, by - 21);
@@ -1113,10 +1172,10 @@ export function furni(f: Furni, ctx: FurniCtx) {
       box(x + 0.25, y + 0.25, 0, 0.5, 0.5, 24, PAL.char2, { top: PAL.char3 });
       faceRect("y", y + 0.75, x + 0.25, 0.08, 0.42, 9, 15, c("#ffd84d"));
       for (let i = 0; i < 4; i++) faceRect("y", y + 0.755, x + 0.25, 0.1 + i * 0.09, 0.14 + i * 0.09, 9, 15, c(PAL.ink));
-      cyl(x + 0.5, y + 0.5, 24, 7, 3, PAL.purple, PAL.violet);
+      cyl(x + 0.5, y + 0.5, 24, 7, 3, PAL.deep, PAL.signal);
       const [kx, ky] = P(x + 0.5, y + 0.5, 30);
-      ellipse(kx - 2, ky - 1, 2.6, 1.2, c(PAL.violet3), null);
-      poly([P(x + 0.28, y + 0.22, 27), P(x + 0.72, y + 0.22, 27), P(x + 0.72, y + 0.22, 41), P(x + 0.28, y + 0.22, 41)], "rgba(196,181,253,0.28)", OUT_SOFT);
+      ellipse(kx - 2, ky - 1, 2.6, 1.2, c(PAL.signal3), null);
+      poly([P(x + 0.28, y + 0.22, 27), P(x + 0.72, y + 0.22, 27), P(x + 0.72, y + 0.22, 41), P(x + 0.28, y + 0.22, 41)], "rgba(255,255,255,0.22)", OUT_SOFT);
       break;
     }
     case "easel": {
@@ -1132,61 +1191,61 @@ export function furni(f: Furni, ctx: FurniCtx) {
       for (const [r, al] of [[11, 0.9], [8, 0.9], [5, 0.9], [2.4, 1]] as [number, number][]) {
         g.beginPath();
         g.ellipse(cx, cy, r * 0.62, r, -0.45, Math.PI * 0.5, Math.PI * 1.5);
-        g.strokeStyle = `rgba(139,92,246,${al})`;
+        g.strokeStyle = `rgba(255,77,46,${al})`;
         g.lineWidth = 1.6;
         g.stroke();
       }
-      ellipse(cx + 8, cy - 2.4, 1.6, 2.6, c(PAL.violet), null);
+      ellipse(cx + 8, cy - 2.4, 1.6, 2.6, c(PAL.signal), null);
       line(P(x + 0.25, y + 0.56, 27), P(x + 0.6, y + 0.56, 27.5), c(PAL.grey2), 0.8);
       break;
     }
     case "meettable": {
       // La mesa larga de las reuniones, con la notebook abierta y una jarra de agua
       for (const [lx, ly] of [[x + 0.2, y + 0.4], [x + w - 0.3, y + 0.4]]) box(lx, ly, 0, 0.1, 0.2, 23, LEG);
-      box(x + 0.06, y + 0.08, 23, w - 0.12, d - 0.16, 4, TOP, { left: PAL.violet3, right: mix(PAL.violet3, "#000000", 0.25) });
+      box(x + 0.06, y + 0.08, 23, w - 0.12, d - 0.16, 4, TOP, { left: DESK.left, right: DESK.right });
       box(x + 0.7, y + 0.3, 27, 0.5, 0.36, 1.4, PAL.grey);
       box(x + 0.7, y + 0.28, 28.4, 0.5, 0.05, 13, PAL.char, { left: PAL.char2 });
       for (const u of [1.7, 2.7]) box(x + u, y + 0.45, 27, 0.34, 0.24, 0.8, PAL.white);
-      line(P(x + 1.75, y + 0.55, 28), P(x + 1.95, y + 0.6, 28), c(PAL.violet), 1);
+      line(P(x + 1.75, y + 0.55, 28), P(x + 1.95, y + 0.6, 28), c(PAL.signal), 1);
       cyl(x + w - 0.5, y + 0.45, 27, 3, 10, "rgba(170,210,255,0.55)", "rgba(200,230,255,0.7)");
       break;
     }
     case "coffeebar": {
       // La barra del café: el mueble, la cafetera con su luz y dos tazas
       box(x + 0.08, y + 0.12, 0, 0.84, 0.66, 28, PAL.char2, { top: TOP });
-      faceRect("y", y + 0.78, x + 0.08, 0.06, 0.78, 6, 8, c(PAL.violet));
-      box(x + 0.2, y + 0.2, 28, 0.38, 0.32, 20, "#cfccd9", { top: "#ecebf3", right: "#a9a6b6" });
+      faceRect("y", y + 0.78, x + 0.08, 0.06, 0.78, 6, 8, c(PAL.signal));
+      box(x + 0.2, y + 0.2, 28, 0.38, 0.32, 20, "#cfccc6", { top: "#ecebe6", right: "#a9a6a0" });
       faceRect("y", y + 0.52, x + 0.2, 0.08, 0.3, 31, 35, c(PAL.char));
       ctx.glows.push({ t: "steam", at: P(x + 0.4, y + 0.3, 50), room: f.room });
       ctx.glows.push({ t: "led", at: onFace("y", y + 0.525, x + 0.2, 0.31, 43), i: -1, room: f.room });
       mug(x + 0.72, y + 0.36, 28, PAL.white, ctx, f.room);
-      mug(x + 0.72, y + 0.6, 28, PAL.violet, ctx, f.room);
+      mug(x + 0.72, y + 0.6, 28, PAL.signal, ctx, f.room);
       break;
     }
     case "arcade": {
       // Un fichín, como el de la landing: gabinete negro, marquesina violeta y la pantalla prendida
       box(x + 0.18, y + 0.14, 0, 0.64, 0.6, 34, PAL.char, { top: PAL.char2 });
-      box(x + 0.16, y + 0.62, 34, 0.68, 0.16, 4, PAL.char2, { top: PAL.violet3 });
-      for (const [u, col] of [[0.32, "#ff6b6b"], [0.5, PAL.violet3], [0.62, "#5ad1a8"]] as [number, string][]) {
+      box(x + 0.16, y + 0.62, 34, 0.68, 0.16, 4, PAL.char2, { top: PAL.signal3 });
+      for (const [u, col] of [[0.32, PAL.signal], [0.5, PAL.white], [0.62, PAL.signal3]] as [number, string][]) {
         const [bx, by] = P(x + u, y + 0.7, 38.5);
         ellipse(bx, by, 1.6, 0.9, c(col), OUT_SOFT, 0.8);
       }
       box(x + 0.18, y + 0.14, 38, 0.64, 0.42, 30, PAL.char);
-      faceRect("y", y + 0.565, x + 0.18, 0, 0.64, 62, 68, c(PAL.violet));
-      faceRect("y", y + 0.565, x + 0.18, 0.06, 0.58, 63.5, 66.5, c(PAL.violet3));
+      faceRect("y", y + 0.565, x + 0.18, 0, 0.64, 62, 68, c(PAL.signal));
+      faceRect("y", y + 0.565, x + 0.18, 0.06, 0.58, 63.5, 66.5, c(PAL.signal3));
       const quad: XY[] = [P(x + 0.24, y + 0.57, 59), P(x + 0.76, y + 0.57, 59), P(x + 0.76, y + 0.57, 41), P(x + 0.24, y + 0.57, 41)];
       poly(quad, c("#08080b"));
-      ctx.glows.push({ t: "screen", quad, kind: "arcade", accent: PAL.violet, room: f.room });
-      faceRect("x", x + 0.82, y + 0.14, 0.05, 0.55, 6, 30, c(PAL.violet));
+      ctx.glows.push({ t: "screen", quad, kind: "arcade", accent: PAL.signal, room: f.room });
+      faceRect("x", x + 0.82, y + 0.14, 0.05, 0.55, 6, 30, c(PAL.signal));
       break;
     }
     case "lowtable": {
       box(x + 0.12, y + 0.2, 0, 0.08, 0.6, 12, LEG);
       box(x + w - 0.2, y + 0.2, 0, 0.08, 0.6, 12, LEG);
-      box(x + 0.08, y + 0.15, 12, w - 0.16, d - 0.3, 3.5, PAL.night3, { top: PAL.night4 });
-      box(x + 0.4, y + 0.35, 15.5, 0.5, 0.3, 1.5, PAL.violet2);
+      box(x + 0.08, y + 0.15, 12, w - 0.16, d - 0.3, 3.5, PAL.char3, { top: PAL.grey });
+      box(x + 0.4, y + 0.35, 15.5, 0.5, 0.3, 1.5, PAL.signal2);
       box(x + 0.46, y + 0.38, 17, 0.42, 0.24, 1.2, PAL.white);
-      mug(x + w - 0.5, y + 0.45, 15.5, PAL.violet, ctx, f.room);
+      mug(x + w - 0.5, y + 0.45, 15.5, PAL.signal, ctx, f.room);
       break;
     }
     // --- Al lado del rack, algo propio de cada proyecto ---
@@ -1333,6 +1392,34 @@ export function furni(f: Furni, ctx: FurniCtx) {
       for (const [u0, z0] of [[0.03, 28], [0.14, 33], [0.07, 31.5], [0.16, 28.5], [0.04, 34]]) faceRect("y", y + 0.305, x + 0.55, u0, u0 + 0.05, z0, z0 + 2.5, c("#16161b"));
       break;
     }
+    // --- El jardín entre los sectores ---
+    case "tree": {
+      // Un árbol de dibujo animado: tronco y la copa en tres bollos
+      const [tx, ty] = P(x + 0.5, y + 0.5, 0);
+      ellipse(tx, ty, 13, 5.5, "rgba(11,11,12,0.28)");
+      g.beginPath();
+      g.moveTo(tx - 3, ty);
+      g.lineTo(tx - 2, ty - 26);
+      g.lineTo(tx + 2, ty - 26);
+      g.lineTo(tx + 3, ty);
+      g.closePath();
+      g.fillStyle = c("#6b4a2f");
+      g.fill();
+      g.strokeStyle = OUT;
+      g.lineWidth = LW;
+      g.stroke();
+      const big = 0.85 + hash(x, y) * 0.3;
+      for (const [dx, dy, r, col] of [[-8, -34, 11, "#2f6b3a"], [8, -36, 11, "#2f6b3a"], [0, -46, 13, "#3d8246"], [-3, -50, 6, "#4f9655"]] as [number, number, number, string][])
+        ellipse(tx + dx * big, ty + dy * big, r * big, r * 0.9 * big, c(col), OUT);
+      break;
+    }
+    case "bush": {
+      const [bx, by] = P(x + 0.5, y + 0.5, 0);
+      for (const [dx, dy, r, col] of [[-6, -6, 7, "#2f6b3a"], [6, -6, 7, "#2f6b3a"], [0, -11, 8, "#3d8246"]] as [number, number, number, string][])
+        ellipse(bx + dx, by + dy, r, r * 0.85, c(col), OUT);
+      if (hash(x, y) > 0.5) for (const [dx, dy] of [[-3, -12], [4, -8]]) ellipse(bx + dx, by + dy, 1.4, 1.4, c(PAL.signal3), null);
+      break;
+    }
     case "boxes":
       for (let i = 0; i < w; i++) {
         box(x + i + 0.1, y + 0.15, 0, 0.8, 0.7, 20, "#a98a62");
@@ -1343,7 +1430,7 @@ export function furni(f: Furni, ctx: FurniCtx) {
 }
 
 function books(face: Facing, plane: number, start: number, len: number) {
-  const colors = [PAL.violet, PAL.white, "#4f7fd0", PAL.violet3, PAL.char3, PAL.purple, "#d9a441"];
+  const colors = [PAL.signal, PAL.white, PAL.grey, PAL.signal3, PAL.char3, PAL.deep, PAL.paper2];
   for (const [z0, z1] of [[6, 20], [24, 38], [42, 54]]) {
     let u = 0.04, i = Math.floor(hash(Math.round(plane * 10), z0) * 7);
     while (u < len - 0.08) {
@@ -1359,7 +1446,7 @@ function plant(x: number, y: number, accent: string) {
   // Maceta blanca con la franja violeta
   cyl(x + 0.5, y + 0.5, 0, 9, 14, PAL.paper, "#3b2a20");
   const [px, py] = P(x + 0.5, y + 0.5, 4);
-  g.fillStyle = c(PAL.violet);
+  g.fillStyle = c(PAL.signal);
   g.fillRect(px - 9, py - 4, 18, 3);
   const [cx, cy] = P(x + 0.5, y + 0.5, 14);
   if (st === 0) {
@@ -1422,7 +1509,7 @@ export function lightPool(at: XY, r: number, alpha: number) {
   for (const [k, a] of [[1, 0.35], [0.66, 0.35], [0.36, 0.3]] as [number, number][]) {
     g.beginPath();
     g.ellipse(at[0], at[1], r * k, (r * k) / 2, 0, 0, Math.PI * 2);
-    g.fillStyle = `rgba(167,139,250,${alpha * a})`;
+    g.fillStyle = `rgba(255,196,140,${alpha * a})`;
     g.fill();
   }
   g.restore();
@@ -1430,7 +1517,7 @@ export function lightPool(at: XY, r: number, alpha: number) {
 export function lightSpill(pts: XY[], alpha: number) {
   g.save();
   g.globalCompositeOperation = "lighter";
-  poly(pts, `rgba(196,181,253,${alpha})`);
+  poly(pts, `rgba(255,214,170,${alpha})`);
   g.restore();
 }
 

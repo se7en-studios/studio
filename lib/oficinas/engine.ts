@@ -5,6 +5,7 @@
 // lib/admin/oficinas-shared.ts.
 import {
   DECALS,
+  OUT,
   canStep,
   findPath,
   hasDoor,
@@ -37,6 +38,7 @@ import {
   decay,
   decor,
   decorScreen,
+  earth,
   floorTile,
   furni,
   hash,
@@ -206,7 +208,7 @@ const LED_PITCH = 2;
 const LED_ROWS = 12;
 const LED_SPEED = 16; // columnas por segundo
 const LED_HOLD = 4000;
-const LED_AMBER = "#c4b5fd";
+const LED_AMBER = "#ffb066";
 /** El fondo de afuera del edificio: el azul de la noche, casi negro. */
 const BG = "#0a0a14";
 /** El logo de se7en, el de verdad (el de la web), para la pared de la recepción. */
@@ -303,7 +305,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     const r = id ? byId.get(id) : null;
     return r && r.kind === "project" ? 1 - fadeOfId(id) : 1;
   };
-  const accentOf = (id: string | null | undefined) => (id ? o.info[id]?.accent : undefined) ?? PAL.violet;
+  const accentOf = (id: string | null | undefined) => (id ? o.info[id]?.accent : undefined) ?? PAL.signal;
 
   // Lo propio de cada sala: las texturas con la marca y la captura del sitio.
   // Se hornean ya con la letra de reserva y otra vez cuando baja la de la marca.
@@ -390,6 +392,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
 
   function matAt(x: number, y: number): Material {
     const id = m.region[y][x];
+    if (id === OUT) return "grass";
     if (id === "hall") return m.archiveY !== null && y >= m.archiveY && x >= m.spine.x0 && x < m.spine.x1 ? "gallery" : "hall";
     const r = byId.get(id) as MapRoom;
     if (r.kind === "office") return r.area === "design" ? "design" : "dev";
@@ -416,17 +419,22 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   const wallGlows = new Map<string, Glow>();
   const playerBox = { x0: 0, y0: 0, x1: 0, y1: 0, depth: 0 };
   /** Lo que ocupa en pantalla (px del mundo) un volumen de [x0, x1] × [y0, y1] baldosas y z1 de alto, con margen para los contornos. */
+  /** A dónde mira la cámara sin nadie en el mapa: la recepción. */
+  const home: [number, number] = (() => {
+    const r = byId.get("recepcion");
+    return r ? [r.x + r.w / 2, r.y + r.d / 2] : [m.start.x + 0.5, m.start.y + 0.5];
+  })();
   const reach = (x0: number, y0: number, x1: number, y1: number, z1: number, pad = 3): Box => ({ x0: P(x0, y1)[0] - pad, x1: P(x1, y0)[0] + pad, y0: P(x0, y0, z1)[1] - pad, y1: P(x1, y1)[1] + pad });
 
-  // Las paredes en azul noche con el corte en violeta; las de las salas de
-  // proyecto llevan una franja del color de la marca.
-  function wallStyle(side: "L" | "R", kind: "rail" | "wall" | "tall", owner: string | null): WallStyle {
+  // Las paredes en carbón con el corte en tinta (las altas, con el filo naranja);
+  // las de las salas de proyecto llevan una franja del color de la marca.
+  function wallStyle(side: "L" | "R", kind: "rail" | "wall" | "tall" | "glass", owner: string | null): WallStyle {
     const r = owner ? byId.get(owner) : null;
-    if (kind === "tall") return { face: side === "L" ? "#232a52" : "#2b3463", cap: PAL.violet };
-    if (kind === "rail") return { face: side === "L" ? "#2f3766" : "#384174", cap: PAL.violet2 };
+    if (kind === "tall") return { face: side === "L" ? "#232327" : "#2c2c31", cap: PAL.ink };
+    if (kind === "rail") return { face: side === "L" ? "#36363c" : "#404047", cap: PAL.ink2 };
     const acc = r && r.kind === "project" ? accentOf(r.id) : null;
-    const base = acc ? mix("#333b6c", acc, 0.1) : "#333b6c";
-    return { face: side === "L" ? mix(base, "#000000", 0.14) : base, cap: PAL.violet2, stripe: acc ?? undefined };
+    const base = acc ? mix("#34343a", acc, 0.08) : "#34343a";
+    return { face: side === "L" ? mix(base, "#000000", 0.18) : base, cap: PAL.ink2, stripe: acc ?? undefined };
   }
   for (let y = 0; y < m.H; y++)
     for (let x = 0; x < m.W; x++)
@@ -435,10 +443,10 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         if (kind === "none") continue;
         const behind = side === "L" ? (x > 0 ? m.region[y][x - 1] : null) : y > 0 ? m.region[y - 1][x] : null;
         const front = m.region[y][x];
-        const owner = kind === "rail" ? behind : front === "hall" ? null : front;
+        const owner = kind === "rail" ? (behind === OUT ? null : behind) : front === "hall" ? null : front;
         const door = hasDoor(m, x, y, side);
         const here = m.decor.filter((d) => d.side === side && (side === "L" ? d.x === x && y >= d.y && y < d.y + d.len : d.y === y && x >= d.x && x < d.x + d.len));
-        const h = kind === "tall" ? TALL : WALL;
+        const h = kind === "tall" ? TALL : kind === "glass" ? 52 : WALL;
         const face: XY[] = side === "L" ? [P(x, y, h), P(x, y + 1, h), P(x, y + 1, 0), P(x, y, 0)] : [P(x, y, h), P(x + 1, y, h), P(x + 1, y, 0), P(x, y, 0)];
         const segBox = side === "L" ? { x0: P(x, y + 1)[0] - 8, x1: P(x, y)[0], y0: P(x, y, h)[1], y1: P(x, y + 1)[1] } : { x0: P(x, y)[0], x1: P(x + 1, y)[0] + 8, y0: P(x, y, h)[1], y1: P(x + 1, y)[1] };
         const depth = x + y - 0.5;
@@ -509,11 +517,11 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     // Columnas oscuras con el filo violeta y el dintel con el cartel
     poly([P(x - 0.14, y + 0.14, 96), P(x + 0.14, y + 0.14, 96), P(x + 0.14, y + 0.14, 0), P(x - 0.14, y + 0.14, 0)], PAL.char3);
     poly([P(x + 0.14, y - 0.14, 96), P(x + 0.14, y + 0.14, 96), P(x + 0.14, y + 0.14, 0), P(x + 0.14, y - 0.14, 0)], PAL.char2);
-    poly([P(x - 0.14, y - 0.14, 96), P(x + 0.14, y - 0.14, 96), P(x + 0.14, y + 0.14, 96), P(x - 0.14, y + 0.14, 96)], PAL.violet);
+    poly([P(x - 0.14, y - 0.14, 96), P(x + 0.14, y - 0.14, 96), P(x + 0.14, y + 0.14, 96), P(x - 0.14, y + 0.14, 96)], PAL.signal);
     if (x === m.spine.x0) {
       const a = m.spine.x0, b = m.spine.x1;
       poly([P(a - 0.14, y + 0.14, 112), P(b + 0.14, y + 0.14, 112), P(b + 0.14, y + 0.14, 96), P(a - 0.14, y + 0.14, 96)], PAL.ink);
-      poly([P(a - 0.14, y - 0.14, 112), P(b + 0.14, y - 0.14, 112), P(b + 0.14, y + 0.14, 112), P(a - 0.14, y + 0.14, 112)], PAL.violet2);
+      poly([P(a - 0.14, y - 0.14, 112), P(b + 0.14, y - 0.14, 112), P(b + 0.14, y + 0.14, 112), P(a - 0.14, y + 0.14, 112)], PAL.signal2);
     }
   }
   /** El cartel de neón del arco: letras violeta con su brillo, sobre fondo transparente. */
@@ -528,12 +536,12 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     t.font = `800 ${Math.round(40 * k)}px ${family}`;
     t.textAlign = "center";
     t.textBaseline = "middle";
-    t.shadowColor = "rgba(167,139,250,0.9)";
+    t.shadowColor = "rgba(255,77,46,0.95)";
     t.shadowBlur = 10;
-    t.fillStyle = PAL.violet3;
+    t.fillStyle = PAL.signal3;
     t.fillText(text, cv.width / 2, cv.height / 2 + 2);
     t.shadowBlur = 0;
-    t.fillStyle = "#f3efff";
+    t.fillStyle = "#fff1ea";
     t.fillText(text, cv.width / 2, cv.height / 2 + 2);
     return cv;
   }
@@ -1312,14 +1320,14 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       if (L <= 0.15) return R(0, 0, 20, 12, "#060609");
       if (L <= 0.5) {
         R(0, 0, 20, 12, "#0c0c14");
-        if (Math.floor(ts / 1000) % 2 === 0) R(17, 9, 1.5, 1.5, PAL.violet2);
+        if (Math.floor(ts / 1000) % 2 === 0) R(17, 9, 1.5, 1.5, PAL.signal2);
         return;
       }
       if (gl.kind === "site" && site) return;
       switch (gl.kind) {
         case "code": {
-          R(0, 0, 20, 12, "#12112a");
-          const cols = [PAL.violet3, PAL.white, gl.accent, PAL.violet, "#7fd1ff"];
+          R(0, 0, 20, 12, "#141416");
+          const cols = [PAL.signal3, PAL.white, gl.accent, PAL.signal, "#7fd1ff"];
           for (let i = 0; i < 5; i++) {
             const n = tick + i, ind = Math.floor(hash(n, 3) * 3) * 2;
             R(1 + ind, 1 + i * 2.1, 2 + Math.floor(hash(n, 7) * 12), 1, cols[Math.floor(hash(7, n) * cols.length)]);
@@ -1327,11 +1335,11 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
           break;
         }
         case "review": {
-          R(0, 0, 20, 12, "#141233");
+          R(0, 0, 20, 12, "#151517");
           const live = Math.floor(ts / 900) % 4;
           for (let i = 0; i < 4; i++) {
-            R(1, 1.5 + i * 2.6, 1.4, 1.4, i === live ? PAL.white : PAL.violet2);
-            R(3.5, 1.7 + i * 2.6, 4 + hash(i, 5) * 12, 1, PAL.violet3);
+            R(1, 1.5 + i * 2.6, 1.4, 1.4, i === live ? PAL.white : PAL.signal2);
+            R(3.5, 1.7 + i * 2.6, 4 + hash(i, 5) * 12, 1, PAL.signal3);
           }
           break;
         }
@@ -1358,7 +1366,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     });
     if (L > 0.5) {
       ctx.globalCompositeOperation = "lighter";
-      fillPoly(ctx, gl.quad, gl.kind === "site" ? `rgba(255,236,210,${0.08 * L})` : `rgba(167,139,250,${0.1 * L})`);
+      fillPoly(ctx, gl.quad, gl.kind === "site" ? `rgba(255,236,210,${0.08 * L})` : `rgba(255,180,140,${0.08 * L})`);
       ctx.globalCompositeOperation = "source-over";
     }
   }
@@ -1375,17 +1383,17 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         ctx.fillStyle = col;
         ctx.fillRect(x, y, w, h);
       };
-      R(0, 0, W, H, "#0f0e1d");
-      R(0, 0, W, 5, "#1d1b30");
+      R(0, 0, W, H, "#111113");
+      R(0, 0, W, 5, "#1e1e21");
       ["#ff6b6b", "#ffd84d", "#5ad1a8"].forEach((col, i) => R(2 + i * 3, 1.6, 1.8, 1.8, col));
-      R(W - 16, 1.4, 13, 2.2, PAL.violet);
+      R(W - 16, 1.4, 13, 2.2, PAL.signal);
       // Los tres pasos: hechos (violeta con tilde), el que corre (barra) y los que faltan (contorno)
       for (let i = 0; i < 3; i++) {
         const x = 5 + i * 25, y = 10, done = cycle > 2.5 + i * 2.5, run = !done && cycle > 0.5 + i * 2.5;
-        if (i) R(x - 7, y + 3.6, 7, 0.8, done || run ? PAL.violet2 : "#3a3856");
-        R(x, y, 18, 8, done ? PAL.violet : "#1b1930");
+        if (i) R(x - 7, y + 3.6, 7, 0.8, done || run ? PAL.signal2 : "#3a3a40");
+        R(x, y, 18, 8, done ? PAL.signal : "#1b1930");
         if (!done) {
-          ctx.strokeStyle = run ? PAL.violet3 : "#3a3856";
+          ctx.strokeStyle = run ? PAL.signal3 : "#3a3a40";
           ctx.lineWidth = 0.8;
           ctx.strokeRect(x + 0.4, y + 0.4, 17.2, 7.2);
         }
@@ -1397,18 +1405,18 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
           ctx.lineTo(x + 8.5, y + 6);
           ctx.lineTo(x + 12, y + 2.2);
           ctx.stroke();
-        } else if (run) R(x + 2, y + 5.4, 14 * ((cycle - 0.5 - i * 2.5) / 2), 1.2, PAL.violet3);
+        } else if (run) R(x + 2, y + 5.4, 14 * ((cycle - 0.5 - i * 2.5) / 2), 1.2, PAL.signal3);
       }
       // El log: renglones que suben
       const tick = reduced ? 0 : Math.floor(ts / 420);
       for (let k = 0; k < 6; k++) {
         const n = tick + k;
-        R(5, 23 + k * 3.4, 2, 1.4, hash(n, 2) > 0.85 ? PAL.violet3 : "#4a4868");
-        R(9, 23 + k * 3.4, 10 + hash(n, 5) * 50, 1.4, hash(n, 9) > 0.7 ? PAL.violet2 : "#8d8aa8");
+        R(5, 23 + k * 3.4, 2, 1.4, hash(n, 2) > 0.85 ? PAL.signal3 : "#4a4a50");
+        R(9, 23 + k * 3.4, 10 + hash(n, 5) * 50, 1.4, hash(n, 9) > 0.7 ? PAL.signal2 : "#8d8982");
       }
     });
     ctx.globalCompositeOperation = "lighter";
-    fillPoly(ctx, gl.quad, "rgba(167,139,250,0.08)");
+    fillPoly(ctx, gl.quad, "rgba(255,180,140,0.07)");
     ctx.globalCompositeOperation = "source-over";
   }
   /** La pantalla de Reuniones: los pasos del proceso de la web, uno por vez. */
@@ -1420,15 +1428,15 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     const title = rest.join(" ");
     const family = o.display ?? o.font;
     inQuad(gl.quad, W, H, () => {
-      ctx.fillStyle = "#151234";
+      ctx.fillStyle = "#151517";
       ctx.fillRect(0, 0, W, H);
-      ctx.fillStyle = PAL.violet;
+      ctx.fillStyle = PAL.signal;
       ctx.fillRect(0, 0, 3, H);
       ctx.textAlign = "left";
       ctx.textBaseline = "alphabetic";
       if (num) {
         ctx.font = `800 15px ${family}`;
-        ctx.fillStyle = PAL.violet2;
+        ctx.fillStyle = PAL.signal2;
         ctx.fillText(num, 8, 18);
       }
       // El título en uno o dos renglones, lo más grande que entre
@@ -1443,12 +1451,12 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       lines.forEach((s, k) => ctx.fillText(s, 8, (num ? 27 : 18) + k * (px + 2)));
       // Los puntitos de cuál va
       list.forEach((_, k) => {
-        ctx.fillStyle = k === i ? PAL.violet2 : "#3b3760";
+        ctx.fillStyle = k === i ? PAL.signal2 : "#3d3d43";
         ctx.fillRect(8 + k * 5, H - 5, 3, 1.6);
       });
     });
     ctx.globalCompositeOperation = "lighter";
-    fillPoly(ctx, gl.quad, "rgba(167,139,250,0.07)");
+    fillPoly(ctx, gl.quad, "rgba(255,180,140,0.06)");
     ctx.globalCompositeOperation = "source-over";
   }
   /** El fichín del Chill-out: el orbe del estudio rebotando y «PLAY» que titila. */
@@ -1456,14 +1464,14 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     const W = 20, H = 18;
     const t = reduced ? 0 : ts / 1000;
     inQuad(gl.quad, W, H, () => {
-      ctx.fillStyle = "#0c0a1e";
+      ctx.fillStyle = "#0b0b0c";
       ctx.fillRect(0, 0, W, H);
       for (let k = 0; k < 7; k++) {
-        ctx.fillStyle = k % 2 ? PAL.violet3 : "#5a4a9a";
+        ctx.fillStyle = k % 2 ? PAL.signal3 : "#5d5952";
         ctx.fillRect((hash(k, 1) * W + t * (2 + k)) % W, hash(1, k) * H, 0.6, 0.6);
       }
       const bx = 5 + Math.abs(((t * 6) % 20) - 10), by = 4 + Math.abs(((t * 4.2) % 12) - 6);
-      ctx.strokeStyle = PAL.violet2;
+      ctx.strokeStyle = PAL.signal2;
       ctx.lineWidth = 0.8;
       for (const r of [2.6, 1.6]) {
         ctx.beginPath();
@@ -1480,7 +1488,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       }
     });
     ctx.globalCompositeOperation = "lighter";
-    fillPoly(ctx, gl.quad, "rgba(167,139,250,0.12)");
+    fillPoly(ctx, gl.quad, "rgba(255,140,100,0.12)");
     ctx.globalCompositeOperation = "source-over";
   }
   function emissives(ts: number) {
@@ -1495,7 +1503,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         for (const [rad, al] of [[30, 0.05], [18, 0.07], [8, 0.12]]) {
           ctx.beginPath();
           ctx.arc(x, y, rad, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(214,200,255,${al * L * (night ? 1.6 : 1)})`;
+          ctx.fillStyle = `rgba(255,214,160,${al * L * (night ? 1.6 : 1)})`;
           ctx.fill();
         }
         ctx.globalCompositeOperation = "source-over";
@@ -1503,8 +1511,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         const L = lightOf(gl.room);
         let col = "#1c1c22";
         if (gl.i === -2) col = L > 0.15 ? (Math.floor(ts / 380) % 3 ? "#ff7a2e" : "#ffd28a") : "#5a2a1c";
-        else if (gl.i < 0) col = PAL.violet2;
-        else if (L > 0.5) col = hash(gl.i, Math.floor(ts / 420)) > 0.3 ? PAL.violet3 : "#2e2650";
+        else if (gl.i < 0) col = PAL.signal2;
+        else if (L > 0.5) col = hash(gl.i, Math.floor(ts / 420)) > 0.3 ? PAL.signal2 : "#3a1f18";
         else if (L > 0.15) col = Math.floor(ts / 1500) % 2 ? "#e8a33d" : "#1c1c22";
         ctx.fillStyle = col;
         ctx.fillRect(gl.at[0] - 1, gl.at[1] - 1, 2.4, 1.8);
@@ -1690,9 +1698,11 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       for (let x = 0; x < m.W; x++) {
         if (near && !near(...P(x + 0.5, y + 0.5))) continue;
         const id = m.region[y][x];
-        setFade(fadeOfId(id === "hall" ? null : id));
-        tint(id);
-        const axis = id === "hall" && x === 7 && y >= m.start.y - 1;
+        // Más allá del jardín no hay nada: el contorno sigue a los sectores
+        if (id === OUT && !m.ground[y][x]) continue;
+        setFade(fadeOfId(id === "hall" || id === OUT ? null : id));
+        tint(id === OUT ? null : id);
+        const axis = id === "hall" && x === m.spine.x0 + 1 && y >= m.start.y - 1;
         floorTile(x, y, matAt(x, y), !axis ? null : m.archiveY !== null && y >= m.archiveY ? "gallery" : "axis");
       }
     for (const f of m.furni) {
@@ -1702,10 +1712,10 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       tint(f.room);
       const art = artOf(f.room);
       if (f.k !== "rug") decal(f, accentOf(f.room), art);
-      else if (r?.kind === "office") rug(f, r.area === "design" ? "#3b1d7a" : "#2b3463", r.area === "design" ? PAL.violet2 : PAL.violet);
-      else if (r?.kind === "reception") rug(f, "#4c2a91", PAL.violet3);
-      else if (r?.kind === "meeting") rug(f, "#262c4f", "#4a5590");
-      else if (r?.kind === "lounge") rug(f, "#5b2bb5", PAL.violet3);
+      else if (r?.kind === "office") rug(f, r.area === "design" ? PAL.paper : PAL.ink3, PAL.signal);
+      else if (r?.kind === "reception") rug(f, PAL.ink3, PAL.signal);
+      else if (r?.kind === "meeting") rug(f, PAL.grey3, PAL.grey);
+      else if (r?.kind === "lounge") rug(f, PAL.signal, PAL.signal3);
       else if (art) brandRug(f, art.rug);
       else {
         const acc = accentOf(f.room);
@@ -1716,6 +1726,9 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     setTint(0);
     for (const r of m.rooms) if (r.kind === "project") decay(r, fadeOfId(r.id));
     tint(null);
+    // El borde de tierra del jardín, donde termina
+    const g0 = (x: number, y: number) => x >= 0 && y >= 0 && x < m.W && y < m.H && m.ground[y][x];
+    for (let y = 0; y < m.H; y++) for (let x = 0; x < m.W; x++) if (m.region[y][x] === OUT && g0(x, y)) earth(x, y, !g0(x, y + 1), !g0(x + 1, y));
     slab(m, matAt);
     setTint(0);
     lightPools();
@@ -1730,7 +1743,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     const hovered = hover ? roomAt(m, hover.x, hover.y) : null;
     for (const r of new Set([hovered, selected ? byId.get(selected) ?? null : null])) {
       if (!r || r.kind === "storage") continue;
-      const acc = r.kind === "project" ? accentOf(r.id) : PAL.violet2;
+      const acc = r.kind === "project" ? accentOf(r.id) : PAL.signal2;
       fillPoly(ctx, [P(r.x, r.y), P(r.x + r.w, r.y), P(r.x + r.w, r.y + r.d), P(r.x, r.y + r.d)], rgba(acc, 0.1));
       ctx.strokeStyle = rgba(acc, 0.85);
       ctx.lineWidth = 2;
@@ -1744,8 +1757,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     }
     if (marker) {
       const pulse = reduced ? 0.5 : (Math.sin((ts - marker.t0) / 160) + 1) / 2;
-      fillPoly(ctx, [P(marker.x + 0.1, marker.y + 0.1), P(marker.x + 0.9, marker.y + 0.1), P(marker.x + 0.9, marker.y + 0.9), P(marker.x + 0.1, marker.y + 0.9)], `rgba(139,92,246,${0.22 + pulse * 0.22})`);
-      ctx.strokeStyle = PAL.violet3;
+      fillPoly(ctx, [P(marker.x + 0.1, marker.y + 0.1), P(marker.x + 0.9, marker.y + 0.1), P(marker.x + 0.9, marker.y + 0.9), P(marker.x + 0.1, marker.y + 0.9)], `rgba(255,77,46,${0.2 + pulse * 0.22})`);
+      ctx.strokeStyle = PAL.signal3;
       ctx.stroke();
       // Al tocar, una onda que se abre desde la baldosa
       const k = (ts - marker.t0) / 450;
@@ -1756,7 +1769,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         ctx.moveTo(pts[0][0], pts[0][1]);
         for (const pt of pts.slice(1)) ctx.lineTo(pt[0], pt[1]);
         ctx.closePath();
-        ctx.strokeStyle = `rgba(196,181,253,${1 - k})`;
+        ctx.strokeStyle = `rgba(255,177,153,${1 - k})`;
         ctx.lineWidth = 1.5;
         ctx.stroke();
       }
@@ -1830,7 +1843,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     scale = ZOOMS[zi] * dpr;
     const focus = o.public ? focusActor() : null;
     // Sin nadie en el mapa, la cámara mira la recepción
-    const [pxT, pyT] = o.public ? (focus ? actorPos(focus) : [7.5, 3]) : playerPos();
+    const [pxT, pyT] = o.public ? (focus ? actorPos(focus) : home) : playerPos();
     // La cámara sigue al que camina; si elegiste una sala sin estar en el mapa, a la sala; si la arrastraste, se queda
     const camRoom = o.public && camAt ? byId.get(camAt) : null;
     const [wx, wy] = camRoom ? P(camRoom.x + camRoom.w / 2, camRoom.y + camRoom.d / 2, -30) : P(pxT, pyT);
@@ -1999,7 +2012,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         if (label) {
           const w = Math.ceil(ctx.measureText(label).width) + 14, h = 15;
           const x = Math.round(tx - w / 2), y = Math.round(ty - h - 6 + bob);
-          bubbleBox(x, y, w, h, a.you ? PAL.violet : PAL.char2, a.you ? PAL.ink : PAL.violet2, tx);
+          bubbleBox(x, y, w, h, a.you ? PAL.signal : PAL.char2, a.you ? PAL.ink : PAL.signal2, tx);
           ctx.fillStyle = "#ffffff";
           ctx.fillText(label, tx, y + h / 2 + 0.5);
           top = y - 3;
@@ -2028,7 +2041,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
           if (k <= 0) continue;
           const x = hx + (i ? 6 : -3) * zf + Math.sin(k * 7 + i) * 2, y = hy - k * 22 * zf, r = (2.4 + i * 0.4) * zf;
           ctx.globalAlpha = Math.sin(k * Math.PI);
-          ctx.fillStyle = PAL.violet2;
+          ctx.fillStyle = PAL.signal2;
           ctx.beginPath();
           ctx.moveTo(x, y + r * 1.4);
           ctx.bezierCurveTo(x - r * 2.2, y - r * 0.2, x - r * 0.9, y - r * 1.8, x, y - r * 0.6);
@@ -2044,7 +2057,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         ctx.font = uiFont(Math.round(7 * zf), 800);
         ctx.textBaseline = "alphabetic";
         ctx.textAlign = "left";
-        ctx.fillStyle = PAL.violet3;
+        ctx.fillStyle = PAL.signal3;
         ctx.fillText("z", hx + 6 * zf + k * 4, hy - 2 * zf - k * 10 * zf);
       }
       ctx.globalAlpha = 1;
@@ -2062,7 +2075,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         ctx.lineWidth = 3;
         ctx.strokeStyle = PAL.ink;
         ctx.strokeText("Z", tx, ty);
-        ctx.fillStyle = PAL.violet3;
+        ctx.fillStyle = PAL.signal3;
         ctx.fillText("Z", tx, ty);
       }
       ctx.globalAlpha = 1;
@@ -2084,7 +2097,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         ctx.globalAlpha = Math.min(rise, (BUBBLE_MS - age) / 400, 1);
         bubbleBox(x, y, w, h, PAL.white, PAL.ink, i === bubbles.length - 1 ? hx : null);
         // El ícono: un signo de admiración rojo para las novedades; el punto violeta del estudio si no
-        ctx.fillStyle = b.tone === "news" ? "#ff3b30" : PAL.violet;
+        ctx.fillStyle = b.tone === "news" ? "#ff3b30" : PAL.signal;
         ctx.beginPath();
         ctx.arc(x + 11, y + h / 2, 5, 0, Math.PI * 2);
         ctx.fill();
@@ -2293,7 +2306,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
           o.onCue?.("flicker");
           // Cuando terminan de titilar los tubos, suben motas de luz del color de la sala
           const col = ledColor(accentOf(r.id));
-          motes.push(...Array.from({ length: 18 }, (_, i) => ({ x: r.x + 0.6 + hash(i, t0 | 0) * (r.w - 1.2), y: r.y + 0.6 + hash(t0 | 0, i) * (r.d - 1.2), t0: t0 + 450 + hash(i, 9) * 500, col: i % 3 ? col : "#f3efff" })));
+          motes.push(...Array.from({ length: 18 }, (_, i) => ({ x: r.x + 0.6 + hash(i, t0 | 0) * (r.w - 1.2), y: r.y + 0.6 + hash(t0 | 0, i) * (r.d - 1.2), t0: t0 + 450 + hash(i, 9) * 500, col: i % 3 ? col : "#fff1ea" })));
         } else if (!anim.has(r.id)) disp.set(r.id, target);
       }
       poke();
