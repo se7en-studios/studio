@@ -7,6 +7,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowDownLeft, ArrowDownRight, ArrowUpLeft, ArrowUpRight, Minus, Plus, Volume2, VolumeX } from "lucide-react";
 import {
+  AREA_NAME,
+  AREA_OF,
   buildMap,
   daysLabel,
   daysSince,
@@ -20,6 +22,7 @@ import {
   plantStage,
   relTime,
   salaMasApagada,
+  studioRoomName,
   themeOf,
   zoneOf,
   type MapRoom,
@@ -40,6 +43,11 @@ import { setMapRoom } from "../presence";
 import { createEngine, type Engine, type RoomLooks } from "@/lib/oficinas/engine";
 import { createSound, type Sound } from "@/lib/oficinas/sound";
 import type { EnVivoPublic } from "@/app/api/en-vivo/route";
+import { archivo } from "@/lib/site-fonts";
+import { process as steps } from "@/data/services";
+
+/** Lo que pasa la pantalla de Reuniones: los pasos del proceso de la web. */
+const SLIDES = steps.map((s) => `${s.number} ${s.title}`);
 
 type Visits = Record<Who, Record<string, string | null>>;
 type Dir = "up" | "down" | "left" | "right";
@@ -120,6 +128,8 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
       info,
       me,
       font,
+      display: archivo.style.fontFamily,
+      slides: SLIDES,
       onRoom: (id) => enterRef.current(id),
       onHover: setHoverId,
       onCue: (c) => soundRef.current?.play(c),
@@ -199,14 +209,8 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
     : shown.slug
       ? bySlug.get(shown.slug)?.name ?? ""
       : shown.kind === "office"
-        ? shown.who === me
-          ? "Tu oficina"
-          : `Oficina de ${PEOPLE[shown.who as Who].name}`
-        : shown.kind === "reception"
-          ? "Recepción"
-          : shown.kind === "kitchen"
-            ? "Cocina"
-            : "Depósito";
+        ? `${studioRoomName(shown)} · ${shown.who === me ? "tu escritorio" : PEOPLE[shown.who as Who].name}`
+        : studioRoomName(shown);
   const hudSub = !look
     ? null
     : hovered
@@ -216,12 +220,12 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
   return (
     <div className="grid overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)] shadow-[var(--shadow-card)] lg:h-[calc(100dvh-190px)] lg:min-h-[560px] lg:grid-cols-[minmax(0,1fr)_360px]">
       {/* El escenario es siempre de noche: el edificio flota sobre negro en los dos temas. */}
-      <div className="relative h-[60dvh] min-h-[380px] bg-[#07070a] lg:h-full">
+      <div className="relative h-[60dvh] min-h-[380px] bg-[#0a0a14] lg:h-full">
         <canvas
           ref={canvasRef}
           tabIndex={0}
           role="img"
-          aria-label="Mapa del estudio: recepción, las oficinas de Franco y Federico y una sala por proyecto. Las salas se apagan con los días sin entrar."
+          aria-label="Mapa del estudio: recepción, Desarrollo y Diseño (los escritorios de Franco y Federico), Reuniones, Chill-out y una sala por proyecto. Las salas se apagan con los días sin entrar."
           className="block h-full w-full cursor-pointer touch-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
         />
         <div className="pointer-events-none absolute top-3 left-3 max-w-[calc(100%-24px)] rounded-lg border border-[rgba(255,255,255,0.09)] bg-[rgba(10,10,14,0.78)] px-2.5 py-2 text-[#f1ede6]">
@@ -292,11 +296,17 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
         )}
         {room?.kind === "office" && <Office who={room.who as Who} me={me} data={data} bySlug={bySlug} visits={visits} now={now} online={room.who === me ? true : partnerOnline} />}
         {room?.kind === "reception" && <Reception events={data.studioEvents} bySlug={bySlug} now={now} />}
-        {room && !room.slug && (room.kind === "kitchen" || room.kind === "storage") && (
+        {room && !room.slug && (room.kind === "kitchen" || room.kind === "storage" || room.kind === "meeting" || room.kind === "lounge") && (
           <div>
-            <Eyebrow>Sala sin proyecto</Eyebrow>
-            <Title>{room.kind === "kitchen" ? "Cocina" : "Depósito"}</Title>
-            <p className="mt-1 text-[13px] text-muted">Completa la fila cuando la cantidad de salas es impar.</p>
+            <Eyebrow>{room.kind === "meeting" || room.kind === "lounge" ? "Sala del estudio" : "Sala sin proyecto"}</Eyebrow>
+            <Title>{studioRoomName(room)}</Title>
+            <p className="mt-1 text-[13px] text-muted">
+              {room.kind === "meeting"
+                ? "La pantalla pasa los pasos del proceso, como están en la web."
+                : room.kind === "lounge"
+                  ? "El café, los puffs y el fichín. Abierto al pasillo."
+                  : "Completa la fila cuando la cantidad de salas es impar."}
+            </p>
             <button className={cn(btnSecondary, "mt-4")} onClick={() => engineRef.current?.goOut()}>
               Volver al pasillo
             </button>
@@ -538,7 +548,7 @@ function Office({ who, me, data, bySlug, visits, now, online }: { who: Who; me: 
   return (
     <>
       <div>
-        <Eyebrow>{mine ? "Tu oficina" : "Oficina"}</Eyebrow>
+        <Eyebrow>{AREA_NAME[AREA_OF[who]]} · {mine ? "tu escritorio" : "escritorio"}</Eyebrow>
         <Title>
           <span className="flex items-center gap-2.5">
             <Face who={who} size={26} alt="" />

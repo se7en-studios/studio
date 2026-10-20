@@ -11,6 +11,7 @@ import { defaultState, type ProjectState } from "./project-shared";
 import { listStates } from "./projects";
 import {
   WHO,
+  byRoomOrder,
   daysSince,
   fadeOf,
   paceOf,
@@ -113,8 +114,8 @@ export async function getOficinasData(me: Who, { light = false } = {}): Promise<
     .map((p) =>
       toProject(p, states.get(p.slug) ?? defaultState(p.slug, p.isCase), tasks, events, { federico: visitOf("federico", p.slug), franco: visitOf("franco", p.slug) }, captures.get(p.slug) ?? null),
     )
-    // Orden fijo para que las salas no cambien de lugar con cada movimiento.
-    .sort((a, b) => a.name.localeCompare(b.name, "es"));
+    // Orden fijo para que las salas no cambien de lugar con cada movimiento (los destacados, primero).
+    .sort(byRoomOrder);
 
   return {
     me,

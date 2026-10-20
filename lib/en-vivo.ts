@@ -3,7 +3,7 @@
 // landing usa sólo los casos de data/projects.ts. Lo usa también el servidor,
 // así que nada de tipografías acá (lo que las necesita está en en-vivo-sala.ts).
 import { getProjectBySlug, projects as cases } from "@/data/projects";
-import type { OfiBrand, OfiProject } from "@/lib/admin/oficinas-shared";
+import { byRoomOrder, type OfiBrand, type OfiProject } from "@/lib/admin/oficinas-shared";
 
 /**
  * Logos de los casos, en public/admin/oficinas/marcas (de dónde sale cada uno,
@@ -63,7 +63,7 @@ export function publicProjects(captures: Record<string, PublicCapture> = {}): Of
         lastVisit: { federico: null, franco: null },
       };
     })
-    .sort((a, b) => a.name.localeCompare(b.name, "es"));
+    .sort(byRoomOrder);
 }
 
 /** «takefyy.com», para la barra del navegador de la tele. */

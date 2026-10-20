@@ -1,15 +1,21 @@
 "use client";
 
+import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, Minus, Plus } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ArrowUpRight, ChevronLeft, ChevronRight, Menu, Minus, Plus, X } from "lucide-react";
 import { ZOOMS, createEngine, type ActorSpec, type Engine, type RoomLooks } from "@/lib/oficinas/engine";
 import type { EnVivoPublic } from "@/app/api/en-vivo/route";
 import type { VisitorsNow } from "@/lib/visitas";
-import { buildMap, hourIn, ledMessages, periodOf, themeOf, type MapModel, type Who } from "@/lib/admin/oficinas-shared";
+import { buildMap, hourIn, ledMessages, periodOf, studioRoomName, themeOf, type MapModel, type MapRoom, type OfiProject, type Who } from "@/lib/admin/oficinas-shared";
 import { publicProjects, type PublicCapture } from "@/lib/en-vivo";
 import { roomInfoOf } from "@/lib/en-vivo-sala";
-import { pixel } from "@/lib/site-fonts";
+import { archivo, pixel } from "@/lib/site-fonts";
+import { getProjectBySlug } from "@/data/projects";
+import { process as steps } from "@/data/services";
+import { team } from "@/data/team";
+import { SITE } from "@/data/site";
 import { MapFrame } from "./en-vivo-frame";
 
 // El mismo mapa de «En vivo» del panel, en modo público: sin el panel de la
@@ -17,9 +23,27 @@ import { MapFrame } from "./en-vivo-frame";
 // los dos está conectado al panel aparece trabajando (en su escritorio o en la
 // sala del proyecto que tiene abierto); si no, el guía recorre las salas y se
 // queda mirando la tele de cada una.
+//
+// A pantalla completa (el fichín de la landing) además se juega: arriba va la
+// barra con las secciones de la web; abajo, las salas para ir de una en una
+// (tu muñeco va caminando) y la ficha de la que elegiste, con sus accesos.
 
 const NAMES: Record<Who, string> = { federico: "Federico", franco: "Franco" };
 const POLL_MS = 30_000;
+/** Las secciones de la landing: la barra de arriba baja hasta ellas. */
+const NAV = [
+  { hash: "#top", label: "Inicio" },
+  { hash: "#trabajos", label: "Proyectos" },
+  { hash: "#servicios", label: "Servicios" },
+  { hash: "#equipo", label: "Nosotros" },
+  { hash: "#contacto", label: "Contacto" },
+] as const;
+/** Lo que se pasa en la pantalla de Reuniones: los pasos del proceso, como en la web. */
+const SLIDES = steps.map((s) => `${s.number} ${s.title}`);
+const FOUNDER: Record<Who, (typeof team)[number] | undefined> = {
+  federico: team.find((t) => t.name?.startsWith("Federico")),
+  franco: team.find((t) => t.name?.startsWith("Franco")),
+};
 
 /**
  * Quiénes caminan: los conectados al panel o, si no hay nadie, el guía; y una
@@ -46,6 +70,16 @@ function actorsFor(online: EnVivoPublic["online"], map: MapModel, visitors: Visi
   return [...staff, ...guests];
 }
 
+/** En qué sala está cada socio conectado: la del proyecto que tiene abierto, o la de su escritorio. */
+function whereIs(online: EnVivoPublic["online"], map: MapModel) {
+  const out = new Map<string, Who[]>();
+  for (const o of online) {
+    const id = (o.room && map.rooms.find((r) => r.slug === o.room)?.id) || `off-${o.who}`;
+    out.set(id, [...(out.get(id) ?? []), o.who]);
+  }
+  return out;
+}
+
 /** «Sólo vos mirando», «Vos y 4 personas más». */
 function audience(v: VisitorsNow | null) {
   if (!v || !v.total) return null;
@@ -58,6 +92,8 @@ export function EnVivoMap({
   fill = false,
   hold = false,
   onReady,
+  onClose,
+  onNavigate,
 }: {
   active: boolean;
   visitors: VisitorsNow | null;
@@ -67,6 +103,10 @@ export function EnVivoMap({
   hold?: boolean;
   /** Avisa cuando el mapa ya se dibuja (llegaron las capturas y arrancó el motor). */
   onReady?: () => void;
+  /** A pantalla completa: salir de la oficina. */
+  onClose?: () => void;
+  /** A pantalla completa: ir a una sección de la landing (sale de la oficina y baja hasta ahí). */
+  onNavigate?: (hash: string) => void;
 }) {
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -75,6 +115,7 @@ export function EnVivoMap({
   const [captures, setCaptures] = useState<Record<string, PublicCapture> | null>(null);
   const [online, setOnline] = useState<EnVivoPublic["online"] | null>(null);
   const [hover, setHover] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
 
   const projects = useMemo(() => publicProjects(captures ?? {}), [captures]);
   const map = useMemo(() => buildMap(projects.map((p) => ({ slug: p.slug, status: p.status, theme: themeOf(p) }))), [projects]);
@@ -109,16 +150,19 @@ export function EnVivoMap({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !captures) return;
-    const info = Object.fromEntries(map.rooms.filter((r) => r.slug).map((r) => [r.id, roomInfoOf(bySlug.get(r.slug as string) as (typeof projects)[number])]));
+    const info = Object.fromEntries(map.rooms.filter((r) => r.slug).map((r) => [r.id, roomInfoOf(bySlug.get(r.slug as string) as OfiProject)]));
     const e = createEngine(canvas, {
       map,
       info,
       me: "federico",
       font: pixel.style.fontFamily,
+      display: archivo.style.fontFamily,
+      slides: SLIDES,
       public: true,
-      // A pantalla completa: zoom a escala ~1 y con tope de densidad (ver fillZoom)
-      ...(fill ? { zoom: fillZoom(), maxDpr: FILL_DPR } : {}),
+      // A pantalla completa: zoom a escala ~1, con tope de densidad (ver fillZoom), y tu muñeco se maneja
+      ...(fill ? { zoom: fillZoom(), maxDpr: FILL_DPR, controls: true } : {}),
       onRoom: (id) => {
+        if (fill) return setSelected(id);
         const slug = map.rooms.find((r) => r.id === id)?.slug;
         if (slug) router.push(`/work/${slug}`);
       },
@@ -152,65 +196,403 @@ export function EnVivoMap({
     if (active) engine?.setPeriod(periodOf(hourIn(Date.now())));
   }, [engine, active, hold]);
 
+  const go = useCallback(
+    (id: string | null) => {
+      setSelected(id);
+      if (id) engine?.visit(id);
+      else engine?.select(null);
+    },
+    [engine],
+  );
+
   const status = !online
     ? "Conectando…"
     : !online.length
       ? "El guía recorre los proyectos"
       : online.map((o) => `${NAMES[o.who]} ${o.room ? `está en la sala de ${bySlug.get(o.room)?.name ?? o.room}` : "está en su escritorio"}`).join(" · ");
   const hovered = hover ? map.rooms.find((r) => r.id === hover) : null;
-  const hp = hovered?.slug ? bySlug.get(hovered.slug) : null;
+  const where = useMemo(() => whereIs(online ?? [], map), [online, map]);
 
-  const Frame = fill ? FillFrame : MapFrame;
-  // A pantalla completa los carteles se separan del borde (y de la muesca del celular)
-  const top = fill ? "top-[max(1rem,env(safe-area-inset-top))] left-4 md:top-6 md:left-6" : "top-2 left-2";
-  const bottom = fill ? "bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 md:bottom-6 md:left-6" : "bottom-2 left-2";
+  if (!fill) {
+    const hp = hovered?.slug ? bySlug.get(hovered.slug) : null;
+    return (
+      <MapFrame>
+        <canvas
+          ref={canvasRef}
+          role="img"
+          aria-label="El estudio de se7en como un mapa: cada sala es un proyecto en producción, con su sitio en la tele."
+          className="block h-full w-full cursor-pointer"
+          style={{ touchAction: "pan-y" }}
+        />
+        <LiveBox status={status} audience={audience(visitors)} className="top-2 left-2" />
+        {hp && (
+          <div className="pointer-events-none absolute bottom-2 left-2 max-w-[calc(100%-16px)] rounded-lg bg-[rgba(12,10,20,0.86)] px-2.5 py-1.5 text-[#f5f3ff] ring-1 ring-white/10">
+            <p className="truncate text-[12px] leading-none font-bold" style={{ color: hp.accent }}>
+              {hp.name}
+            </p>
+            <p className="mt-1 flex items-center gap-1 text-[11px] leading-none text-[#b9b4cc]">
+              ver el caso <ArrowUpRight size={11} aria-hidden />
+            </p>
+          </div>
+        )}
+      </MapFrame>
+    );
+  }
 
+  // La recepción primero; después las salas del estudio y los proyectos, en el orden del mapa
+  const rooms = map.rooms.filter((r) => r.kind !== "storage" && r.kind !== "kitchen").sort((a, b) => +(b.kind === "reception") - +(a.kind === "reception"));
+  const picked = selected ? map.rooms.find((r) => r.id === selected) ?? null : null;
   return (
-    <Frame>
-      <canvas
-        ref={canvasRef}
-        role="img"
-        aria-label="El estudio de se7en como un mapa: cada sala es un proyecto en producción, con su sitio en la tele."
-        className="block h-full w-full cursor-pointer"
-        style={{ touchAction: fill ? "none" : "pan-y" }}
-      />
-      <div className={`pointer-events-none absolute ${top} max-w-[calc(100%-16px)] rounded-md border border-white/10 bg-[rgba(10,10,14,0.78)] px-2 py-1.5 text-[#f1ede6]`} aria-live="polite">
-        <p className={`flex items-center gap-1.5 text-[11px] leading-none uppercase ${pixel.className}`}>
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#ff4d2e] opacity-60 motion-reduce:animate-none" />
-            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#ff4d2e]" />
-          </span>
-          En vivo
-        </p>
-        <p className="mt-1 truncate font-mono text-[10px] leading-snug text-[#a39e95]">{status}</p>
-        {audience(visitors) && <p className="truncate font-mono text-[10px] leading-snug text-[#ffb199]">{audience(visitors)}</p>}
+    <div className={`relative h-full w-full overflow-hidden bg-[#0a0a14] text-[#f5f3ff] ${archivo.className}`}>
+      <TopBar onClose={onClose} onNavigate={onNavigate} />
+      <div className="absolute inset-x-0 top-[calc(52px+env(safe-area-inset-top))] bottom-0">
+        <canvas
+          ref={canvasRef}
+          role="img"
+          aria-label="La oficina de se7en: recepción, Desarrollo, Diseño, Reuniones, Chill-out y una sala por proyecto. Tocá una sala para ir; con las flechas movés tu muñeco."
+          className="block h-full w-full cursor-pointer"
+          style={{ touchAction: "none" }}
+        />
+        <LiveBox status={status} audience={audience(visitors)} hovered={hovered && hovered.id !== selected ? roomName(hovered, bySlug) : null} className="top-3 left-3 md:top-4 md:left-4" />
+        {engine && (
+          <div className="absolute top-3 right-3 flex flex-col gap-1.5 md:top-4 md:right-4">
+            {([[1, "Acercar", Plus], [-1, "Alejar", Minus]] as const).map(([step, label, Icon]) => (
+              <button
+                key={label}
+                type="button"
+                aria-label={label}
+                onClick={() => engine.zoomBy(step)}
+                className="grid h-10 w-10 place-items-center rounded-xl bg-[rgba(12,10,20,0.86)] text-[#f5f3ff] ring-1 ring-white/10 transition-colors hover:bg-[#8b5cf6] focus-visible:outline-2 focus-visible:outline-[#a78bfa]"
+              >
+                <Icon size={16} aria-hidden />
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0a0a14] via-[rgba(10,10,20,0.75)] to-transparent pt-10 pb-[max(10px,env(safe-area-inset-bottom))]">
+          {picked && (
+            <RoomCard
+              room={picked}
+              project={picked.slug ? bySlug.get(picked.slug) ?? null : null}
+              here={where.get(picked.id) ?? []}
+              online={online ?? []}
+              bySlug={bySlug}
+              onClose={() => go(null)}
+              onNavigate={onNavigate}
+            />
+          )}
+          <RoomRail rooms={rooms} bySlug={bySlug} where={where} selected={selected} onPick={go} />
+        </div>
       </div>
-      {hp && (
-        <div className={`pointer-events-none absolute ${bottom} max-w-[calc(100%-16px)] rounded-md border border-white/10 bg-[rgba(10,10,14,0.82)] px-2 py-1.5 text-[#f1ede6]`}>
-          <p className={`truncate text-[11px] leading-none uppercase ${pixel.className}`} style={{ color: hp.accent }}>
-            {hp.name}
+    </div>
+  );
+}
+
+/** El nombre de una sala: el del proyecto o el de la sala del estudio. */
+function roomName(r: MapRoom, bySlug: Map<string, OfiProject>) {
+  return r.slug ? bySlug.get(r.slug)?.name ?? r.slug : studioRoomName(r);
+}
+
+/** El cartel de arriba: en vivo, quién está y quién mira. */
+function LiveBox({ status, audience, hovered, className }: { status: string; audience: string | null; hovered?: string | null; className: string }) {
+  return (
+    <div className={`pointer-events-none absolute max-w-[min(70%,360px)] rounded-xl bg-[rgba(12,10,20,0.86)] px-3 py-2 ring-1 ring-white/10 ${className}`} aria-live="polite">
+      <p className="flex items-center gap-1.5 text-[11px] leading-none font-extrabold tracking-[0.12em] text-[#c4b5fd] uppercase">
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#8b5cf6] opacity-70 motion-reduce:animate-none" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-[#a78bfa]" />
+        </span>
+        En vivo
+      </p>
+      <p className="mt-1.5 line-clamp-2 text-[12px] leading-snug text-[#e9e5f7]">{status}</p>
+      {audience && <p className="truncate text-[11px] leading-snug text-[#a78bfa]">{audience}</p>}
+      {hovered && <p className="mt-1 truncate text-[11px] leading-snug font-bold text-white">→ {hovered}</p>}
+    </div>
+  );
+}
+
+/**
+ * La barra de arriba: el estudio a la izquierda y las secciones de la web.
+ * No tapa la oficina: el mapa empieza debajo. En el celular, las secciones van
+ * en un menú.
+ */
+function TopBar({ onClose, onNavigate }: { onClose?: () => void; onNavigate?: (hash: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const link = (n: (typeof NAV)[number], cls: string) => (
+    <a
+      key={n.hash}
+      href={`/${n.hash}`}
+      onClick={(e) => {
+        // El scroll suave de la landing escucha los clics en anclas: acá primero hay que salir de la oficina
+        e.preventDefault();
+        e.stopPropagation();
+        setOpen(false);
+        onNavigate?.(n.hash);
+      }}
+      className={cls}
+    >
+      {n.label}
+    </a>
+  );
+  return (
+    <header className="absolute inset-x-0 top-0 z-20 h-[calc(52px+env(safe-area-inset-top))] bg-[#0d0b16] pt-[env(safe-area-inset-top)]">
+      <div className="flex h-[52px] items-center gap-2 px-3 md:gap-4 md:px-5">
+        <span className="flex min-w-0 items-center gap-2">
+          <Image src="/logo-simbolo.png" alt="" width={26} height={26} className="h-[26px] w-[26px] shrink-0" />
+          <span className="truncate text-[14px] font-extrabold tracking-tight">
+            Se7en <span className="text-[#a78bfa]">Office</span>
+          </span>
+        </span>
+        <nav aria-label="Secciones de la web" className="ml-auto hidden items-center gap-1 md:flex">
+          {NAV.map((n) => link(n, "rounded-lg px-3 py-2 text-[13px] font-semibold text-[#d9d4ea] transition-colors hover:bg-[#8b5cf6]/20 hover:text-white focus-visible:outline-2 focus-visible:outline-[#a78bfa]"))}
+        </nav>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls="oficina-menu"
+          onClick={() => setOpen((v) => !v)}
+          className="ml-auto flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-semibold text-[#d9d4ea] ring-1 ring-white/10 md:hidden"
+        >
+          <Menu size={16} aria-hidden /> Menú
+        </button>
+        {onClose && (
+          <button
+            type="button"
+            data-office-close
+            onClick={onClose}
+            className="flex h-9 items-center gap-1.5 rounded-lg bg-[#8b5cf6] px-3 text-[13px] font-bold text-white transition-colors hover:bg-[#7c4dff] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c4b5fd]"
+          >
+            <X size={15} aria-hidden /> Salir
+          </button>
+        )}
+      </div>
+      <span aria-hidden className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#8b5cf6] to-transparent" />
+      {open && (
+        <nav id="oficina-menu" aria-label="Secciones de la web" className="absolute top-full right-3 mt-2 w-56 rounded-xl bg-[#14111f] p-1.5 shadow-2xl ring-1 ring-[#8b5cf6]/40 md:hidden">
+          {NAV.map((n) => link(n, "block rounded-lg px-3 py-2.5 text-[14px] font-semibold text-[#e9e5f7] hover:bg-[#8b5cf6]/20"))}
+          <span aria-hidden className="mx-3 my-1.5 block h-px bg-white/10" />
+          <a href={SITE.whatsapp} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between rounded-lg px-3 py-2.5 text-[14px] font-semibold text-[#c4b5fd] hover:bg-[#8b5cf6]/20">
+            WhatsApp <ArrowUpRight size={14} aria-hidden />
+          </a>
+          <a href={`mailto:${SITE.email}`} className="block truncate rounded-lg px-3 py-2.5 text-[13px] text-[#b9b4cc] hover:bg-[#8b5cf6]/20">
+            {SITE.email}
+          </a>
+        </nav>
+      )}
+    </header>
+  );
+}
+
+/** Las caras de los socios (las fotos de la web), chiquitas, para marcar dónde está cada uno. */
+function Faces({ who, size = 18 }: { who: Who[]; size?: number }) {
+  return (
+    <span className="flex -space-x-1.5">
+      {who.map((w) => {
+        const t = FOUNDER[w];
+        return t?.imageUrl ? (
+          <Image key={w} src={t.imageUrl} alt={NAMES[w]} width={size} height={size} className="rounded-full object-cover ring-2 ring-[#5ad1a8]" style={{ width: size, height: size }} />
+        ) : null;
+      })}
+    </span>
+  );
+}
+
+/** Las salas, de una en una: tocar una lleva a tu muñeco (o la cámara) hasta ahí. */
+function RoomRail({ rooms, bySlug, where, selected, onPick }: { rooms: MapRoom[]; bySlug: Map<string, OfiProject>; where: Map<string, Who[]>; selected: string | null; onPick: (id: string) => void }) {
+  const rail = useRef<HTMLDivElement>(null);
+  const idx = rooms.findIndex((r) => r.id === selected);
+  useEffect(() => {
+    if (!selected) return;
+    rail.current?.querySelector<HTMLElement>(`[data-room="${selected}"]`)?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+  }, [selected]);
+  const step = (k: number) => onPick(rooms[(Math.max(idx, k > 0 ? -1 : 0) + k + rooms.length) % rooms.length].id);
+  return (
+    <div className="flex items-center gap-1.5 px-3 md:gap-2 md:px-4">
+      <button type="button" aria-label="Sala anterior" onClick={() => step(-1)} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[rgba(12,10,20,0.9)] ring-1 ring-white/10 hover:bg-[#8b5cf6]">
+        <ChevronLeft size={18} aria-hidden />
+      </button>
+      <div ref={rail} role="list" aria-label="Salas de la oficina" className="flex min-w-0 flex-1 snap-x gap-1.5 overflow-x-auto py-1 [scrollbar-width:none] md:gap-2 [&::-webkit-scrollbar]:hidden">
+        {rooms.map((r) => {
+          const p = r.slug ? bySlug.get(r.slug) : null;
+          const on = r.id === selected;
+          const here = where.get(r.id) ?? [];
+          return (
+            <span role="listitem" key={r.id} className="shrink-0 snap-center">
+              <button
+                type="button"
+                data-room={r.id}
+                aria-pressed={on}
+                onClick={() => onPick(r.id)}
+                className={`flex h-10 items-center gap-2 rounded-xl px-3 text-[13px] font-semibold whitespace-nowrap ring-1 transition-colors focus-visible:outline-2 focus-visible:outline-[#c4b5fd] ${
+                  on ? "bg-[#8b5cf6] text-white ring-[#c4b5fd]" : "bg-[rgba(12,10,20,0.9)] text-[#e9e5f7] ring-white/10 hover:bg-[#241d3d]"
+                }`}
+              >
+                <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-black/40" style={{ background: p?.accent ?? "#a78bfa" }} />
+                {p?.name ?? studioRoomName(r)}
+                {here.length > 0 && (
+                  <>
+                    <Faces who={here} />
+                    <span className="sr-only">{`(${here.map((w) => NAMES[w]).join(" y ")} acá ahora)`}</span>
+                  </>
+                )}
+              </button>
+            </span>
+          );
+        })}
+      </div>
+      <button type="button" aria-label="Sala siguiente" onClick={() => step(1)} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[rgba(12,10,20,0.9)] ring-1 ring-white/10 hover:bg-[#8b5cf6]">
+        <ChevronRight size={18} aria-hidden />
+      </button>
+    </div>
+  );
+}
+
+type Action = { label: string; href: string; external?: boolean; hash?: boolean; primary?: boolean };
+
+/** La ficha de la sala elegida: qué es, quién está y a dónde ir desde ahí. Todo sale de la web (data/). */
+function RoomCard({
+  room,
+  project,
+  here,
+  online,
+  bySlug,
+  onClose,
+  onNavigate,
+}: {
+  room: MapRoom;
+  project: OfiProject | null;
+  here: Who[];
+  online: EnVivoPublic["online"];
+  bySlug: Map<string, OfiProject>;
+  onClose: () => void;
+  onNavigate?: (hash: string) => void;
+}) {
+  let kicker = "", title = "", accent = "#a78bfa";
+  let body: ReactNode = null;
+  let actions: Action[] = [];
+  let mark: string | null = null;
+  if (project) {
+    const p = getProjectBySlug(project.slug);
+    kicker = project.category;
+    title = project.name;
+    accent = project.accent;
+    mark = project.brand?.mark ?? null;
+    body = p?.shortDescription;
+    actions = [{ label: "Ver el caso", href: `/work/${project.slug}`, primary: true }, ...(project.url ? [{ label: "Visitar el sitio", href: project.url, external: true }] : [])];
+  } else if (room.kind === "office" && room.who) {
+    const who = room.who, t = FOUNDER[who];
+    const o = online.find((x) => x.who === who);
+    kicker = studioRoomName(room);
+    title = `El escritorio de ${NAMES[who]}`;
+    body = (
+      <>
+        <span className="block text-[#c4b5fd]">{t?.role}</span>
+        {t?.focus?.join(" · ")}
+        <span className="mt-1.5 flex items-center gap-1.5 text-[12px]">
+          <span className={`h-2 w-2 rounded-full ${o ? "bg-[#5ad1a8]" : "bg-[#5a5670]"}`} aria-hidden />
+          {!o ? `${NAMES[who]} no está conectado ahora` : o.room ? `${NAMES[who]} está en la sala de ${bySlug.get(o.room)?.name ?? o.room}` : `${NAMES[who]} está en su escritorio`}
+        </span>
+      </>
+    );
+    actions = [
+      { label: "Servicios", href: "#servicios", hash: true, primary: true },
+      { label: "Nosotros", href: "#equipo", hash: true },
+    ];
+  } else if (room.kind === "reception") {
+    kicker = "Recepción";
+    title = "Dos fundadores. Cero intermediarios.";
+    body = "Hablás directo con quien diseña y con quien programa tu proyecto. Sin ejecutivos de cuenta, sin teléfono descompuesto.";
+    actions = [
+      { label: "Contacto", href: "#contacto", hash: true, primary: true },
+      { label: "WhatsApp", href: SITE.whatsapp, external: true },
+    ];
+  } else if (room.kind === "meeting") {
+    kicker = "Reuniones";
+    title = "Cómo trabajamos";
+    body = (
+      <ol className="mt-0.5 space-y-0.5">
+        {steps.map((s) => (
+          <li key={s.number} className="flex gap-2">
+            <span className="font-bold text-[#a78bfa] tabular-nums">{s.number}</span>
+            <span>
+              {s.title} <span className="text-[#8f8aa6]">· {s.duration}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+    );
+    actions = [{ label: "Contacto", href: "#contacto", hash: true, primary: true }];
+  } else if (room.kind === "lounge") {
+    kicker = "Chill-out";
+    title = "El rincón del café";
+    body = "Los puffs, la cafetera y el fichín de la casa, abiertos al pasillo.";
+    actions = [
+      { label: "Nosotros", href: "#equipo", hash: true, primary: true },
+      { label: "Servicios", href: "#servicios", hash: true },
+    ];
+  }
+  const btn = (primary?: boolean) =>
+    `inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c4b5fd] ${
+      primary ? "bg-[#8b5cf6] text-white hover:bg-[#7c4dff]" : "bg-white/8 text-[#e9e5f7] ring-1 ring-white/15 hover:bg-white/15"
+    }`;
+  return (
+    <section
+      aria-label={title}
+      className="mx-3 mb-2 rounded-2xl bg-[rgba(16,13,28,0.96)] p-3.5 shadow-2xl ring-1 ring-white/10 md:mx-4 md:mb-3 md:w-[380px] md:p-4"
+      style={{ boxShadow: `inset 0 3px 0 ${accent}, 0 20px 50px rgba(0,0,0,0.5)` }}
+    >
+      <div className="flex items-start gap-3">
+        {mark && (
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#0a0a14] ring-1 ring-white/10">
+            <Image src={mark} alt="" width={28} height={28} className="h-7 w-7 object-contain" />
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[11px] font-bold tracking-[0.1em] uppercase" style={{ color: accent }}>
+            {kicker}
           </p>
-          <p className="mt-1 flex items-center gap-1 font-mono text-[10px] leading-none text-[#a39e95]">
-            ver el caso <ArrowUpRight size={11} aria-hidden />
-          </p>
+          <h2 className="mt-0.5 text-[17px] leading-tight font-extrabold text-white">{title}</h2>
+        </div>
+        <button type="button" aria-label="Cerrar la ficha" onClick={onClose} className="-mt-1 -mr-1 grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[#b9b4cc] hover:bg-white/10 hover:text-white">
+          <X size={16} aria-hidden />
+        </button>
+      </div>
+      {body && <div className="mt-2 text-[13px] leading-snug text-[#cfc9e3]">{body}</div>}
+      {here.length > 0 && (
+        <p className="mt-2 flex items-center gap-2 text-[12px] font-semibold text-[#5ad1a8]">
+          <Faces who={here} size={20} />
+          {here.map((w) => NAMES[w]).join(" y ")} {here.length > 1 ? "están" : "está"} acá ahora
+        </p>
+      )}
+      {actions.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {actions.map((a) =>
+            a.external ? (
+              <a key={a.label} href={a.href} target="_blank" rel="noopener noreferrer" className={btn(a.primary)}>
+                {a.label} <ArrowUpRight size={14} aria-hidden />
+              </a>
+            ) : a.hash ? (
+              <a
+                key={a.label}
+                href={`/${a.href}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onNavigate?.(a.href);
+                }}
+                className={btn(a.primary)}
+              >
+                {a.label}
+              </a>
+            ) : (
+              <Link key={a.label} href={a.href} className={btn(a.primary)}>
+                {a.label} <ArrowUpRight size={14} aria-hidden />
+              </Link>
+            ),
+          )}
         </div>
       )}
-      {fill && engine && (
-        <div className="absolute right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] flex flex-col gap-1.5 md:right-6 md:bottom-6">
-          {([[1, "Acercar", Plus], [-1, "Alejar", Minus]] as const).map(([step, label, Icon]) => (
-            <button
-              key={label}
-              type="button"
-              aria-label={label}
-              onClick={() => engine.zoomBy(step)}
-              className="grid h-10 w-10 place-items-center rounded-md border border-white/10 bg-[rgba(10,10,14,0.78)] text-[#f1ede6] transition-colors hover:border-white/30"
-            >
-              <Icon size={16} aria-hidden />
-            </button>
-          ))}
-        </div>
-      )}
-    </Frame>
+    </section>
   );
 }
 
@@ -224,10 +606,7 @@ const FILL_DPR = 1.5;
  */
 function fillZoom() {
   const d = Math.min(FILL_DPR, window.devicePixelRatio || 1);
-  return ZOOMS.reduce((a, b) => (Math.abs(b * d - 1) < Math.abs(a * d - 1) ? b : a));
-}
-
-/** A pantalla completa: sin la ventanita, el mapa ocupa todo lo que le den. */
-function FillFrame({ children }: { children?: React.ReactNode }) {
-  return <div className="relative h-full w-full overflow-hidden bg-[#07070a]">{children}</div>;
+  // En un celular parado, un poco más cerca (escala ~1.2): si no, los muñecos quedan chiquitos
+  const k = window.innerWidth < 640 ? 1.2 : 1;
+  return ZOOMS.reduce((a, b) => (Math.abs(b * d - k) < Math.abs(a * d - k) ? b : a));
 }

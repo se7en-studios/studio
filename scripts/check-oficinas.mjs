@@ -133,20 +133,44 @@ for (const n of [0, 1, 4, 5, 8, 9, 18]) {
   assert.deepEqual(S.ledMessages(projects).map((m) => m[0].text), ["SE7EN STUDIO", 'APEX "PRO"', "BO"], "sin hora en la landing");
 }
 
-// Muñecos en pixel art: cada mapa tiene el ancho que le toca y cada combinación entra en la grilla.
+// Las salas del estudio: recepción, las dos áreas (con el escritorio de cada socio), Reuniones y Chill-out.
 {
-  const SP = await import("../lib/oficinas/sprites.ts");
-  for (const m of SP.SPRITE_MAPS) m.rows.forEach((r, i) => assert.equal(r.length, m.width, `${m.name}, fila ${i}`));
-  const look = { style: "federico", hair: "#000000", hair2: "#111111", skin: "#222222", skin2: "#333333", main: "#444444", shade: "#555555", collar: "#666666", tie: "#777777", pants: "#888888", shoes: "#999999" };
-  for (const style of ["federico", "franco", "cap", "long", "bun", "afro", "buzz"])
-    for (const back of [false, true])
-      for (const pose of [{ walk: 0 }, { walk: 1 }, { wave: 0 }, { wave: 1 }, { phone: true }, { sit: true, type: 1 }, { blink: true }]) {
-        const m = SP.composeSprite({ ...look, style, glasses: true, beard: true, phones: "#aaaaaa", pack: "#bbbbbb", stripes: "#cccccc", badge: true }, { back, walk: 0, wave: null, phone: false, sit: false, type: null, blink: false, ...pose });
-        assert.equal(m.length, SP.SPRITE_H);
-        assert.ok(m.every((row) => row.length === SP.SPRITE_W), `${style} ${back} ${JSON.stringify(pose)}`);
-        assert.ok(m.flat().filter(Boolean).length > 150, `${style}: el muñeco tiene cuerpo`);
-      }
-  for (const f of [0, 1, "sleep"]) assert.ok(SP.catSprite(f).every((row) => row.length === SP.CAT_W), `gato ${f}`);
+  const m = S.buildMap([{ slug: "a", status: "mantenimiento" }, { slug: "b", status: "mantenimiento" }]);
+  const kinds = m.rooms.map((r) => r.kind);
+  for (const k of ["reception", "meeting", "lounge"]) assert.equal(kinds.filter((x) => x === k).length, 1, `una sala ${k}`);
+  const offices = m.rooms.filter((r) => r.kind === "office");
+  assert.deepEqual(offices.map((r) => [r.who, r.area]).sort(), [["federico", "design"], ["franco", "dev"]], "Franco en Desarrollo y Federico en Diseño");
+  for (const r of offices) assert.ok(r.seat && S.roomAt(m, r.seat.x, r.seat.y)?.id === r.id, `${r.id}: el escritorio queda adentro`);
+  assert.deepEqual(m.rooms.filter((r) => r.kind !== "project").map(S.studioRoomName), ["Desarrollo", "Recepción", "Diseño", "Reuniones", "Chill-out"]);
+  // El Chill-out es abierto al eje; Reuniones tiene puerta
+  const lounge = m.rooms.find((r) => r.kind === "lounge");
+  for (let y = lounge.y; y < lounge.y + lounge.d; y++) assert.ok(S.canStep(m, lounge.x - 1, y, lounge.x, y) || !S.walkable(m, lounge.x, y), `Chill-out abierto en la fila ${y}`);
+  const meet = m.rooms.find((r) => r.kind === "meeting");
+  assert.equal(S.canStep(m, meet.x + meet.w, meet.y, meet.x + meet.w - 1, meet.y), false, "Reuniones: pared al eje fuera de la puerta");
+  // El ala de proyectos empieza después del estudio y lleva su arco
+  assert.ok(m.rooms.filter((r) => r.kind === "project").every((r) => r.y >= m.wingY), "los proyectos van en el ala");
+  assert.equal(m.decor.filter((d) => d.k === "slogan" || d.k === "studiologo").length, 2, "el logo y la frase en la recepción");
+}
+
+// Los muñecos: cada socio con lo suyo, el guía con la remera del estudio y las visitas, siempre iguales a sí mismas.
+{
+  const T = await import("../lib/oficinas/toon.ts");
+  const fe = T.toonLook("federico"), fr = T.toonLook("franco"), gu = T.toonLook("guia");
+  assert.equal(fe.style, "federico");
+  assert.ok(fe.tie && fe.collar && fe.grin, "Federico: camisa, corbata y la sonrisa");
+  assert.equal(fr.style, "franco");
+  assert.ok(fr.knit && fr.collar && !fr.tie, "Franco: sweater con el cuello de la camisa");
+  assert.ok(gu.badge && gu.style === "cap", "el guía: gorra y credencial");
+  const hex = /^#[0-9a-f]{6}$/i;
+  for (let i = 0; i < 60; i++) {
+    const id = `v:${((i * 2654435761) >>> 0).toString(16)}`;
+    const v = T.toonLook(id);
+    assert.equal(T.toonLook(id), v, "la misma visita, el mismo look");
+    for (const k of ["hair", "skin", "main", "shade", "pants", "shoes"]) assert.match(v[k], hex, `${id}: ${k}`);
+    // Nunca con el peinado ni la ropa de un socio: una visita no puede parecer Federico o Franco conectado
+    assert.ok(["short", "side", "cap", "long", "bun", "afro", "buzz"].includes(v.style), `${id}: ${v.style}`);
+    assert.ok(!v.tie && v.main !== fe.main && v.main !== fr.main, `${id}: ropa de un socio`);
+  }
 }
 
 console.log("oficinas OK");

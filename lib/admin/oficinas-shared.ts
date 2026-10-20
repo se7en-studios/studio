@@ -174,6 +174,15 @@ export function salaMasApagada(
   return best;
 }
 
+/** Los casos que van primero en el ala de proyectos, al lado del estudio: los que hoy más muestran. */
+export const FEATURED = ["apex-ai", "takefyy", "pone-la-pava", "pravilo"];
+/** El orden de las salas: los destacados primero (en ese orden) y después por nombre. Igual en el panel y en la landing. */
+export function byRoomOrder(a: { slug: string; name: string }, b: { slug: string; name: string }) {
+  const fa = FEATURED.indexOf(a.slug), fb = FEATURED.indexOf(b.slug);
+  if (fa !== fb) return fa < 0 ? 1 : fb < 0 ? -1 : fa - fb;
+  return a.name.localeCompare(b.name, "es");
+}
+
 // --- Cartel LED de la recepción ------------------------------------------------------
 
 /** Un tramo del cartel con su color (null = el ámbar del cartel). */
@@ -232,16 +241,21 @@ export function themeOf(p: { name: string; category: string; tagline?: string })
 // paredes no ocupan baldosas: van en los bordes. Cada baldosa (x, y) es dueña
 // de sus dos bordes de atrás: «L» (entre x−1 y x) y «R» (entre y−1 e y).
 //
-//   y 0–4   Oficina de Franco · Recepción (abierta) · Oficina de Federico
-//   y 5–6   Pasillo principal
-//   y 7…    Salas de a dos (izquierda y derecha) a los lados de un pasillo
-//           central; primero las de En curso y después, pasando el arco, el
-//           Archivo.
+//   y 0–4    Desarrollo (el escritorio de Franco) · Recepción (abierta) ·
+//            Diseño (el de Federico)
+//   y 5–6    Hall
+//   y 7–11   Reuniones · el eje central · Chill-out (abierto al eje)
+//   y 12…    El ala de proyectos: salas de a dos a los lados del eje, primero
+//            las de En curso y después, pasando el arco, el Archivo.
 
 export type EdgeKind = "none" | "rail" | "wall" | "tall";
 export type Side = "L" | "R";
 export type Pt = { x: number; y: number };
-export type RoomKind = "office" | "reception" | "project" | "kitchen" | "storage";
+export type RoomKind = "office" | "reception" | "project" | "kitchen" | "storage" | "meeting" | "lounge";
+/** Las dos áreas de trabajo del estudio. Cada socio tiene su escritorio en la suya (data/team.ts). */
+export type Area = "dev" | "design";
+export const AREA_OF: Record<Who, Area> = { franco: "dev", federico: "design" };
+export const AREA_NAME: Record<Area, string> = { dev: "Desarrollo", design: "Diseño" };
 
 export type MapRoom = {
   id: string;
@@ -252,10 +266,12 @@ export type MapRoom = {
   d: number;
   slug?: string;
   who?: Who;
+  /** Las oficinas: de qué es el área donde está el escritorio del socio. */
+  area?: Area;
   zone?: Zone;
   status?: string;
   theme?: Theme;
-  /** Lado del pasillo central (sólo salas de proyecto). */
+  /** Lado del pasillo central (salas de proyecto, Reuniones y Chill-out). */
   column?: "left" | "right";
   /** La puerta es el borde `side` de la baldosa (x, y). */
   door: Pt & { side: Side };
@@ -265,6 +281,26 @@ export type MapRoom = {
   /** Donde se sienta el dueño de la oficina. */
   seat?: Pt;
 };
+
+/** El nombre de una sala que no es de un proyecto (las de proyecto llevan el del proyecto). */
+export function studioRoomName(r: Pick<MapRoom, "kind" | "area">): string {
+  switch (r.kind) {
+    case "office":
+      return AREA_NAME[r.area ?? "dev"];
+    case "reception":
+      return "Recepción";
+    case "meeting":
+      return "Reuniones";
+    case "lounge":
+      return "Chill-out";
+    case "kitchen":
+      return "Cocina";
+    case "storage":
+      return "Depósito";
+    default:
+      return "Sala";
+  }
+}
 
 export type Facing = "x" | "y";
 export type Furni = {
@@ -299,6 +335,8 @@ export type MapModel = {
   decor: Decor[];
   solid: boolean[][];
   start: Pt;
+  /** Primera fila del ala de proyectos (ahí va el arco de entrada). */
+  wingY: number;
   /** Primera fila del Archivo (ahí va el arco). null si no hay archivo. */
   archiveY: number | null;
   spine: { x0: number; x1: number };
@@ -306,13 +344,13 @@ export type MapModel = {
   lamps: Pt[];
 };
 
-export const MAP = { W: 15, TOP: 5, HALL: 2, ROOM_W: 6, ROOM_D: 5, SPINE_X0: 6, SPINE_X1: 9 } as const;
+export const MAP = { W: 15, TOP: 5, HALL: 2, STUDIO: 5, ROOM_W: 6, ROOM_D: 5, SPINE_X0: 6, SPINE_X1: 9 } as const;
 const doorKey = (x: number, y: number, side: Side) => `${x},${y},${side}`;
 
 export type MapInput = { slug: string; status: string; theme?: Theme }[];
 
 export function buildMap(projects: MapInput): MapModel {
-  const { W, TOP, HALL, ROOM_W, ROOM_D, SPINE_X0, SPINE_X1 } = MAP;
+  const { W, TOP, HALL, STUDIO, ROOM_W, ROOM_D, SPINE_X0, SPINE_X1 } = MAP;
   const active = projects.filter((p) => zoneOf(p.status) === "active");
   const archive = projects.filter((p) => zoneOf(p.status) === "archive");
   type Slot = { p: { slug: string; status: string; theme?: Theme } | null; filler: RoomKind; zone: Zone };
@@ -324,8 +362,9 @@ export function buildMap(projects: MapInput): MapModel {
   slots.push(...archive.map((p) => ({ p, filler: "project" as RoomKind, zone: "archive" as Zone })));
   if (archive.length % 2) slots.push({ p: null, filler: "storage", zone: "archive" });
   const rows = slots.length / 2;
-  const y0 = TOP + HALL;
-  const H = y0 + Math.max(1, rows) * ROOM_D;
+  const sy = TOP + HALL; // la fila del estudio: Reuniones y Chill-out
+  const wingY = sy + STUDIO;
+  const H = wingY + Math.max(1, rows) * ROOM_D;
 
   const region = Array.from({ length: H }, () => new Array<string>(W).fill("hall"));
   const solid = Array.from({ length: H }, () => new Array<boolean>(W).fill(false));
@@ -348,41 +387,78 @@ export function buildMap(projects: MapInput): MapModel {
   const hang = (r: MapRoom | null, k: string, side: Side, x: number, y: number, len = 1) =>
     decor.push({ id: `d${nid++}`, k, side, x, y, len, room: r ? r.id : null });
 
-  // Fila de arriba: oficinas y recepción
+  // Fila de arriba: las dos áreas de trabajo (cada una con el escritorio de su
+  // socio) y, entre las dos, la recepción abierta al hall.
   const office = (who: Who, x: number) =>
-    addRoom({ id: `off-${who}`, kind: "office", who, x, y: 0, w: 5, d: TOP, door: { x: x + 2, y: TOP, side: "R" }, inside: { x: x + 2, y: TOP - 1 }, outside: { x: x + 2, y: TOP }, seat: { x: x + 2, y: 1 } });
-  const fr = office("franco", 0);
+    addRoom({ id: `off-${who}`, kind: "office", who, area: AREA_OF[who], x, y: 0, w: 5, d: TOP, door: { x: x + 2, y: TOP, side: "R" }, inside: { x: x + 2, y: TOP - 1 }, outside: { x: x + 2, y: TOP }, seat: { x: x + 2, y: 1 } });
+  const dev = office("franco", 0);
   const rc = addRoom({ id: "recepcion", kind: "reception", x: 5, y: 0, w: 5, d: TOP, door: { x: 7, y: TOP, side: "R" }, inside: { x: 7, y: TOP - 1 }, outside: { x: 7, y: TOP } });
-  const fe = office("federico", 10);
-  for (const o of [fr, fe]) {
+  const des = office("federico", 10);
+  for (const o of [dev, des]) {
     const X = o.x;
-    if (o.who === "franco") hang(o, "window", "L", 0, 1, 2);
-    hang(o, "window", "R", X + 1, 0, 1);
-    hang(o, "logo", "R", X + 3, 0, 1);
-    put(o, "shelf", X + 4, 0, 1, 1, "y");
-    put(o, "plant", X, 0, 1, 1, "y");
+    // El escritorio del socio: se sienta mirando para adelante, con la compu y sus cosas.
     put(o, "rug", X + 1, 2, 3, 2, "y", false);
     put(o, "chairBoss", X + 2, 1, 1, 1, "y");
     put(o, "desk", X + 1, 2, 3, 1, "y");
-    put(o, "sofa", X, 3, 1, 2, "x");
     put(o, "lamp", X + 4, 4, 1, 1, "y");
+    hang(o, "window", "R", X + 1, 0, 1);
+    if (o.area === "dev") {
+      hang(o, "window", "L", 0, 1, 2);
+      hang(o, "archboard", "L", 0, 3, 2);
+      hang(o, "codewall", "R", X + 2, 0, 2);
+      put(o, "plant", X, 0);
+      put(o, "rack", X + 4, 0, 1, 1, "y");
+      put(o, "beanbag", X + 4, 2);
+      put(o, "deploy", X, 4);
+    } else {
+      hang(o, "moodboard", "R", X + 2, 0, 2);
+      hang(o, "swatches", "R", X + 4, 0, 1);
+      put(o, "plant", X, 0);
+      put(o, "easel", X + 4, 2, 1, 1, "y");
+      put(o, "beanbag", X, 4);
+    }
   }
-  hang(rc, "window", "R", 5, 0, 1);
+  // La recepción: el logo del estudio, la frase y el cartel LED en la pared
+  // del fondo; el mostrador, un sillón para esperar y la alfombra del gato.
+  hang(rc, "slogan", "R", 5, 0, 5);
+  hang(rc, "studiologo", "R", 6, 0, 3);
   hang(rc, "ticker", "R", 6, 0, 3);
-  hang(rc, "window", "R", 9, 0, 1);
   put(rc, "plant", 5, 0); put(rc, "plant", 9, 0);
   put(rc, "stool", 7, 1);
   put(rc, "counter", 6, 2, 3, 1, "y");
   put(rc, "rug", 6, 3, 3, 2, "y", false);
+  put(rc, "sofa", 5, 3, 1, 2, "x");
 
-  // Pasillo principal
+  // Hall
   put(null, "plant", 0, TOP); put(null, "plant", W - 1, TOP);
   put(null, "cooler", 4, TOP); put(null, "bench", 10, TOP, 2, 1, "y");
 
-  // Salas de a dos, a los lados del pasillo central
+  // La fila del estudio, a los lados del eje: Reuniones (cerrada, con la
+  // pantalla de la charla) y Chill-out (abierta al eje).
+  const meet = addRoom({ id: "reuniones", kind: "meeting", x: 0, y: sy, w: ROOM_W, d: STUDIO, column: "left", door: { x: SPINE_X0, y: sy + 2, side: "L" }, inside: { x: SPINE_X0 - 1, y: sy + 2 }, outside: { x: SPINE_X0, y: sy + 2 } });
+  hang(meet, "slides", "L", 0, sy + 1, 3);
+  hang(meet, "whiteboard", "R", 1, sy, 3);
+  put(meet, "plant", 0, sy);
+  put(meet, "rug", 1, sy + 1, 4, 3, "y", false);
+  put(meet, "meettable", 1, sy + 2, 4, 1, "y");
+  put(meet, "stool", 2, sy + 1); put(meet, "stool", 3, sy + 1);
+  put(meet, "chair", 2, sy + 3, 1, 1, "y"); put(meet, "chair", 3, sy + 3, 1, 1, "y");
+  put(meet, "lamp", 0, sy + 4);
+  const lounge = addRoom({ id: "lounge", kind: "lounge", x: SPINE_X1, y: sy, w: ROOM_W, d: STUDIO, column: "right", door: { x: SPINE_X1, y: sy + 2, side: "L" }, inside: { x: SPINE_X1, y: sy + 2 }, outside: { x: SPINE_X1 - 1, y: sy + 2 } });
+  put(lounge, "rug", SPINE_X1 + 1, sy + 1, 4, 3, "y", false);
+  put(lounge, "coffeebar", SPINE_X1, sy, 1, 1, "y");
+  put(lounge, "sofa", SPINE_X1 + 2, sy, 2, 1, "y");
+  put(lounge, "arcade", W - 1, sy, 1, 1, "y");
+  put(lounge, "lowtable", SPINE_X1 + 2, sy + 2, 2, 1, "y");
+  put(lounge, "beanbag", SPINE_X1 + 1, sy + 3);
+  put(lounge, "beanbag", SPINE_X1 + 4, sy + 3);
+  put(lounge, "plant", W - 1, sy + STUDIO - 1);
+  put(lounge, "lamp", SPINE_X1 + 1, sy + STUDIO - 1);
+
+  // El ala de proyectos: salas de a dos, a los lados del eje
   slots.forEach((s, i) => {
     const row = Math.floor(i / 2), left = i % 2 === 0;
-    const x = left ? 0 : SPINE_X1, y = y0 + row * ROOM_D;
+    const x = left ? 0 : SPINE_X1, y = wingY + row * ROOM_D;
     const kind: RoomKind = s.p ? "project" : s.filler;
     const id = s.p ? `p-${s.p.slug}` : `${kind}-${i}`;
     const door = left ? { x: SPINE_X0, y: y + 2, side: "L" as Side } : { x: SPINE_X1, y: y + 2, side: "L" as Side };
@@ -393,9 +469,10 @@ export function buildMap(projects: MapInput): MapModel {
     furnishRoom(r, left, put, hang);
   });
 
-  // Pasillo central: plantas contra las paredes de las salas, lejos de las puertas
+  // El eje: plantas contra las paredes de las salas, lejos de las puertas
+  put(null, "plant", SPINE_X0, sy);
   for (let row = 0; row < rows; row++) {
-    const y = y0 + row * ROOM_D;
+    const y = wingY + row * ROOM_D;
     if (row % 2 === 0) put(null, "plant", SPINE_X0, y);
     else put(null, "plant", SPINE_X1 - 1, y + ROOM_D - 1);
   }
@@ -403,27 +480,29 @@ export function buildMap(projects: MapInput): MapModel {
   // Bordes: paredes y barandas
   const edgeL = Array.from({ length: H }, () => new Array<EdgeKind>(W).fill("none"));
   const edgeR = Array.from({ length: H }, () => new Array<EdgeKind>(W).fill("none"));
-  // Atrás de cada sala va una pared (vidrio arriba); adelante, sólo una baranda
-  // baja para que se vea adentro. El borde del edificio es la pared alta.
-  const edgeBetween = (behind: string | null, front: string): EdgeKind => {
+  // Atrás de cada sala va una media pared; adelante, sólo una baranda baja para
+  // que se vea adentro. El borde del edificio es la pared alta. La recepción y
+  // el Chill-out no tienen pared hacia el eje: son abiertos.
+  const edgeBetween = (side: Side, behind: string | null, front: string): EdgeKind => {
     if (behind === null) return "tall";
     if (behind === front) return "none";
-    // La recepción está abierta al pasillo.
-    if ((behind === "recepcion" && front === "hall") || (front === "recepcion" && behind === "hall")) return "none";
+    const pair = (a: string, b: string) => (behind === a && front === b) || (behind === b && front === a);
+    if (pair("recepcion", "hall")) return "none";
+    if (pair("lounge", "hall")) return side === "L" ? "none" : "rail";
     return front !== "hall" ? "wall" : "rail";
   };
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
-      edgeL[y][x] = edgeBetween(x === 0 ? null : region[y][x - 1], region[y][x]);
-      edgeR[y][x] = edgeBetween(y === 0 ? null : region[y - 1][x], region[y][x]);
+      edgeL[y][x] = edgeBetween("L", x === 0 ? null : region[y][x - 1], region[y][x]);
+      edgeR[y][x] = edgeBetween("R", y === 0 ? null : region[y - 1][x], region[y][x]);
     }
 
-  const archiveY = archive.length ? y0 + Math.floor(archiveFrom / 2) * ROOM_D : null;
+  const archiveY = archive.length ? wingY + Math.floor(archiveFrom / 2) * ROOM_D : null;
   const lamps: Pt[] = [];
   for (let x = 1; x < W; x += 4) lamps.push({ x, y: TOP + 1 });
-  for (let y = y0 + 2; y < H; y += 4) lamps.push({ x: 7, y });
+  for (let y = sy + 2; y < H; y += 4) lamps.push({ x: 7, y });
 
-  return { W, H, region, edgeL, edgeR, doors, rooms, furni, decor, solid, start: { x: 7, y: TOP + 1 }, archiveY, spine: { x0: SPINE_X0, x1: SPINE_X1 }, lamps };
+  return { W, H, region, edgeL, edgeR, doors, rooms, furni, decor, solid, start: { x: 7, y: TOP + 1 }, wingY, archiveY, spine: { x0: SPINE_X0, x1: SPINE_X1 }, lamps };
 }
 
 type Put = (r: MapRoom | null, k: string, x: number, y: number, w?: number, d?: number, face?: Facing, isSolid?: boolean) => void;

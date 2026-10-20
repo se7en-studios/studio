@@ -6,7 +6,6 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { ArrowUpRight, X } from "lucide-react";
 import type { EnVivoPublic } from "@/app/api/en-vivo/route";
 import type { VisitorsNow } from "@/lib/visitas";
-import { projects } from "@/data/projects";
 import { pixel } from "@/lib/site-fonts";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 import { useVisitors } from "@/lib/use-visitors";
@@ -557,9 +556,45 @@ export function RdArcade() {
     panel.focus({ preventScroll: true });
   }
 
+  /**
+   * Desde la barra de la oficina a una sección de la landing: la oficina se
+   * funde, el fichín vuelve a su lugar sin el viaje de vuelta y la página baja
+   * hasta la sección (con el scroll suave, que escucha los clics en anclas).
+   */
+  async function go(hash: string) {
+    if (phase !== "open") return;
+    const panel = panelRef.current;
+    const stage = stageRef.current;
+    const front = frontRef.current;
+    const zoom = zoomRef.current;
+    const layer = layerRef.current;
+    setPhase("leave");
+    if (layer) await tween(180, (t) => t, (k) => (layer.style.opacity = String(1 - k)));
+    setMapOn(false);
+    setLive(false);
+    setSignal("ok");
+    for (const el of [panel, stage, front]) el?.removeAttribute("style");
+    if (zoom) {
+      zoom.style.opacity = "0";
+      zoom.currentTime = 0;
+    }
+    openedRef.current = null;
+    unlockRef.current?.();
+    unlockRef.current = null;
+    setPhase("ready");
+    setScreen("on");
+    requestAnimationFrame(() => {
+      const a = document.createElement("a");
+      a.href = hash;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
+  }
+
   // Adentro: Esc sale y el foco no se escapa a la página de atrás
   useEffect(() => {
-    if (phase === "open") closeRef.current?.focus({ preventScroll: true });
+    if (phase === "open") document.querySelector<HTMLElement>("[data-office-close]")?.focus({ preventScroll: true });
   }, [phase]);
   useEffect(() => {
     if (signal === "lost") closeRef.current?.focus({ preventScroll: true });
@@ -766,7 +801,7 @@ export function RdArcade() {
             style={{ visibility: "hidden" }}
           >
             <div ref={mapRef} className="h-full w-full">
-              <EnVivoMap fill active hold={!live} visitors={visitors} onReady={onMapReady} />
+              <EnVivoMap fill active hold={!live} visitors={visitors} onReady={onMapReady} onClose={() => void leave()} onNavigate={(hash) => void go(hash)} />
             </div>
             <div
               ref={flashRef}
@@ -774,7 +809,8 @@ export function RdArcade() {
               className="pointer-events-none absolute inset-0 bg-[#fff1dc] opacity-0"
             />
           </div>
-          {(phase === "open" || signal === "lost") && (
+          {/* Adentro, «Salir» va en la barra de la oficina; éste es para cuando el mapa no llegó a abrir. */}
+          {signal === "lost" && (
             <button
               ref={closeRef}
               type="button"
@@ -784,14 +820,6 @@ export function RdArcade() {
               <X size={15} aria-hidden /> Salir
             </button>
           )}
-          {/* Para teclado y lectores de pantalla: el mapa se recorre con el mouse. */}
-          <ul className="sr-only">
-            {projects.map((p) => (
-              <li key={p.slug}>
-                <a href={`/work/${p.slug}`}>{p.name}</a>
-              </li>
-            ))}
-          </ul>
         </div>
       )}
     </section>
