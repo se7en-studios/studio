@@ -40,3 +40,18 @@ ffmpeg -i toma.mp4 -an -vf "trim=start_frame=145,setpts=PTS-STARTPTS,scale=1920:
 
 Las WebM, con `-c:v libvpx-vp9 -crf 36 -b:v 0 -row-mt 1`; las de celular, con
 `scale=1280:720`. Los cuadros, con `select='eq(n\,144)'` y `-q:v 3`.
+
+## Los personajes de la oficina (`personajes/`)
+
+Las ilustraciones de Federico (Flow, oct 2026): Federico, Franco, el guía y la
+visita, una pose por imagen sobre fondo verde, mirando abajo a la derecha (y
+de espaldas, arriba a la derecha; las otras dos direcciones salen espejadas).
+`scripts/personajes.mjs` saca el verde, recorta, escala a 192 px de alto la
+figura parada, las apoya por los pies y arma una tira por personaje
+(`federico.webp`, `franco.webp`, `guia.webp`, `visita.webp`) con las medidas
+en `lib/oficinas/personajes.ts`. Las originales no van al repo.
+
+    node scripts/personajes.mjs "C:/Users/feder/OneDrive/Escritorio/personajes"
+
+Qué archivo es cada pose está en `POSES` del script. La visita es una sola: el
+motor le cambia el color de la campera según el id de cada una.

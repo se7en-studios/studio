@@ -173,4 +173,17 @@ for (const n of [0, 1, 4, 5, 8, 9, 18]) {
   }
 }
 
+// Las láminas de los personajes: las poses que usa el motor, y cada cuadro adentro de su imagen.
+{
+  const { SHEETS } = await import("../lib/oficinas/personajes.ts");
+  for (const [who, sh] of Object.entries(SHEETS)) {
+    for (const pose of ["idle", "back", "walk0", "wave0", "phone0", "talk0"]) assert.ok(sh.frames[pose], `${who}: falta ${pose}`);
+    if (who === "federico" || who === "franco") assert.ok(sh.frames.sit, `${who}: falta sentado`);
+    for (const [pose, [x, y, w, h, ax, ay]] of Object.entries(sh.frames)) {
+      assert.ok(x >= 0 && y >= 0 && w > 0 && h > 0, `${who}/${pose}: caja`);
+      assert.ok(ax >= 0 && ax <= w && ay > 0 && ay <= h + 0.5, `${who}/${pose}: los pies adentro`);
+    }
+  }
+}
+
 console.log("oficinas OK");

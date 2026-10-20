@@ -21,7 +21,7 @@ import {
   type Who,
 } from "@/lib/admin/oficinas-shared";
 import {
-  AVATAR_REACH,
+  reachOf,
   CAT_REACH,
   HH,
   HW,
@@ -31,6 +31,7 @@ import {
   WALL,
   avatar,
   bakeBrand,
+  loadSheets,
   bakeSlogan,
   begin,
   brandRug,
@@ -226,9 +227,8 @@ type Box = { x0: number; y0: number; x1: number; y1: number };
 /**
  * Lo que se ordena por profundidad: una pared, el arco o un mueble. `box`: hasta
  * dónde llega su dibujo. `glows`: lo que prende arriba de la oscuridad.
- * `ghost`: si ahora se vuelve casi transparente porque tapa al que camina.
  */
-type Item = { depth: number; order: number; x: number; ax: number; ay: number; box: Box; glows: Glow[]; ghost?: () => boolean; draw: () => void };
+type Item = { depth: number; order: number; x: number; ax: number; ay: number; box: Box; glows: Glow[]; draw: () => void };
 /** Alguien (o el gato) para intercalar con los muebles: `box`, el rectángulo que ocupa. */
 type Person = { depth: number; box: Box; draw: () => void };
 /**
@@ -268,6 +268,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   let dst = ctx;
   // La proyección (P) depende de la vista: se fija antes de precalcular posiciones.
   begin(ctx, view);
+  // Las láminas de los personajes: cuando llegan, un cuadro nuevo para que aparezcan
+  loadSheets(() => poke());
   const byId = new Map(m.rooms.map((r) => [r.id, r]));
   const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
   let reduced = mq.matches;
@@ -417,7 +419,6 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   let glows: Glow[] = [];
   /** Las pantallas de pared, una por cartel aunque ocupe varios tramos. */
   const wallGlows = new Map<string, Glow>();
-  const playerBox = { x0: 0, y0: 0, x1: 0, y1: 0, depth: 0 };
   /** Lo que ocupa en pantalla (px del mundo) un volumen de [x0, x1] × [y0, y1] baldosas y z1 de alto, con margen para los contornos. */
   /** A dónde mira la cámara sin nadie en el mapa: la recepción. */
   const home: [number, number] = (() => {
@@ -448,7 +449,6 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         const here = m.decor.filter((d) => d.side === side && (side === "L" ? d.x === x && y >= d.y && y < d.y + d.len : d.y === y && x >= d.x && x < d.x + d.len));
         const h = kind === "tall" ? TALL : kind === "glass" ? 52 : WALL;
         const face: XY[] = side === "L" ? [P(x, y, h), P(x, y + 1, h), P(x, y + 1, 0), P(x, y, 0)] : [P(x, y, h), P(x + 1, y, h), P(x + 1, y, 0), P(x, y, 0)];
-        const segBox = side === "L" ? { x0: P(x, y + 1)[0] - 8, x1: P(x, y)[0], y0: P(x, y, h)[1], y1: P(x, y + 1)[1] } : { x0: P(x, y)[0], x1: P(x + 1, y)[0] + 8, y0: P(x, y, h)[1], y1: P(x + 1, y)[1] };
         const depth = x + y - 0.5;
         const [ax, ay] = P(x + 0.5, y + 0.5);
         // Las pantallas de pared (tele, mapa) se prenden por arriba de la oscuridad, una sola vez.
@@ -461,14 +461,12 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
               if (!gl) wallGlows.set(dc.id, (gl = { t: "screen", quad: scr.quad, kind: scr.kind, accent: accentOf(dc.room), room: dc.room }));
               return [gl];
             });
-        // Si la pared tapa al que camina atrás, se vuelve casi transparente.
-        const ghost = kind === "wall" ? () => depth > playerBox.depth && segBox.x1 > playerBox.x0 && segBox.x0 < playerBox.x1 && segBox.y1 > playerBox.y0 && segBox.y0 < playerBox.y1 : undefined;
+        // Las medias paredes ya no se vuelven transparentes: los personajes las pasan de largo en altura.
         items.push({
-          depth, order: 0, x, ax, ay, glows: lit, ghost,
+          depth, order: 0, x, ax, ay, glows: lit,
           // El espesor de la pared (y algo más) y las jambas de la puerta, un poco más altas
           box: side === "L" ? reach(x - 0.2, y, x, y + 1, h + 4) : reach(x, y - 0.2, x + 1, y, h + 4),
           draw: () => {
-            if (ghost?.()) dst.globalAlpha = 0.28;
             setFade(fadeOfId(owner));
             tint(owner);
             wallSegment(side, x, y, kind, wallStyle(side, kind, owner), door);
@@ -901,6 +899,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   }
   /** Una visita parada en una sala a veces saca el celular (y lo guarda para saludar). */
   const phoneOut = (a: Actor) => a.goal.kind === "wander" && !a.moving && !a.path.length && !!a.wait && !a.greet && hash(a.seed, a.stop * 3 + 1) > 0.55;
+  /** Otras veces se queda pensando, con la mano en el mentón. */
+  const thinkOut = (a: Actor) => a.goal.kind === "wander" && !a.moving && !a.path.length && !!a.wait && !a.greet && hash(a.seed, a.stop * 3 + 1) < 0.25;
   /** La sala donde está tu muñeco, para avisar cuando entrás caminando con las flechas. */
   let youRoom: string | null = null;
   function updateActors(dt: number, ts: number) {
@@ -967,10 +967,12 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         const r = !a.moving && !a.seat && !a.path.length ? roomAt(m, a.x, a.y) : null;
         if (r?.kind === "project") live.add(r.id);
       }
-      // La grabación (si la sala no tiene captura) va en la del que sigue la cámara
+      // La grabación (si la sala no tiene captura) va sólo en la sala que eligió el
+      // que mira y cuando la cámara llegó ahí: un video decodificándose es lo que
+      // más le cuesta a un celular, así que no corre por las salas de paso
       const f = focusActor();
       const fr = f && !f.moving && !f.seat && !f.path.length ? roomAt(m, f.x, f.y) : null;
-      tuneTv(fr?.kind === "project" ? fr.id : null);
+      tuneTv(fr?.kind === "project" && fr.id === selected ? fr.id : null);
     } else if (current?.kind === "project") live.add(current.id);
     for (const id of [...liveSince.keys()]) if (!live.has(id)) liveSince.delete(id);
     for (const id of live) {
@@ -1888,8 +1890,6 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       }
       if (fk !== itemsKey) {
         itemsKey = fk;
-        // Sin transparencias: la pared que tapa a alguien se rehace en su rectángulo (abajo)
-        playerBox.depth = Infinity;
         paint(itemsC, ictx, lw, lh, () => {
           for (const it of items) it.draw();
         });
@@ -1904,8 +1904,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
 
     // Personas, ordenadas con lo demás por profundidad
     const [psx, psy] = P(pxT, pyT);
-    const pDepth = o.public ? (focus ? actorDepth(focus) : -1) : player.moving ? Math.max(player.from.x + player.from.y, player.to.x + player.to.y) + 0.05 : player.x + player.y + 0.05;
-    Object.assign(playerBox, { x0: psx - 14, x1: psx + 14, y0: psy - 66, y1: psy, depth: pDepth });
+    const pDepth = player.moving ? Math.max(player.from.x + player.from.y, player.to.x + player.to.y) + 0.05 : player.x + player.y + 0.05;
     const blink = !reduced && ts % 4300 < 140;
     const typing = reduced ? null : (ts / 260) % 1;
     const people: Person[] = [];
@@ -1916,24 +1915,24 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         const wave = a.greet && ts >= a.greet.t0 ? (ts - a.greet.t0) / GREET_MS : null;
         people.push({
           depth: actorDepth(a),
-          box: around(ax, ay, AVATAR_REACH),
+          box: around(ax, ay, reachOf(a.look, a.seat ? "sit" : a.moving ? "walk" : wave !== null ? "wave" : "still")),
           draw: () =>
             a.seat
               ? avatar(a.look, ax, ay, "SW", null, true, blink, typing)
-              : avatar(a.look, ax, ay, a.moving ? a.dir : (a.face ?? a.dir), a.moving && !reduced ? a.step % 1 : null, false, blink && !a.moving, null, wave, phoneOut(a), wave),
+              : avatar(a.look, ax, ay, a.moving ? a.dir : (a.face ?? a.dir), a.moving && !reduced ? a.step % 1 : null, false, blink && !a.moving, null, wave, phoneOut(a), wave, thinkOut(a)),
         });
       }
     } else {
       const seat = sitting ? ownSeat() : null;
       if (seat) {
         const [sx, sy] = P(seat.x + 0.5, seat.y + 0.5);
-        people.push({ depth: seat.x + seat.y + 0.05, box: around(sx, sy, AVATAR_REACH), draw: () => avatar(me, sx, sy, "SW", null, true, blink, typing) });
-      } else people.push({ depth: pDepth, box: around(psx, psy, AVATAR_REACH), draw: () => avatar(me, psx, psy, player.dir, player.moving && !reduced ? player.step % 1 : null) });
+        people.push({ depth: seat.x + seat.y + 0.05, box: around(sx, sy, reachOf(me, "sit")), draw: () => avatar(me, sx, sy, "SW", null, true, blink, typing) });
+      } else people.push({ depth: pDepth, box: around(psx, psy, reachOf(me, player.moving ? "walk" : "still")), draw: () => avatar(me, psx, psy, player.dir, player.moving && !reduced ? player.step % 1 : null) });
       if (po?.seat) {
         const seat = po.seat;
         const [sx, sy] = P(seat.x + 0.5, seat.y + 0.5);
         // Conectado, tipea; si no, duerme con los ojos cerrados
-        people.push({ depth: seat.x + seat.y + 0.05, box: around(sx, sy, AVATAR_REACH), draw: () => avatar(otherOf(me), sx, sy, "SW", null, true, partnerAway || blink, partnerAway ? null : typing) });
+        people.push({ depth: seat.x + seat.y + 0.05, box: around(sx, sy, reachOf(otherOf(me), "sit")), draw: () => avatar(otherOf(me), sx, sy, "SW", null, true, partnerAway || blink, partnerAway ? null : typing) });
       }
     }
     {
@@ -1948,7 +1947,6 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       // dibuja de nuevo, en orden, todo lo que lo toca (así lo tapan los muebles
       // que tiene adelante). Las paredes que se vuelven transparentes van enteras.
       const boxes = people.map((p) => p.box);
-      for (const it of items) if (it.ghost?.()) boxes.push(it.box);
       for (const r of onScreen(boxes, W, H)) {
         const wb: Box = { x0: (r.x0 - offX) / scale, y0: (r.y0 - offY) / scale, x1: (r.x1 - offX) / scale, y1: (r.y1 - offY) / scale };
         ctx.save();
@@ -1986,7 +1984,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     const near = !!po?.seat && current?.id === po.id && Math.abs(player.x - po.seat.x) + Math.abs(player.y - po.seat.y) <= 3;
     // Globo del otro socio cuando te acercás a su escritorio
     if (po?.seat && partnerLine && near) {
-      const [sx, sy] = toScreen(P(po.seat.x + 0.5, po.seat.y + 0.5, 64));
+      const [sx, sy] = toScreen(P(po.seat.x + 0.5, po.seat.y + 0.5, 74));
       ctx.font = uiFont(8);
       const w = Math.ceil(ctx.measureText(partnerLine).width) + 16, h = 19;
       const x = Math.round(sx - w / 2), y = Math.round(sy - h - 8);
@@ -2003,7 +2001,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         const word = a.greet && ts >= a.greet.t0 ? a.greet.word : null;
         if (!label && !word) continue;
         const [ax, ay] = actorPos(a);
-        const [tx, ty] = toScreen(P(ax, ay, a.seat ? 62 : 76));
+        const [tx, ty] = toScreen(P(ax, ay, a.seat ? 72 : 90));
         const bob = reduced ? 0 : Math.sin(ts / 260 + a.seed) * 1.5;
         ctx.font = uiFont(8, 800);
         ctx.textBaseline = "middle";
@@ -2064,7 +2062,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     }
     // El otro socio, dormido: las zetas suben desde su cabeza
     if (po?.seat && partnerAway) {
-      const [zx, zy] = toScreen(P(po.seat.x + 0.5, po.seat.y + 0.5, 58));
+      const [zx, zy] = toScreen(P(po.seat.x + 0.5, po.seat.y + 0.5, 68));
       ctx.textBaseline = "alphabetic";
       ctx.textAlign = "left";
       for (let i = 0; i < 3; i++) {
@@ -2084,7 +2082,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     bubbles = bubbles.filter((b) => ts - b.t0 < BUBBLE_MS);
     if (bubbles.length && !o.public) {
       const seat = sitting ? ownSeat() : null;
-      const [hx, hy] = toScreen(seat ? P(seat.x + 0.5, seat.y + 0.5, 72) : P(pxT, pyT, 78));
+      const [hx, hy] = toScreen(seat ? P(seat.x + 0.5, seat.y + 0.5, 78) : P(pxT, pyT, 92));
       ctx.font = uiFont(8);
       ctx.textBaseline = "middle";
       ctx.textAlign = "left";

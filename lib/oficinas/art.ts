@@ -9,6 +9,7 @@
 import type { Area, Decor, Facing, Furni, MapModel, MapRoom, Period } from "@/lib/admin/oficinas-shared";
 import { plantStage } from "@/lib/admin/oficinas-shared";
 import { CAT_BOX, TOON_BOX, drawCat, drawToon, toonLook, type ActorLook, type ToonPose } from "./toon";
+import { SHEETS } from "./personajes";
 
 export type { ActorLook };
 export const HW = 32;
@@ -1522,11 +1523,47 @@ export function lightSpill(pts: XY[], alpha: number) {
 }
 
 // --- Muñecos ------------------------------------------------------------------------
+//
+// Los personajes son las ilustraciones de Federico (scripts/personajes.mjs las
+// pasa a una lámina por personaje): una pose por cuadro, mirando abajo a la
+// derecha o de espaldas arriba a la derecha; las otras dos direcciones salen
+// espejadas. Mientras baja la lámina no se dibuja nadie; si no baja, quedan
+// los muñecos dibujados en código (toon.ts).
 
 export type Dir = "SE" | "SW" | "NE" | "NW";
 /** Hasta dónde llega lo que se mueve, desde los pies y en px del mundo (con la sombra, el paso y sentado): el motor rehace ese rectángulo en cada cuadro. */
 export type Reach = { x: number; up: number; down: number };
-export const AVATAR_REACH: Reach = { x: TOON_BOX.x1 + 2, up: -TOON_BOX.y0 + 12, down: TOON_BOX.y1 + 4 };
+/** Alto de la figura parada, en px del mundo. */
+export const FIGURE_H = 82;
+type SheetKey = keyof typeof SHEETS;
+const SK = (k: SheetKey) => FIGURE_H / SHEETS[k].height;
+// La caja que entra cualquier cuadro de cualquier personaje (espejado incluido)
+const SPRITE_X = Math.max(
+  ...(Object.keys(SHEETS) as SheetKey[]).flatMap((k) => Object.values(SHEETS[k].frames).map(([, , w, , ax]) => Math.max(ax, w - ax) * SK(k))),
+);
+const SPRITE_UP = Math.max(...(Object.keys(SHEETS) as SheetKey[]).flatMap((k) => Object.values(SHEETS[k].frames).map(([, , , , , ay]) => ay * SK(k))));
+export const AVATAR_REACH: Reach = { x: Math.max(TOON_BOX.x1, SPRITE_X) + 3, up: Math.max(-TOON_BOX.y0, SPRITE_UP) + 12, down: TOON_BOX.y1 + 4 };
+/** Las poses que entran en cada rectángulo: caminando y saludando son las más anchas. */
+const REACH_POSES: Record<"walk" | "wave" | "still" | "sit", string[]> = { walk: ["walk", "back", "idle"], wave: ["wave", "talk", "idle", "back"], still: ["idle", "back", "phone", "talk", "think"], sit: ["sit", "idle"] };
+const reachMemo = new Map<string, Reach>();
+/**
+ * El rectángulo que hay que rehacer alrededor de alguien según lo que está
+ * haciendo: más chico que el de la pose más ancha, así cada cuadro rehace menos.
+ */
+export function reachOf(who: ActorLook, doing: "walk" | "wave" | "still" | "sit"): Reach {
+  const k = sheetOf(who);
+  if (!(sheets.get(k) instanceof HTMLImageElement)) return AVATAR_REACH;
+  const key = `${k}|${doing}`;
+  let r = reachMemo.get(key);
+  if (!r) {
+    const s = SK(k);
+    const fr = Object.entries(SHEETS[k].frames).filter(([n]) => REACH_POSES[doing].some((b) => n === b || n.startsWith(b)));
+    const x = Math.max(...fr.map(([, [, , w, , ax]]) => Math.max(ax, w - ax) * s));
+    const up = Math.max(...fr.map(([, [, , , , , ay]]) => ay * s));
+    reachMemo.set(key, (r = { x: Math.max(14, x) + 3, up: up + 4, down: 7 }));
+  }
+  return r;
+}
 export const CAT_REACH: Reach = { x: CAT_BOX.x1 + 1, up: -CAT_BOX.y0 + 1, down: CAT_BOX.y1 + 1 };
 
 // Cada pose de cada muñeco se dibuja una vez en un lienzo chico a la escala de
@@ -1542,8 +1579,9 @@ function cached(key: string, box: { x0: number; x1: number; y0: number; y1: numb
   let cv = poses.get(key);
   if (!cv) {
     cv = document.createElement("canvas");
-    cv.width = Math.ceil((box.x1 - box.x0) * s);
-    cv.height = Math.ceil((box.y1 - box.y0) * s);
+    cv.width = Math.max(1, Math.ceil((box.x1 - box.x0) * s));
+    cv.height = Math.max(1, Math.ceil((box.y1 - box.y0) * s));
+    // Sin willReadFrequently aunque se recoloree: un lienzo en la CPU se volvería a subir a la placa en cada cuadro
     const t = cv.getContext("2d") as CanvasRenderingContext2D;
     t.setTransform(s, 0, 0, s, -box.x0 * s, -box.y0 * s);
     draw(t);
@@ -1553,29 +1591,140 @@ function cached(key: string, box: { x0: number; x1: number; y0: number; y1: numb
   g.drawImage(cv, box.x0, box.y0, box.x1 - box.x0, box.y1 - box.y0);
 }
 
+/** Las láminas: se piden una vez, todas juntas, cuando se arma el motor. */
+const sheets = new Map<SheetKey, HTMLImageElement | "loading" | "error">();
+export function loadSheets(onLoad: () => void) {
+  for (const k of Object.keys(SHEETS) as SheetKey[]) {
+    if (sheets.has(k)) continue;
+    sheets.set(k, "loading");
+    const img = new Image();
+    img.decoding = "async";
+    img.onload = () => {
+      sheets.set(k, img);
+      onLoad();
+    };
+    img.onerror = () => sheets.set(k, "error");
+    img.src = SHEETS[k].src;
+  }
+}
+const sheetOf = (who: ActorLook): SheetKey => (who === "federico" || who === "franco" || who === "guia" ? who : "visita");
+/** Los cuadros de una pose (`walk0`, `walk1`…), en orden. */
+const framesOf = (k: SheetKey, base: string) => Object.keys(SHEETS[k].frames).filter((n) => n === base || new RegExp(`^${base}\\d$`).test(n));
+
+/**
+ * La campera de cada visita, de su color (sale del id): la ilustración es una
+ * sola y así no son todas iguales. 0 = la original.
+ */
+const JACKETS: (number | "grey" | null)[] = [null, 190, 215, 355, 85, "grey", 160, 20];
+function recolor(t: CanvasRenderingContext2D, hue: number | "grey") {
+  const { width: w, height: h } = t.canvas;
+  const img = t.getImageData(0, 0, w, h), px = img.data;
+  for (let i = 0; i < px.length; i += 4) {
+    if (px[i + 3] < 8) continue;
+    const r = px[i] / 255, gg = px[i + 1] / 255, b = px[i + 2] / 255;
+    const mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), d = mx - mn;
+    if (!d) continue;
+    const s = d / mx;
+    let hh = mx === r ? ((gg - b) / d) % 6 : mx === gg ? (b - r) / d + 2 : (r - gg) / d + 4;
+    hh *= 60;
+    if (hh < 0) hh += 360;
+    // La campera mostaza: ni el pelo (más oscuro y más rojo), ni la piel (menos saturada)
+    if (hh < 28 || hh > 52 || s < 0.42 || mx < 0.35) continue;
+    // El gris, oscuro: una campera clara se confundiría con la camisa blanca de Federico
+    const nh = hue === "grey" ? hh : hue, ns = hue === "grey" ? s * 0.12 : s, nv = hue === "grey" ? mx * 0.62 : mx;
+    const c = nv * ns, x = c * (1 - Math.abs(((nh / 60) % 2) - 1)), m = nv - c;
+    const [r2, g2, b2] = nh < 60 ? [c, x, 0] : nh < 120 ? [x, c, 0] : nh < 180 ? [0, c, x] : nh < 240 ? [0, x, c] : nh < 300 ? [x, 0, c] : [c, 0, x];
+    px[i] = (r2 + m) * 255;
+    px[i + 1] = (g2 + m) * 255;
+    px[i + 2] = (b2 + m) * 255;
+  }
+  t.putImageData(img, 0, 0);
+}
+const jacketOf = (who: ActorLook) => {
+  if (!who.startsWith("v:")) return null;
+  let n = 0;
+  for (let i = 0; i < who.length; i++) n = (Math.imul(n, 31) + who.charCodeAt(i)) | 0;
+  return JACKETS[Math.abs(n) % JACKETS.length];
+};
+
 /**
  * Dibuja a `who` parado en (sx, sy) (los pies). `phase` 0–1 es el paso; null =
- * quieto. `typing` 0–1: sentado, mueve las manos sobre el teclado. `wave` 0–1:
- * saluda con la mano levantada. `phone`: mira el celular. `talk` 0–1: está hablando.
+ * quieto. `typing` 0–1: sentado, tipeando. `wave` 0–1: saluda. `phone`: mira
+ * el celular. `talk` 0–1: está hablando. `think`: se queda pensando.
  */
-export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: number | null, sitting = false, blink = false, typing: number | null = null, wave: number | null = null, phone = false, talk: number | null = null) {
+export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: number | null, sitting = false, blink = false, typing: number | null = null, wave: number | null = null, phone = false, talk: number | null = null, think = false) {
   const mirror = dir === "SW" || dir === "NW";
   const back = dir === "NE" || dir === "NW";
-  const pose: ToonPose = {
-    back,
-    walk: phase === null ? null : Math.floor(phase * 4) % 4,
-    sit: sitting,
-    type: typing === null ? null : typing < 0.5 ? 0 : 1,
-    wave: wave === null ? null : ((Math.floor(wave * 8) % 2) as 0 | 1),
-    talk: talk === null ? null : ((Math.floor(talk * 6) % 2) as 0 | 1),
-    phone,
-    blink: blink && !back,
-  };
-  const key = `${who}|${+back}${pose.walk ?? "-"}${+sitting}${pose.type ?? "-"}${pose.wave ?? "-"}${pose.talk ?? "-"}${+phone}${+pose.blink}`;
+  const k = sheetOf(who);
+  const sheet = sheets.get(k);
   g.save();
   g.translate(Math.round(sx), Math.round(sy));
   if (mirror) g.scale(-1, 1);
-  cached(key, TOON_BOX, (t) => drawToon(t, toonLook(who), pose));
+  if (sheet instanceof HTMLImageElement) {
+    // La pose de la lámina
+    const step = phase === null ? null : Math.floor(phase * 4) % 4;
+    const pick = (base: string, i: number) => {
+      const fr = framesOf(k, base);
+      return fr.length ? fr[i % fr.length] : "idle";
+    };
+    let name = "idle";
+    let lift = 0;
+    if (back) {
+      name = "back";
+      if (step !== null && step % 2) lift = -1.2;
+    } else if (sitting) {
+      name = SHEETS[k].frames.sit ? "sit" : "idle";
+      if (typing !== null && typing >= 0.5) lift = -0.6;
+    } else if (step !== null) {
+      // Los que tienen un solo cuadro caminando alternan con el de parado
+      const walk = framesOf(k, "walk");
+      const cycle = walk.length > 1 ? walk : [walk[0] ?? "idle", "idle"];
+      name = cycle[(walk.length > 1 ? step : step >> 1) % cycle.length];
+    } else if (wave !== null) name = pick("wave", Math.floor(wave * 8));
+    else if (talk !== null) name = pick("talk", Math.floor(talk * 10));
+    else if (phone) name = pick("phone", 0);
+    else if (think) name = pick("think", 0);
+    const [fx, fy, fw, fh, ax, ay] = SHEETS[k].frames[name];
+    const s = SK(k);
+    const box = { x0: -ax * s - 1, x1: (fw - ax) * s + 1, y0: -ay * s - 1, y1: 6 };
+    const jacket = jacketOf(who);
+    g.translate(0, lift);
+    cached(`img|${k}|${name}|${jacket ?? "-"}`, box, (t) => {
+      t.beginPath();
+      t.ellipse(0, 0, 13, 4.6, 0, 0, Math.PI * 2);
+      t.fillStyle = "rgba(11,11,12,0.3)";
+      t.fill();
+      t.imageSmoothingQuality = "high";
+      if (jacket === null) {
+        t.drawImage(sheet, fx, fy, fw, fh, -ax * s, -ay * s, fw * s, fh * s);
+        return;
+      }
+      // La campera se recolorea en un lienzo aparte, ya escalado (es chico: va
+      // rápido), y se copia: el lienzo que se usa en cada cuadro nunca se lee
+      const m = t.getTransform();
+      const tmp = document.createElement("canvas");
+      tmp.width = Math.max(1, Math.ceil(fw * s * m.a));
+      tmp.height = Math.max(1, Math.ceil(fh * s * m.a));
+      const tc = tmp.getContext("2d", { willReadFrequently: true }) as CanvasRenderingContext2D;
+      tc.imageSmoothingQuality = "high";
+      tc.drawImage(sheet, fx, fy, fw, fh, 0, 0, tmp.width, tmp.height);
+      recolor(tc, jacket);
+      t.drawImage(tmp, -ax * s, -ay * s, fw * s, fh * s);
+    });
+  } else if (sheet === "error" || sheet === undefined) {
+    const pose: ToonPose = {
+      back,
+      walk: phase === null ? null : Math.floor(phase * 4) % 4,
+      sit: sitting,
+      type: typing === null ? null : typing < 0.5 ? 0 : 1,
+      wave: wave === null ? null : ((Math.floor(wave * 8) % 2) as 0 | 1),
+      talk: talk === null ? null : ((Math.floor(talk * 6) % 2) as 0 | 1),
+      phone,
+      blink: blink && !back,
+    };
+    const key = `${who}|${+back}${pose.walk ?? "-"}${+sitting}${pose.type ?? "-"}${pose.wave ?? "-"}${pose.talk ?? "-"}${+phone}${+pose.blink}`;
+    cached(key, TOON_BOX, (t) => drawToon(t, toonLook(who), pose));
+  }
   g.restore();
 }
 
