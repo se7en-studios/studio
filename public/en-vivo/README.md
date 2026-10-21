@@ -81,3 +81,40 @@ párpado. La instrucción que se usó para las láminas:
 
 En el motor, un ciclo dura dos baldosas (un paso por baldosa: el pie no
 patina) y cada uno acelera al arrancar y frena al llegar.
+
+## Los muebles (`muebles.webp`)
+
+Los muebles, las plantas y los árboles también son ilustraciones de Flow
+(oct 2026), con el mismo dibujo que los personajes: láminas de Nano Banana 2.1
+de dos filas de cuatro objetos sobre fondo verde, con la pose parada de Federico
+como referencia de estilo. Las originales están en la carpeta de los personajes,
+en `muebles/` (no van al repo). `scripts/muebles.mjs` saca el verde (por la
+proporción de rojo y azul sobre el verde, así no se lleva el follaje), separa
+cada objeto, lo recorta y los junta en una sola imagen con las medidas en
+`lib/oficinas/muebles.ts`:
+
+    node scripts/muebles.mjs "C:/Users/feder/OneDrive/Escritorio/personajes/muebles"
+
+Qué objeto es cada uno está en `SHEETS` del script; cómo se para cada uno en
+sus baldosas (hacia dónde mira en el dibujo, qué parte de la baldosa ocupa y su
+altura máxima), en `SPRITES` de `lib/oficinas/art.ts`. Lo que se prende sigue
+dibujado en código arriba del mueble: los monitores, la tele y las tazas suben
+hasta la tapa ilustrada. El fichín, el botón de deploy y la mesa de celulares
+siguen en código. Si la imagen no baja, quedan los muebles dibujados en código.
+La instrucción base:
+
+    Use the reference image only for the drawing style; do not draw the
+    character. Isometric game asset sheet in exactly the same flat 2D cartoon
+    style as the reference: thin black outlines, flat colors with one soft
+    shade, adult animated sitcom look. Classic 2:1 isometric view (about 26.5
+    degrees), camera from the front corner, every object's front facing the
+    bottom-left of the image. Two rows of four separate objects, read left to
+    right, top row then bottom row, evenly spaced, never touching or
+    overlapping, each sitting on an invisible floor. Brand palette: warm orange
+    #FF4D2E, near-black #0B0B0C, off-white #F2EEE6, greys and warm wood; no
+    purple. Solid flat pure green background (#00FF00), no floor, no shadows,
+    no text, no people. Objects: 1 …, 2 …
+
+Para los muebles largos (mostrador, escritorios, cocina, mesa de reuniones,
+sillón, mueble de la tele) hay que pedir la proporción («six times longer than
+it is tall»): si no, salen petisos y altos para sus baldosas.
