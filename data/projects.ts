@@ -163,8 +163,18 @@ export const projects: Project[] = [
       mobile: "/projects/devices/apex-ai-mobile-2026-10.jpg",
     },
     video: {
-      mp4: "/projects/videos/apex-ai-2026-10.mp4",
-      webm: "/projects/videos/apex-ai-2026-10.webm",
+      mp4: "/projects/videos/apex-ai-2026-10b.mp4",
+      webm: "/projects/videos/apex-ai-2026-10b.webm",
+    },
+    screenVideos: {
+      tablet: {
+        mp4: "/projects/videos/apex-ai-tablet-2026-10.mp4",
+        webm: "/projects/videos/apex-ai-tablet-2026-10.webm",
+      },
+      mobile: {
+        mp4: "/projects/videos/apex-ai-mobile-2026-10.mp4",
+        webm: "/projects/videos/apex-ai-mobile-2026-10.webm",
+      },
     },
     // Sacadas de las muestras de marketing de APEX: el render real de la app con
     // datos inventados, sin tocar la base de producción.
@@ -173,7 +183,7 @@ export const projects: Project[] = [
       labels: { desktop: "Panel del coach", mobile: "App del atleta" },
       shots: [
         {
-          src: "/projects/gallery/apex-ai-coach-rutina-2026-10.jpg",
+          src: "/projects/gallery/apex-ai-coach-rutina-2026-10b.jpg",
           alt: "Panel del coach de Apex con la cartera de atletas por carpetas y la rutina de cinco días de un atleta",
           caption: "La cartera por carpetas, con la adherencia de cada atleta, y la rutina de la semana: generada con IA o armada a mano.",
           kind: "desktop",
@@ -181,7 +191,7 @@ export const projects: Project[] = [
           height: 1529,
         },
         {
-          src: "/projects/gallery/apex-ai-coach-bloque-2026-10.jpg",
+          src: "/projects/gallery/apex-ai-coach-bloque-2026-10b.jpg",
           alt: "Pestaña Bloque del panel del coach con las cuatro semanas del mesociclo y el RIR y el volumen de cada una",
           caption: "BLOQUE: el coach arma el mesociclo semana por semana, y la IA genera cada rutina respetando la fase en curso.",
           kind: "desktop",

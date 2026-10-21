@@ -24,6 +24,15 @@ export interface Project {
     mobile: string;
   };
   /**
+   * Recorrido del sitio en video para tablet y celular, en el simulador del caso:
+   * lo mismo que `video` hace en escritorio. Opcional, por tamaño: el que falte
+   * se queda con la captura de `screens`.
+   */
+  screenVideos?: {
+    tablet?: { mp4: string; webm: string };
+    mobile?: { mp4: string; webm: string };
+  };
+  /**
    * Clip mudo de hover para la tarjeta de la grilla. Opcional: si falta, la
    * tarjeta se queda con `image` fija, que es el estado por defecto.
    * Las rutas se resuelven desde /public — ver public/projects/videos/README.md

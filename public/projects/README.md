@@ -17,4 +17,6 @@ nombre seguiría sirviendo la versión vieja.
 los casos que son más que su sitio. Las de Apex salen de las muestras de
 marketing del repo de APEX (`marketing/`): el render real de la app con datos
 inventados, nunca de la app en producción. Escritorio a 2000 de ancho con el
-monitor dibujado; celular a 780×1688 (390×844 @2x), sin marco.
+monitor dibujado; celular a 780×1688 (390×844 @2x), sin marco. Las del coach
+(2026-10b) llevan los avatares de los atletas, como el coach real y la landing
+de APEX: misma asignación con semilla fija que su `capturar-panel.js`.
