@@ -58,7 +58,8 @@ function actorsFor(online: EnVivoPublic["online"], map: MapModel, visitors: Visi
     ? [{ id: "guia", look: "guia", goal: { kind: "tour" } }]
     : working.map((o) => {
         const room = o.room ? map.rooms.find((r) => r.slug === o.room) : null;
-        return { id: o.who, look: o.who, goal: room ? { kind: "room", room: room.id } : { kind: "seat", who: o.who } };
+        // Con su nombre arriba: son los dueños (el motor les pone el aura)
+        return { id: o.who, look: o.who, goal: room ? { kind: "room", room: room.id } : { kind: "seat", who: o.who }, tag: NAMES[o.who] };
       });
   const guests: ActorSpec[] = list.map((v) => ({
     id: `v-${v.id}`,

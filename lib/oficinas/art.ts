@@ -720,8 +720,8 @@ export function decor(dc: Decor, accent: string, period: Period, art: RoomArt | 
       break;
     case "studiologo":
       // El logo de se7en, de verdad (public/logo.png), en una placa oscura
-      R(0.1, L - 0.1, 84, 112, PAL.ink, OUT);
-      if (studio?.logo) wallImage(dc, studio.logo, 0.22, L - 0.22, 87, 109);
+      R(0.1, L - 0.1, 86, 113, PAL.ink, OUT);
+      if (studio?.logo) wallImage(dc, studio.logo, 0.22, L - 0.22, 89, 110);
       else {
         R(0.4, 0.8, 90, 106, SIGNAL);
         R(1, L - 0.4, 94, 102, PAL.white);
@@ -851,7 +851,7 @@ const screenZ = (dc: Decor): [number, number] => (dc.k === "slides" ? [46, 94] :
 /** Ancho/alto del cartel de marca colgado en `dc`, para hornearlo sin recortes. */
 export const posterAspect = (dc: Decor) => ((dc.len - 0.24) * TILE) / (brandZ(dc)[1] - brandZ(dc)[0]);
 /** Dónde va la frase de la recepción y su ancho/alto. */
-const SLOGAN_Z = [59, 83] as const;
+const SLOGAN_Z = [62, 81] as const;
 export const sloganAspect = (dc: Decor) => ((dc.len - 0.4) * TILE) / (SLOGAN_Z[1] - SLOGAN_Z[0]);
 
 /** Pantallas dibujadas en una pared: el motor les pone contenido por arriba de todo. */
@@ -1647,6 +1647,45 @@ const jacketOf = (who: ActorLook) => {
   return JACKETS[Math.abs(n) % JACKETS.length];
 };
 
+/** Los dueños del estudio: Federico y Franco. */
+export const isOwner = (who: ActorLook) => who === "federico" || who === "franco";
+/** Hasta dónde llega el aura de un dueño, desde los pies (el halo es más ancho que el muñeco). */
+export const OWNER_REACH: Reach = { x: 40, up: 86, down: 11 };
+/**
+ * El aura de los dueños, atrás del muñeco: un halo naranja a la altura del
+ * cuerpo y un anillo en el piso que late. No se tiñe con la luz de la hora: de
+ * noche se ve más. `still`: sin el latido (movimiento reducido).
+ */
+export function ownerAura(sx: number, sy: number, ts: number, still: boolean, sitting = false) {
+  g.save();
+  g.translate(Math.round(sx), Math.round(sy));
+  const cy = sitting ? -32 : -44;
+  const halo = g.createRadialGradient(0, cy, 4, 0, cy, 38);
+  halo.addColorStop(0, "rgba(255,106,79,0.36)");
+  halo.addColorStop(0.55, "rgba(255,77,46,0.15)");
+  halo.addColorStop(1, "rgba(255,77,46,0)");
+  g.fillStyle = halo;
+  g.beginPath();
+  g.arc(0, cy, 38, 0, Math.PI * 2);
+  g.fill();
+  g.beginPath();
+  g.ellipse(0, 0.5, 15, 5.6, 0, 0, Math.PI * 2);
+  g.fillStyle = "rgba(255,77,46,0.2)";
+  g.fill();
+  g.lineWidth = 1.5;
+  g.strokeStyle = "rgba(255,77,46,0.95)";
+  g.stroke();
+  if (!still) {
+    const k = (ts % 1800) / 1800;
+    g.beginPath();
+    g.ellipse(0, 0.5, 15 * (1 + k * 0.5), 5.6 * (1 + k * 0.5), 0, 0, Math.PI * 2);
+    g.globalAlpha = 0.7 * (1 - k);
+    g.stroke();
+    g.globalAlpha = 1;
+  }
+  g.restore();
+}
+
 /**
  * Dibuja a `who` parado en (sx, sy) (los pies). `phase` 0–1 es el ciclo de
  * dos pasos; null = quieto. `blink`: parpadea (parado). `typing` 0–1:
@@ -1689,16 +1728,29 @@ export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: 
     if (name === "idle" && blink && SHEETS[k].frames.blink) name = "blink";
     const [fx, fy, fw, fh, ax, ay] = SHEETS[k].frames[name];
     const s = SK(k);
-    const box = { x0: -ax * s - 1, x1: (fw - ax) * s + 1, y0: -ay * s - 1, y1: 6 };
+    // Los dueños: un brillo naranja que sigue el contorno (va en la pose guardada: no cuesta en cada cuadro)
+    const owner = isOwner(who), gm = owner ? 6 : 0;
+    const box = { x0: -ax * s - 1 - gm, x1: (fw - ax) * s + 1 + gm, y0: -ay * s - 1 - gm, y1: 6 };
     const jacket = jacketOf(who);
     g.translate(0, lift);
-    cached(`img|${k}|${name}|${jacket ?? "-"}`, box, (t) => {
+    cached(`img|${k}|${name}|${jacket ?? "-"}${owner ? "|dueño" : ""}`, box, (t) => {
       t.beginPath();
       t.ellipse(0, 0, 13, 4.6, 0, 0, Math.PI * 2);
       t.fillStyle = "rgba(11,11,12,0.3)";
       t.fill();
       t.imageSmoothingQuality = "high";
       if (jacket === null) {
+        if (owner) {
+          // El blur no sigue la escala del lienzo: va en px de la pantalla
+          const sc = Math.abs(t.getTransform().a);
+          t.save();
+          t.shadowColor = "rgba(255,77,46,0.95)";
+          for (const blur of [6, 2.4]) {
+            t.shadowBlur = blur * sc;
+            t.drawImage(sheet, fx, fy, fw, fh, -ax * s, -ay * s, fw * s, fh * s);
+          }
+          t.restore();
+        }
         t.drawImage(sheet, fx, fy, fw, fh, -ax * s, -ay * s, fw * s, fh * s);
         return;
       }
