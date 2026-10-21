@@ -152,19 +152,19 @@ export const projects: Project[] = [
     approach:
       "Separamos los roles. El coach marca la fase de cada semana (acumulación, descarga, pico) y la IA genera la rutina sin salirse de ese marco; la progresión, los récords y el volumen los calcula el código, no el modelo. Un catálogo de 260 ejercicios, con un solo nombre por ejercicio, hace que el historial de cada atleta no se corte nunca.",
     design:
-      "Oscura y de estética militar, no de app de fitness: Bebas Neue para los títulos, JetBrains Mono para cada kg y cada RIR, un único acento amarillo y el celeste reservado a lo que hace la IA. En el gimnasio, el atleta carga el peso con una rueda o armando la barra disco por disco, con timer de descanso y el mapa muscular del día.",
+      "Oscura y de estética militar, no de app de fitness: Bebas Neue para los títulos, JetBrains Mono para cada kg y cada RIR, un único acento amarillo y el celeste reservado a lo que hace la IA. En el gimnasio, el atleta carga el peso con una rueda o armando la barra disco por disco, con timer de descanso y el mapa muscular del día. La landing tiene su propia voz: se recorre como una sesión de fuerza, con fotos tratadas en carbón, Archivo a tamaño gigante y la misma señal amarilla.",
     technology: ["JavaScript", "Firebase", "Netlify Functions", "Claude API", "MercadoPago", "PWA"],
     outcome:
       "Las dos apps están en producción y las usan coaches y atletas reales todos los días. Cada cambio pasa antes por más de 4.000 verificaciones automáticas que corren el código real de la app.",
     url: "https://apexperformance.com.ar/",
-    image: "/projects/apex-ai-2026-09-es.jpg",
+    image: "/projects/apex-ai-2026-10.jpg",
     screens: {
-      tablet: "/projects/devices/apex-ai-tablet-2026-09.jpg",
-      mobile: "/projects/devices/apex-ai-mobile-2026-09.jpg",
+      tablet: "/projects/devices/apex-ai-tablet-2026-10.jpg",
+      mobile: "/projects/devices/apex-ai-mobile-2026-10.jpg",
     },
     video: {
-      mp4: "/projects/videos/apex-ai-2026-09c.mp4",
-      webm: "/projects/videos/apex-ai-2026-09c.webm",
+      mp4: "/projects/videos/apex-ai-2026-10.mp4",
+      webm: "/projects/videos/apex-ai-2026-10.webm",
     },
     // Sacadas de las muestras de marketing de APEX: el render real de la app con
     // datos inventados, sin tocar la base de producción.
