@@ -1150,6 +1150,15 @@ export function furniReach(f: Furni): { x0: number; y0: number; x1: number; y1: 
   return b;
 }
 
+/** A qué altura queda la tapa de un escritorio (el ilustrado, si ya bajó; si no, el dibujado en código). */
+export function deskTop(f: Furni): number {
+  const sp = SPRITES[f.k];
+  const code = sp?.top ?? 28;
+  if (!sp || !(atlas instanceof HTMLImageElement)) return code;
+  const p = place(f, sp);
+  return p ? p.top : code;
+}
+
 export function furni(f: Furni, ctx: FurniCtx) {
   if (!furniSprite(f, ctx)) furniCode(f, ctx);
 }
@@ -1171,13 +1180,12 @@ function furniCode(f: Furni, ctx: FurniCtx, base = true) {
       }
       if (ctx.covered) { sheet(x, y, w, d, 34); break; }
       if (ctx.kind === "office" && ctx.area === "dev") {
-        // El escritorio de Franco: el monitor en su brazo, la notebook con el
-        // sticker del estudio (se ve la tapa), el pato de goma para depurar y el café
-        box(x + 0.32, y + 0.22, 28, 0.86, 0.1, 24, PAL.char);
-        box(x + 0.7, y + 0.3, 28, 0.08, 0.08, 4, METAL);
-        box(x + 1.2, y + 0.35, 28, 0.62, 0.42, 1.5, PAL.grey);
-        box(x + 1.2, y + 0.7, 29.5, 0.62, 0.05, 16, "#cfccc6", { left: "#bdbab3" });
-        const [sx, sy] = P(x + 1.51, y + 0.75, 38);
+        // El escritorio de Franco: el monitor en su brazo con el sticker del
+        // estudio atrás, el pato de goma para depurar y el café. Del medio a la
+        // derecha se sienta él, con su teclado: ahí no va nada.
+        box(x + 0.18, y + 0.22, 28, 0.86, 0.1, 24, PAL.char);
+        box(x + 0.58, y + 0.3, 28, 0.08, 0.08, 4, METAL);
+        const [sx, sy] = P(x + 0.61, y + 0.33, 41);
         for (const r of [3.4, 2.4, 1.4]) {
           g.beginPath();
           g.ellipse(sx, sy, r, r * 1.1, 0, Math.PI * 0.55, Math.PI * 1.45);
@@ -1185,23 +1193,24 @@ function furniCode(f: Furni, ctx: FurniCtx, base = true) {
           g.lineWidth = 0.8;
           g.stroke();
         }
-        const [dx, dy] = P(x + 2.35, y + 0.55, 28);
+        const [dx, dy] = P(x + 0.5, y + 0.7, 28);
         ellipse(dx, dy - 3, 3.4, 2.8, c("#ffd84d"), OUT, 1);
         ellipse(dx + 2.4, dy - 6.6, 2.2, 2.2, c("#ffd84d"), OUT, 1);
         ellipse(dx + 4.2, dy - 6.2, 1.4, 0.7, c("#ff8a3d"), null);
-        mug(x + 2.7, y + 0.35, 28, PAL.signal, ctx, f.room);
+        mug(x + 1.12, y + 0.52, 28, PAL.signal, ctx, f.room);
       } else if (ctx.kind === "office") {
-        // El de Federico: el monitor grande (se ve la espalda), la tableta con el lápiz y los lápices de colores
-        box(x + 0.25, y + 0.25, 28, 1.3, 0.12, 30, "#dedad3", { top: "#efece6" });
-        box(x + 0.8, y + 0.37, 28, 0.2, 0.16, 6, PAL.grey2);
-        const [lx, ly] = P(x + 0.9, y + 0.37, 46);
+        // El de Federico: el monitor grande (se ve la espalda), la tableta con el
+        // lápiz y los lápices de colores. En el medio se sienta él, con su teclado.
+        box(x + 0.08, y + 0.25, 28, 0.95, 0.12, 30, "#dedad3", { top: "#efece6" });
+        box(x + 0.46, y + 0.37, 28, 0.2, 0.16, 6, PAL.grey2);
+        const [lx, ly] = P(x + 0.55, y + 0.37, 46);
         ellipse(lx, ly, 3.2, 3.6, c(PAL.signal), null);
-        box(x + 1.75, y + 0.35, 28, 0.62, 0.4, 1.4, PAL.char);
-        box(x + 1.82, y + 0.42, 29.4, 0.48, 0.26, 0.2, PAL.grey, { line: null });
-        line(P(x + 2, y + 0.5, 30.5), P(x + 2.35, y + 0.6, 31.5), c(PAL.white), 1.2);
-        cyl(x + 2.75, y + 0.4, 28, 2.4, 6, PAL.signal, PAL.deep);
+        box(x + 1.02, y + 0.55, 28, 0.5, 0.34, 1.4, PAL.char);
+        box(x + 1.08, y + 0.6, 29.4, 0.38, 0.22, 0.2, PAL.grey, { line: null });
+        line(P(x + 1.18, y + 0.67, 30.5), P(x + 1.42, y + 0.75, 31.5), c(PAL.white), 1.2);
+        cyl(x + 0.3, y + 0.66, 28, 2.4, 6, PAL.signal, PAL.deep);
         for (const [i, col] of [PAL.signal, "#ffd84d", PAL.ink3, PAL.signal3].entries()) {
-          const [px, py] = P(x + 2.75, y + 0.4, 34);
+          const [px, py] = P(x + 0.3, y + 0.66, 34);
           line([px - 1.5 + i, py], [px - 2.2 + i * 1.5, py - 6], c(col), 1.3);
         }
       } else if (face === "x") {
@@ -1774,7 +1783,7 @@ const SPRITE_X = Math.max(
 const SPRITE_UP = Math.max(...(Object.keys(SHEETS) as SheetKey[]).flatMap((k) => Object.values(SHEETS[k].frames).map(([, , , , , ay]) => ay * SK(k))));
 export const AVATAR_REACH: Reach = { x: Math.max(TOON_BOX.x1, SPRITE_X) + 3, up: Math.max(-TOON_BOX.y0, SPRITE_UP) + 12, down: TOON_BOX.y1 + 4 };
 /** Las poses que entran en cada rectángulo: caminando y saludando son las más anchas. */
-const REACH_POSES: Record<"walk" | "wave" | "still" | "sit", string[]> = { walk: ["walk", "back", "idle"], wave: ["wave", "talk", "idle", "back"], still: ["idle", "blink", "back", "phone", "talk", "think"], sit: ["sit", "idle"] };
+const REACH_POSES: Record<"walk" | "wave" | "still" | "sit", string[]> = { walk: ["walk", "back", "idle"], wave: ["wave", "talk", "idle", "back"], still: ["idle", "blink", "back", "phone", "talk", "think"], sit: ["sit", "idle", "type", "think", "sip", "stretch", "doze"] };
 const reachMemo = new Map<string, Reach>();
 /**
  * El rectángulo que hay que rehacer alrededor de alguien según lo que está
@@ -1790,7 +1799,9 @@ export function reachOf(who: ActorLook, doing: "walk" | "wave" | "still" | "sit"
     const fr = Object.entries(SHEETS[k].frames).filter(([n]) => REACH_POSES[doing].some((b) => n === b || n.startsWith(b)));
     const x = Math.max(...fr.map(([, [, , w, , ax]]) => Math.max(ax, w - ax) * s));
     const up = Math.max(...fr.map(([, [, , , , , ay]]) => ay * s));
-    reachMemo.set(key, (r = { x: Math.max(14, x) + 3, up: up + 4, down: 7 }));
+    // Sentado, el teclado y las manos quedan por debajo de la cintura
+    const down = Math.max(0, ...fr.map(([, [, , , h, , ay]]) => (h - ay) * s));
+    reachMemo.set(key, (r = { x: Math.max(14, x) + 3, up: up + 4, down: Math.max(7, down + 4) }));
   }
   return r;
 }
@@ -1889,7 +1900,7 @@ export const OWNER_REACH: Reach = { x: 40, up: 86, down: 11 };
 export function ownerAura(sx: number, sy: number, ts: number, still: boolean, sitting = false) {
   g.save();
   g.translate(Math.round(sx), Math.round(sy));
-  const cy = sitting ? -32 : -44;
+  const cy = sitting ? -18 : -44;
   const halo = g.createRadialGradient(0, cy, 4, 0, cy, 38);
   halo.addColorStop(0, "rgba(255,106,79,0.36)");
   halo.addColorStop(0.55, "rgba(255,77,46,0.15)");
@@ -1898,6 +1909,10 @@ export function ownerAura(sx: number, sy: number, ts: number, still: boolean, si
   g.beginPath();
   g.arc(0, cy, 38, 0, Math.PI * 2);
   g.fill();
+  if (sitting) {
+    g.restore();
+    return;
+  }
   g.beginPath();
   g.ellipse(0, 0.5, 15, 5.6, 0, 0, Math.PI * 2);
   g.fillStyle = "rgba(255,77,46,0.2)";
@@ -1919,10 +1934,13 @@ export function ownerAura(sx: number, sy: number, ts: number, still: boolean, si
 /**
  * Dibuja a `who` parado en (sx, sy) (los pies). `phase` 0–1 es el ciclo de
  * dos pasos; null = quieto. `blink`: parpadea (parado). `typing` 0–1:
- * sentado, tipeando. `wave` 0–1: saluda. `phone`: mira el celular. `talk`
- * 0–1: está hablando. `think`: se queda pensando.
+ * sentado, tipeando. `wave` 0–1: saluda (y después dice algo). `phone`:
+ * mira el celular. `talk` 0–1: está hablando. `think`: se queda pensando.
+ * `seated`: los dueños sentados al escritorio, qué cuadro (type0…3, think,
+ * sip, stretch, doze); entonces (sx, sy) es la cintura, contra el borde de
+ * atrás del escritorio.
  */
-export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: number | null, sitting = false, blink = false, typing: number | null = null, wave: number | null = null, phone = false, talk: number | null = null, think = false) {
+export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: number | null, sitting = false, blink = false, typing: number | null = null, wave: number | null = null, phone = false, talk: number | null = null, think = false, seated: string | null = null) {
   const mirror = dir === "SW" || dir === "NW";
   const back = dir === "NE" || dir === "NW";
   const k = sheetOf(who);
@@ -1947,27 +1965,34 @@ export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: 
         name = "back";
         if (step !== null && step % 2) lift = -1.2;
       }
-    } else if (sitting) {
+    } else if (seated && SHEETS[k].frames[seated]) name = seated;
+    else if (sitting) {
       name = SHEETS[k].frames.sit ? "sit" : "idle";
       if (typing !== null && typing >= 0.5) lift = -0.6;
     } else if (walk.length) name = walk[Math.floor((phase ?? 0) * walk.length) % walk.length];
-    else if (wave !== null) name = pick("wave", Math.floor(wave * 8));
+    // Saluda con la mano y después dice «HOLA!» (la boca se mueve)
+    else if (wave !== null) name = wave < 0.55 ? pick("wave", Math.floor((wave / 0.55) * 8)) : pick("talk", Math.floor(((wave - 0.55) / 0.45) * 6));
     else if (talk !== null) name = pick("talk", Math.floor(talk * 10));
     else if (phone) name = pick("phone", 0);
     else if (think) name = pick("think", 0);
     if (name === "idle" && blink && SHEETS[k].frames.blink) name = "blink";
+    else if (name === "type0" && blink && SHEETS[k].frames.typeb) name = "typeb";
     const [fx, fy, fw, fh, ax, ay] = SHEETS[k].frames[name];
     const s = SK(k);
     // Los dueños: un brillo naranja que sigue el contorno (va en la pose guardada: no cuesta en cada cuadro)
     const owner = isOwner(who), gm = owner ? 6 : 0;
-    const box = { x0: -ax * s - 1 - gm, x1: (fw - ax) * s + 1 + gm, y0: -ay * s - 1 - gm, y1: 6 };
+    // Sentado a la compu no hay sombra en el piso (está detrás del escritorio) y el teclado asoma por debajo de la cintura
+    const bust = name === seated;
+    const box = { x0: -ax * s - 1 - gm, x1: (fw - ax) * s + 1 + gm, y0: -ay * s - 1 - gm, y1: Math.max(6, (fh - ay) * s + 1 + gm) };
     const jacket = jacketOf(who);
     g.translate(0, lift);
     cached(`img|${k}|${name}|${jacket ?? "-"}${owner ? "|dueño" : ""}`, box, (t) => {
-      t.beginPath();
-      t.ellipse(0, 0, 13, 4.6, 0, 0, Math.PI * 2);
-      t.fillStyle = "rgba(11,11,12,0.3)";
-      t.fill();
+      if (!bust) {
+        t.beginPath();
+        t.ellipse(0, 0, 13, 4.6, 0, 0, Math.PI * 2);
+        t.fillStyle = "rgba(11,11,12,0.3)";
+        t.fill();
+      }
       t.imageSmoothingQuality = "high";
       if (jacket === null) {
         if (owner) {

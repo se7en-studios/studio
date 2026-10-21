@@ -82,6 +82,23 @@ párpado. La instrucción que se usó para las láminas:
 En el motor, un ciclo dura dos baldosas (un paso por baldosa: el pie no
 patina) y cada uno acelera al arrancar y frena al llegar.
 
+Con la misma técnica hay dos láminas más por personaje:
+
+- **«saludo y charla.jpg»** (los cuatro): cuatro cuadros saludando con la
+  mano y cuatro hablando. Cuando dos se cruzan, los que caminan frenan, se
+  dan vuelta, saludan y dicen «HOLA!». El guía habla un rato en cada sala del
+  recorrido.
+- **«sentado tipeando.jpg»** (Federico y Franco): de la cintura para arriba,
+  con el teclado en las manos: tres cuadros tipeando, uno sonriendo a la
+  pantalla, pensando, tomando café, estirándose y dormido. El script los
+  apoya en la cintura y los escala para que midan lo mismo que de la cabeza al
+  cinturón parados. El motor los sienta detrás de su escritorio, con la
+  cintura en el borde de atrás de la tapa y el teclado arriba de ella (el
+  panel del escritorio les tapa las piernas). Tipean casi siempre, sin repetir
+  cuadro, y cada tanto piensan, toman café o se estiran. Si el otro socio no
+  está conectado, en el panel aparece dormido. El parpadeo sentado también lo
+  dibuja el script.
+
 ## Los muebles (`muebles.webp`)
 
 Los muebles, las plantas y los árboles también son ilustraciones de Flow

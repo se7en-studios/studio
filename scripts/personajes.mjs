@@ -2,8 +2,9 @@
 // sueltas (fondo verde, una pose por archivo): saca el verde, recorta cada
 // figura, la escala para que todos midan lo mismo parados, la apoya por los
 // pies y las junta en una tira por personaje (public/en-vivo/personajes/*.webp).
-// Las caminatas salen de una lámina de 8 cuadros (dos filas de cuatro) que se
-// corta sola. El parpadeo se dibuja acá, sobre la pose parada.
+// Las caminatas, el saludo con la charla y los dueños sentados tipeando salen
+// de láminas de 8 cuadros (dos filas de cuatro) que se cortan solas. El
+// parpadeo se dibuja acá, sobre la pose parada y sobre la sentada.
 // Las medidas de cada cuadro van a lib/oficinas/personajes.ts.
 //
 //   node scripts/personajes.mjs "C:/Users/feder/OneDrive/Escritorio/personajes"
@@ -25,27 +26,33 @@ const HEIGHT = 192;
 const PAD = 2;
 
 // Qué archivo es cada pose. El nombre de la carpeta y del archivo, sin tildes ni mayúsculas.
-// `cycles`: las láminas de caminata (de frente y de espaldas) y con qué pose parada se igualan.
+// `sets`: las láminas de ocho cuadros (dos filas de cuatro), con el nombre de cada cuadro:
+//   - las caminatas, que se igualan en altura con la pose parada que les corresponde (`like`) y se apoyan bajo la cabeza;
+//   - el saludo y la charla, parados, que se apoyan en los pies;
+//   - los dueños sentados tipeando (`bust`): de la cintura para arriba, con el teclado; se apoyan en la cintura.
+const WALK = (file, like, base) => ({ file, like, names: Array.from({ length: 8 }, (_, i) => `${base}${i}`), anchor: "head" });
+const WAVE_TALK = { file: "saludo y charla", like: "idle", names: ["wave0", "wave1", "wave2", "wave3", "talk0", "talk1", "talk2", "talk3"], anchor: "feet" };
+const SEATED = { file: "sentado tipeando", bust: true, names: ["type0", "type1", "type2", "type3", "think", "sip", "stretch", "doze"] };
 const POSES = {
   federico: {
     dir: "Federico",
-    frames: { idle: "parado", back: "de espaldas (1)", sit: "sentado", wave0: "saludando", phone0: "celular (1)", phone1: "celular (2)", talk0: "hablando (1)", talk1: "hablando (2)", talk2: "hablando (3)", talk3: "hablando (4)" },
-    cycles: { walk: ["caminata frente", "idle"], walkb: ["caminata espaldas", "back"] },
+    frames: { idle: "parado", back: "de espaldas (1)", sit: "sentado", phone0: "celular (1)", phone1: "celular (2)" },
+    sets: [WALK("caminata frente", "idle", "walk"), WALK("caminata espaldas", "back", "walkb"), WAVE_TALK, SEATED],
   },
   franco: {
     dir: "Franco",
-    frames: { idle: "parado", back: "de espaldas", sit: "sentado", wave0: "saludando", phone0: "celular (1)", phone1: "celular (2)", talk0: "hablando (1)", talk1: "hablando (2)" },
-    cycles: { walk: ["caminata frente", "idle"], walkb: ["caminata espaldas", "back"] },
+    frames: { idle: "parado", back: "de espaldas", sit: "sentado", phone0: "celular (1)", phone1: "celular (2)" },
+    sets: [WALK("caminata frente", "idle", "walk"), WALK("caminata espaldas", "back", "walkb"), WAVE_TALK, SEATED],
   },
   guia: {
     dir: "GUIDE",
-    frames: { idle: "parado", back: "de espaldas", wave0: "saludando (1)", wave1: "saludando (2)", phone0: "con el celular (1)", phone1: "con el celular (2)", phone2: "con el celular (3)", talk0: "conversando (1)", talk1: "conversando (2)", talk2: "conversando (3)", talk3: "conversando (4)" },
-    cycles: { walk: ["caminata frente", "idle"], walkb: ["caminata espaldas", "back"] },
+    frames: { idle: "parado", back: "de espaldas", phone0: "con el celular (1)", phone1: "con el celular (2)", phone2: "con el celular (3)" },
+    sets: [WALK("caminata frente", "idle", "walk"), WALK("caminata espaldas", "back", "walkb"), WAVE_TALK],
   },
   visita: {
     dir: "visitante",
-    frames: { idle: "parado", back: "de espaldas (1)", wave0: "saludando (1)", wave1: "saludando (2)", phone0: "con el celular (1)", phone1: "con el celular (2)", phone2: "con el celular (3)", think0: "pensando (1)", think1: "pensando (2)", talk0: "asombrado (1)", talk1: "asombrado (2)" },
-    cycles: { walk: ["caminata frente", "idle"], walkb: ["caminata espaldas", "back"] },
+    frames: { idle: "parado", back: "de espaldas (1)", phone0: "con el celular (1)", phone1: "con el celular (2)", phone2: "con el celular (3)", think0: "pensando (1)", think1: "pensando (2)" },
+    sets: [WALK("caminata frente", "idle", "walk"), WALK("caminata espaldas", "back", "walkb"), WAVE_TALK],
   },
 };
 
@@ -130,8 +137,8 @@ function runs(prof, gap, minLen, thr) {
   return out;
 }
 
-/** Corta una lámina de caminata en sus figuras, en orden de lectura (filas de arriba abajo, cada una de izquierda a derecha). */
-async function cycle(file) {
+/** Corta una lámina de ocho cuadros en sus figuras, en orden de lectura (filas de arriba abajo, cada una de izquierda a derecha). */
+async function cycle(file, anchor = "head") {
   const img = await keyedImage(file);
   const { data, w, h } = img;
   const on = (x, y) => data[(y * w + x) * 4 + 3] > 120;
@@ -141,15 +148,74 @@ async function cycle(file) {
   for (const [y0, y1] of runs(rows, 6, 60, 2)) {
     const cols = new Array(w).fill(0);
     for (let y = y0; y <= y1; y++) for (let x = 0; x < w; x++) if (on(x, y)) cols[x]++;
-    for (const [x0, x1] of runs(cols, 8, 25, 1)) frames.push({ ...img, ...figure(img, x0, y0, x1, y1) });
+    const segs = runs(cols, 8, 25, 1);
+    // Si un cuadro quedó partido (el teclado suelto de las manos), se juntan los pedazos más cercanos
+    while (segs.length > 4) {
+      let best = 0;
+      for (let i = 1; i < segs.length - 1; i++) if (segs[i + 1][0] - segs[i][1] < segs[best + 1][0] - segs[best][1]) best = i;
+      segs.splice(best, 2, [segs[best][0], segs[best + 1][1]]);
+    }
+    for (const [x0, x1] of segs) frames.push({ ...img, ...figure(img, x0, y0, x1, y1) });
   }
-  // Caminando, los pies se abren y se cierran: el centro entre los dos va y
-  // viene. El cuerpo avanza parejo, así que cada cuadro se apoya bajo la
-  // cabeza, corrido lo que en promedio la cabeza va adelante de los pies
-  const lead = frames.reduce((t, f) => t + (f.head - f.feet), 0) / frames.length;
-  for (const f of frames) f.feet = f.head - lead;
   if (frames.length !== 8) throw new Error(`${file}: salieron ${frames.length} figuras, no 8`);
+  if (anchor === "head") {
+    // Caminando, los pies se abren y se cierran: el centro entre los dos va y
+    // viene. El cuerpo avanza parejo, así que cada cuadro se apoya bajo la
+    // cabeza, corrido lo que en promedio la cabeza va adelante de los pies
+    const lead = frames.reduce((t, f) => t + (f.head - f.feet), 0) / frames.length;
+    for (const f of frames) f.feet = f.head - lead;
+  }
   return frames;
+}
+
+/**
+ * Sentado de la cintura para arriba: el borde de abajo del torso (las columnas
+ * de la izquierda, donde está el cuerpo; el teclado y las manos van a la
+ * derecha y más abajo) y su centro. Ahí se apoya, contra el borde de atrás del
+ * escritorio.
+ */
+function waist(f) {
+  const { data, w } = f;
+  const { x0, y0, x1 } = f.box;
+  const xs = x0 + Math.round((x1 - x0) * 0.42);
+  // La ropa, no el teclado ni el contorno: lo claro
+  const cloth = (x, y) => {
+    const i = (y * w + x) * 4;
+    return data[i + 3] > 120 && 0.3 * data[i] + 0.59 * data[i + 1] + 0.11 * data[i + 2] > 110;
+  };
+  let wy = y0;
+  for (let x = x0; x <= xs; x++)
+    for (let y = f.box.y1; y > wy; y--)
+      if (cloth(x, y)) {
+        wy = y;
+        break;
+      }
+  let sx = 0, n = 0;
+  for (let x = x0; x <= xs; x++)
+    if (cloth(x, wy - 3)) {
+      sx += x;
+      n++;
+    }
+  // El contorno de abajo, un poco más
+  return { y: wy + 2, x: n ? sx / n : (x0 + xs) / 2 };
+}
+
+/** Dónde termina la camisa o el buzo y empieza el pantalón, en la pose parada: la primera fila, de la mitad para abajo, casi toda oscura. */
+function beltOf(r) {
+  const { data, w } = r;
+  const { x0, y0, x1, y1 } = r.box;
+  const H = y1 - y0 + 1;
+  for (let y = y0 + Math.round(H * 0.38); y < y0 + Math.round(H * 0.78); y++) {
+    let n = 0, dark = 0;
+    for (let x = x0; x <= x1; x++) {
+      const i = (y * w + x) * 4;
+      if (data[i + 3] < 200) continue;
+      n++;
+      if (0.3 * data[i] + 0.59 * data[i + 1] + 0.11 * data[i + 2] < 80) dark++;
+    }
+    if (n > 12 && dark / n > 0.6) return y;
+  }
+  return y0 + Math.round(H * 0.5);
 }
 
 /**
@@ -157,13 +223,13 @@ async function cycle(file) {
  * pupilas) del color de la piel de al lado y le traza el párpado. Busca los
  * ojos en el quinto de arriba de la figura: manchas blancas grandes y redondas.
  */
-function blinkOf(r) {
+function blinkOf(r, band = 0.2) {
   const { w } = r;
   const data = Buffer.from(r.data);
   const { x0, y0, x1, y1 } = r.box;
   const fh = y1 - y0 + 1;
-  // Los ojos empiezan en el quinto de arriba; pueden bajar un poco más
-  const hy1 = y0 + Math.round(fh * 0.2), hyMax = y0 + Math.round(fh * 0.35);
+  // Los ojos empiezan en la franja de arriba (`band`: un quinto parado; más abajo sentado, que no tiene piernas); pueden bajar un poco más
+  const hy1 = y0 + Math.round(fh * band), hyMax = y0 + Math.round(fh * (band + 0.15));
   const at = (x, y) => (y * w + x) * 4;
   const white = (x, y) => {
     const i = at(x, y);
@@ -291,7 +357,7 @@ async function part(pose, r, k) {
     .resize(Math.max(1, Math.round(cw * k)), Math.max(1, Math.round(ch * k)), { kernel: "lanczos3" })
     .png()
     .toBuffer({ resolveWithObject: true });
-  return { pose, buf: img.data, w: img.info.width, h: img.info.height, ax: (r.feet - x0) * k, ay: ch * k };
+  return { pose, buf: img.data, w: img.info.width, h: img.info.height, ax: (r.feet - x0) * k, ay: ((r.anchorY ?? y1 + 1) - y0) * k };
 }
 
 const meta = {};
@@ -305,12 +371,31 @@ for (const [who, def] of Object.entries(POSES)) {
   const blink = blinkOf(raw.idle);
   if (blink) parts.splice(1, 0, await part("blink", blink, k));
   else console.warn(who, "sin parpadeo: no encontré los ojos");
-  // Las caminatas vienen de otra imagen, con otro tamaño: el cuadro más alto mide lo que la pose parada que les corresponde
-  for (const [base, [name, like]] of Object.entries(def.cycles ?? {})) {
-    const fr = await cycle(find(def.dir, name));
-    const target = (raw[like].box.y1 - raw[like].box.y0 + 1) * k;
-    const kc = target / Math.max(...fr.map((f) => f.box.y1 - f.box.y0 + 1));
-    for (let i = 0; i < fr.length; i++) parts.push(await part(`${base}${i}`, fr[i], kc));
+  // Las láminas de ocho vienen de otra imagen, con otro tamaño
+  const med = (v) => [...v].sort((a, b) => a - b)[v.length >> 1];
+  for (const set of def.sets ?? []) {
+    const fr = await cycle(find(def.dir, set.file), set.anchor);
+    let kc;
+    if (set.bust) {
+      // Sentado: del pelo a la cintura mide lo que, parado, de la cabeza al cinturón
+      const tall = (beltOf(raw.idle) - raw.idle.box.y0) * k;
+      for (const f of fr) {
+        const wz = waist(f);
+        Object.assign(f, { feet: wz.x, anchorY: wz.y });
+      }
+      kc = tall / med(fr.slice(0, 4).map((f) => f.anchorY - f.box.y0));
+    } else {
+      // Parados: la mediana de las alturas (la mano en alto no cuenta) mide lo que la pose parada
+      const target = (raw[set.like].box.y1 - raw[set.like].box.y0 + 1) * k;
+      kc = target / med(fr.map((f) => f.box.y1 - f.box.y0 + 1));
+    }
+    for (let i = 0; i < fr.length; i++) parts.push(await part(set.names[i], fr[i], kc));
+    if (set.bust) {
+      // El parpadeo, sobre el primer cuadro tipeando
+      const b = blinkOf(fr[0], 0.38);
+      if (b) parts.push(await part("typeb", { ...b, feet: fr[0].feet, anchorY: fr[0].anchorY }, kc));
+      else console.warn(who, "sin parpadeo sentado");
+    }
   }
   // Una tira: cada cuadro con su caja y su punto de apoyo (los pies)
   let x = 0;

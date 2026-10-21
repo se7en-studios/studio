@@ -37,6 +37,7 @@ import {
   loadSheets,
   loadFurniture,
   furniReach,
+  deskTop,
   bakeSlogan,
   begin,
   brandRug,
@@ -810,6 +811,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     tag: string | null;
     /** Saludando a alguien que se cruzó: desde cuándo y qué dice. */
     greet: { t0: number; word: string } | null;
+    /** Hasta cuándo se queda parado aunque tenga camino (frenó para saludar). */
+    hold: number;
     /** Lo que eligió la visita que mira (tu muñeco): manda sobre `goal`, que viene de afuera. */
     own: OwnGoal | null;
   };
@@ -895,7 +898,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       const seat = sp.goal.kind === "seat" ? seatOf(sp.goal.who) : null;
       const at = seat ?? m.start;
       const seed = seedOf(sp.id);
-      actors.push({ id: sp.id, look: sp.look, goal: sp.goal, x: at.x, y: at.y, from: { ...at }, to: { ...at }, t: 0, moving: false, dir: "SW", path: [], step: 0, v: 0, seat, face: null, wait: 0, stop: sp.goal.kind === "wander" ? Math.abs(seed) % 97 : 0, stuck: false, dest: null, seed, you: !!sp.you, tag: sp.tag ?? null, greet: null, own: null });
+      actors.push({ id: sp.id, look: sp.look, goal: sp.goal, x: at.x, y: at.y, from: { ...at }, to: { ...at }, t: 0, moving: false, dir: "SW", path: [], step: 0, v: 0, seat, face: null, wait: 0, stop: sp.goal.kind === "wander" ? Math.abs(seed) % 97 : 0, stuck: false, dest: null, seed, you: !!sp.you, tag: sp.tag ?? null, greet: null, own: null, hold: 0 });
     }
     poke();
   }
@@ -1031,16 +1034,28 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         greeted.set(key, ts);
         a.greet = { t0: ts, word: HELLO };
         b.greet = { t0: ts + 350, word: HELLO };
-        // Los que están quietos se dan vuelta para mirarse y se quedan un poco más
+        // Se dan vuelta para mirarse y saludan con la mano: los que caminan
+        // frenan en la baldosa a la que van (menos tu muñeco, si lo manejás),
+        // y los que estaban quietos se quedan un poco más
+        // (Si al frenar quedarían en la misma baldosa, siguen de largo saludando: no se encima nadie.)
+        const end = (o: Actor) => (o.moving ? o.to : { x: o.x, y: o.y });
+        const apart = Math.abs(end(a).x - end(b).x) + Math.abs(end(a).y - end(b).y) >= 1;
         for (const [p, q] of [[a, b], [b, a]] as const) {
-          if (p.moving) continue;
-          const [px, py] = actorPos(p), [qx, qy] = actorPos(q);
+          if (p.moving && (p.own || !apart)) continue;
+          const [px, py] = p.moving ? [p.to.x + 0.5, p.to.y + 0.5] : actorPos(p), [qx, qy] = actorPos(q);
           p.face = faceTo(qx - px, qy - py);
+          p.hold = ts + GREET_MS + 200;
           if (p.wait) p.wait += GREET_MS;
         }
       }
     for (const a of actors) if (a.greet && ts - a.greet.t0 > GREET_MS) a.greet = null;
   }
+  /** El guía, parado en una sala del recorrido, cuenta algo: habla un rato de cada tanto. */
+  const talkOut = (a: Actor, ts: number) => {
+    if (a.goal.kind !== "tour" || a.moving || a.path.length || !a.wait || a.greet || reduced) return null;
+    const k = (ts % 6000) / 6000;
+    return k < 0.4 ? k / 0.4 : null;
+  };
   /** Una visita parada en una sala a veces saca el celular (y lo guarda para saludar). */
   const phoneOut = (a: Actor) => a.goal.kind === "wander" && !a.moving && !a.path.length && !!a.wait && !a.greet && hash(a.seed, a.stop * 3 + 1) > 0.55;
   /** Otras veces se queda pensando, con la mano en el mentón. */
@@ -1066,7 +1081,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     }
     for (const a of actors) {
       if (!a.moving && !a.path.length) a.v = 0;
-      if (!a.moving && a.path.length) stepActor(a);
+      if (!a.moving && a.path.length && ts > a.hold) stepActor(a);
       if (a.moving) {
         // Lo que le falta: el resto de esta baldosa y las que siguen (con una flecha apretada, sigue de largo)
         a.v = pace(a.v, a === you && held.size ? Infinity : 1 - a.t + a.path.length, dt);
@@ -2164,10 +2179,39 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     const blink = !reduced && ts % 4300 < 140;
     const typing = reduced ? null : (ts / 260) % 1;
     const people: Person[] = [];
+    // Los dueños sentados a su escritorio: la cintura contra el borde de atrás de
+    // la tapa y el teclado arriba de ella. Se dibujan después del escritorio (si
+    // no, las manos quedarían abajo de la tapa); el panel de adelante les tapa las piernas.
+    const seatedAt = (who: Who, seat: Pt) => {
+      const d = m.furni.find((f) => f.k === "desk" && f.room === `off-${who}`);
+      if (!d || d.y !== seat.y + 1) {
+        const [sx, sy] = P(seat.x + 0.5, seat.y + 0.5);
+        return { sx, sy, depth: seat.x + seat.y + 0.05, foot: footAt(seat.x + 0.5, seat.y + 0.5) };
+      }
+      // En la columna de la silla (x − y igual que su centro), sobre el borde de atrás de la tapa
+      const back = d.y + 0.04, along = seat.x + 0.5 + (back - (seat.y + 0.5));
+      const [sx, sy] = P(along, back, deskTop(d));
+      return { sx, sy, depth: d.x + d.w - 1 + d.y + d.d - 1 + 0.02, foot: { x0: d.x, x1: d.x + d.w, y0: d.y, y1: d.y + d.d } };
+    };
+    // Qué hace el dueño sentado: tipea casi siempre; cada tanto piensa, toma un café o se estira. Ausente, duerme.
+    const seatedPose = (who: Who, away: boolean) => {
+      if (away) return "doze";
+      if (reduced) return "type0";
+      const seed = who === "franco" ? 7 : 13;
+      const t = (ts / 1000 + seed) % 26;
+      if (t >= 9 && t < 11.5) return "think";
+      if (t >= 17 && t < 19.5) return "sip";
+      if (t >= 24.5) return "stretch";
+      // Tipeando: un cuadro cada 140 ms, sin repetir el de antes; de vez en cuando mira la pantalla y sonríe
+      if (hash(Math.floor(ts / 1600), seed) > 0.86) return "type3";
+      const n = Math.floor(ts / 140);
+      const a = Math.floor(hash(n, seed) * 3), b = Math.floor(hash(n - 1, seed) * 3);
+      return `type${a === b ? (a + 1) % 3 : a}`;
+    };
     // Los dueños llevan su aura atrás: el rectángulo que se rehace crece para que entre
     const person = (look: ActorLook, depth: number, foot: Foot, sx: number, sy: number, r: Reach, draw: () => void, sat = false, aura = true): Person => {
       if (!aura || !isOwner(look)) return { depth, foot, box: around(sx, sy, r), draw };
-      const k = { x: Math.max(r.x, OWNER_REACH.x), up: Math.max(r.up, OWNER_REACH.up), down: Math.max(r.down, OWNER_REACH.down) };
+      const k = { x: Math.max(r.x, OWNER_REACH.x), up: Math.max(r.up, OWNER_REACH.up), down: Math.max(r.down, sat ? 24 : OWNER_REACH.down) };
       return {
         depth, foot, box: around(sx, sy, k),
         draw: () => {
@@ -2181,26 +2225,29 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       for (const a of actors) {
         const [ax, ay] = P(...actorPos(a));
         const wave = a.greet && ts >= a.greet.t0 ? (ts - a.greet.t0) / GREET_MS : null;
+        if (a.seat && isOwner(a.look)) {
+          const st = seatedAt(a.look as Who, a.seat);
+          people.push(person(a.look, st.depth, st.foot, st.sx, st.sy, reachOf(a.look, "sit"), () => avatar(a.look, st.sx, st.sy, "SW", null, true, blink, typing, null, false, null, false, seatedPose(a.look as Who, false)), true));
+          continue;
+        }
         people.push(
           person(a.look, actorDepth(a), footAt(...actorPos(a)), ax, ay, reachOf(a.look, a.seat ? "sit" : a.moving ? "walk" : wave !== null ? "wave" : "still"), () =>
             a.seat
               ? avatar(a.look, ax, ay, "SW", null, true, blink, typing)
-              : avatar(a.look, ax, ay, a.moving ? a.dir : (a.face ?? a.dir), a.moving && !reduced ? (a.step / 2) % 1 : null, false, blink && !a.moving, null, wave, phoneOut(a), wave, thinkOut(a)),
+              : avatar(a.look, ax, ay, a.moving ? a.dir : ts < a.hold ? (a.face ?? a.dir) : a.path.length ? a.dir : (a.face ?? a.dir), a.moving && !reduced ? (a.step / 2) % 1 : null, false, blink && !a.moving, null, wave, phoneOut(a), talkOut(a, ts), thinkOut(a)),
           !!a.seat),
         );
       }
     } else {
       const seat = sitting ? ownSeat() : null;
       if (seat) {
-        const [sx, sy] = P(seat.x + 0.5, seat.y + 0.5);
-        people.push(person(me, seat.x + seat.y + 0.05, footAt(seat.x + 0.5, seat.y + 0.5), sx, sy, reachOf(me, "sit"), () => avatar(me, sx, sy, "SW", null, true, blink, typing), true));
+        const st = seatedAt(me, seat);
+        people.push(person(me, st.depth, st.foot, st.sx, st.sy, reachOf(me, "sit"), () => avatar(me, st.sx, st.sy, "SW", null, true, blink, typing, null, false, null, false, seatedPose(me, false)), true));
       } else people.push(person(me, pDepth, footAt(pxT, pyT), psx, psy, reachOf(me, player.moving ? "walk" : "still"), () => avatar(me, psx, psy, player.dir, player.moving && !reduced ? (player.step / 2) % 1 : null)));
       if (po?.seat) {
-        const seat = po.seat;
-        const [sx, sy] = P(seat.x + 0.5, seat.y + 0.5);
-        // Conectado, tipea; si no, duerme con los ojos cerrados
-        // (el aura, sólo si está conectado)
-        people.push(person(otherOf(me), seat.x + seat.y + 0.05, footAt(seat.x + 0.5, seat.y + 0.5), sx, sy, reachOf(otherOf(me), "sit"), () => avatar(otherOf(me), sx, sy, "SW", null, true, partnerAway || blink, partnerAway ? null : typing), true, !partnerAway));
+        const st = seatedAt(otherOf(me), po.seat);
+        // Conectado, tipea; si no, se queda dormido (el aura, sólo si está conectado)
+        people.push(person(otherOf(me), st.depth, st.foot, st.sx, st.sy, reachOf(otherOf(me), "sit"), () => avatar(otherOf(me), st.sx, st.sy, "SW", null, true, partnerAway || blink, partnerAway ? null : typing, null, false, null, false, seatedPose(otherOf(me), partnerAway)), true, !partnerAway));
       }
     }
     {
