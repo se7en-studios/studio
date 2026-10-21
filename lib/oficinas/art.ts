@@ -1888,6 +1888,17 @@ const jacketOf = (who: ActorLook) => {
   return JACKETS[Math.abs(n) % JACKETS.length];
 };
 
+/**
+ * Lo que hace alguien quieto, de a un cuadro por paso: parado respira (0 y 1)
+ * y cada tanto mira a un costado (2) o se pone la mano en el bolsillo (3); con
+ * el celular lee (0), scrollea (1), se ríe (2) y escribe (3); pensando, mira
+ * para arriba (1) de vez en cuando.
+ */
+const IDLE_LOOP = [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 2, 2, 2, 0, 0, 1, 1, 0, 0, 3, 3, 3, 3, 0];
+const PHONE_LOOP = [0, 0, 1, 0, 1, 0, 0, 2, 2, 0, 3, 3, 0, 3, 3, 0, 1, 0];
+const THINK_LOOP = [0, 0, 0, 1, 1, 0, 0, 1];
+const loopAt = (loop: number[], t: number, step: number) => loop[Math.floor(t / step) % loop.length];
+
 /** Los dueños del estudio: Federico y Franco. */
 export const isOwner = (who: ActorLook) => who === "federico" || who === "franco";
 /** Hasta dónde llega el aura de un dueño, desde los pies (el halo es más ancho que el muñeco). */
@@ -1938,9 +1949,10 @@ export function ownerAura(sx: number, sy: number, ts: number, still: boolean, si
  * mira el celular. `talk` 0–1: está hablando. `think`: se queda pensando.
  * `seated`: los dueños sentados al escritorio, qué cuadro (type0…3, think,
  * sip, stretch, doze); entonces (sx, sy) es la cintura, contra el borde de
- * atrás del escritorio.
+ * atrás del escritorio. `t`: el reloj de cada uno, en segundos, para lo que
+ * se mueve estando quieto (respirar, mirar el celular, pensar); null = quieto.
  */
-export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: number | null, sitting = false, blink = false, typing: number | null = null, wave: number | null = null, phone = false, talk: number | null = null, think = false, seated: string | null = null) {
+export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: number | null, sitting = false, blink = false, typing: number | null = null, wave: number | null = null, phone = false, talk: number | null = null, think = false, seated: string | null = null, t: number | null = null) {
   const mirror = dir === "SW" || dir === "NW";
   const back = dir === "NE" || dir === "NW";
   const k = sheetOf(who);
@@ -1973,8 +1985,13 @@ export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: 
     // Saluda con la mano y después dice «HOLA!» (la boca se mueve)
     else if (wave !== null) name = wave < 0.55 ? pick("wave", Math.floor((wave / 0.55) * 8)) : pick("talk", Math.floor(((wave - 0.55) / 0.45) * 6));
     else if (talk !== null) name = pick("talk", Math.floor(talk * 10));
-    else if (phone) name = pick("phone", 0);
-    else if (think) name = pick("think", 0);
+    else if (phone) name = pick("phone", t === null ? 0 : loopAt(PHONE_LOOP, t, 0.45));
+    else if (think) name = pick("think", t === null ? 0 : loopAt(THINK_LOOP, t, 0.7));
+    else if (!back && SHEETS[k].frames.idle0) {
+      // Parado: respira y cada tanto cambia el peso o mira a los costados; parpadea en el cuadro de siempre
+      const i = t === null ? 0 : loopAt(IDLE_LOOP, t, 0.6);
+      name = i === 0 && blink && SHEETS[k].frames.idleb ? "idleb" : `idle${i}`;
+    }
     if (name === "idle" && blink && SHEETS[k].frames.blink) name = "blink";
     else if (name === "type0" && blink && SHEETS[k].frames.typeb) name = "typeb";
     const [fx, fy, fw, fh, ax, ay] = SHEETS[k].frames[name];

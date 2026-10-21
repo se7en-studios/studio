@@ -28,31 +28,33 @@ const PAD = 2;
 // Qué archivo es cada pose. El nombre de la carpeta y del archivo, sin tildes ni mayúsculas.
 // `sets`: las láminas de ocho cuadros (dos filas de cuatro), con el nombre de cada cuadro:
 //   - las caminatas, que se igualan en altura con la pose parada que les corresponde (`like`) y se apoyan bajo la cabeza;
-//   - el saludo y la charla, parados, que se apoyan en los pies;
+//   - el saludo y la charla, y parado con el celular, que se apoyan en los pies (`blink`: el
+//     parpadeo, sobre el primer cuadro);
 //   - los dueños sentados tipeando (`bust`): de la cintura para arriba, con el teclado; se apoyan en la cintura.
 const WALK = (file, like, base) => ({ file, like, names: Array.from({ length: 8 }, (_, i) => `${base}${i}`), anchor: "head" });
 const WAVE_TALK = { file: "saludo y charla", like: "idle", names: ["wave0", "wave1", "wave2", "wave3", "talk0", "talk1", "talk2", "talk3"], anchor: "feet" };
+const IDLE_PHONE = { file: "parado y celular", like: "idle", names: ["idle0", "idle1", "idle2", "idle3", "phone0", "phone1", "phone2", "phone3"], anchor: "feet", blink: "idleb" };
 const SEATED = { file: "sentado tipeando", bust: true, names: ["type0", "type1", "type2", "type3", "think", "sip", "stretch", "doze"] };
 const POSES = {
   federico: {
     dir: "Federico",
-    frames: { idle: "parado", back: "de espaldas (1)", sit: "sentado", phone0: "celular (1)", phone1: "celular (2)" },
-    sets: [WALK("caminata frente", "idle", "walk"), WALK("caminata espaldas", "back", "walkb"), WAVE_TALK, SEATED],
+    frames: { idle: "parado", back: "de espaldas (1)", sit: "sentado" },
+    sets: [WALK("caminata frente", "idle", "walk"), WALK("caminata espaldas", "back", "walkb"), WAVE_TALK, IDLE_PHONE, SEATED],
   },
   franco: {
     dir: "Franco",
-    frames: { idle: "parado", back: "de espaldas", sit: "sentado", phone0: "celular (1)", phone1: "celular (2)" },
-    sets: [WALK("caminata frente", "idle", "walk"), WALK("caminata espaldas", "back", "walkb"), WAVE_TALK, SEATED],
+    frames: { idle: "parado", back: "de espaldas", sit: "sentado" },
+    sets: [WALK("caminata frente", "idle", "walk"), WALK("caminata espaldas", "back", "walkb"), WAVE_TALK, IDLE_PHONE, SEATED],
   },
   guia: {
     dir: "GUIDE",
-    frames: { idle: "parado", back: "de espaldas", phone0: "con el celular (1)", phone1: "con el celular (2)", phone2: "con el celular (3)" },
-    sets: [WALK("caminata frente", "idle", "walk"), WALK("caminata espaldas", "back", "walkb"), WAVE_TALK],
+    frames: { idle: "parado", back: "de espaldas" },
+    sets: [WALK("caminata frente", "idle", "walk"), WALK("caminata espaldas", "back", "walkb"), WAVE_TALK, IDLE_PHONE],
   },
   visita: {
     dir: "visitante",
-    frames: { idle: "parado", back: "de espaldas (1)", phone0: "con el celular (1)", phone1: "con el celular (2)", phone2: "con el celular (3)", think0: "pensando (1)", think1: "pensando (2)" },
-    sets: [WALK("caminata frente", "idle", "walk"), WALK("caminata espaldas", "back", "walkb"), WAVE_TALK],
+    frames: { idle: "parado", back: "de espaldas (1)", think0: "pensando (1)", think1: "pensando (2)" },
+    sets: [WALK("caminata frente", "idle", "walk"), WALK("caminata espaldas", "back", "walkb"), WAVE_TALK, IDLE_PHONE],
   },
 };
 
@@ -390,6 +392,11 @@ for (const [who, def] of Object.entries(POSES)) {
       kc = target / med(fr.map((f) => f.box.y1 - f.box.y0 + 1));
     }
     for (let i = 0; i < fr.length; i++) parts.push(await part(set.names[i], fr[i], kc));
+    if (set.blink) {
+      const b = blinkOf(fr[0]);
+      if (b) parts.push(await part(set.blink, b, kc));
+      else console.warn(who, "sin parpadeo en", set.file);
+    }
     if (set.bust) {
       // El parpadeo, sobre el primer cuadro tipeando
       const b = blinkOf(fr[0], 0.38);

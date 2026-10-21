@@ -88,6 +88,10 @@ Con la misma técnica hay dos láminas más por personaje:
   mano y cuatro hablando. Cuando dos se cruzan, los que caminan frenan, se
   dan vuelta, saludan y dicen «HOLA!». El guía habla un rato en cada sala del
   recorrido.
+- **«parado y celular.jpg»** (los cuatro): cuatro cuadros parados (respira,
+  cambia el peso, mira a un costado, la mano en el bolsillo) y cuatro con el
+  celular (lee, scrollea, se ríe, escribe). Quieto de frente, cada uno va
+  pasando por esos cuadros con su propio reloj; el parpadeo va sobre el primero.
 - **«sentado tipeando.jpg»** (Federico y Franco): de la cintura para arriba,
   con el teclado en las manos: tres cuadros tipeando, uno sonriendo a la
   pantalla, pensando, tomando café, estirándose y dormido. El script los
