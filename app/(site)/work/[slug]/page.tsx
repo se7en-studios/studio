@@ -321,6 +321,7 @@ export default async function CaseStudyPage({
                   projectName={project.name}
                   videoSrc={project.video}
                   screens={project.screens}
+                  screenVideos={project.screenVideos}
                   liveUrl={project.url}
                 />
               )}

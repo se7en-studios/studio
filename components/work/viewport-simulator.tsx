@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { Laptop, Smartphone, Tablet, ExternalLink } from "lucide-react";
 import { useSoundFx } from "@/components/providers/sound-provider";
+import { useReducedMotion } from "@/lib/use-reduced-motion";
 import type { Project } from "@/types";
 
 type Device = "desktop" | "tablet" | "mobile";
@@ -13,6 +14,7 @@ interface ViewportSimulatorProps {
   projectName: string;
   videoSrc?: Project["video"];
   screens?: Project["screens"];
+  screenVideos?: Project["screenVideos"];
   liveUrl?: string;
 }
 
@@ -36,15 +38,33 @@ export function ViewportSimulator({
   projectName,
   videoSrc,
   screens,
+  screenVideos,
   liveUrl,
 }: ViewportSimulatorProps) {
   const [device, setDevice] = useState<Device>("desktop");
   const { playClick } = useSoundFx();
+  const reduced = useReducedMotion();
   const host = hostOf(liveUrl);
 
   // Tablet y celular muestran la captura real de ese tamaño. Sin captura,
   // recortan la de escritorio (el comportamiento anterior).
   const screen = device === "desktop" ? null : screens?.[device];
+  // Y si hay recorrido en video de ese tamaño, corre encima de la captura: la
+  // captura queda de fondo mientras carga y con movimiento reducido.
+  const clip = device === "desktop" || reduced ? undefined : screenVideos?.[device];
+  const clipVideo = clip && (
+    <video
+      key={clip.mp4}
+      autoPlay
+      loop
+      muted
+      playsInline
+      className="absolute inset-0 h-full w-full object-cover object-top"
+    >
+      <source src={clip.webm} type="video/webm" />
+      <source src={clip.mp4} type="video/mp4" />
+    </video>
+  );
 
   return (
     <div className="mt-12 rounded-3xl border border-border bg-surface p-6 md:p-8">
@@ -135,6 +155,7 @@ export function ViewportSimulator({
                 sizes="360px"
                 className="object-cover object-top"
               />
+              {clipVideo}
             </div>
           </div>
         )}
@@ -153,6 +174,7 @@ export function ViewportSimulator({
                 sizes="280px"
                 className="object-cover object-top"
               />
+              {clipVideo}
             </div>
           </div>
         )}
