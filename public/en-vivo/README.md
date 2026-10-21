@@ -40,3 +40,44 @@ ffmpeg -i toma.mp4 -an -vf "trim=start_frame=145,setpts=PTS-STARTPTS,scale=1920:
 
 Las WebM, con `-c:v libvpx-vp9 -crf 36 -b:v 0 -row-mt 1`; las de celular, con
 `scale=1280:720`. Los cuadros, con `select='eq(n\,144)'` y `-q:v 3`.
+
+## Los personajes de la oficina (`personajes/`)
+
+Las ilustraciones de Federico (Flow, oct 2026): Federico, Franco, el guía y la
+visita, una pose por imagen sobre fondo verde, mirando abajo a la derecha (y
+de espaldas, arriba a la derecha; las otras dos direcciones salen espejadas).
+`scripts/personajes.mjs` saca el verde, recorta, escala a 192 px de alto la
+figura parada, las apoya por los pies y arma una tira por personaje
+(`federico.webp`, `franco.webp`, `guia.webp`, `visita.webp`) con las medidas
+en `lib/oficinas/personajes.ts`. Las originales no van al repo.
+
+    node scripts/personajes.mjs "C:/Users/feder/OneDrive/Escritorio/personajes"
+
+Qué archivo es cada pose está en `POSES` del script. La visita es una sola: el
+motor le cambia el color de la campera según el id de cada una.
+
+Las caminatas salen de una lámina por personaje y dirección («caminata
+frente.jpg», «caminata espaldas.jpg»): dos filas de cuatro figuras con un ciclo
+de dos pasos, hechas con Nano Banana 2.1 en Flow a partir de la pose caminando
+(los modelos de video de Flow rechazan estos personajes por el parecido con
+series de terceros). El script corta las ocho figuras solo, las iguala en
+altura con la pose parada y las apoya bajo la cabeza, para que el cuerpo
+avance parejo. El parpadeo (`blink`) no es una imagen: el script tapa lo
+blanco de los ojos de la pose parada con el color de la piel y le traza el
+párpado. La instrucción que se usó para las láminas:
+
+    Animation sprite sheet of the character in the reference image, drawn
+    exactly the same [...]. Two rows of four full-body frames (8 frames total)
+    showing one smooth, seamless walk cycle, read left to right, top row then
+    bottom row: 1 right leg forward heel touching, 2 weight down with knees
+    bent, 3 passing with legs together, 4 rising on the toes, 5 left leg
+    forward heel touching, 6 weight down, 7 passing, 8 rising. Every frame
+    faces three-quarter to the right like the reference [de espaldas: seen
+    from behind, three-quarter back view, walking away toward the upper
+    right], same size, same height, feet on the same ground line, evenly
+    spaced on a grid, figures never overlapping or touching. Arms swing
+    opposite to the legs. Solid flat pure green background (#00FF00), no
+    shadows, no floor, no text, no numbers, no grid lines.
+
+En el motor, un ciclo dura dos baldosas (un paso por baldosa: el pie no
+patina) y cada uno acelera al arrancar y frena al llegar.
