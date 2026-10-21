@@ -27,6 +27,8 @@ function keyOf(ip: string, now: number) {
 }
 /** Lo que ve la landing de cada visita: los primeros 10 caracteres, para la ropa del muñeco. */
 const shortId = (key: string) => key.slice(0, 10);
+/** El id que la landing ve de la visita de `ip` (el mismo de `you`), sin tocar la base: para el pase del canal en vivo. */
+export const visitorId = (ip: string, now = Date.now()) => shortId(keyOf(ip, now));
 
 /** `who`: si es uno de los dos socios. */
 export type Visitor = { id: string; who: Who | null };

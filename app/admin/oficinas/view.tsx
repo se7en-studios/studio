@@ -40,7 +40,10 @@ import { dueLabel } from "@/lib/admin/task-shared";
 import { Face, Progress, StatusPill, btnPrimary, btnSecondary, cn } from "../kit";
 import { useStoredChoice, useToast } from "../overlay";
 import { setMapRoom } from "../presence";
-import { createEngine, type Engine, type RoomLooks } from "@/lib/oficinas/engine";
+import { createEngine, type ActorSpec, type Engine, type RoomLooks } from "@/lib/oficinas/engine";
+import { isOwner } from "@/lib/oficinas/art";
+import { useLive } from "@/lib/oficinas/vivo";
+import { FounderButtons, PersonCard, useHeardLine } from "@/components/sections/en-vivo-gestos";
 import { createSound, type Sound } from "@/lib/oficinas/sound";
 import type { EnVivoPublic } from "@/app/api/en-vivo/route";
 import { archivo } from "@/lib/site-fonts";
@@ -79,6 +82,13 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
   const soundRef = useRef<Sound | null>(null);
   // null = todavía no se sabe; mientras tanto el otro socio aparece trabajando
   const [partnerOnline, setPartnerOnline] = useState<boolean | null>(null);
+  // El canal en vivo: el otro socio y las visitas de la landing que tienen la
+  // oficina abierta caminan acá como en su pestaña, y se les mandan gestos
+  const [engine, setEngine] = useState<Engine | null>(null);
+  const live = useLive(true, "panel", engine);
+  const { report } = live;
+  const [person, setPerson] = useState<string | null>(null);
+  const heardLine = useHeardLine(live.heard, live.people);
 
   const enter = useCallback(
     (id: string | null) => {
@@ -133,8 +143,11 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
       onRoom: (id) => enterRef.current(id),
       onHover: setHoverId,
       onCue: (c) => soundRef.current?.play(c),
+      onState: report,
+      onPerson: setPerson,
     });
     engineRef.current = engine;
+    setEngine(engine);
     const ro = new ResizeObserver(() => engine.resize());
     ro.observe(canvas);
     document.fonts?.load(`8px ${font}`).catch(() => {});
@@ -142,9 +155,22 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
       ro.disconnect();
       engine.destroy();
       engineRef.current = null;
+      setEngine(null);
       setMapRoom(null);
     };
-  }, [map, bySlug, me, font]);
+  }, [map, bySlug, me, font, report]);
+
+  // Los del canal en vivo, menos vos (tu otra pestaña con la landing) y, si el
+  // otro socio tiene el panel abierto, su pestaña de la landing
+  useEffect(() => {
+    if (!engine) return;
+    const inPanel = new Set(live.people.filter((p) => p.id === p.look).map((p) => p.look));
+    const specs: ActorSpec[] = live.people
+      .filter((p) => p.look !== me && (p.id === p.look || !inPanel.has(p.look)))
+      .map((p) => ({ id: p.id, look: p.look, goal: isOwner(p.look) ? { kind: "seat", who: p.look as Who } : { kind: "wander" }, tag: p.name ?? undefined }));
+    engine.setActors(specs);
+  }, [engine, live.people, me]);
+  const target = person ? live.people.find((p) => p.id === person) ?? null : null;
 
   // Lo que cambia (visitas, hora) se le pasa al motor
   useEffect(() => {
@@ -231,7 +257,23 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
         <div className="pointer-events-none absolute top-3 left-3 max-w-[calc(100%-24px)] rounded-lg border border-[rgba(255,255,255,0.09)] bg-[rgba(10,10,14,0.78)] px-2.5 py-2 text-[#f1ede6]">
           <p className={cn("truncate text-[16px] leading-none uppercase", fontClass)}>{hud}</p>
           {hudSub && <p className="mt-1.5 font-mono text-[11px] leading-none text-[#a39e95]">{hudSub}</p>}
+          {heardLine && (
+            <p role="status" className="mt-2 truncate rounded-md bg-[#ff4d2e] px-2 py-1 text-[12px] leading-none font-bold text-[#0b0b0c]">
+              {heardLine}
+            </p>
+          )}
         </div>
+        {/* El otro socio en vivo, también con un botón (con el teclado no se puede tocar el muñeco) */}
+        <FounderButtons people={live.people.filter((p) => p.look !== me && p.id !== target?.id)} onPick={setPerson} className="absolute top-3 right-3 justify-end" />
+        {target && (
+          <PersonCard
+            key={target.id}
+            person={target}
+            onGesture={(g) => live.gesture(target.id, g)}
+            onClose={() => setPerson(null)}
+            className="absolute right-3 bottom-[68px] left-3 z-10 sm:left-auto sm:w-[340px] [@media(pointer:fine)]:bottom-3"
+          />
+        )}
         <div className="absolute bottom-3 left-3 flex gap-1">
           {([[-1, Minus, "Alejar"], [1, Plus, "Acercar"]] as const).map(([step, Icon, label]) => (
             <button
@@ -259,7 +301,7 @@ export function OficinasView({ data, font, fontClass }: { data: OficinasData; fo
           </button>
         </div>
         <p className="pointer-events-none absolute bottom-[18px] left-[124px] hidden text-[12px] text-[#a39e95] [@media(hover:hover)_and_(pointer:fine)]:block">
-          Clic en una sala para entrar · flechas o WASD para caminar
+          Clic en una sala para entrar · flechas o WASD para caminar{live.people.length > 0 && " · clic en alguien para saludarlo"}
         </p>
         <div className="absolute right-3 bottom-3 hidden grid-cols-2 gap-1.5 [@media(pointer:coarse)]:grid" aria-label="Caminar">
           {([["left", ArrowUpLeft, "Arriba a la izquierda"], ["up", ArrowUpRight, "Arriba a la derecha"], ["down", ArrowDownLeft, "Abajo a la izquierda"], ["right", ArrowDownRight, "Abajo a la derecha"]] as const).map(([d, Icon, label]) => (
