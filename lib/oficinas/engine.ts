@@ -22,6 +22,9 @@ import {
 } from "@/lib/admin/oficinas-shared";
 import {
   reachOf,
+  isOwner,
+  ownerAura,
+  OWNER_REACH,
   CAT_REACH,
   HH,
   HW,
@@ -236,9 +239,75 @@ type Box = { x0: number; y0: number; x1: number; y1: number };
  * Lo que se ordena por profundidad: una pared, el arco o un mueble. `box`: hasta
  * dónde llega su dibujo. `glows`: lo que prende arriba de la oscuridad.
  */
-type Item = { depth: number; order: number; x: number; ax: number; ay: number; box: Box; glows: Glow[]; draw: () => void };
+type Item = { depth: number; order: number; x: number; ax: number; ay: number; box: Box; foot: Foot; glows: Glow[]; draw: () => void; board?: boolean };
 /** Alguien (o el gato) para intercalar con los muebles: `box`, el rectángulo que ocupa. */
-type Person = { depth: number; box: Box; draw: () => void };
+type Person = { depth: number; box: Box; foot: Foot; draw: () => void };
+/** Lo que ocupa en el piso, en baldosas: una pared es una línea sobre el borde; alguien parado, un círculo chico. */
+type Foot = { x0: number; y0: number; x1: number; y1: number };
+/** La huella de alguien parado en (x, y) (el centro, en baldosas). */
+const footAt = (x: number, y: number, r = 0.3): Foot => ({ x0: x - r, x1: x + r, y0: y - r, y1: y + r });
+/**
+ * Si `a` se dibuja antes que `b` (está atrás): cuando una queda entera del lado
+ * de menos x o de menos y de la otra, ésa está atrás. Si se pisan en el piso,
+ * decide `tie`. (Si cada una está atrás de la otra en un eje distinto, en
+ * pantalla no se tocan y da lo mismo.)
+ */
+function goesBefore(a: Foot, b: Foot, tie: boolean) {
+  const ab = a.x1 <= b.x0 + 1e-3 || a.y1 <= b.y0 + 1e-3;
+  const ba = b.x1 <= a.x0 + 1e-3 || b.y1 <= a.y0 + 1e-3;
+  return ab === ba ? tie : ab;
+}
+/**
+ * Un orden que respeta `succ` (i antes que cada uno de succ[i]) y, entre los
+ * libres, el de menor `key`. Si hay un ciclo, lo corta por el de menor `key`.
+ */
+function topoOrder(n: number, succ: number[][], key: ArrayLike<number>): number[] {
+  const indeg = new Int32Array(n);
+  for (let i = 0; i < n; i++) for (const j of succ[i]) indeg[j]++;
+  const heap: number[] = [];
+  const push = (i: number) => {
+    heap.push(i);
+    for (let c = heap.length - 1; c > 0; ) {
+      const p = (c - 1) >> 1;
+      if (key[heap[p]] <= key[heap[c]]) break;
+      [heap[p], heap[c]] = [heap[c], heap[p]];
+      c = p;
+    }
+  };
+  const pop = () => {
+    const top = heap[0], last = heap.pop() as number;
+    if (heap.length) {
+      heap[0] = last;
+      for (let p = 0; ; ) {
+        const l = p * 2 + 1, r = l + 1;
+        let m = p;
+        if (l < heap.length && key[heap[l]] < key[heap[m]]) m = l;
+        if (r < heap.length && key[heap[r]] < key[heap[m]]) m = r;
+        if (m === p) break;
+        [heap[p], heap[m]] = [heap[m], heap[p]];
+        p = m;
+      }
+    }
+    return top;
+  };
+  const done = new Uint8Array(n);
+  for (let i = 0; i < n; i++) if (!indeg[i]) push(i);
+  const out: number[] = [];
+  while (out.length < n) {
+    let i: number;
+    if (heap.length) i = pop();
+    else {
+      // Un ciclo: sigue por el que venía primero
+      i = -1;
+      for (let k = 0; k < n; k++) if (!done[k] && (i < 0 || key[k] < key[i])) i = k;
+    }
+    if (done[i]) continue;
+    done[i] = 1;
+    out.push(i);
+    for (const j of succ[i]) if (--indeg[j] === 0 && !done[j]) push(j);
+  }
+  return out;
+}
 /**
  * Más píxeles que esto por lienzo de lo quieto (un zoom grande en retina) y se
  * dibuja todo directo en cada cuadro: no vale la memoria.
@@ -472,6 +541,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         // Las medias paredes ya no se vuelven transparentes: los personajes las pasan de largo en altura.
         items.push({
           depth, order: 0, x, ax, ay, glows: lit,
+          foot: side === "L" ? { x0: x, x1: x, y0: y, y1: y + 1 } : { x0: x, x1: x + 1, y0: y, y1: y },
+          board: !door && here.some((dc) => dc.k === "ticker"),
           // El espesor de la pared (y algo más) y las jambas de la puerta, un poco más altas
           box: side === "L" ? reach(x - 0.2, y, x, y + 1, h + 4) : reach(x, y - 0.2, x + 1, y, h + 4),
           draw: () => {
@@ -506,6 +577,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     let sign: HTMLCanvasElement | null = null;
     items.push({
       depth: x0 + ay0 - 0.6, order: 0, x: x0, ax, ay, glows: [],
+      foot: { x0: x0 - 0.14, x1: x1 + 0.14, y0: ay0, y1: ay0 },
       box: reach(x0 - 0.14, ay0 - 0.14, x1 + 0.14, ay0 + 0.14, 112),
       draw: () => {
         setFade(0);
@@ -570,6 +642,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     const [ax, ay] = P(f.x + f.w / 2, f.y + f.d / 2);
     const it: Item = {
       depth: f.x + f.w - 1 + f.y + f.d - 1, order: 1, x: f.x, ax, ay, glows: [],
+      foot: { x0: f.x, x1: f.x + f.w, y0: f.y, y1: f.y + f.d },
       // Ningún mueble pasa de 70 px de alto ni se sale más que un poco de sus baldosas
       box: reach(f.x - 0.15, f.y - 0.15, f.x + f.w + 0.15, f.y + f.d + 0.15, 70, 6),
       draw: () => {
@@ -584,6 +657,30 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     items.push(it);
   }
   items.sort((a, b) => a.depth - b.depth || a.order - b.order || a.x - b.x);
+  // Sumar x + y no alcanza con lo largo: el mostrador de 4 baldosas tapaba al
+  // que estaba parado adelante de su punta. Entre los que se tocan en pantalla,
+  // va primero el que está atrás según lo que ocupan en el piso.
+  /** Para cada uno (por su lugar en `items`), los que se dibujan después y se tocan con él. */
+  const after: number[][] = [];
+  {
+    const n = items.length;
+    const succ: number[][] = Array.from({ length: n }, () => []);
+    for (let i = 0; i < n; i++)
+      for (let j = i + 1; j < n; j++) {
+        const a = items[i], b = items[j];
+        if (!touches(a.box, b.box)) continue;
+        if (goesBefore(a.foot, b.foot, true)) succ[i].push(j);
+        else succ[j].push(i);
+      }
+    const ord = topoOrder(n, succ, Float64Array.from({ length: n }, (_, i) => i));
+    const pos = new Int32Array(n);
+    ord.forEach((g, k) => (pos[g] = k));
+    for (let k = 0; k < n; k++) after.push([]);
+    for (let i = 0; i < n; i++) for (const j of succ[i]) after[pos[i]].push(pos[j]);
+    const sorted = ord.map((g) => items[g]);
+    items.splice(0, n, ...sorted);
+  }
+  const indexOf = new Map(items.map((it, i) => [it, i]));
 
   // --- Caminar ----------------------------------------------------------------
   const dirOf = (dx: number, dy: number): Dir => (dx > 0 ? "SE" : dx < 0 ? "NW" : dy > 0 ? "SW" : "NE");
@@ -808,11 +905,40 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     else a.path = path;
     return true;
   }
+  /** Dónde termina lo que está haciendo cada uno: la baldosa a la que va, o donde está. */
+  const endOf = (o: Actor): Pt => (o.path.length ? o.path[o.path.length - 1] : o.moving ? o.to : { x: o.x, y: o.y });
+  /**
+   * El lugar para pararse a mirar sin quedar encima de otro: si ya hay alguien
+   * ahí (o yendo), la baldosa libre más cerca en la misma sala.
+   */
+  function spotFor<S extends { at: Pt; face: Dir | null }>(a: Actor, stop: S | null): S | null {
+    if (!stop) return null;
+    const busy = (q: Pt) =>
+      actors.some((o) => {
+        if (o === a || o.seat) return false;
+        const e = endOf(o);
+        return e.x === q.x && e.y === q.y;
+      });
+    if (!busy(stop.at)) return stop;
+    const here = m.region[stop.at.y][stop.at.x];
+    let best: Pt | null = null, bd = Infinity;
+    for (let y = stop.at.y - 2; y <= stop.at.y + 2; y++)
+      for (let x = stop.at.x - 2; x <= stop.at.x + 2; x++) {
+        if (!walkable(m, x, y) || m.region[y][x] !== here || busy({ x, y })) continue;
+        // Mejor al costado que adelante (no le tapa la tele al otro)
+        const d = Math.abs(x - stop.at.x) + Math.abs(y - stop.at.y) * 1.2;
+        if (d < bd) {
+          bd = d;
+          best = { x, y };
+        }
+      }
+    return best ? { ...stop, at: best } : stop;
+  }
   function settle(a: Actor, ts: number) {
     if (a.own) {
       const w = a.own;
       if (w.kind === "manual") return;
-      const stop = w.kind === "room" ? spotOf(w.room) : { at: w.at, face: null };
+      const stop = w.kind === "room" ? spotFor(a, spotOf(w.room)) : { at: w.at, face: null };
       if (!stop) return;
       if (a.x === stop.at.x && a.y === stop.at.y) {
         if (stop.face) a.face = stop.face;
@@ -847,7 +973,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       if (!next || !headTo(a, next)) a.stuck = true;
       return;
     }
-    const stop = g.kind === "room" ? spotOf(g.room) : tourStops[a.stop % Math.max(1, tourStops.length)];
+    const stop = spotFor(a, g.kind === "room" ? spotOf(g.room) : tourStops[a.stop % Math.max(1, tourStops.length)] ?? null);
     if (!stop) return;
     if (a.x === stop.at.x && a.y === stop.at.y) {
       a.face = stop.face;
@@ -1508,57 +1634,81 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     fillPoly(ctx, gl.quad, "rgba(255,140,100,0.12)");
     ctx.globalCompositeOperation = "source-over";
   }
-  function emissives(ts: number) {
-    const night = period === "noche";
-    for (const gl of glows) {
-      if (gl.t === "screen") screenGlow(gl, ts);
-      else if (gl.t === "lamp") {
-        const L = lightOf(gl.room);
-        if (L < 0.3) continue;
-        ctx.globalCompositeOperation = "lighter";
-        const [x, y] = gl.at;
-        for (const [rad, al] of [[30, 0.05], [18, 0.07], [8, 0.12]]) {
-          ctx.beginPath();
-          ctx.arc(x, y, rad, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(255,214,160,${al * L * (night ? 1.6 : 1)})`;
-          ctx.fill();
-        }
-        ctx.globalCompositeOperation = "source-over";
-      } else if (gl.t === "led") {
-        const L = lightOf(gl.room);
-        let col = "#1c1c22";
-        if (gl.i === -2) col = L > 0.15 ? (Math.floor(ts / 380) % 3 ? "#ff7a2e" : "#ffd28a") : "#5a2a1c";
-        else if (gl.i < 0) col = PAL.signal2;
-        else if (L > 0.5) col = hash(gl.i, Math.floor(ts / 420)) > 0.3 ? PAL.signal2 : "#3a1f18";
-        else if (L > 0.15) col = Math.floor(ts / 1500) % 2 ? "#e8a33d" : "#1c1c22";
-        ctx.fillStyle = col;
-        ctx.fillRect(gl.at[0] - 1, gl.at[1] - 1, 2.4, 1.8);
-      } else if (gl.t === "bubble" && !reduced) {
-        // De vez en cuando sube una tanda de burbujas por el bidón, como cuando alguien se sirve
-        const cycle = (ts / 1000) % 9;
-        if (cycle < 2.4)
-          for (let k = 0; k < 3; k++) {
-            const ph = (cycle / 2.4 + k * 0.27) % 1;
-            ctx.globalAlpha = 0.75 * (1 - ph * 0.6);
-            ctx.fillStyle = "#eaf6ff";
-            ctx.beginPath();
-            ctx.arc(gl.at[0] + Math.sin(ph * 9 + k * 2) * 1.6 + (k - 1) * 1.8, gl.at[1] - ph * 13, 0.8 + k * 0.25, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        ctx.globalAlpha = 1;
-      } else if (gl.t === "steam" && !reduced && lightOf(gl.room) > 0.3) {
+  /** Lo que cambia en cada cuadro sobre un mueble o una pared: pantallas, lucecitas, burbujas y vapor. */
+  function glowNow(gl: Glow, ts: number) {
+    if (gl.t === "screen") screenGlow(gl, ts);
+    else if (gl.t === "led") {
+      const L = lightOf(gl.room);
+      let col = "#1c1c22";
+      if (gl.i === -2) col = L > 0.15 ? (Math.floor(ts / 380) % 3 ? "#ff7a2e" : "#ffd28a") : "#5a2a1c";
+      else if (gl.i < 0) col = PAL.signal2;
+      else if (L > 0.5) col = hash(gl.i, Math.floor(ts / 420)) > 0.3 ? PAL.signal2 : "#3a1f18";
+      else if (L > 0.15) col = Math.floor(ts / 1500) % 2 ? "#e8a33d" : "#1c1c22";
+      ctx.fillStyle = col;
+      ctx.fillRect(gl.at[0] - 1, gl.at[1] - 1, 2.4, 1.8);
+    } else if (gl.t === "bubble" && !reduced) {
+      // De vez en cuando sube una tanda de burbujas por el bidón, como cuando alguien se sirve
+      const cycle = (ts / 1000) % 9;
+      if (cycle < 2.4)
         for (let k = 0; k < 3; k++) {
-          const ph = (ts / 1700 + k / 3) % 1;
-          ctx.globalAlpha = 0.45 * (1 - ph);
-          ctx.fillStyle = PAL.white;
+          const ph = (cycle / 2.4 + k * 0.27) % 1;
+          ctx.globalAlpha = 0.75 * (1 - ph * 0.6);
+          ctx.fillStyle = "#eaf6ff";
           ctx.beginPath();
-          ctx.arc(gl.at[0] + Math.sin(ph * 6 + k) * 2, gl.at[1] - ph * 14, 1.3 + ph * 1.4, 0, Math.PI * 2);
+          ctx.arc(gl.at[0] + Math.sin(ph * 9 + k * 2) * 1.6 + (k - 1) * 1.8, gl.at[1] - ph * 13, 0.8 + k * 0.25, 0, Math.PI * 2);
           ctx.fill();
         }
-        ctx.globalAlpha = 1;
+      ctx.globalAlpha = 1;
+    } else if (gl.t === "steam" && !reduced && lightOf(gl.room) > 0.3) {
+      for (let k = 0; k < 3; k++) {
+        const ph = (ts / 1700 + k / 3) % 1;
+        ctx.globalAlpha = 0.45 * (1 - ph);
+        ctx.fillStyle = PAL.white;
+        ctx.beginPath();
+        ctx.arc(gl.at[0] + Math.sin(ph * 6 + k) * 2, gl.at[1] - ph * 14, 1.3 + ph * 1.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+  /** Lo que se prende sobre `it`, justo después de dibujarlo (así lo tapa lo que tiene adelante). */
+  function lit(it: Item, ts: number) {
+    for (const gl of it.glows) if (gl.t !== "lamp") glowNow(gl, ts);
+    if (it.board) ledBoard(ts);
+  }
+  /** Lo que se prende, arriba de lo quieto ya copiado: una vez cada cosa, en el orden de los muebles. */
+  function litAll(ts: number) {
+    const seen = new Set<Glow>();
+    let board = false;
+    for (const it of visibleItems) {
+      for (const gl of it.glows)
+        if (gl.t !== "lamp" && !seen.has(gl)) {
+          seen.add(gl);
+          glowNow(gl, ts);
+        }
+      if (it.board && !board) {
+        board = true;
+        ledBoard(ts);
       }
     }
-    ledBoard(ts);
+  }
+  /** La luz de las lámparas (alumbra también a la gente) y las motas: arriba de todo. */
+  function lights(ts: number) {
+    const night = period === "noche";
+    for (const gl of glows) {
+      if (gl.t !== "lamp") continue;
+      const L = lightOf(gl.room);
+      if (L < 0.3) continue;
+      ctx.globalCompositeOperation = "lighter";
+      const [x, y] = gl.at;
+      for (const [rad, al] of [[30, 0.05], [18, 0.07], [8, 0.12]]) {
+        ctx.beginPath();
+        ctx.arc(x, y, rad, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,214,160,${al * L * (night ? 1.6 : 1)})`;
+        ctx.fill();
+      }
+      ctx.globalCompositeOperation = "source-over";
+    }
     for (const mo of motes) {
       const k = (ts - mo.t0) / 1600;
       if (k < 0 || k > 1) continue;
@@ -1572,6 +1722,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     }
     if (motes.length && motes.every((mo) => ts - mo.t0 > 1600)) motes = [];
   }
+  let visibleItems: Item[] = [];
 
   // --- Cartel LED -------------------------------------------------------------------
   const ledCanvas = document.createElement("canvas");
@@ -1814,19 +1965,100 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     ctx.drawImage(cv, offX, offY);
     ctx.setTransform(scale, 0, 0, scale, offX, offY);
   }
-  /** Paredes y muebles (en su orden) con la gente intercalada por profundidad. */
-  function layered(list: Item[], people: Person[]) {
-    let pi = 0;
-    for (const it of list) {
-      while (pi < people.length && people[pi].depth < it.depth + (it.order === 0 ? 0 : 0.01)) {
-        setFade(0);
-        people[pi++].draw();
-      }
-      it.draw();
+  /** Dónde está cada uno de `items` en la lista que se dibuja ahora (−1: no está). */
+  const slot = new Int32Array(items.length).fill(-1);
+  /**
+   * Paredes y muebles con la gente intercalada: cada uno después de lo que
+   * tiene atrás (entre paredes y muebles ya está resuelto en `after`). Lo que
+   * se prende (pantallas, lucecitas) va con su mueble, así lo tapa lo de adelante.
+   */
+  function layered(list: Item[], people: Person[], ts: number) {
+    const L = list.length, n = L + people.length;
+    const succ: number[][] = Array.from({ length: n }, () => []);
+    const key = new Float64Array(n);
+    for (let u = 0; u < L; u++) {
+      slot[indexOf.get(list[u]) as number] = u;
+      key[u] = u;
     }
-    while (pi < people.length) {
-      setFade(0);
-      people[pi++].draw();
+    for (let u = 0; u < L; u++) for (const j of after[indexOf.get(list[u]) as number]) if (slot[j] >= 0) succ[u].push(slot[j]);
+    for (let k = 0; k < people.length; k++) {
+      const p = people[k], v = L + k;
+      let at = L;
+      for (let u = 0; u < L; u++) {
+        const it = list[u];
+        // Si se pisan en el piso, como antes: por profundidad
+        const tie = !(p.depth < it.depth + (it.order === 0 ? 0 : 0.01));
+        if (!tie && at === L) at = u;
+        if (!touches(it.box, p.box)) continue;
+        if (goesBefore(it.foot, p.foot, tie)) succ[u].push(v);
+        else succ[v].push(u);
+      }
+      key[v] = at - 0.5 + k * 1e-3;
+      for (let q = 0; q < k; q++)
+        if (touches(people[q].box, p.box)) {
+          if (goesBefore(people[q].foot, p.foot, true)) succ[L + q].push(v);
+          else succ[v].push(L + q);
+        }
+    }
+    for (let u = 0; u < L; u++) slot[indexOf.get(list[u]) as number] = -1;
+    for (const i of topoOrder(n, succ, key)) {
+      if (i < L) {
+        list[i].draw();
+        lit(list[i], ts);
+      } else {
+        setFade(0);
+        people[i - L].draw();
+      }
+    }
+  }
+  /**
+   * Lo que tapa una pantalla (una planta, un mueble o una pared de adelante),
+   * recortado a la pantalla y horneado aparte cuando se hornea lo quieto: en
+   * cada cuadro va arriba de la pantalla. Sin esto, la pantalla que se prende
+   * encima de lo quieto quedaba arriba de lo que tiene adelante.
+   */
+  type Patch = { x: number; y: number; w: number; h: number; cv: HTMLCanvasElement };
+  let patches: Patch[] = [];
+  function bakePatches() {
+    patches = [];
+    // Cada pantalla, con el último que la dibuja (las de pared van en varios tramos)
+    const last = new Map<Glow | "board", number>();
+    items.forEach((it, i) => {
+      for (const gl of it.glows) if (gl.t === "screen") last.set(gl, i);
+      if (it.board) last.set("board", i);
+    });
+    const tk = m.decor.find((dc) => dc.k === "ticker");
+    for (const [gl, i] of last) {
+      const quad = gl === "board" ? (tk ? tickerQuad(tk) : null) : gl.t === "screen" ? gl.quad : null;
+      if (!quad) continue;
+      const mine = (it: Item) => (gl === "board" ? !!it.board : it.glows.includes(gl));
+      const xs = quad.map((q) => q[0]), ys = quad.map((q) => q[1]);
+      // En px enteros del lienzo, para copiarlo sin que se corra medio píxel
+      const x = Math.floor(Math.min(...xs) * scale) / scale, y = Math.floor(Math.min(...ys) * scale) / scale;
+      const box: Box = { x0: x, y0: y, x1: Math.max(...xs), y1: Math.max(...ys) };
+      const front: Item[] = [];
+      for (let j = i + 1; j < items.length; j++) if (touches(items[j].box, box) && !mine(items[j])) front.push(items[j]);
+      if (!front.length) continue;
+      const cv = document.createElement("canvas");
+      cv.width = Math.max(1, Math.ceil((box.x1 - x) * scale) + 1);
+      cv.height = Math.max(1, Math.ceil((box.y1 - y) * scale) + 1);
+      const g = cv.getContext("2d") as CanvasRenderingContext2D;
+      g.setTransform(scale, 0, 0, scale, -x * scale, -y * scale);
+      g.beginPath();
+      g.moveTo(quad[0][0], quad[0][1]);
+      for (let k = 1; k < quad.length; k++) g.lineTo(quad[k][0], quad[k][1]);
+      g.closePath();
+      g.clip();
+      dst = g;
+      begin(g, view);
+      for (const it of front) it.draw();
+      dst = ctx;
+      begin(ctx, view);
+      // Si lo de adelante no llega a la pantalla, el parche queda vacío y no va
+      const px = g.getImageData(0, 0, cv.width, cv.height).data;
+      let any = false;
+      for (let k = 3; k < px.length && !any; k += 4) any = px[k] > 8;
+      if (any) patches.push({ x, y, w: cv.width / scale, h: cv.height / scale, cv });
     }
   }
   /** Las cajas del mundo pasadas a la pantalla (px enteros, con uno de margen); las que se pisan, juntas en una. */
@@ -1908,6 +2140,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         paint(itemsC, ictx, lw, lh, () => {
           for (const it of items) it.draw();
         });
+        bakePatches();
       }
       blit(floorC);
       floorMarks(ts);
@@ -1923,44 +2156,60 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     const blink = !reduced && ts % 4300 < 140;
     const typing = reduced ? null : (ts / 260) % 1;
     const people: Person[] = [];
+    // Los dueños llevan su aura atrás: el rectángulo que se rehace crece para que entre
+    const person = (look: ActorLook, depth: number, foot: Foot, sx: number, sy: number, r: Reach, draw: () => void, sat = false, aura = true): Person => {
+      if (!aura || !isOwner(look)) return { depth, foot, box: around(sx, sy, r), draw };
+      const k = { x: Math.max(r.x, OWNER_REACH.x), up: Math.max(r.up, OWNER_REACH.up), down: Math.max(r.down, OWNER_REACH.down) };
+      return {
+        depth, foot, box: around(sx, sy, k),
+        draw: () => {
+          ownerAura(sx, sy, ts, reduced, sat);
+          draw();
+        },
+      };
+    };
     const po = byId.get(`off-${otherOf(me)}`);
     if (o.public) {
       for (const a of actors) {
         const [ax, ay] = P(...actorPos(a));
         const wave = a.greet && ts >= a.greet.t0 ? (ts - a.greet.t0) / GREET_MS : null;
-        people.push({
-          depth: actorDepth(a),
-          box: around(ax, ay, reachOf(a.look, a.seat ? "sit" : a.moving ? "walk" : wave !== null ? "wave" : "still")),
-          draw: () =>
+        people.push(
+          person(a.look, actorDepth(a), footAt(...actorPos(a)), ax, ay, reachOf(a.look, a.seat ? "sit" : a.moving ? "walk" : wave !== null ? "wave" : "still"), () =>
             a.seat
               ? avatar(a.look, ax, ay, "SW", null, true, blink, typing)
               : avatar(a.look, ax, ay, a.moving ? a.dir : (a.face ?? a.dir), a.moving && !reduced ? (a.step / 2) % 1 : null, false, blink && !a.moving, null, wave, phoneOut(a), wave, thinkOut(a)),
-        });
+          !!a.seat),
+        );
       }
     } else {
       const seat = sitting ? ownSeat() : null;
       if (seat) {
         const [sx, sy] = P(seat.x + 0.5, seat.y + 0.5);
-        people.push({ depth: seat.x + seat.y + 0.05, box: around(sx, sy, reachOf(me, "sit")), draw: () => avatar(me, sx, sy, "SW", null, true, blink, typing) });
-      } else people.push({ depth: pDepth, box: around(psx, psy, reachOf(me, player.moving ? "walk" : "still")), draw: () => avatar(me, psx, psy, player.dir, player.moving && !reduced ? (player.step / 2) % 1 : null) });
+        people.push(person(me, seat.x + seat.y + 0.05, footAt(seat.x + 0.5, seat.y + 0.5), sx, sy, reachOf(me, "sit"), () => avatar(me, sx, sy, "SW", null, true, blink, typing), true));
+      } else people.push(person(me, pDepth, footAt(pxT, pyT), psx, psy, reachOf(me, player.moving ? "walk" : "still"), () => avatar(me, psx, psy, player.dir, player.moving && !reduced ? (player.step / 2) % 1 : null)));
       if (po?.seat) {
         const seat = po.seat;
         const [sx, sy] = P(seat.x + 0.5, seat.y + 0.5);
         // Conectado, tipea; si no, duerme con los ojos cerrados
-        people.push({ depth: seat.x + seat.y + 0.05, box: around(sx, sy, reachOf(otherOf(me), "sit")), draw: () => avatar(otherOf(me), sx, sy, "SW", null, true, partnerAway || blink, partnerAway ? null : typing) });
+        // (el aura, sólo si está conectado)
+        people.push(person(otherOf(me), seat.x + seat.y + 0.05, footAt(seat.x + 0.5, seat.y + 0.5), sx, sy, reachOf(otherOf(me), "sit"), () => avatar(otherOf(me), sx, sy, "SW", null, true, partnerAway || blink, partnerAway ? null : typing), true, !partnerAway));
       }
     }
     {
       const [cx, cy] = catPos();
       const [csx, csy] = P(cx, cy);
       const cd = (cat.moving ? Math.max(cat.from.x + cat.from.y, cat.to.x + cat.to.y) : cat.x + cat.y) + 0.04;
-      people.push({ depth: cd, box: around(csx, csy, CAT_REACH), draw: () => studioCat(csx, csy, cat.dir, cat.moving ? cat.step % 1 : null, cat.sleeping) });
+      people.push({ depth: cd, foot: footAt(cx, cy, 0.2), box: around(csx, csy, CAT_REACH), draw: () => studioCat(csx, csy, cat.dir, cat.moving ? cat.step % 1 : null, cat.sleeping) });
     }
     people.sort((a, b) => a.depth - b.depth);
+    visibleItems = items.filter((it) => visible(it.ax, it.ay));
     if (baked) {
-      // Lo que se mueve va en su rectángulo: ahí se vuelve a copiar el piso y se
-      // dibuja de nuevo, en orden, todo lo que lo toca (así lo tapan los muebles
-      // que tiene adelante). Las paredes que se vuelven transparentes van enteras.
+      // Las pantallas y lucecitas, arriba de lo quieto, y encima lo que las tapa
+      // (los parches). Lo que se mueve va en su rectángulo: ahí se vuelve a
+      // copiar el piso y se dibuja de nuevo, en orden, todo lo que lo toca (así
+      // lo tapan los muebles que tiene adelante, y a las pantallas, ellos).
+      litAll(ts);
+      for (const p of patches) if (p.x + p.w > vx0 && p.x < vx1 && p.y + p.h > vy0 && p.y < vy1) ctx.drawImage(p.cv, p.x, p.y, p.w, p.h);
       const boxes = people.map((p) => p.box);
       for (const r of onScreen(boxes, W, H)) {
         const wb: Box = { x0: (r.x0 - offX) / scale, y0: (r.y0 - offY) / scale, x1: (r.x1 - offX) / scale, y1: (r.y1 - offY) / scale };
@@ -1975,22 +2224,13 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         ctx.drawImage(floorC, offX, offY);
         ctx.setTransform(scale, 0, 0, scale, offX, offY);
         floorMarks(ts);
-        layered(items.filter((it) => touches(it.box, wb)), people.filter((p) => touches(p.box, wb)));
+        layered(items.filter((it) => touches(it.box, wb)), people.filter((p) => touches(p.box, wb)), ts);
         ctx.restore();
       }
-    } else layered(items.filter((it) => visible(it.ax, it.ay)), people);
-    // Lo que prende arriba de la oscuridad: lo de las paredes y los muebles que están a la vista, una vez cada cosa
-    glows = [];
-    const seen = new Set<Glow>();
-    for (const it of items)
-      if (visible(it.ax, it.ay))
-        for (const gl of it.glows)
-          if (!seen.has(gl)) {
-            seen.add(gl);
-            glows.push(gl);
-          }
-
-    emissives(ts);
+    } else layered(visibleItems, people, ts);
+    // La luz de las lámparas que están a la vista, arriba de todo
+    glows = visibleItems.flatMap((it) => it.glows.filter((gl) => gl.t === "lamp"));
+    lights(ts);
 
     // Sin carteles flotantes: cada sala se reconoce por su marca y por lo que
     // dice su compu, y el nombre de la que está bajo el mouse va arriba (onHover).
@@ -2010,6 +2250,13 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     }
     // En la landing: arriba de cada uno, su cartelito («VOS» o el nombre de un
     // socio) y, si está saludando, el globo con lo que dice
+    const placed: Box[] = [];
+    /** Sube `y` hasta que el cartel de `x`–`x + w` no pise a otro. */
+    const free = (x: number, y: number, w: number, h: number) => {
+      for (let k = 0; k < 6 && placed.some((b) => x < b.x1 && b.x0 < x + w && y < b.y1 && b.y0 < y + h); k++) y -= h + 3;
+      placed.push({ x0: x, y0: y, x1: x + w, y1: y + h });
+      return y;
+    };
     if (o.public)
       for (const a of actors) {
         const label = a.you ? "VOS" : a.tag?.toUpperCase();
@@ -2023,17 +2270,34 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         ctx.textAlign = "center";
         let top = ty;
         if (label) {
-          const w = Math.ceil(ctx.measureText(label).width) + 14, h = 15;
-          const x = Math.round(tx - w / 2), y = Math.round(ty - h - 6 + bob);
-          bubbleBox(x, y, w, h, a.you ? PAL.signal : PAL.char2, a.you ? PAL.ink : PAL.signal2, tx);
+          // Los dueños: el cartel en tinta con el borde naranja y una coronita
+          const owner = !a.you && isOwner(a.look);
+          const crown = owner ? 11 : 0;
+          const w = Math.ceil(ctx.measureText(label).width) + 14 + crown, h = 15;
+          const x = Math.round(tx - w / 2), y = free(x, Math.round(ty - h - 6 + bob), w, h);
+          bubbleBox(x, y, w, h, a.you ? PAL.signal : owner ? PAL.ink : PAL.char2, a.you ? PAL.ink : owner ? PAL.signal : PAL.signal2, tx);
+          if (owner) {
+            const cx = x + 7, cy = y + h / 2 + 3;
+            ctx.beginPath();
+            ctx.moveTo(cx - 4, cy);
+            ctx.lineTo(cx - 4, cy - 5.5);
+            ctx.lineTo(cx - 2, cy - 2.8);
+            ctx.lineTo(cx, cy - 6.5);
+            ctx.lineTo(cx + 2, cy - 2.8);
+            ctx.lineTo(cx + 4, cy - 5.5);
+            ctx.lineTo(cx + 4, cy);
+            ctx.closePath();
+            ctx.fillStyle = PAL.signal;
+            ctx.fill();
+          }
           ctx.fillStyle = "#ffffff";
-          ctx.fillText(label, tx, y + h / 2 + 0.5);
+          ctx.fillText(label, tx + crown / 2, y + h / 2 + 0.5);
           top = y - 3;
         }
         if (word) {
           const k = (ts - (a.greet as { t0: number }).t0) / GREET_MS;
           const w = Math.ceil(ctx.measureText(word).width) + 16, h = 17;
-          const x = Math.round(tx - w / 2), y = Math.round(top - h - 6 - (reduced ? 0 : Math.min(1, k * 6) * 3));
+          const x = Math.round(tx - w / 2), y = free(x, Math.round(top - h - 6 - (reduced ? 0 : Math.min(1, k * 6) * 3)), w, h);
           ctx.globalAlpha = Math.min(1, (1 - k) * 4);
           bubbleBox(x, y, w, h, PAL.white, PAL.ink, tx + 6);
           ctx.fillStyle = PAL.ink;

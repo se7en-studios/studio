@@ -437,7 +437,7 @@ export function buildMap(projects: MapInput): MapModel {
     hang(des, "moodboard", "R", X + 2, Y, 2);
     hang(des, "swatches", "R", X + 4, Y, 1);
     hang(des, "window", "R", X + 5, Y, 1);
-    put(des, "plant", X, Y); put(des, "plant", X + 5, Y);
+    put(des, "plant", X, Y + 4); put(des, "plant", X + 5, Y);
     put(des, "easel", X + 4, Y + 2, 1, 1, "y");
     put(des, "drafting", X + 5, Y + 1, 1, 1, "y");
     put(des, "beanbag", X + 5, Y + 4);
@@ -507,7 +507,7 @@ export function buildMap(projects: MapInput): MapModel {
     put(null, k, x, y, w, d, "y", k !== "pond");
   };
   garden("pond", 17, 9, 2, 2);
-  for (const [x, y] of [[1, 3], [3, 2], [7, 2], [7, 5], [14, 2], [15, 5], [20, 9], [16, 10], [1, 12], [3, 16], [14, 17], [18, 12], [19, 15], [6, 17]]) garden("tree", x, y);
+  for (const [x, y] of [[1, 3], [3, 2], [7, 2], [7, 5], [15, 0], [1, 12], [3, 16], [14, 17], [18, 12], [19, 15], [6, 17]]) garden("tree", x, y);
   for (const [x, y] of [[5, 5], [5, 9], [10, 0], [12, 0], [14, 4], [0, 11], [0, 14], [12, 16], [16, 16], [18, 14], [2, 0], [21, 9]]) garden("bush", x, y);
   for (let y = WING_Y + 1; y < H - 1; y += 4) {
     garden(y % 8 === 3 ? "bush" : "tree", WL - 2 + ((y >> 2) % 2), y);
@@ -607,7 +607,7 @@ function furnishRoom(r: MapRoom, left: boolean, put: Put, hang: Hang) {
     put(r, "desk", X + 1, Y, 2, 1, "y");
     put(r, "chair", X + 1, Y + 1, 1, 1, "y");
     put(r, "plant", X + 5, Y);
-    put(r, "lamp", X + 5, Y + 4);
+    put(r, "lamp", X + 5, Y + 1, 1, 1, "y");
   }
   // La marca: el felpudo del lado del pasillo (cada puerta se reconoce al pasar)
   // y, en las de la izquierda, el cartel con el nombre arriba de la lámpara.
