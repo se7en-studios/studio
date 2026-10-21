@@ -3,13 +3,16 @@
 // del estudio (carbón, azul noche, violeta eléctrico y blanco). Los colores de
 // cada marca van sólo en su sala. Arquitectura abierta: sin techos, paredes
 // altas sólo en el borde del edificio y medias paredes cortadas entre salas.
-// Todo dibujado en código: nada de sprites ni baldosas de otros productos. Se
+// La arquitectura (pisos, paredes, carteles) está dibujada en código; los
+// muebles y los personajes son las ilustraciones de Federico hechas en Flow
+// (muebles.ts, personajes.ts), con los dibujados en código de respaldo. Se
 // dibuja en coordenadas del mundo; el motor (engine.ts) pone la escala y decide
-// el orden. Los muñecos y el gato están en toon.ts.
+// el orden. Los muñecos de respaldo y el gato están en toon.ts.
 import type { Area, Decor, Facing, Furni, MapModel, MapRoom, Period } from "@/lib/admin/oficinas-shared";
 import { plantStage } from "@/lib/admin/oficinas-shared";
 import { CAT_BOX, TOON_BOX, drawCat, drawToon, toonLook, type ActorLook, type ToonPose } from "./toon";
 import { SHEETS } from "./personajes";
+import { MUEBLES } from "./muebles";
 
 export type { ActorLook };
 export const HW = 32;
@@ -81,7 +84,9 @@ export function setTint(t: number, color = TC) {
   TC = color;
 }
 export type XY = [number, number];
-export const P = (x: number, y: number, z = 0): XY => [V.ox + (x - y) * HW, V.oy + (x + y) * HH - z];
+/** Cuánto se sube lo que se dibuja arriba de un mueble ilustrado (su tapa no está a la altura de la del dibujado en código). */
+let ZL = 0;
+export const P = (x: number, y: number, z = 0): XY => [V.ox + (x - y) * HW, V.oy + (x + y) * HH - z - ZL];
 
 // --- Color: paleta cerrada, apagado por luminancia y la luz de la hora --------
 
@@ -937,14 +942,233 @@ function mug(x: number, y: number, z: number, col: string, ctx: FurniCtx, room: 
   ctx.glows.push({ t: "steam", at: P(x, y, z + 7), room });
 }
 
+// --- Los muebles ilustrados -----------------------------------------------------
+// Las ilustraciones de Flow (public/en-vivo/muebles.webp, ver scripts/muebles.mjs).
+// Cada una se para en sus baldosas, del tamaño que entra sin pasarse de su
+// altura, y se espeja si en el dibujo mira para el otro lado. La luz de la hora
+// y el apagado de la sala se le aplican una vez por combinación y quedan
+// guardados. Mientras baja la lámina, o si no baja, van los dibujados en código.
+
+/**
+ * Cómo va cada mueble: qué ilustración (si hay varias, una por lugar), hacia
+ * dónde mira en el dibujo (`face`: el frente hacia +x o hacia +y; "free": da
+ * igual, se espeja al azar), qué parte del ancho de sus baldosas ocupa (`fill`)
+ * y su altura máxima en px del mundo (`z`). `top`: la altura de la tapa del
+ * dibujado en código, para subir lo que lleva arriba hasta la tapa ilustrada.
+ */
+type Spec = { name: string | string[]; face: Facing | "free"; fill: number; z: number; top?: number; glow?: "lamp" | "bubble" | "steam" };
+const SPRITES: Partial<Record<string, Spec>> = {
+  desk: { name: "desk2", face: "x", fill: 0.97, z: 30, top: 28 },
+  desk2: { name: "desk2", face: "x", fill: 0.97, z: 30, top: 28 },
+  chair: { name: "chair", face: "y", fill: 0.6, z: 46 },
+  chairBoss: { name: "chairBoss", face: "y", fill: 0.66, z: 54 },
+  stool: { name: "stool", face: "free", fill: 0.42, z: 26 },
+  plant: { name: ["plant", "snake", "monstera", "bamboo"], face: "free", fill: 0.62, z: 54 },
+  shelf: { name: "shelf", face: "y", fill: 0.78, z: 64 },
+  rack: { name: "rack", face: "y", fill: 0.7, z: 64 },
+  sofa: { name: "sofa", face: "x", fill: 0.96, z: 32 },
+  lamp: { name: "lamp", face: "free", fill: 0.4, z: 70, glow: "lamp" },
+  table: { name: "table", face: "x", fill: 0.86, z: 26, top: 25 },
+  drafting: { name: "drafting", face: "free", fill: 0.8, z: 42 },
+  counter: { name: "counter", face: "x", fill: 0.98, z: 36, top: 30 },
+  cooler: { name: "cooler", face: "x", fill: 0.5, z: 54, glow: "bubble" },
+  bench: { name: "bench", face: "y", fill: 0.92, z: 30 },
+  pedestal: { name: "plinth", face: "free", fill: 0.56, z: 30, top: 30 },
+  tvstand: { name: "tvcabinet", face: "x", fill: 0.94, z: 16, top: 12 },
+  vitrine: { name: "vitrine", face: "x", fill: 0.7, z: 60 },
+  kitchen: { name: "kitchen", face: "x", fill: 0.98, z: 38 },
+  fridge: { name: "fridge", face: "x", fill: 0.66, z: 66 },
+  beanbag: { name: "beanbag", face: "free", fill: 0.62, z: 26 },
+  easel: { name: "easel", face: "y", fill: 0.62, z: 64 },
+  meettable: { name: "meettable", face: "x", fill: 0.98, z: 30 },
+  coffeebar: { name: "coffeebar", face: "x", fill: 0.82, z: 46, glow: "steam" },
+  lowtable: { name: "lowtable", face: "x", fill: 0.9, z: 18 },
+  dumbbells: { name: "dumbbells", face: "x", fill: 0.82, z: 24 },
+  cabinet: { name: "cabinet", face: "y", fill: 0.62, z: 50 },
+  espresso: { name: "espresso", face: "y", fill: 0.82, z: 46, glow: "steam" },
+  balls: { name: "balls", face: "free", fill: 0.74, z: 26 },
+  matetable: { name: "matetable", face: "free", fill: 0.66, z: 36 },
+  squatrack: { name: "squatrack", face: "x", fill: 0.9, z: 46 },
+  yogaprops: { name: "yogaprops", face: "free", fill: 0.72, z: 18 },
+  maquette: { name: "maquette", face: "free", fill: 0.76, z: 46 },
+  globe: { name: "globe", face: "free", fill: 0.5, z: 48 },
+  cafetable: { name: "cafetable", face: "free", fill: 0.62, z: 32 },
+  tree: { name: ["tree", "tree2"], face: "free", fill: 1.05, z: 74 },
+  bush: { name: ["bush", "bush2"], face: "free", fill: 0.95, z: 28 },
+  boxes: { name: "boxes", face: "free", fill: 0.8, z: 40 },
+};
+
+let atlas: HTMLImageElement | "loading" | "error" | null = null;
+/** La lámina de los muebles: se pide una vez, cuando se arma el motor. `onLoad`: para volver a hornear lo quieto. */
+export function loadFurniture(onLoad: () => void) {
+  if (atlas) return;
+  atlas = "loading";
+  const img = new Image();
+  img.decoding = "async";
+  img.onload = () => {
+    atlas = img;
+    onLoad();
+  };
+  img.onerror = () => (atlas = "error");
+  img.src = MUEBLES.src;
+}
+
+/** Dónde queda el dibujo de un mueble ilustrado, en px del mundo, y a qué altura su tapa. */
+type Placed = { name: string; x: number; y: number; w: number; h: number; cx: number; cy: number; mirror: boolean; top: number };
+function place(f: Furni, sp: Spec): Placed | null {
+  // Los escritorios de tres baldosas, el largo
+  const name = f.k === "desk" && Math.max(f.w, f.d) >= 3 ? "desk3" : Array.isArray(sp.name) ? sp.name[Math.floor(hash(f.x * 5 + 1, f.y * 3 + 7) * sp.name.length)] : sp.name;
+  const fr = MUEBLES.frames[name];
+  if (!fr) return null;
+  const [, , sw, sh] = fr;
+  const L = P(f.x, f.y + f.d)[0], R = P(f.x + f.w, f.y)[0];
+  const [cx, cy] = P(f.x + f.w / 2, f.y + f.d / 2);
+  // Del ancho de sus baldosas, sin pasarse de alto (lo que el dibujo tiene arriba de su base)
+  let s = (sp.fill * (R - L)) / sw;
+  const zi = sh - sw / 2;
+  if (zi > 1 && zi * s > sp.z) s = sp.z / zi;
+  const W = sw * s, H = sh * s, bottom = cy + W / 4;
+  const mirror = sp.face === "free" ? hash(f.x * 7 + 3, f.y * 11 + 5) > 0.5 : sp.face !== f.face;
+  return { name, x: cx - W / 2, y: bottom - H, w: W, h: H, cx, cy, mirror, top: H - W / 2 };
+}
+
+/** La ilustración con la luz de la hora y el apagado de ahora, guardada por combinación. */
+const tinted = new Map<string, HTMLCanvasElement>();
+function spriteCanvas(name: string): HTMLCanvasElement | null {
+  if (!(atlas instanceof HTMLImageElement)) return null;
+  const q = Math.round(F * 20) / 20, t = T > 0.001 ? Math.round(T * 100) / 100 : 0;
+  const key = `${name}|${q}|${t ? TC + t : ""}`;
+  let cv = tinted.get(key);
+  if (cv) return cv;
+  const [fx, fy, w, h] = MUEBLES.frames[name];
+  cv = document.createElement("canvas");
+  cv.width = w;
+  cv.height = h;
+  const out = cv.getContext("2d") as CanvasRenderingContext2D;
+  if (!q && !t) out.drawImage(atlas, fx, fy, w, h, 0, 0, w, h);
+  else {
+    // Los mismos cálculos que c(): hacia gris y más oscuro si la sala se apaga, y el color de la hora
+    // (en un lienzo aparte: el que se copia en cada cuadro nunca se lee)
+    const tmp = document.createElement("canvas");
+    tmp.width = w;
+    tmp.height = h;
+    const tc = tmp.getContext("2d", { willReadFrequently: true }) as CanvasRenderingContext2D;
+    tc.drawImage(atlas, fx, fy, w, h, 0, 0, w, h);
+    const img = tc.getImageData(0, 0, w, h), px = img.data;
+    const [tr, tg, tb] = rgb(TC);
+    for (let i = 0; i < px.length; i += 4) {
+      if (!px[i + 3]) continue;
+      let r = px[i], gg = px[i + 1], b = px[i + 2];
+      if (q) {
+        const l = 0.3 * r + 0.59 * gg + 0.11 * b, k = 1 - 0.4 * q;
+        r = (r * (1 - q) + l * q) * k;
+        gg = (gg * (1 - q) + l * q) * k;
+        b = (b * (1 - q) + l * q) * k;
+      }
+      if (t) {
+        r += (tr - r) * t;
+        gg += (tg - gg) * t;
+        b += (tb - b) * t;
+      }
+      px[i] = r;
+      px[i + 1] = gg;
+      px[i + 2] = b;
+    }
+    tc.putImageData(img, 0, 0);
+    out.drawImage(tmp, 0, 0);
+  }
+  if (tinted.size > 600) tinted.clear();
+  tinted.set(key, cv);
+  return cv;
+}
+
+function drawSprite(p: Placed, cv: HTMLCanvasElement) {
+  // La sombra en el piso, del ancho del mueble
+  const hw = p.w * 0.44, hh = hw / 2;
+  g.beginPath();
+  g.moveTo(p.cx - hw, p.cy);
+  g.lineTo(p.cx, p.cy - hh);
+  g.lineTo(p.cx + hw, p.cy);
+  g.lineTo(p.cx, p.cy + hh);
+  g.closePath();
+  g.fillStyle = "rgba(11,11,12,0.16)";
+  g.fill();
+  if (p.mirror) {
+    g.save();
+    g.translate(p.cx, 0);
+    g.scale(-1, 1);
+    g.drawImage(cv, -p.w / 2, p.y, p.w, p.h);
+    g.restore();
+  } else g.drawImage(cv, p.x, p.y, p.w, p.h);
+}
+
+/** El mueble ilustrado, si hay: con su luz, su vapor o sus burbujas, y lo que lleva arriba. false: va el dibujado en código. */
+function furniSprite(f: Furni, ctx: FurniCtx): boolean {
+  const sp = SPRITES[f.k];
+  if (!sp || ctx.covered || !(atlas instanceof HTMLImageElement)) return false;
+  // Las plantas de las salas que se apagan se marchitan: ésas siguen en código
+  if (f.k === "plant" && plantStage(F) > 0) return false;
+  // Las cajas van de a una por baldosa
+  const parts = f.k === "boxes" ? Array.from({ length: f.w }, (_, i) => ({ ...f, x: f.x + i, w: 1 })) : [f];
+  for (const part of parts) {
+    const p = place(part, sp);
+    const cv = p && spriteCanvas(p.name);
+    if (!p || !cv) return false;
+    drawSprite(p, cv);
+    // Lo que se prende, donde está en el dibujo (lo de la izquierda pasa a la derecha si se espeja)
+    const at = (u: number, v: number): XY => [p.mirror ? p.cx + (p.cx - (p.x + u * p.w)) : p.x + u * p.w, p.y + v * p.h];
+    if (sp.glow === "lamp") ctx.glows.push({ t: "lamp", at: at(0.5, 0.27), room: f.room });
+    else if (sp.glow === "bubble") ctx.glows.push({ t: "bubble", at: at(0.5, 0.22), room: f.room });
+    else if (sp.glow === "steam") ctx.glows.push({ t: "steam", at: at(0.3, 0.06), room: f.room });
+    // Lo que lleva arriba (monitores, la tele, las tazas), subido hasta la tapa ilustrada
+    if (sp.top !== undefined) {
+      ZL = p.top - sp.top;
+      try {
+        furniCode(f, ctx, false);
+      } finally {
+        ZL = 0;
+      }
+    }
+  }
+  return true;
+}
+
+/** Hasta dónde llega el dibujo de un mueble ilustrado, en px del mundo (null: no tiene). */
+export function furniReach(f: Furni): { x0: number; y0: number; x1: number; y1: number } | null {
+  const sp = SPRITES[f.k];
+  if (!sp) return null;
+  const parts = f.k === "boxes" ? Array.from({ length: f.w }, (_, i) => ({ ...f, x: f.x + i, w: 1 })) : [f];
+  let b: { x0: number; y0: number; x1: number; y1: number } | null = null;
+  for (const part of parts) {
+    const p = place(part, sp);
+    if (!p) continue;
+    // Lo que lleva arriba sube con la tapa: hasta 50 px más
+    const up = sp.top !== undefined ? Math.max(0, p.top - sp.top) + 50 : 0;
+    const r = { x0: p.x - 2, x1: p.x + p.w + 2, y0: p.y - 2 - up, y1: p.y + p.h + 2 };
+    b = b ? { x0: Math.min(b.x0, r.x0), y0: Math.min(b.y0, r.y0), x1: Math.max(b.x1, r.x1), y1: Math.max(b.y1, r.y1) } : r;
+  }
+  return b;
+}
+
 export function furni(f: Furni, ctx: FurniCtx) {
+  if (!furniSprite(f, ctx)) furniCode(f, ctx);
+}
+
+/**
+ * Un mueble dibujado en código. `base`: con su cuerpo; sin él, sólo lo que
+ * lleva arriba (los monitores, la tele, las tazas), para ponerlo sobre el
+ * mueble ilustrado.
+ */
+function furniCode(f: Furni, ctx: FurniCtx, base = true) {
   const { x, y, w, d, face } = f;
   const acc = ctx.accent;
   switch (f.k) {
     case "desk":
     case "desk2": {
-      for (const [lx, ly] of [[x + 0.08, y + 0.08], [x + w - 0.16, y + 0.08], [x + 0.08, y + d - 0.16], [x + w - 0.16, y + d - 0.16]]) box(lx, ly, 0, 0.08, 0.08, 24, LEG);
-      box(x + 0.04, y + 0.04, 24, w - 0.08, d - 0.08, 4, TOP, { left: DESK.left, right: DESK.right });
+      if (base) {
+        for (const [lx, ly] of [[x + 0.08, y + 0.08], [x + w - 0.16, y + 0.08], [x + 0.08, y + d - 0.16], [x + w - 0.16, y + d - 0.16]]) box(lx, ly, 0, 0.08, 0.08, 24, LEG);
+        box(x + 0.04, y + 0.04, 24, w - 0.08, d - 0.08, 4, TOP, { left: DESK.left, right: DESK.right });
+      }
       if (ctx.covered) { sheet(x, y, w, d, 34); break; }
       if (ctx.kind === "office" && ctx.area === "dev") {
         // El escritorio de Franco: el monitor en su brazo, la notebook con el
@@ -1065,8 +1289,10 @@ export function furni(f: Furni, ctx: FurniCtx) {
       break;
     }
     case "table":
-      box(x + w / 2 - 0.05, y + d / 2 - 0.05, 0, 0.1, 0.1, 22, LEG, { line: null });
-      box(x + 0.12, y + 0.12, 22, w - 0.24, d - 0.24, 3, TOP);
+      if (base) {
+        box(x + w / 2 - 0.05, y + d / 2 - 0.05, 0, 0.1, 0.1, 22, LEG, { line: null });
+        box(x + 0.12, y + 0.12, 22, w - 0.24, d - 0.24, 3, TOP);
+      }
       if (ctx.status === "descubrimiento") {
         box(x + 0.25, y + 0.25, 25, 0.18, 0.18, 1, "#fde68a", { line: null });
         box(x + 0.5, y + 0.4, 25, 0.18, 0.18, 1, "#fbcfe8", { line: null });
@@ -1081,9 +1307,11 @@ export function furni(f: Furni, ctx: FurniCtx) {
       break;
     case "counter": {
       // El mostrador de la recepción: frente oscuro con la línea violeta, tapa clara
-      box(x, y + 0.15, 0, w, 0.7, 30, PAL.char2, { top: TOP });
-      faceRect("y", y + 0.85, x, 0.15, w - 0.15, 8, 11, c(PAL.signal));
-      faceRect("y", y + 0.85, x, 0.15, w - 0.15, 13, 14, c(PAL.signal3));
+      if (base) {
+        box(x, y + 0.15, 0, w, 0.7, 30, PAL.char2, { top: TOP });
+        faceRect("y", y + 0.85, x, 0.15, w - 0.15, 8, 11, c(PAL.signal));
+        faceRect("y", y + 0.85, x, 0.15, w - 0.15, 13, 14, c(PAL.signal3));
+      }
       box(x + w / 2 - 0.4, y + 0.3, 30, 0.6, 0.08, 16, PAL.char);
       box(x + w - 0.55, y + 0.4, 30, 0.2, 0.2, 2, "#d4af37");
       cyl(x + w - 0.45, y + 0.5, 32, 2.4, 2.4, "#e6c65a", "#f3dc84");
@@ -1103,7 +1331,7 @@ export function furni(f: Furni, ctx: FurniCtx) {
       box(x + 0.05, y + 0.25, 12, w - 0.1, 0.5, 4, PAL.wood);
       break;
     case "pedestal":
-      box(x + 0.25, y + 0.25, 0, 0.5, 0.5, 30, PAL.paper);
+      if (base) box(x + 0.25, y + 0.25, 0, 0.5, 0.5, 30, PAL.paper);
       monitor(x + 0.5, y + 0.45, "y", "site", ctx, f.room, 30);
       break;
     case "tvstand": {
@@ -1113,9 +1341,11 @@ export function furni(f: Furni, ctx: FurniCtx) {
       const at = (u: number, v: number, z: number) => (face === "y" ? P(x + u, y + v, z) : P(x + v, y + u, z));
       const bx = (u: number, v: number, z: number, lu: number, lv: number, h: number, col: string, o?: { top?: string }) =>
         face === "y" ? box(x + u, y + v, z, lu, lv, h, col, o) : box(x + v, y + u, z, lv, lu, h, col, o);
-      bx(0.12, 0.18, 0, wd - 0.24, 0.5, 12, PAL.char2, { top: PAL.char3 });
-      bx(0.2, 0.62, 3, wd * 0.4 - 0.2, 0.06, 6, PAL.char);
-      bx(wd * 0.6, 0.62, 3, wd * 0.4 - 0.2, 0.06, 6, PAL.char);
+      if (base) {
+        bx(0.12, 0.18, 0, wd - 0.24, 0.5, 12, PAL.char2, { top: PAL.char3 });
+        bx(0.2, 0.62, 3, wd * 0.4 - 0.2, 0.06, 6, PAL.char);
+        bx(wd * 0.6, 0.62, 3, wd * 0.4 - 0.2, 0.06, 6, PAL.char);
+      }
       bx(wd / 2 - 0.22, 0.3, 12, 0.44, 0.16, 2, METAL);
       bx(wd / 2 - 0.04, 0.34, 14, 0.08, 0.06, 3, METAL);
       bx(0.06, 0.32, 16, wd - 0.12, 0.08, 46, "#121119");

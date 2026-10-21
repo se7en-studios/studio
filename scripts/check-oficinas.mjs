@@ -188,4 +188,12 @@ for (const n of [0, 1, 4, 5, 8, 9, 18]) {
   }
 }
 
+// La lámina de los muebles: cada uno con su caja adentro de la imagen.
+{
+  const { MUEBLES } = await import("../lib/oficinas/muebles.ts");
+  const names = Object.keys(MUEBLES.frames);
+  assert.ok(names.length >= 40, "faltan muebles en la lámina");
+  for (const [k, [x, y, w, h]] of Object.entries(MUEBLES.frames)) assert.ok(x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= 2048, `mueble ${k}: caja`);
+}
+
 console.log("oficinas OK");

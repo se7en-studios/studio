@@ -35,6 +35,8 @@ import {
   avatar,
   bakeBrand,
   loadSheets,
+  loadFurniture,
+  furniReach,
   bakeSlogan,
   begin,
   brandRug,
@@ -347,6 +349,11 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   begin(ctx, view);
   // Las láminas de los personajes: cuando llegan, un cuadro nuevo para que aparezcan
   loadSheets(() => poke());
+  // Los muebles ilustrados: cuando llegan, se vuelve a hornear lo quieto
+  loadFurniture(() => {
+    artRev++;
+    poke();
+  });
   const byId = new Map(m.rooms.map((r) => [r.id, r]));
   const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
   let reduced = mq.matches;
@@ -643,8 +650,13 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     const it: Item = {
       depth: f.x + f.w - 1 + f.y + f.d - 1, order: 1, x: f.x, ax, ay, glows: [],
       foot: { x0: f.x, x1: f.x + f.w, y0: f.y, y1: f.y + f.d },
-      // Ningún mueble pasa de 70 px de alto ni se sale más que un poco de sus baldosas
-      box: reach(f.x - 0.15, f.y - 0.15, f.x + f.w + 0.15, f.y + f.d + 0.15, 70, 6),
+      // Ningún mueble dibujado en código pasa de 70 px de alto ni se sale más que un poco de sus baldosas
+      box: (() => {
+        const b = reach(f.x - 0.15, f.y - 0.15, f.x + f.w + 0.15, f.y + f.d + 0.15, 70, 6);
+        // El ilustrado puede ser más alto o más ancho (los árboles)
+        const sp = furniReach(f);
+        return sp ? { x0: Math.min(b.x0, sp.x0), y0: Math.min(b.y0, sp.y0), x1: Math.max(b.x1, sp.x1), y1: Math.max(b.y1, sp.y1) } : b;
+      })(),
       draw: () => {
         setFade(fadeOfId(f.room));
         tint(f.room);
