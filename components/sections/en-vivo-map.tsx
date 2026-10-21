@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowUpRight, ChevronLeft, ChevronRight, Menu, Minus, Plus, X } from "lucide-react";
 import { ZOOMS, createEngine, type ActorSpec, type Engine, type RoomLooks } from "@/lib/oficinas/engine";
+import { isOwner, type ActorLook } from "@/lib/oficinas/art";
+import { useLive, type LivePerson } from "@/lib/oficinas/vivo";
 import type { EnVivoPublic } from "@/app/api/en-vivo/route";
 import type { VisitorsNow } from "@/lib/visitas";
 import { buildMap, hourIn, ledMessages, periodOf, studioRoomName, themeOf, type MapModel, type MapRoom, type OfiProject, type Who } from "@/lib/admin/oficinas-shared";
@@ -17,6 +19,7 @@ import { process as steps } from "@/data/services";
 import { team } from "@/data/team";
 import { SITE } from "@/data/site";
 import { MapFrame } from "./en-vivo-frame";
+import { Faces, FounderButtons, PersonCard, useHeardLine } from "./en-vivo-gestos";
 
 // El mismo mapa de «En vivo» del panel, en modo público: sin el panel de la
 // derecha, sin días ni novedades, con todas las salas prendidas. Si alguno de
@@ -49,26 +52,35 @@ const FOUNDER: Record<Who, (typeof team)[number] | undefined> = {
  * Quiénes caminan: los conectados al panel o, si no hay nadie, el guía; y una
  * persona por cada visita de la página. Si Franco o Federico están mirando la
  * landing, aparecen como ellos (con su nombre arriba) y no dos veces.
+ *
+ * Con el canal en vivo (`live`: los que tienen la oficina abierta, `me`: vos),
+ * los que entran aparecen al toque, sin esperar la lista de visitas, y el motor
+ * los hace caminar como en su pestaña (setRemote). Un socio con el mapa del
+ * panel abierto gana sobre el mismo socio mirando la landing (salvo que ése
+ * seas vos).
  */
-function actorsFor(online: EnVivoPublic["online"], map: MapModel, visitors: VisitorsNow | null): ActorSpec[] {
+function actorsFor(online: EnVivoPublic["online"], map: MapModel, visitors: VisitorsNow | null, live: LivePerson[], me: LivePerson | null): ActorSpec[] {
   const list = visitors?.visitors ?? [];
-  const here = new Set(list.flatMap((v) => (v.who ? [v.who] : [])));
-  const working = online.filter((o) => !here.has(o.who));
-  const staff: ActorSpec[] = !online.length
+  const inPanel = new Set(live.flatMap((p) => (p.id === p.look && isOwner(p.look) ? [p.look as Who] : [])));
+  const youId = me?.id ?? (visitors?.you ? `v-${visitors.you}` : null);
+  const guests = new Map<string, { look: ActorLook; who: Who | null }>();
+  for (const v of list) guests.set(`v-${v.id}`, { look: v.who ?? `v:${v.id}`, who: v.who });
+  for (const p of me ? [...live, me] : live) if (p.id.startsWith("v-") && !guests.has(p.id)) guests.set(p.id, { look: p.look, who: isOwner(p.look) ? (p.look as Who) : null });
+  for (const [id, g] of guests) if (g.who && inPanel.has(g.who) && id !== youId) guests.delete(id);
+  const here = new Set([...guests.values()].flatMap((g) => (g.who ? [g.who] : [])));
+  const staffWho = [...new Set([...online.map((o) => o.who), ...inPanel])];
+  const staff: ActorSpec[] = !staffWho.length
     ? [{ id: "guia", look: "guia", goal: { kind: "tour" } }]
-    : working.map((o) => {
-        const room = o.room ? map.rooms.find((r) => r.slug === o.room) : null;
-        // Con su nombre arriba: son los dueños (el motor les pone el aura)
-        return { id: o.who, look: o.who, goal: room ? { kind: "room", room: room.id } : { kind: "seat", who: o.who }, tag: NAMES[o.who] };
-      });
-  const guests: ActorSpec[] = list.map((v) => ({
-    id: `v-${v.id}`,
-    look: v.who ?? `v:${v.id}`,
-    goal: { kind: "wander" },
-    you: v.id === visitors?.you,
-    tag: v.who ? NAMES[v.who] : undefined,
-  }));
-  return [...staff, ...guests];
+    : staffWho
+        .filter((w) => inPanel.has(w) || !here.has(w))
+        .map((w) => {
+          const o = online.find((x) => x.who === w);
+          const room = o?.room ? map.rooms.find((r) => r.slug === o.room) : null;
+          // Con su nombre arriba: son los dueños (el motor les pone el aura)
+          return { id: w, look: w, goal: room ? { kind: "room", room: room.id } : { kind: "seat", who: w }, tag: NAMES[w] };
+        });
+  const guestSpecs: ActorSpec[] = [...guests].map(([id, g]) => ({ id, look: g.look, goal: { kind: "wander" }, you: id === youId, tag: g.who ? NAMES[g.who] : undefined }));
+  return [...staff, ...guestSpecs];
 }
 
 /** En qué sala está cada socio conectado: la del proyecto que tiene abierto, o la de su escritorio. */
@@ -117,6 +129,11 @@ export function EnVivoMap({
   const [online, setOnline] = useState<EnVivoPublic["online"] | null>(null);
   const [hover, setHover] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  // El canal en vivo: sólo con la oficina abierta a pantalla completa
+  const live = useLive(fill && active && !hold && !!engine, "visita", engine);
+  const { report } = live;
+  const [person, setPerson] = useState<string | null>(null);
+  const heardLine = useHeardLine(live.heard, live.people);
 
   const projects = useMemo(() => publicProjects(captures ?? {}), [captures]);
   const map = useMemo(() => buildMap(projects.map((p) => ({ slug: p.slug, status: p.status, theme: themeOf(p) }))), [projects]);
@@ -161,7 +178,8 @@ export function EnVivoMap({
       slides: SLIDES,
       public: true,
       // A pantalla completa: zoom a escala ~1, con tope de densidad (ver fillZoom), y tu muñeco se maneja
-      ...(fill ? { zoom: fillZoom(), maxDpr: FILL_DPR, controls: true } : {}),
+      // y avisa por el canal en vivo dónde está; tocar a alguien de ahí abre sus gestos
+      ...(fill ? { zoom: fillZoom(), maxDpr: FILL_DPR, controls: true, onState: report, onPerson: setPerson } : {}),
       onRoom: (id) => {
         if (fill) return setSelected(id);
         const slug = map.rooms.find((r) => r.id === id)?.slug;
@@ -182,15 +200,15 @@ export function EnVivoMap({
       e.destroy();
       setEngine(null);
     };
-  }, [captures, map, bySlug, projects, router, fill]);
+  }, [captures, map, bySlug, projects, router, fill, report]);
 
   useEffect(() => {
     if (engine) onReady?.();
   }, [engine, onReady]);
 
   useEffect(() => {
-    if (engine && online) engine.setActors(actorsFor(online, map, visitors));
-  }, [engine, online, map, visitors]);
+    if (engine && online) engine.setActors(actorsFor(online, map, visitors, live.people, live.me));
+  }, [engine, online, map, visitors, live.people, live.me]);
 
   useEffect(() => {
     engine?.setPaused(!active || hold);
@@ -200,17 +218,26 @@ export function EnVivoMap({
   const go = useCallback(
     (id: string | null) => {
       setSelected(id);
+      setPerson(null);
       if (id) engine?.visit(id);
       else engine?.select(null);
     },
     [engine],
   );
 
+  // Los socios con el mapa del panel abierto (canal en vivo) están en la oficina aunque la señal de presencia no haya llegado
+  const inPanel = new Set(live.people.flatMap((p) => (p.id === p.look && isOwner(p.look) ? [p.look as Who] : [])));
+  const staffNow = [...new Set([...(online ?? []).map((o) => o.who), ...inPanel])];
   const status = !online
     ? "Conectando…"
-    : !online.length
+    : !staffNow.length
       ? "El guía recorre los proyectos"
-      : online.map((o) => `${NAMES[o.who]} ${o.room ? `está en la sala de ${bySlug.get(o.room)?.name ?? o.room}` : "está en su escritorio"}`).join(" · ");
+      : staffNow
+          .map((w) => {
+            const o = online.find((x) => x.who === w);
+            return `${NAMES[w]} ${o?.room ? `está en la sala de ${bySlug.get(o.room)?.name ?? o.room}` : inPanel.has(w) ? "está en la oficina" : "está en su escritorio"}`;
+          })
+          .join(" · ");
   const hovered = hover ? map.rooms.find((r) => r.id === hover) : null;
   const where = useMemo(() => whereIs(online ?? [], map), [online, map]);
 
@@ -243,6 +270,7 @@ export function EnVivoMap({
   // La recepción primero; después las salas del estudio y los proyectos, en el orden del mapa
   const rooms = map.rooms.filter((r) => r.kind !== "storage" && r.kind !== "kitchen").sort((a, b) => +(b.kind === "reception") - +(a.kind === "reception"));
   const picked = selected ? map.rooms.find((r) => r.id === selected) ?? null : null;
+  const target = person ? live.people.find((p) => p.id === person) ?? null : null;
   return (
     <div className={`relative h-full w-full overflow-hidden bg-[#0b0b0c] text-[#f2eee6] ${archivo.className}`}>
       <TopBar onClose={onClose} onNavigate={onNavigate} />
@@ -254,7 +282,14 @@ export function EnVivoMap({
           className="block h-full w-full cursor-pointer"
           style={{ touchAction: "none" }}
         />
-        <LiveBox status={status} audience={audience(visitors)} hovered={hovered && hovered.id !== selected ? roomName(hovered, bySlug) : null} className="top-3 left-3 md:top-4 md:left-4" />
+        <LiveBox
+          status={status}
+          audience={audience(visitors)}
+          hovered={hovered && hovered.id !== selected ? roomName(hovered, bySlug) : null}
+          heard={heardLine}
+          hint={live.people.length && !target ? "Tocá a alguien para mandarle un saludo" : null}
+          className="top-3 left-3 md:top-4 md:left-4"
+        />
         {engine && (
           <div className="absolute top-3 right-3 flex flex-col gap-1.5 md:top-4 md:right-4">
             {([[1, "Acercar", Plus], [-1, "Alejar", Minus]] as const).map(([step, label, Icon]) => (
@@ -271,7 +306,15 @@ export function EnVivoMap({
           </div>
         )}
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0b0b0c] via-[rgba(10,10,20,0.75)] to-transparent pt-10 pb-[max(10px,env(safe-area-inset-bottom))]">
-          {picked && (
+          {target ? (
+            <PersonCard
+              key={target.id}
+              person={target}
+              onGesture={(g) => live.gesture(target.id, g)}
+              onClose={() => setPerson(null)}
+              className="mx-3 mb-2 md:mx-4 md:mb-3 md:w-[380px] md:p-4"
+            />
+          ) : picked && (
             <RoomCard
               room={picked}
               project={picked.slug ? bySlug.get(picked.slug) ?? null : null}
@@ -282,6 +325,8 @@ export function EnVivoMap({
               onNavigate={onNavigate}
             />
           )}
+          {/* Los socios en vivo, también con un botón (con el teclado no se puede tocar el muñeco) */}
+          <FounderButtons people={live.people.filter((p) => p.id !== target?.id)} onPick={setPerson} className="mb-2 px-3 md:px-4" />
           <RoomRail rooms={rooms} bySlug={bySlug} where={where} selected={selected} onPick={go} />
         </div>
       </div>
@@ -294,8 +339,8 @@ function roomName(r: MapRoom, bySlug: Map<string, OfiProject>) {
   return r.slug ? bySlug.get(r.slug)?.name ?? r.slug : studioRoomName(r);
 }
 
-/** El cartel de arriba: en vivo, quién está y quién mira. */
-function LiveBox({ status, audience, hovered, className }: { status: string; audience: string | null; hovered?: string | null; className: string }) {
+/** El cartel de arriba: en vivo, quién está y quién mira (y, en la oficina abierta, el gesto que te mandaron). */
+function LiveBox({ status, audience, hovered, heard, hint, className }: { status: string; audience: string | null; hovered?: string | null; heard?: string | null; hint?: string | null; className: string }) {
   return (
     <div className={`pointer-events-none absolute max-w-[min(70%,360px)] rounded-xl bg-[rgba(11,11,12,0.86)] px-3 py-2 ring-1 ring-white/10 ${className}`} aria-live="polite">
       <p className="flex items-center gap-1.5 text-[11px] leading-none font-extrabold tracking-[0.12em] text-[#ffb199] uppercase">
@@ -308,6 +353,11 @@ function LiveBox({ status, audience, hovered, className }: { status: string; aud
       <p className="mt-1.5 line-clamp-2 text-[12px] leading-snug text-[#f2eee6]">{status}</p>
       {audience && <p className="truncate text-[11px] leading-snug text-[#ff6a4f]">{audience}</p>}
       {hovered && <p className="mt-1 truncate text-[11px] leading-snug font-bold text-white">→ {hovered}</p>}
+      {heard ? (
+        <p className="mt-1.5 truncate rounded-md bg-[#ff4d2e] px-2 py-1 text-[12px] leading-none font-extrabold text-[#0b0b0c]">{heard}</p>
+      ) : (
+        hint && <p className="mt-1 truncate text-[11px] leading-snug text-[#b9b4ab]">{hint}</p>
+      )}
     </div>
   );
 }
@@ -381,20 +431,6 @@ function TopBar({ onClose, onNavigate }: { onClose?: () => void; onNavigate?: (h
         </nav>
       )}
     </header>
-  );
-}
-
-/** Las caras de los socios (las fotos de la web), chiquitas, para marcar dónde está cada uno. */
-function Faces({ who, size = 18 }: { who: Who[]; size?: number }) {
-  return (
-    <span className="flex -space-x-1.5">
-      {who.map((w) => {
-        const t = FOUNDER[w];
-        return t?.imageUrl ? (
-          <Image key={w} src={t.imageUrl} alt={NAMES[w]} width={size} height={size} className="rounded-full object-cover ring-2 ring-[#5ad1a8]" style={{ width: size, height: size }} />
-        ) : null;
-      })}
-    </span>
   );
 }
 

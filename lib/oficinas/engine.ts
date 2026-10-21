@@ -125,7 +125,19 @@ export type EngineOptions = {
    * el piso lo lleva caminando, las flechas lo mueven y arrastrar corre la cámara.
    */
   controls?: boolean;
+  /**
+   * El canal en vivo (lib/oficinas/vivo.ts): cada vez que tu muñeco cambia de
+   * destino o se sienta. En el panel, tu muñeco; en la landing, el de «VOS».
+   */
+  onState?: (s: LiveState) => void;
+  /** Tocaste a alguien que está en vivo (null: tocaste otra cosa), para mandarle un gesto. */
+  onPerson?: (id: string | null) => void;
 };
+
+/** Dónde está alguien para el canal en vivo: la baldosa a la que va (o donde está) y si está sentado en su escritorio. */
+export type LiveState = { x: number; y: number; sit: boolean };
+/** Los gestos del canal en vivo: saludar, un corazón o un café que vuela hasta el otro. */
+export type Gesture = "hola" | "corazon" | "cafe";
 
 /**
  * Qué hace un personaje de la landing: sentado en su escritorio, mirando la
@@ -154,8 +166,19 @@ export type Engine = {
   goOut: () => void;
   press: (dir: "up" | "down" | "left" | "right", on: boolean) => void;
   zoomBy: (step: number) => void;
-  /** Sólo en la landing: quiénes caminan por el mapa. Los que ya están siguen desde donde estaban. */
+  /**
+   * Quiénes caminan por el mapa (en el panel, los que están en el canal en
+   * vivo, además de vos). Los que ya están siguen desde donde estaban.
+   */
   setActors: (specs: ActorSpec[]) => void;
+  /**
+   * El canal en vivo: dónde está alguien que tiene la oficina abierta en otro
+   * lado; manda sobre su `goal` (null: salió del canal y vuelve a lo suyo).
+   * Puede llegar antes que su setActors: aparece directamente ahí.
+   */
+  setRemote: (id: string, s: LiveState | null) => void;
+  /** Un gesto de `from` a `to` (cualquiera de los dos puede ser tu muñeco: en el panel, con tu nombre). */
+  gesture: (from: string, to: string, g: Gesture) => void;
   /**
    * Sólo en la landing: ir a una sala. Tu muñeco («VOS») va caminando y se
    * queda mirando; si no estás en el mapa, va la cámara.
@@ -374,7 +397,10 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   const cam = { x: 0, y: 0, ready: false };
   const disp = new Map<string, number>();
   const anim = new Map<string, { t0: number; from: number }>();
-  const player = { x: m.start.x, y: m.start.y, from: { ...m.start }, to: { ...m.start }, t: 0, moving: false, dir: "SW" as Dir, path: [] as Pt[], step: 0, v: 0 };
+  // En el panel, cada socio arranca en su baldosa al lado de la entrada: con los
+  // dos en el canal en vivo no quedan encimados (la de la entrada es de las visitas)
+  const spawn = [[1, 0], [0, 1], [-1, 0], [0, -1]].map(([dx, dy]) => ({ x: m.start.x + dx, y: m.start.y + dy })).filter((q) => walkable(m, q.x, q.y))[o.me === "franco" ? 1 : 0] ?? m.start;
+  const player = { x: spawn.x, y: spawn.y, from: { ...spawn }, to: { ...spawn }, t: 0, moving: false, dir: "SW" as Dir, path: [] as Pt[], step: 0, v: 0 };
   let current: MapRoom | null = null;
   let hover: Pt | null = null;
   let marker: (Pt & { t0: number }) | null = null;
@@ -815,6 +841,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     hold: number;
     /** Lo que eligió la visita que mira (tu muñeco): manda sobre `goal`, que viene de afuera. */
     own: OwnGoal | null;
+    /** Alguien del canal en vivo: va a donde dice su pestaña (manda sobre `goal`). */
+    remote: LiveState | null;
   };
   /** Lo que hace tu muñeco cuando lo manejás: ir a una sala, a una baldosa, o quedarse (con las flechas). */
   type OwnGoal = { kind: "room"; room: string } | { kind: "spot"; at: Pt } | { kind: "manual" };
@@ -894,13 +922,41 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         a.tag = sp.tag ?? null;
         continue;
       }
-      // Los socios aparecen en su escritorio; el guía y las visitas, en el pasillo frente a la recepción
-      const seat = sp.goal.kind === "seat" ? seatOf(sp.goal.who) : null;
-      const at = seat ?? m.start;
+      // Los socios aparecen en su escritorio; el guía y las visitas, en el pasillo
+      // frente a la recepción. Los del canal en vivo, donde están en su pestaña.
+      const remote = remotes.get(sp.id) ?? null;
+      const rseat = remote?.sit && isOwner(sp.look) ? seatOf(sp.look as Who) : null;
+      const seat = remote ? rseat : sp.goal.kind === "seat" ? seatOf(sp.goal.who) : null;
+      const at = remote && walkable(m, remote.x, remote.y) ? { x: remote.x, y: remote.y } : (seat ?? m.start);
       const seed = seedOf(sp.id);
-      actors.push({ id: sp.id, look: sp.look, goal: sp.goal, x: at.x, y: at.y, from: { ...at }, to: { ...at }, t: 0, moving: false, dir: "SW", path: [], step: 0, v: 0, seat, face: null, wait: 0, stop: sp.goal.kind === "wander" ? Math.abs(seed) % 97 : 0, stuck: false, dest: null, seed, you: !!sp.you, tag: sp.tag ?? null, greet: null, own: null, hold: 0 });
+      actors.push({ id: sp.id, look: sp.look, goal: sp.goal, x: at.x, y: at.y, from: { ...at }, to: { ...at }, t: 0, moving: false, dir: "SW", path: [], step: 0, v: 0, seat, face: null, wait: 0, stop: sp.goal.kind === "wander" ? Math.abs(seed) % 97 : 0, stuck: false, dest: null, seed, you: !!sp.you, tag: sp.tag ?? null, greet: null, own: null, hold: 0, remote });
     }
     poke();
+  }
+  /** Lo último que dijo cada uno del canal en vivo (aunque todavía no esté en setActors). */
+  const remotes = new Map<string, LiveState>();
+  function setRemote(id: string, s: LiveState | null) {
+    if (s) remotes.set(id, s);
+    else remotes.delete(id);
+    const a = actors.find((x) => x.id === id);
+    if (!a || a.you) return;
+    Object.assign(a, { remote: s, stuck: false, wait: 0, dest: null, face: null, hold: 0 });
+    // Si iba para otro lado, corta y sale para donde va ahora
+    if (s && (a.moving || a.path.length) && !s.sit) headTo(a, { x: s.x, y: s.y });
+    else if (s?.sit) a.path = [];
+    poke();
+  }
+  /** Hasta su escritorio: a la baldosa de al lado de la silla y se sienta. */
+  function goSeat(a: Actor, who: Who) {
+    const seat = seatOf(who);
+    if (a.seat || !seat) return;
+    if (a.stuck || Math.abs(a.x - seat.x) + Math.abs(a.y - seat.y) <= 1) {
+      // Del canal en vivo se queda parado en la baldosa de al lado (como en su panel): se levanta desde ahí
+      Object.assign(a, a.remote ? { seat } : { x: seat.x, y: seat.y, seat });
+      return;
+    }
+    const next = [[0, -1], [-1, 0], [1, 0], [0, 1]].map(([dx, dy]) => ({ x: seat.x + dx, y: seat.y + dy })).find((q) => walkable(m, q.x, q.y));
+    if (!next || !headTo(a, next)) a.stuck = true;
   }
   const youActor = () => actors.find((a) => a.you) ?? null;
   /** Tu muñeco hace lo que le pediste (con los controles de la pantalla completa). */
@@ -950,6 +1006,16 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     return best ? { ...stop, at: best } : stop;
   }
   function settle(a: Actor, ts: number) {
+    if (a.remote) {
+      const r = a.remote;
+      if (r.sit && isOwner(a.look)) return goSeat(a, a.look as Who);
+      if (a.x === r.x && a.y === r.y) {
+        a.seat = null;
+        return;
+      }
+      if (!a.stuck && !headTo(a, { x: r.x, y: r.y })) a.stuck = true;
+      return;
+    }
     if (a.own) {
       const w = a.own;
       if (w.kind === "manual") return;
@@ -977,17 +1043,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       if (!a.dest || !headTo(a, a.dest)) Object.assign(a, { dest: null, stop: a.stop + 1 });
       return;
     }
-    if (g.kind === "seat") {
-      const seat = seatOf(g.who);
-      if (a.seat || !seat) return;
-      if (a.stuck || Math.abs(a.x - seat.x) + Math.abs(a.y - seat.y) <= 1) {
-        Object.assign(a, { x: seat.x, y: seat.y, seat });
-        return;
-      }
-      const next = [[0, -1], [-1, 0], [1, 0], [0, 1]].map(([dx, dy]) => ({ x: seat.x + dx, y: seat.y + dy })).find((q) => walkable(m, q.x, q.y));
-      if (!next || !headTo(a, next)) a.stuck = true;
-      return;
-    }
+    if (g.kind === "seat") return goSeat(a, g.who);
     const stop = spotFor(a, g.kind === "room" ? spotOf(g.room) : tourStops[a.stop % Math.max(1, tourStops.length)] ?? null);
     if (!stop) return;
     if (a.x === stop.at.x && a.y === stop.at.y) {
@@ -1041,14 +1097,71 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         const end = (o: Actor) => (o.moving ? o.to : { x: o.x, y: o.y });
         const apart = Math.abs(end(a).x - end(b).x) + Math.abs(end(a).y - end(b).y) >= 1;
         for (const [p, q] of [[a, b], [b, a]] as const) {
-          if (p.moving && (p.own || !apart)) continue;
+          // Los del canal en vivo no frenan acá: caminan como en su pestaña
+          if (p.moving && (p.own || p.remote || !apart)) continue;
           const [px, py] = p.moving ? [p.to.x + 0.5, p.to.y + 0.5] : actorPos(p), [qx, qy] = actorPos(q);
           p.face = faceTo(qx - px, qy - py);
+          if (p.remote) continue;
           p.hold = ts + GREET_MS + 200;
           if (p.wait) p.wait += GREET_MS;
         }
       }
     for (const a of actors) if (a.greet && ts - a.greet.t0 > GREET_MS) a.greet = null;
+  }
+
+  // --- Los gestos del canal en vivo ----------------------------------------------
+  // Saludar levanta la mano con «HOLA!»; el corazón y el café vuelan en arco
+  // desde el que lo manda hasta el otro y rebotan arriba de su cabeza.
+  type Flight = { from: string; to: string; g: Gesture; t0: number };
+  let flights: Flight[] = [];
+  const FLY_MS = 1100, POP_MS = 700;
+  /** En el panel tu muñeco no es un personaje de la lista: cuándo saludó. */
+  let meWave = -Infinity;
+  /** Dónde está alguien (el centro de su baldosa); en el panel, `me` sos vos. */
+  function posOf(id: string): [number, number] | null {
+    if (!o.public && id === me) {
+      const s = sitting ? ownSeat() : null;
+      return s ? [s.x + 0.5, s.y + 0.5] : playerPos();
+    }
+    const a = actors.find((x) => x.id === id);
+    return a ? actorPos(a) : null;
+  }
+  function gesture(from: string, to: string, g: Gesture) {
+    const ts = performance.now();
+    if (g !== "hola") flights.push({ from, to, g, t0: ts });
+    else {
+      const a = actors.find((x) => x.id === from);
+      const p = posOf(from), q = posOf(to);
+      if (a) {
+        a.greet = { t0: ts, word: HELLO };
+        if (p && q && !a.moving && !a.seat) a.face = faceTo(q[0] - p[0], q[1] - p[1]);
+      } else if (!o.public && from === me) {
+        if (!sitting) meWave = ts;
+        if (p && q && !player.moving && !sitting) player.dir = faceTo(q[0] - p[0], q[1] - p[1]);
+        bubbles.push({ text: HELLO, tone: "plain", t0: ts });
+        if (bubbles.length > 3) bubbles.shift();
+      }
+    }
+    poke();
+  }
+  /** Lo último que se le avisó al canal en vivo, para no repetirlo. */
+  let told = "";
+  function report() {
+    if (!o.onState) return;
+    let s: LiveState | null = null;
+    if (!o.public) {
+      const e = player.path.length ? player.path[player.path.length - 1] : player.moving ? player.to : player;
+      s = { x: e.x, y: e.y, sit: sitting };
+    } else {
+      const you = youActor();
+      const e = you ? endOf(you) : null;
+      if (e) s = { x: e.x, y: e.y, sit: false };
+    }
+    if (!s) return;
+    const k = `${s.x},${s.y},${+s.sit}`;
+    if (k === told) return;
+    told = k;
+    o.onState(s);
   }
   /** El guía, parado en una sala del recorrido, cuenta algo: habla un rato de cada tanto. */
   const talkOut = (a: Actor, ts: number) => {
@@ -1210,8 +1323,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   function catCompany() {
     const [cx, cy] = catPos();
     const near = (px: number, py: number) => Math.hypot(px - cx, py - cy) < 1.3;
-    if (o.public) return actors.some((a) => !a.seat && near(...actorPos(a)));
-    return near(...playerPos());
+    if (actors.some((a) => !a.seat && near(...actorPos(a)))) return true;
+    return !o.public && near(...playerPos());
   }
 
   function update(dt: number, ts: number) {
@@ -1252,7 +1365,13 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
           next();
         }
       }
+      // Los que están en el canal en vivo (el otro socio, las visitas de la landing)
+      if (actors.length) {
+        updateActors(dt, ts);
+        if (!reduced) greetings(ts);
+      }
     }
+    report();
     updateCat(dt, ts);
     if (!reduced && ts - cat.heart > 12_000 && catCompany()) cat.heart = ts;
     updateLive(ts);
@@ -2110,6 +2229,84 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   }
 
   // --- Cuadro -----------------------------------------------------------------------
+  // Los dueños sentados a su escritorio: la cintura contra el borde de atrás de
+  // la tapa y el teclado arriba de ella. Se dibujan después del escritorio (si
+  // no, las manos quedarían abajo de la tapa); el panel de adelante les tapa las piernas.
+  function seatedAt(who: Who, seat: Pt) {
+    const d = m.furni.find((f) => f.k === "desk" && f.room === `off-${who}`);
+    if (!d || d.y !== seat.y + 1) {
+      const [sx, sy] = P(seat.x + 0.5, seat.y + 0.5);
+      return { sx, sy, depth: seat.x + seat.y + 0.05, foot: footAt(seat.x + 0.5, seat.y + 0.5) };
+    }
+    // En la columna de la silla (x − y igual que su centro), sobre el borde de atrás de la tapa
+    const back = d.y + 0.04, along = seat.x + 0.5 + (back - (seat.y + 0.5));
+    const [sx, sy] = P(along, back, deskTop(d));
+    return { sx, sy, depth: d.x + d.w - 1 + d.y + d.d - 1 + 0.02, foot: { x0: d.x, x1: d.x + d.w, y0: d.y, y1: d.y + d.d } };
+  }
+  /** Un corazón de radio `r` con el centro en (x, y), en píxeles de pantalla. */
+  function heart(x: number, y: number, r: number) {
+    ctx.fillStyle = PAL.signal2;
+    ctx.beginPath();
+    ctx.moveTo(x, y + r * 1.4);
+    ctx.bezierCurveTo(x - r * 2.2, y - r * 0.2, x - r * 0.9, y - r * 1.8, x, y - r * 0.6);
+    ctx.bezierCurveTo(x + r * 0.9, y - r * 1.8, x + r * 2.2, y - r * 0.2, x, y + r * 1.4);
+    ctx.fill();
+    ctx.strokeStyle = PAL.ink;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+  /** Una taza de café humeando, de alto `h` con el centro en (x, y): blanca, con la franja naranja de la casa. */
+  function cup(x: number, y: number, h: number) {
+    const w = h * 0.8, top = y - h * 0.3;
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = PAL.ink;
+    ctx.beginPath();
+    ctx.arc(x + w * 0.44, top + h * 0.32, h * 0.2, -Math.PI / 2, Math.PI / 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x - w / 2, top);
+    ctx.lineTo(x + w / 2, top);
+    ctx.lineTo(x + w * 0.38, top + h * 0.68);
+    ctx.quadraticCurveTo(x, top + h * 0.78, x - w * 0.38, top + h * 0.68);
+    ctx.closePath();
+    ctx.fillStyle = PAL.white;
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = PAL.signal;
+    ctx.fillRect(x - w * 0.42, top + h * 0.26, w * 0.84, h * 0.14);
+    ctx.fillStyle = "#5a3a26";
+    ctx.beginPath();
+    ctx.ellipse(x, top + 0.6, w * 0.4, h * 0.07, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(242, 238, 230, 0.85)";
+    for (const dx of [-w * 0.16, w * 0.16]) {
+      ctx.beginPath();
+      ctx.moveTo(x + dx, top - h * 0.1);
+      ctx.quadraticCurveTo(x + dx + h * 0.14, top - h * 0.26, x + dx, top - h * 0.42);
+      ctx.stroke();
+    }
+  }
+  /** En el panel, el otro socio está en el canal en vivo: camina como en su pestaña (y no se lo dibuja fijo en su silla). */
+  const partnerLive = () => !o.public && actors.some((a) => a.look === otherOf(me));
+  /** Alguien del canal en vivo bajo el puntero (no vos): el de adelante si hay varios. */
+  function personAt(e: MouseEvent): string | null {
+    const b = canvas.getBoundingClientRect();
+    const wx = ((e.clientX - b.left) * dpr - offX) / scale, wy = ((e.clientY - b.top) * dpr - offY) / scale;
+    let best: string | null = null, bd = -Infinity;
+    for (const a of actors) {
+      if (!a.remote || a.you) continue;
+      const st = a.seat && isOwner(a.look) ? seatedAt(a.look as Who, a.seat) : null;
+      const [px, py] = st ? [st.sx, st.sy] : P(...actorPos(a));
+      const r = reachOf(a.look, st ? "sit" : "still");
+      if (Math.abs(wx - px) > r.x * 0.8 || wy < py - r.up || wy > py + r.down) continue;
+      const d = st ? st.depth : actorDepth(a);
+      if (d > bd) {
+        bd = d;
+        best = a.id;
+      }
+    }
+    return best;
+  }
   function render(ts: number) {
     const W = canvas.width, H = canvas.height;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -2182,20 +2379,6 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     const blink = !reduced && ts % 4300 < 140;
     const typing = reduced ? null : (ts / 260) % 1;
     const people: Person[] = [];
-    // Los dueños sentados a su escritorio: la cintura contra el borde de atrás de
-    // la tapa y el teclado arriba de ella. Se dibujan después del escritorio (si
-    // no, las manos quedarían abajo de la tapa); el panel de adelante les tapa las piernas.
-    const seatedAt = (who: Who, seat: Pt) => {
-      const d = m.furni.find((f) => f.k === "desk" && f.room === `off-${who}`);
-      if (!d || d.y !== seat.y + 1) {
-        const [sx, sy] = P(seat.x + 0.5, seat.y + 0.5);
-        return { sx, sy, depth: seat.x + seat.y + 0.05, foot: footAt(seat.x + 0.5, seat.y + 0.5) };
-      }
-      // En la columna de la silla (x − y igual que su centro), sobre el borde de atrás de la tapa
-      const back = d.y + 0.04, along = seat.x + 0.5 + (back - (seat.y + 0.5));
-      const [sx, sy] = P(along, back, deskTop(d));
-      return { sx, sy, depth: d.x + d.w - 1 + d.y + d.d - 1 + 0.02, foot: { x0: d.x, x1: d.x + d.w, y0: d.y, y1: d.y + d.d } };
-    };
     // Qué hace el dueño sentado: tipea casi siempre; cada tanto piensa, toma un café o se estira. Ausente, duerme.
     const seatedPose = (who: Who, away: boolean) => {
       if (away) return "doze";
@@ -2224,7 +2407,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       };
     };
     const po = byId.get(`off-${otherOf(me)}`);
-    if (o.public) {
+    // En la landing, todos; en el panel, los del canal en vivo
+    {
       for (const a of actors) {
         const [ax, ay] = P(...actorPos(a));
         const wave = a.greet && ts >= a.greet.t0 ? (ts - a.greet.t0) / GREET_MS : null;
@@ -2241,13 +2425,16 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
           !!a.seat),
         );
       }
-    } else {
+    }
+    if (!o.public) {
       const seat = sitting ? ownSeat() : null;
+      // Saludando por el canal en vivo: levanta la mano (parado)
+      const wave = !player.moving && ts - meWave < GREET_MS ? Math.max(0, ts - meWave) / GREET_MS : null;
       if (seat) {
         const st = seatedAt(me, seat);
         people.push(person(me, st.depth, st.foot, st.sx, st.sy, reachOf(me, "sit"), () => avatar(me, st.sx, st.sy, "SW", null, true, blink, typing, null, false, null, false, seatedPose(me, false)), true));
-      } else people.push(person(me, pDepth, footAt(pxT, pyT), psx, psy, reachOf(me, player.moving ? "walk" : "still"), () => avatar(me, psx, psy, player.dir, player.moving && !reduced ? (player.step / 2) % 1 : null, false, blink && !player.moving, null, null, false, null, false, null, reduced ? null : ts / 1000)));
-      if (po?.seat) {
+      } else people.push(person(me, pDepth, footAt(pxT, pyT), psx, psy, reachOf(me, player.moving ? "walk" : wave !== null ? "wave" : "still"), () => avatar(me, psx, psy, player.dir, player.moving && !reduced ? (player.step / 2) % 1 : null, false, blink && !player.moving, null, wave, false, null, false, null, reduced ? null : ts / 1000)));
+      if (po?.seat && !partnerLive()) {
         const st = seatedAt(otherOf(me), po.seat);
         // Conectado, tipea; si no, se queda dormido (el aura, sólo si está conectado)
         people.push(person(otherOf(me), st.depth, st.foot, st.sx, st.sy, reachOf(otherOf(me), "sit"), () => avatar(otherOf(me), st.sx, st.sy, "SW", null, true, partnerAway || blink, partnerAway ? null : typing, null, false, null, false, seatedPose(otherOf(me), partnerAway)), true, !partnerAway));
@@ -2295,8 +2482,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const toScreen = (p: XY): XY => [(p[0] * scale + offX) / dpr, (p[1] * scale + offY) / dpr];
     const near = !!po?.seat && current?.id === po.id && Math.abs(player.x - po.seat.x) + Math.abs(player.y - po.seat.y) <= 3;
-    // Globo del otro socio cuando te acercás a su escritorio
-    if (po?.seat && partnerLine && near) {
+    // Globo del otro socio cuando te acercás a su escritorio (si no anda caminando por el canal en vivo)
+    if (po?.seat && partnerLine && near && !partnerLive()) {
       const [sx, sy] = toScreen(P(po.seat.x + 0.5, po.seat.y + 0.5, 74));
       ctx.font = uiFont(8);
       const w = Math.ceil(ctx.measureText(partnerLine).width) + 16, h = 19;
@@ -2306,8 +2493,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       ctx.textBaseline = "middle";
       ctx.fillText(partnerLine, x + 8, y + h / 2 + 0.5);
     }
-    // En la landing: arriba de cada uno, su cartelito («VOS» o el nombre de un
-    // socio) y, si está saludando, el globo con lo que dice
+    // Arriba de cada uno (en el panel, los del canal en vivo), su cartelito
+    // («VOS» o el nombre de un socio) y, si está saludando, el globo con lo que dice
     const placed: Box[] = [];
     /** Sube `y` hasta que el cartel de `x`–`x + w` no pise a otro. */
     const free = (x: number, y: number, w: number, h: number) => {
@@ -2315,7 +2502,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       placed.push({ x0: x, y0: y, x1: x + w, y1: y + h });
       return y;
     };
-    if (o.public)
+    {
       for (const a of actors) {
         const label = a.you ? "VOS" : a.tag?.toUpperCase();
         const word = a.greet && ts >= a.greet.t0 ? a.greet.word : null;
@@ -2364,6 +2551,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         }
         ctx.textAlign = "left";
       }
+    }
     // El gato: corazones cuando alguien pasa al lado; una zeta chiquita cuando duerme
     {
       const [cx, cy] = catPos();
@@ -2374,17 +2562,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         for (let i = 0; i < 2; i++) {
           const k = Math.min(1, Math.max(0, hk - i * 0.25) / 0.75);
           if (k <= 0) continue;
-          const x = hx + (i ? 6 : -3) * zf + Math.sin(k * 7 + i) * 2, y = hy - k * 22 * zf, r = (2.4 + i * 0.4) * zf;
           ctx.globalAlpha = Math.sin(k * Math.PI);
-          ctx.fillStyle = PAL.signal2;
-          ctx.beginPath();
-          ctx.moveTo(x, y + r * 1.4);
-          ctx.bezierCurveTo(x - r * 2.2, y - r * 0.2, x - r * 0.9, y - r * 1.8, x, y - r * 0.6);
-          ctx.bezierCurveTo(x + r * 0.9, y - r * 1.8, x + r * 2.2, y - r * 0.2, x, y + r * 1.4);
-          ctx.fill();
-          ctx.strokeStyle = PAL.ink;
-          ctx.lineWidth = 1;
-          ctx.stroke();
+          heart(hx + (i ? 6 : -3) * zf + Math.sin(k * 7 + i) * 2, hy - k * 22 * zf, (2.4 + i * 0.4) * zf);
         }
       if (cat.sleeping) {
         const k = reduced ? 0.5 : (ts / 3000) % 1;
@@ -2397,8 +2576,37 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       }
       ctx.globalAlpha = 1;
     }
+    // Los gestos del canal en vivo: el corazón y el café vuelan en arco hasta el
+    // otro y rebotan arriba de su cabeza (con movimiento reducido, aparecen ahí)
+    flights = flights.filter((f) => ts - f.t0 < FLY_MS + POP_MS);
+    for (const f of flights) {
+      const p = posOf(f.from), q = posOf(f.to);
+      if (!q) continue;
+      const zf = ZOOMS[zi];
+      const sat = (id: string) => (!o.public && id === me ? sitting : !!actors.find((a) => a.id === id)?.seat);
+      // Termina arriba del cartel con el nombre (los carteles miden lo mismo con cualquier zoom)
+      const [bx, by0] = toScreen(P(q[0], q[1], sat(f.to) ? 72 : 90));
+      const by = by0 - 36;
+      const age = Math.max(0, ts - f.t0);
+      let x = bx, y = by, s: number;
+      if (age < FLY_MS && p && !reduced) {
+        const k = age / FLY_MS, e = k < 0.5 ? 2 * k * k : 1 - (2 - 2 * k) ** 2 / 2;
+        const [ax, ay] = toScreen(P(p[0], p[1], sat(f.from) ? 56 : 70));
+        x = ax + (bx - ax) * e;
+        y = ay + (by - ay) * e - Math.sin(k * Math.PI) * 50;
+        s = 0.8 + 0.2 * Math.sin(k * Math.PI);
+      } else {
+        const k = reduced ? 0.5 : Math.min(1, (age - FLY_MS) / POP_MS);
+        s = 1 + Math.sin(k * Math.PI) * 0.45;
+        y = by - k * 10;
+        ctx.globalAlpha = reduced ? 1 : Math.min(1, (1 - k) * 3);
+      }
+      if (f.g === "corazon") heart(x, y, 6 * s * Math.max(1, zf));
+      else cup(x, y, 17 * s * Math.max(1, zf));
+      ctx.globalAlpha = 1;
+    }
     // El otro socio, dormido: las zetas suben desde su cabeza
-    if (po?.seat && partnerAway) {
+    if (po?.seat && partnerAway && !partnerLive()) {
       const [zx, zy] = toScreen(P(po.seat.x + 0.5, po.seat.y + 0.5, 68));
       ctx.textBaseline = "alphabetic";
       ctx.textAlign = "left";
@@ -2459,10 +2667,11 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   let camMoving = true;
   let lastDraw = -Infinity;
   function busy(ts: number) {
-    if (camMoving || anim.size || motes.length || bubbles.length || marker || dragging) return true;
+    if (camMoving || anim.size || motes.length || bubbles.length || marker || dragging || flights.length) return true;
     if (cat.moving || cat.path.length || ts - cat.heart < 1700) return true;
-    if (o.public) return actors.some((a) => a.moving || a.path.length || (a.greet && ts - a.greet.t0 < GREET_MS + 400));
-    if (player.moving || player.path.length || held.size) return true;
+    const walking = actors.some((a) => a.moving || a.path.length || (a.greet && ts - a.greet.t0 < GREET_MS + 400));
+    if (o.public) return walking;
+    if (walking || player.moving || player.path.length || held.size || ts - meWave < GREET_MS + 400) return true;
     return !!tv && tv.el.readyState >= 2 && !tv.el.paused;
   }
   function frame(ts: number) {
@@ -2473,7 +2682,9 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       return;
     }
     lastDraw = ts;
-    const dt = Math.min(0.05, (ts - last) / 1000);
+    // El primer cuadro al retomar puede traer una hora un poco anterior a `last`
+    // (la del arranque del cuadro): sin el piso, los pasos irían para atrás
+    const dt = Math.max(0, Math.min(0.05, (ts - last) / 1000));
     last = ts;
     update(dt, ts);
     render(ts);
@@ -2506,6 +2717,10 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       return;
     }
     canvas.focus({ preventScroll: true });
+    // Tocar a alguien del canal en vivo: los gestos (no caminás)
+    const who = o.onPerson ? personAt(e) : null;
+    o.onPerson?.(who);
+    if (who) return poke();
     const t = toTile(e);
     if (!inBounds(m, t.x, t.y)) return;
     poke();
@@ -2553,6 +2768,10 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
    * caminando adonde tocaste; sin ellos, sólo se avisa la sala.
    */
   function tap(e: MouseEvent) {
+    // Tocar a alguien del canal en vivo: los gestos (tu muñeco no camina)
+    const who = o.controls && o.onPerson ? personAt(e) : null;
+    o.onPerson?.(who);
+    if (who) return poke();
     const t = toTile(e);
     if (!inBounds(m, t.x, t.y)) return;
     const r = roomAt(m, t.x, t.y);
@@ -2697,6 +2916,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       poke();
     },
     setActors: syncActors,
+    setRemote,
+    gesture,
     visit(id) {
       if (!byId.has(id)) return;
       selected = id;

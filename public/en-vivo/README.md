@@ -154,3 +154,35 @@ estira; duerme la mitad de las veces en su camita del Chill-out, al lado del
 plato (los dos están en `muebles.webp`, con el botón de deploy de Desarrollo).
 Los objetos de vidrio (la tapa del deploy, la vitrina) dejaban ver el verde del
 fondo: `scripts/muebles.mjs` se lo saca (`GLASS`).
+
+## El canal en vivo (`lib/oficinas/vivo.ts`)
+
+Los que tienen la oficina abierta (la landing a pantalla completa y el mapa del
+panel) se ven moverse de verdad: cada pestaña avisa a qué baldosa va su muñeco
+(o si se sentó en su escritorio) y las demás lo hacen caminar hasta ahí. Si
+Franco camina en su panel, Federico lo ve caminar en el suyo y las visitas de
+la landing también; ellas, a su vez, aparecen en los dos paneles. Tocar a
+alguien del canal (o el botón «Saludar a…» de los socios) abre su ficha con
+tres gestos: saludar (levanta la mano con «HOLA!»), un corazón o un café, que
+vuelan hasta el otro. Al que lo recibe le aparece el aviso («Franco te
+saludó»). No hay texto libre.
+
+- **Transporte:** Supabase Realtime, sólo broadcast (no toca la base), un canal
+  por entorno (`se7en-en-vivo-production`, `…-preview`). En local no hay canal
+  de Supabase: se ven las pestañas del mismo navegador (BroadcastChannel), así
+  el desarrollo no toca producción.
+- **Nadie mueve el muñeco de otro:** cada pestaña arma un par de llaves que no
+  sale del navegador y pide un pase a `/admin/api/pase` (`lib/en-vivo-pase.ts`):
+  quién es (la visita por su IP del día, como `/admin/api/visita`, o el socio
+  con la sesión del panel), su muñeco y la llave pública de la pestaña, firmado
+  por el servidor. Cada mensaje va firmado con la llave de la pestaña; los
+  demás verifican el pase con la llave del servidor y el mensaje con la del
+  pase, y tiran lo repetido o lo que no cierra.
+- **La llave del servidor** sale de `ADMIN_SESSION_SECRET` (32 caracteres o más,
+  la que ya está en Vercel). Sin ella no hay pases y la oficina anda como antes,
+  sin el canal.
+- **Cuánto manda:** un aviso cuando el muñeco cambia de destino (con las
+  flechas, uno por baldosa), uno cada 20 s para los que entran y uno al irse.
+  Al ocultar la pestaña sale del canal; los que dejan de dar noticias 50 s se
+  dan por idos.
+

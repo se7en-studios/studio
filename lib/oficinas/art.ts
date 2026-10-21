@@ -1915,7 +1915,9 @@ const jacketOf = (who: ActorLook) => {
 const IDLE_LOOP = [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 2, 2, 2, 0, 0, 1, 1, 0, 0, 3, 3, 3, 3, 0];
 const PHONE_LOOP = [0, 0, 1, 0, 1, 0, 0, 2, 2, 0, 3, 3, 0, 3, 3, 0, 1, 0];
 const THINK_LOOP = [0, 0, 0, 1, 1, 0, 0, 1];
-const loopAt = (loop: number[], t: number, step: number) => loop[Math.floor(t / step) % loop.length];
+/** El índice `i` dentro de `n` cuadros, también si viene negativo (un paso para atrás no tiene cuadro). */
+const wrap = (i: number, n: number) => ((i % n) + n) % n;
+const loopAt = (loop: number[], t: number, step: number) => loop[wrap(Math.floor(t / step), loop.length)];
 
 /** Los dueños del estudio: Federico y Franco. */
 export const isOwner = (who: ActorLook) => who === "federico" || who === "franco";
@@ -1990,7 +1992,7 @@ export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: 
     // Caminando: el ciclo de dos pasos, un cuadro por octavo de `phase`
     const walk = phase === null ? [] : framesOf(k, back ? "walkb" : "walk");
     if (back) {
-      if (walk.length) name = walk[Math.floor((phase ?? 0) * walk.length) % walk.length];
+      if (walk.length) name = walk[wrap(Math.floor((phase ?? 0) * walk.length), walk.length)];
       else if (step !== null) {
         name = "back";
         if (step % 2) lift = -1.2;
@@ -2001,7 +2003,7 @@ export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: 
     else if (sitting) {
       name = SHEETS[k].frames.sit ? "sit" : "idle";
       if (typing !== null && typing >= 0.5) lift = -0.6;
-    } else if (walk.length) name = walk[Math.floor((phase ?? 0) * walk.length) % walk.length];
+    } else if (walk.length) name = walk[wrap(Math.floor((phase ?? 0) * walk.length), walk.length)];
     // Saluda con la mano y después dice «HOLA!» (la boca se mueve)
     else if (wave !== null) name = wave < 0.55 ? pick("wave", Math.floor((wave / 0.55) * 8)) : pick("talk", Math.floor(((wave - 0.55) / 0.45) * 6));
     else if (talk !== null) name = pick("talk", Math.floor(talk * 10));
@@ -2014,7 +2016,7 @@ export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: 
     }
     if (name === "idle" && blink && SHEETS[k].frames.blink) name = "blink";
     else if (name === "type0" && blink && SHEETS[k].frames.typeb) name = "typeb";
-    const [fx, fy, fw, fh, ax, ay] = SHEETS[k].frames[name];
+    const [fx, fy, fw, fh, ax, ay] = SHEETS[k].frames[name] ?? SHEETS[k].frames.idle;
     const s = SK(k);
     // Los dueños: un brillo naranja que sigue el contorno (va en la pose guardada: no cuesta en cada cuadro)
     const owner = isOwner(who), gm = owner ? 6 : 0;
@@ -2087,8 +2089,8 @@ export function studioCat(sx: number, sy: number, dir: Dir, phase: number | null
   if (dir === "SW" || dir === "NW") g.scale(-1, 1);
   const sheet = sheets.get("gato");
   if (sheet instanceof HTMLImageElement) {
-    const name = sleeping ? "sleep" : phase !== null ? `walk${Math.floor(phase * 4) % 4}` : t === null ? "sit" : CAT_LOOP[Math.floor(t / 0.8) % CAT_LOOP.length];
-    const [fx, fy, fw, fh, ax, ay] = SHEETS.gato.frames[name];
+    const name = sleeping ? "sleep" : phase !== null ? `walk${wrap(Math.floor(phase * 4), 4)}` : t === null ? "sit" : CAT_LOOP[wrap(Math.floor(t / 0.8), CAT_LOOP.length)];
+    const [fx, fy, fw, fh, ax, ay] = SHEETS.gato.frames[name] ?? SHEETS.gato.frames.sit;
     const s = catScale();
     cached(`cat|img|${name}`, { x0: -ax * s - 1, x1: (fw - ax) * s + 1, y0: -ay * s - 1, y1: 5 }, (c) => {
       c.beginPath();
