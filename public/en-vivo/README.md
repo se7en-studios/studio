@@ -92,6 +92,10 @@ Con la misma técnica hay dos láminas más por personaje:
   cambia el peso, mira a un costado, la mano en el bolsillo) y cuatro con el
   celular (lee, scrollea, se ríe, escribe). Quieto de frente, cada uno va
   pasando por esos cuadros con su propio reloj; el parpadeo va sobre el primero.
+- **«espaldas quieto.jpg»** (los cuatro): de espaldas, cuatro cuadros quietos
+  (respira, cambia el peso, mira a un costado, las manos atrás) y cuatro
+  explicando una pantalla (la señala, abre la mano, las manos en la cintura, se
+  rasca la cabeza). El guía, que mira cada pantalla de espaldas, la explica.
 - **«sentado tipeando.jpg»** (Federico y Franco): de la cintura para arriba,
   con el teclado en las manos: tres cuadros tipeando, uno sonriendo a la
   pantalla, pensando, tomando café, estirándose y dormido. El script los
@@ -139,3 +143,14 @@ La instrucción base:
 Para los muebles largos (mostrador, escritorios, cocina, mesa de reuniones,
 sillón, mueble de la tele) hay que pedir la proporción («six times longer than
 it is tall»): si no, salen petisos y altos para sus baldosas.
+
+## El gato (`personajes/gato.webp`)
+
+Una lámina de Flow en la carpeta `gato/` de los personajes: cuatro cuadros
+caminando, sentado, lamiéndose la pata, durmiendo hecho un ovillo y
+estirándose. Sale del mismo `scripts/personajes.mjs` (no tiene pose parada de
+referencia: se escala por lo que mide sentado). Quieto, cada tanto se lame o se
+estira; duerme la mitad de las veces en su camita del Chill-out, al lado del
+plato (los dos están en `muebles.webp`, con el botón de deploy de Desarrollo).
+Los objetos de vidrio (la tapa del deploy, la vitrina) dejaban ver el verde del
+fondo: `scripts/muebles.mjs` se lo saca (`GLASS`).

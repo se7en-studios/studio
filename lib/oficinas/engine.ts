@@ -25,7 +25,7 @@ import {
   isOwner,
   ownerAura,
   OWNER_REACH,
-  CAT_REACH,
+  catReach,
   HH,
   HW,
   P,
@@ -1165,7 +1165,10 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     for (let y = f.y; y < f.y + f.d; y++) for (let x = f.x; x < f.x + f.w; x++) if (walkable(m, x, y)) out.push({ x, y });
     return out;
   });
-  const catStart = napTiles[1] ?? napTiles[0] ?? m.start;
+  // Su camita, en el Chill-out: duerme ahí la mitad de las veces
+  const bed = m.furni.find((f) => f.k === "catbed" && walkable(m, f.x, f.y)) ?? null;
+  const napAt = () => (bed && Math.random() < 0.5 ? { x: bed.x, y: bed.y } : napTiles[Math.floor(Math.random() * napTiles.length)]);
+  const catStart = bed ? { x: bed.x, y: bed.y } : (napTiles[1] ?? napTiles[0] ?? m.start);
   const cat = { x: catStart.x, y: catStart.y, from: { ...catStart }, to: { ...catStart }, t: 0, moving: false, dir: "SW" as Dir, path: [] as Pt[], step: 0, until: 0, sleeping: true, heart: -Infinity };
   function updateCat(dt: number, ts: number) {
     if (reduced) {
@@ -1189,7 +1192,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     // Se despierta o termina de pasear: elige qué hacer
     const r = Math.random();
     if (!cat.sleeping && r < 0.25 && napTiles.length) {
-      const spot = napTiles[Math.floor(Math.random() * napTiles.length)];
+      const spot = napAt();
       if (spot.x === cat.x && spot.y === cat.y) Object.assign(cat, { sleeping: true, until: ts + 15_000 + Math.random() * 25_000 });
       else cat.path = findPath(m, { x: cat.x, y: cat.y }, spot) ?? [];
       return;
@@ -2254,7 +2257,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       const [cx, cy] = catPos();
       const [csx, csy] = P(cx, cy);
       const cd = (cat.moving ? Math.max(cat.from.x + cat.from.y, cat.to.x + cat.to.y) : cat.x + cat.y) + 0.04;
-      people.push({ depth: cd, foot: footAt(cx, cy, 0.2), box: around(csx, csy, CAT_REACH), draw: () => studioCat(csx, csy, cat.dir, cat.moving ? cat.step % 1 : null, cat.sleeping) });
+      people.push({ depth: cd, foot: footAt(cx, cy, 0.2), box: around(csx, csy, catReach()), draw: () => studioCat(csx, csy, cat.dir, cat.moving ? cat.step % 1 : null, cat.sleeping, reduced ? null : ts / 1000) });
     }
     people.sort((a, b) => a.depth - b.depth);
     visibleItems = items.filter((it) => visible(it.ax, it.ay));
