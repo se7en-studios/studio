@@ -1000,10 +1000,10 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     }
     Object.assign(a, { from: { x: a.x, y: a.y }, to: n, moving: true, t: 0 });
   }
-  // Dos que se cruzan se saludan: se miran, levantan la mano y se dicen algo.
+  // Dos que se cruzan se saludan: se miran, levantan la mano y se dicen «HOLA!».
   // Cada par, a lo sumo una vez cada 25 s, así no se la pasan saludando.
   const GREET_MS = 1800;
-  const WORDS = ["HOLA!", "BUENAS!", "QUÉ TAL!", "EY!", "HOLI!"];
+  const HELLO = "HOLA!";
   const greeted = new Map<string, number>();
   const faceTo = (dx: number, dy: number): Dir => (Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "SE" : "NW") : dy > 0 ? "SW" : "NE");
   function greetings(ts: number) {
@@ -1017,12 +1017,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         const key = a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
         if (ts - (greeted.get(key) ?? -Infinity) < 25_000) continue;
         greeted.set(key, ts);
-        // Cada uno tiene su forma de saludar; si les toca la misma, el segundo dice otra cosa
-        const wa = Math.abs(a.seed) % WORDS.length;
-        let wb = Math.abs(b.seed) % WORDS.length;
-        if (wb === wa) wb = (wb + 1) % WORDS.length;
-        a.greet = { t0: ts, word: WORDS[wa] };
-        b.greet = { t0: ts + 350, word: WORDS[wb] };
+        a.greet = { t0: ts, word: HELLO };
+        b.greet = { t0: ts + 350, word: HELLO };
         // Los que están quietos se dan vuelta para mirarse y se quedan un poco más
         for (const [p, q] of [[a, b], [b, a]] as const) {
           if (p.moving) continue;
