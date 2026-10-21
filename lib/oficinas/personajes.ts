@@ -2,9 +2,9 @@
 // Cada cuadro: [x, y, ancho, alto, pies x, pies y] dentro de la lámina, en px.
 export type SheetFrame = [number, number, number, number, number, number];
 export type Sheet = { src: string; height: number; frames: Record<string, SheetFrame> };
-export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = {
+export const SHEETS: Record<"federico" | "franco" | "guia" | "visita" | "gato", Sheet> = {
   "federico": {
-    "src": "/en-vivo/personajes/federico.webp?v=mvigbego",
+    "src": "/en-vivo/personajes/federico.webp?v=mviikyxx",
     "height": 192,
     "frames": {
       "idle": [
@@ -303,8 +303,72 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         29.3,
         194.2
       ],
-      "type0": [
+      "backidle0": [
         2836,
+        9,
+        53,
+        191,
+        34.3,
+        191.4
+      ],
+      "backidle1": [
+        2893,
+        7,
+        57,
+        193,
+        35.7,
+        193
+      ],
+      "backidle2": [
+        2954,
+        11,
+        67,
+        189,
+        42,
+        188.6
+      ],
+      "backidle3": [
+        3025,
+        9,
+        60,
+        191,
+        38.7,
+        191.4
+      ],
+      "backtalk0": [
+        3089,
+        9,
+        84,
+        191,
+        34.8,
+        191.4
+      ],
+      "backtalk1": [
+        3177,
+        9,
+        91,
+        191,
+        34.1,
+        191.4
+      ],
+      "backtalk2": [
+        3272,
+        9,
+        77,
+        191,
+        46,
+        191.4
+      ],
+      "backtalk3": [
+        3353,
+        9,
+        67,
+        191,
+        34.6,
+        191.4
+      ],
+      "type0": [
+        3424,
         76,
         99,
         124,
@@ -312,7 +376,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         117.8
       ],
       "type1": [
-        2939,
+        3527,
         76,
         100,
         124,
@@ -320,7 +384,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         118.4
       ],
       "type2": [
-        3043,
+        3631,
         76,
         100,
         124,
@@ -328,7 +392,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         117.8
       ],
       "type3": [
-        3147,
+        3735,
         77,
         100,
         123,
@@ -336,7 +400,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         116.7
       ],
       "think": [
-        3251,
+        3839,
         80,
         101,
         120,
@@ -344,7 +408,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         114
       ],
       "sip": [
-        3356,
+        3944,
         80,
         98,
         120,
@@ -352,7 +416,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         113.6
       ],
       "stretch": [
-        3458,
+        4046,
         79,
         113,
         121,
@@ -360,7 +424,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         113.6
       ],
       "doze": [
-        3575,
+        4163,
         86,
         95,
         114,
@@ -368,7 +432,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         107.1
       ],
       "typeb": [
-        3674,
+        4262,
         76,
         99,
         124,
@@ -378,7 +442,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
     }
   },
   "franco": {
-    "src": "/en-vivo/personajes/franco.webp?v=mvigbeyt",
+    "src": "/en-vivo/personajes/franco.webp?v=mviikzgq",
     "height": 192,
     "frames": {
       "idle": [
@@ -677,8 +741,72 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         27.4,
         188.2
       ],
-      "type0": [
+      "backidle0": [
         2675,
+        13,
+        53,
+        184,
+        21.5,
+        184.2
+      ],
+      "backidle1": [
+        2732,
+        13,
+        61,
+        184,
+        34.6,
+        184.2
+      ],
+      "backidle2": [
+        2797,
+        11,
+        62,
+        186,
+        35.7,
+        185.8
+      ],
+      "backidle3": [
+        2863,
+        11,
+        55,
+        186,
+        27.8,
+        185.8
+      ],
+      "backtalk0": [
+        2922,
+        8,
+        82,
+        189,
+        32.5,
+        189
+      ],
+      "backtalk1": [
+        3008,
+        8,
+        88,
+        189,
+        33,
+        189
+      ],
+      "backtalk2": [
+        3100,
+        8,
+        81,
+        189,
+        45.8,
+        189
+      ],
+      "backtalk3": [
+        3185,
+        8,
+        66,
+        189,
+        33,
+        189
+      ],
+      "type0": [
+        3255,
         68,
         106,
         129,
@@ -686,7 +814,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         123.5
       ],
       "type1": [
-        2785,
+        3365,
         68,
         105,
         129,
@@ -694,7 +822,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         123.1
       ],
       "type2": [
-        2894,
+        3474,
         68,
         105,
         129,
@@ -702,7 +830,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         123.1
       ],
       "type3": [
-        3003,
+        3583,
         68,
         105,
         129,
@@ -710,7 +838,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         123.1
       ],
       "think": [
-        3112,
+        3692,
         64,
         100,
         133,
@@ -718,7 +846,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         122.4
       ],
       "sip": [
-        3216,
+        3796,
         64,
         100,
         133,
@@ -726,7 +854,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         122.4
       ],
       "stretch": [
-        3320,
+        3900,
         64,
         119,
         133,
@@ -734,7 +862,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         120.2
       ],
       "doze": [
-        3443,
+        4023,
         71,
         104,
         126,
@@ -742,7 +870,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         112.8
       ],
       "typeb": [
-        3551,
+        4131,
         68,
         106,
         129,
@@ -752,7 +880,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
     }
   },
   "guia": {
-    "src": "/en-vivo/personajes/guia.webp?v=mvigbfbm",
+    "src": "/en-vivo/personajes/guia.webp?v=mviikzv4",
     "height": 192,
     "frames": {
       "idle": [
@@ -1042,11 +1170,75 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         187,
         22.1,
         187.1
+      ],
+      "backidle0": [
+        2478,
+        10,
+        49,
+        188,
+        30.3,
+        187.9
+      ],
+      "backidle1": [
+        2531,
+        11,
+        53,
+        187,
+        31.9,
+        187.3
+      ],
+      "backidle2": [
+        2588,
+        12,
+        65,
+        186,
+        41.1,
+        186.2
+      ],
+      "backidle3": [
+        2657,
+        10,
+        53,
+        188,
+        33,
+        187.9
+      ],
+      "backtalk0": [
+        2714,
+        8,
+        82,
+        190,
+        30.7,
+        189.6
+      ],
+      "backtalk1": [
+        2800,
+        8,
+        83,
+        190,
+        30.7,
+        189.6
+      ],
+      "backtalk2": [
+        2887,
+        8,
+        73,
+        190,
+        41.7,
+        189.6
+      ],
+      "backtalk3": [
+        2964,
+        9,
+        64,
+        189,
+        44.1,
+        189
       ]
     }
   },
   "visita": {
-    "src": "/en-vivo/personajes/visita.webp?v=mvigbfru",
+    "src": "/en-vivo/personajes/visita.webp?v=mviil0e0",
     "height": 192,
     "frames": {
       "idle": [
@@ -1352,6 +1544,140 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         192,
         23.9,
         192
+      ],
+      "backidle0": [
+        2756,
+        9,
+        54,
+        189,
+        34.3,
+        188.7
+      ],
+      "backidle1": [
+        2814,
+        9,
+        73,
+        189,
+        40.3,
+        188.7
+      ],
+      "backidle2": [
+        2891,
+        9,
+        57,
+        189,
+        35.4,
+        188.7
+      ],
+      "backidle3": [
+        2952,
+        9,
+        59,
+        189,
+        39.1,
+        188.7
+      ],
+      "backtalk0": [
+        3015,
+        8,
+        82,
+        190,
+        33.3,
+        190.4
+      ],
+      "backtalk1": [
+        3101,
+        8,
+        86,
+        190,
+        33.8,
+        190.4
+      ],
+      "backtalk2": [
+        3191,
+        8,
+        80,
+        190,
+        50.9,
+        190.4
+      ],
+      "backtalk3": [
+        3275,
+        8,
+        70,
+        190,
+        34.8,
+        190.4
+      ]
+    }
+  },
+  "gato": {
+    "src": "/en-vivo/personajes/gato.webp?v=mviil0fk",
+    "height": 192,
+    "frames": {
+      "walk0": [
+        2,
+        21,
+        72,
+        53,
+        63.5,
+        53
+      ],
+      "walk1": [
+        78,
+        18,
+        70,
+        56,
+        46.1,
+        56.3
+      ],
+      "walk2": [
+        152,
+        21,
+        73,
+        53,
+        44.6,
+        53
+      ],
+      "walk3": [
+        229,
+        5,
+        54,
+        69,
+        30.9,
+        68.7
+      ],
+      "sit": [
+        287,
+        2,
+        47,
+        72,
+        13.8,
+        72
+      ],
+      "lick": [
+        338,
+        7,
+        52,
+        67,
+        13.9,
+        66.8
+      ],
+      "sleep": [
+        394,
+        38,
+        59,
+        36,
+        20.7,
+        36.4
+      ],
+      "stretch": [
+        457,
+        2,
+        62,
+        72,
+        13.5,
+        71.8
       ]
     }
   }

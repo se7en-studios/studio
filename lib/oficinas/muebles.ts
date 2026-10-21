@@ -1,10 +1,10 @@
 // Generado por scripts/muebles.mjs: no editar a mano.
 // Cada mueble: [x, y, ancho, alto] dentro de la lámina, en px.
 export const MUEBLES = {
-  src: "/en-vivo/muebles.webp?v=mvhp3haa",
+  src: "/en-vivo/muebles.webp?v=mvij8hvl",
   frames: {
     "balls": [
-      146,
+      290,
       697,
       140,
       127
@@ -16,8 +16,8 @@ export const MUEBLES = {
       140
     ],
     "beanbag": [
-      1812,
-      553,
+      2,
+      697,
       140,
       132
     ],
@@ -34,13 +34,13 @@ export const MUEBLES = {
       140
     ],
     "bush": [
-      434,
+      578,
       697,
       140,
       113
     ],
     "bush2": [
-      290,
+      434,
       697,
       140,
       122
@@ -56,6 +56,18 @@ export const MUEBLES = {
       553,
       104,
       140
+    ],
+    "catbed": [
+      866,
+      697,
+      140,
+      105
+    ],
+    "catbowl": [
+      722,
+      697,
+      140,
+      106
     ],
     "chair": [
       1643,
@@ -87,6 +99,12 @@ export const MUEBLES = {
       300,
       231
     ],
+    "deploy": [
+      1812,
+      553,
+      114,
+      140
+    ],
     "desk2": [
       544,
       2,
@@ -106,7 +124,7 @@ export const MUEBLES = {
       140
     ],
     "dumbbells": [
-      2,
+      146,
       697,
       140,
       131
@@ -256,7 +274,7 @@ export const MUEBLES = {
       140
     ],
     "yogaprops": [
-      578,
+      1010,
       697,
       140,
       93

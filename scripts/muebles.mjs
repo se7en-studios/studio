@@ -37,6 +37,7 @@ const SHEETS = {
   jardin: ["tree", "tree2", "bush", "bush2", "snake", "monstera", null, "bamboo"],
   largos: ["counter", null, null, "kitchen", "meettable", "sofa", null, "tvcabinet"],
   escritorios: ["desk3", "desk2", null, "plinth"],
+  deploy: ["deploy", null, "catbed", "catbowl"],
 };
 
 // Objetos que se tocan en la imagen: un punto adentro de cada uno.
@@ -136,6 +137,9 @@ function objects(img, want, seeds = []) {
   return main.sort((a, b) => row(a) - row(b) || a.x0 - b.x0);
 }
 
+/** Los que tienen vidrio (se ve el fondo a través) o un borde verdoso, sin nada verde de verdad. */
+const GLASS = new Set(["deploy", "vitrine", "catbed", "catbowl"]);
+
 const parts = [];
 for (const [sheet, names] of Object.entries(SHEETS)) {
   const img = await keyed(find(sheet));
@@ -156,6 +160,14 @@ for (const [sheet, names] of Object.entries(SHEETS)) {
         for (let d = 1; d <= 2 && !near; d++) near = (x >= d && mine[y * cw + x - d]) || (x + d < cw && mine[y * cw + x + d]) || (y >= d && mine[(y - d) * cw + x]) || (y + d < ch && mine[(y + d) * cw + x]) ? 1 : 0;
         if (!near) continue;
         img.data.copy(buf, (y * cw + x) * 4, ((y0 + y) * img.w + x0 + x) * 4, ((y0 + y) * img.w + x0 + x) * 4 + 4);
+      }
+    // Los de vidrio dejan ver el verde del fondo (y a otros les queda en el borde): ahí el verde se saca y el vidrio queda más transparente
+    if (GLASS.has(names[i]))
+      for (let p = 0; p < buf.length; p += 4) {
+        const m = Math.max(buf[p], buf[p + 2]), over = buf[p + 1] - m;
+        if (!buf[p + 3] || over <= 6) continue;
+        buf[p + 1] = m + over * 0.1;
+        buf[p + 3] = Math.round(buf[p + 3] * Math.max(0.35, 1 - over / 90));
       }
     const out = await sharp(buf, { raw: { width: cw, height: ch, channels: 4 } })
       .resize(Math.max(1, Math.round(cw * k)), Math.max(1, Math.round(ch * k)), { kernel: "lanczos3" })

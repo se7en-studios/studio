@@ -996,6 +996,9 @@ const SPRITES: Partial<Record<string, Spec>> = {
   tree: { name: ["tree", "tree2"], face: "free", fill: 1.05, z: 74 },
   bush: { name: ["bush", "bush2"], face: "free", fill: 0.95, z: 28 },
   boxes: { name: "boxes", face: "free", fill: 0.8, z: 40 },
+  deploy: { name: "deploy", face: "x", fill: 0.62, z: 38 },
+  catbed: { name: "catbed", face: "free", fill: 0.56, z: 12 },
+  catbowl: { name: "catbowl", face: "free", fill: 0.34, z: 8 },
 };
 
 let atlas: HTMLImageElement | "loading" | "error" | null = null;
@@ -1805,7 +1808,20 @@ export function reachOf(who: ActorLook, doing: "walk" | "wave" | "still" | "sit"
   }
   return r;
 }
-export const CAT_REACH: Reach = { x: CAT_BOX.x1 + 1, up: -CAT_BOX.y0 + 1, down: CAT_BOX.y1 + 1 };
+const CODE_CAT_REACH: Reach = { x: CAT_BOX.x1 + 1, up: -CAT_BOX.y0 + 1, down: CAT_BOX.y1 + 1 };
+/** Cuánto mide el gato sentado, en px del mundo (el ilustrado se escala a eso). */
+const CAT_H = 28;
+const catScale = () => CAT_H / SHEETS.gato.frames.sit[3];
+let catReachMemo: Reach | null = null;
+/** Hasta dónde llega el gato: el ilustrado (estirado es el más ancho) o el dibujado en código. */
+export function catReach(): Reach {
+  if (!(sheets.get("gato") instanceof HTMLImageElement)) return CODE_CAT_REACH;
+  if (!catReachMemo) {
+    const s = catScale(), fr = Object.values(SHEETS.gato.frames);
+    catReachMemo = { x: Math.max(...fr.map(([, , w, , ax]) => Math.max(ax, w - ax) * s)) + 3, up: Math.max(...fr.map(([, , , , , ay]) => ay * s)) + 3, down: 5 };
+  }
+  return catReachMemo;
+}
 
 // Cada pose de cada muñeco se dibuja una vez en un lienzo chico a la escala de
 // la pantalla y después sólo se copia. Si cambia la escala, se vuelven a armar.
@@ -1848,6 +1864,8 @@ export function loadSheets(onLoad: () => void) {
     img.src = SHEETS[k].src;
   }
 }
+/** Lo que hace el gato sentado: mira, cada tanto se lame la pata, y de vez en cuando se estira. */
+const CAT_LOOP = ["sit", "sit", "sit", "lick", "lick", "sit", "sit", "sit", "sit", "lick", "sit", "sit", "stretch", "stretch", "sit", "sit"];
 const sheetOf = (who: ActorLook): SheetKey => (who === "federico" || who === "franco" || who === "guia" ? who : "visita");
 /** Los cuadros de una pose (`walk0`, `walk1`…), en orden. */
 const framesOf = (k: SheetKey, base: string) => Object.keys(SHEETS[k].frames).filter((n) => n === base || new RegExp(`^${base}\\d$`).test(n));
@@ -1973,10 +1991,12 @@ export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: 
     const walk = phase === null ? [] : framesOf(k, back ? "walkb" : "walk");
     if (back) {
       if (walk.length) name = walk[Math.floor((phase ?? 0) * walk.length) % walk.length];
-      else {
+      else if (step !== null) {
         name = "back";
-        if (step !== null && step % 2) lift = -1.2;
-      }
+        if (step % 2) lift = -1.2;
+      } else if (talk !== null && SHEETS[k].frames.backtalk0) name = `backtalk${Math.floor(talk * 4) % 4}`;
+      else if (SHEETS[k].frames.backidle0) name = `backidle${t === null ? 0 : loopAt(IDLE_LOOP, t, 0.6)}`;
+      else name = "back";
     } else if (seated && SHEETS[k].frames[seated]) name = seated;
     else if (sitting) {
       name = SHEETS[k].frames.sit ? "sit" : "idle";
@@ -2056,12 +2076,31 @@ export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: 
   g.restore();
 }
 
-/** El gato del estudio parado en (sx, sy). `phase` 0–1 es el paso (null = quieto); dormido, se hace un ovillo. */
-export function studioCat(sx: number, sy: number, dir: Dir, phase: number | null, sleeping: boolean) {
-  const frame: 0 | 1 | "sleep" | "sit" = sleeping ? "sleep" : phase === null ? "sit" : Math.floor(phase * 4) % 2 === 0 ? 1 : 0;
+/**
+ * El gato del estudio parado en (sx, sy). `phase` 0–1 es el paso (null =
+ * quieto); dormido, se hace un ovillo. `t`: su reloj, en segundos (quieto se
+ * lame la pata o se estira); null = quieto del todo.
+ */
+export function studioCat(sx: number, sy: number, dir: Dir, phase: number | null, sleeping: boolean, t: number | null = null) {
   g.save();
   g.translate(Math.round(sx), Math.round(sy));
   if (dir === "SW" || dir === "NW") g.scale(-1, 1);
-  cached(`cat|${frame}`, CAT_BOX, (t) => drawCat(t, frame));
+  const sheet = sheets.get("gato");
+  if (sheet instanceof HTMLImageElement) {
+    const name = sleeping ? "sleep" : phase !== null ? `walk${Math.floor(phase * 4) % 4}` : t === null ? "sit" : CAT_LOOP[Math.floor(t / 0.8) % CAT_LOOP.length];
+    const [fx, fy, fw, fh, ax, ay] = SHEETS.gato.frames[name];
+    const s = catScale();
+    cached(`cat|img|${name}`, { x0: -ax * s - 1, x1: (fw - ax) * s + 1, y0: -ay * s - 1, y1: 5 }, (c) => {
+      c.beginPath();
+      c.ellipse(0, 0.5, Math.max(7, fw * s * 0.38), 3.2, 0, 0, Math.PI * 2);
+      c.fillStyle = "rgba(11,11,12,0.28)";
+      c.fill();
+      c.imageSmoothingQuality = "high";
+      c.drawImage(sheet, fx, fy, fw, fh, -ax * s, -ay * s, fw * s, fh * s);
+    });
+  } else {
+    const frame: 0 | 1 | "sleep" | "sit" = sleeping ? "sleep" : phase === null ? "sit" : Math.floor(phase * 4) % 2 === 0 ? 1 : 0;
+    cached(`cat|${frame}`, CAT_BOX, (c) => drawCat(c, frame));
+  }
   g.restore();
 }

@@ -176,8 +176,11 @@ for (const n of [0, 1, 4, 5, 8, 9, 18]) {
 // Las láminas de los personajes: las poses que usa el motor, y cada cuadro adentro de su imagen.
 {
   const { SHEETS } = await import("../lib/oficinas/personajes.ts");
+  // El gato: caminando, sentado, lamiéndose, durmiendo y estirándose
+  for (const pose of ["walk0", "walk1", "walk2", "walk3", "sit", "lick", "sleep", "stretch"]) assert.ok(SHEETS.gato.frames[pose], `gato: falta ${pose}`);
   for (const [who, sh] of Object.entries(SHEETS)) {
-    for (const pose of ["idle", "blink", "back", "phone0"]) assert.ok(sh.frames[pose], `${who}: falta ${pose}`);
+    if (who === "gato") continue;
+    for (const pose of ["idle", "blink", "back", "phone0", "backidle0", "backtalk0"]) assert.ok(sh.frames[pose], `${who}: falta ${pose}`);
     // Las caminatas: un ciclo de ocho cuadros de frente y otro de espaldas
     for (const base of ["walk", "walkb"]) assert.equal(Object.keys(sh.frames).filter((n) => new RegExp(`^${base}\\d$`).test(n)).length, 8, `${who}: ${base} de 8 cuadros`);
     if (who === "federico" || who === "franco") assert.ok(sh.frames.sit, `${who}: falta sentado`);

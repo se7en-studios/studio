@@ -476,6 +476,9 @@ export function buildMap(projects: MapInput): MapModel {
   put(lounge, "beanbag", SPINE_X1 + 4, sy + 3);
   put(lounge, "plant", SPINE_X1 + 5, sy + ROOM_D - 1);
   put(lounge, "lamp", SPINE_X1 + 1, sy + ROOM_D - 1);
+  // La camita y el plato del gato (se pisan)
+  put(lounge, "catbed", SPINE_X1 + 4, sy + 2, 1, 1, "y", false);
+  put(lounge, "catbowl", SPINE_X1 + 1, sy, 1, 1, "y", false);
 
   // El eje: sale de la plaza, pasa entre Reuniones y Chill-out, cruza el jardín y recorre el ala
   hall(SPINE_X0, sy, SPINE_X1 - SPINE_X0, H - sy);

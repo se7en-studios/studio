@@ -34,28 +34,32 @@ const PAD = 2;
 const WALK = (file, like, base) => ({ file, like, names: Array.from({ length: 8 }, (_, i) => `${base}${i}`), anchor: "head" });
 const WAVE_TALK = { file: "saludo y charla", like: "idle", names: ["wave0", "wave1", "wave2", "wave3", "talk0", "talk1", "talk2", "talk3"], anchor: "feet" };
 const IDLE_PHONE = { file: "parado y celular", like: "idle", names: ["idle0", "idle1", "idle2", "idle3", "phone0", "phone1", "phone2", "phone3"], anchor: "feet", blink: "idleb" };
+const BACK = { file: "espaldas quieto", like: "back", names: ["backidle0", "backidle1", "backidle2", "backidle3", "backtalk0", "backtalk1", "backtalk2", "backtalk3"], anchor: "feet" };
+// El gato del estudio: sin pose parada de referencia; `tall`: cuánto mide sentado (el quinto cuadro), en px de la lámina
+const CAT = { file: "gato", tall: 72, names: ["walk0", "walk1", "walk2", "walk3", "sit", "lick", "sleep", "stretch"], anchor: "feet" };
 const SEATED = { file: "sentado tipeando", bust: true, names: ["type0", "type1", "type2", "type3", "think", "sip", "stretch", "doze"] };
 const POSES = {
   federico: {
     dir: "Federico",
     frames: { idle: "parado", back: "de espaldas (1)", sit: "sentado" },
-    sets: [WALK("caminata frente", "idle", "walk"), WALK("caminata espaldas", "back", "walkb"), WAVE_TALK, IDLE_PHONE, SEATED],
+    sets: [WALK("caminata frente", "idle", "walk"), WALK("caminata espaldas", "back", "walkb"), WAVE_TALK, IDLE_PHONE, BACK, SEATED],
   },
   franco: {
     dir: "Franco",
     frames: { idle: "parado", back: "de espaldas", sit: "sentado" },
-    sets: [WALK("caminata frente", "idle", "walk"), WALK("caminata espaldas", "back", "walkb"), WAVE_TALK, IDLE_PHONE, SEATED],
+    sets: [WALK("caminata frente", "idle", "walk"), WALK("caminata espaldas", "back", "walkb"), WAVE_TALK, IDLE_PHONE, BACK, SEATED],
   },
   guia: {
     dir: "GUIDE",
     frames: { idle: "parado", back: "de espaldas" },
-    sets: [WALK("caminata frente", "idle", "walk"), WALK("caminata espaldas", "back", "walkb"), WAVE_TALK, IDLE_PHONE],
+    sets: [WALK("caminata frente", "idle", "walk"), WALK("caminata espaldas", "back", "walkb"), WAVE_TALK, IDLE_PHONE, BACK],
   },
   visita: {
     dir: "visitante",
     frames: { idle: "parado", back: "de espaldas (1)", think0: "pensando (1)", think1: "pensando (2)" },
-    sets: [WALK("caminata frente", "idle", "walk"), WALK("caminata espaldas", "back", "walkb"), WAVE_TALK, IDLE_PHONE],
+    sets: [WALK("caminata frente", "idle", "walk"), WALK("caminata espaldas", "back", "walkb"), WAVE_TALK, IDLE_PHONE, BACK],
   },
+  gato: { dir: "gato", frames: {}, sets: [CAT] },
 };
 
 const norm = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -367,18 +371,19 @@ for (const [who, def] of Object.entries(POSES)) {
   const raw = {};
   for (const [pose, name] of Object.entries(def.frames)) raw[pose] = await keyed(find(def.dir, name));
   // Todos a la misma escala: la de la figura parada
-  const k = HEIGHT / (raw.idle.box.y1 - raw.idle.box.y0 + 1);
+  const k = raw.idle ? HEIGHT / (raw.idle.box.y1 - raw.idle.box.y0 + 1) : 1;
   const parts = [];
   for (const [pose, r] of Object.entries(raw)) parts.push(await part(pose, r, k));
-  const blink = blinkOf(raw.idle);
+  const blink = raw.idle ? blinkOf(raw.idle) : null;
   if (blink) parts.splice(1, 0, await part("blink", blink, k));
-  else console.warn(who, "sin parpadeo: no encontré los ojos");
+  else if (raw.idle) console.warn(who, "sin parpadeo: no encontré los ojos");
   // Las láminas de ocho vienen de otra imagen, con otro tamaño
   const med = (v) => [...v].sort((a, b) => a - b)[v.length >> 1];
   for (const set of def.sets ?? []) {
     const fr = await cycle(find(def.dir, set.file), set.anchor);
     let kc;
-    if (set.bust) {
+    if (set.tall) kc = set.tall / (fr[4].box.y1 - fr[4].box.y0 + 1);
+    else if (set.bust) {
       // Sentado: del pelo a la cintura mide lo que, parado, de la cabeza al cinturón
       const tall = (beltOf(raw.idle) - raw.idle.box.y0) * k;
       for (const f of fr) {
@@ -428,7 +433,7 @@ const ts = `// Generado por scripts/personajes.mjs: no editar a mano.
 // Cada cuadro: [x, y, ancho, alto, pies x, pies y] dentro de la lámina, en px.
 export type SheetFrame = [number, number, number, number, number, number];
 export type Sheet = { src: string; height: number; frames: Record<string, SheetFrame> };
-export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = ${JSON.stringify(meta, null, 2)};
+export const SHEETS: Record<"federico" | "franco" | "guia" | "visita" | "gato", Sheet> = ${JSON.stringify(meta, null, 2)};
 `;
 fs.writeFileSync(OUT_TS, ts);
 console.log("ok", path.relative(ROOT, OUT_TS));
