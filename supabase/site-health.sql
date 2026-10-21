@@ -17,8 +17,17 @@ create table if not exists panel_site_checks (
   ssl_expires_on date,
   -- Por RDAP; null si el registro del dominio no lo publica (se carga a mano en el plan).
   domain_expires_on date,
-  error text not null default '' check (char_length(error) <= 300)
+  error text not null default '' check (char_length(error) <= 300),
+  -- Alarma visual: la parte de la página que cambió desde la captura de ayer
+  -- (0 a 1; null sin captura anterior) y si quedó casi toda de un color.
+  visual_change real check (visual_change is null or visual_change between 0 and 1),
+  blank boolean not null default false
 );
+
+-- Para una base donde este archivo ya se había corrido sin la alarma visual.
+alter table panel_site_checks
+  add column if not exists visual_change real check (visual_change is null or visual_change between 0 and 1),
+  add column if not exists blank boolean not null default false;
 
 create index if not exists panel_site_checks_slug_idx on panel_site_checks (project_slug, checked_at desc);
 

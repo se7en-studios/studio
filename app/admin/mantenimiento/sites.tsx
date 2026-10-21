@@ -48,11 +48,15 @@ export type SiteRow = {
 };
 
 const alertText = (a: SiteAlert) =>
-  a.days === undefined
-    ? ALERT_LABEL[a.kind]
-    : a.days < 0
-      ? `${ALERT_LABEL[a.kind].split(" ")[0]} vencido`
-      : `${ALERT_LABEL[a.kind]} (${a.days} d)`;
+  a.kind === "visual"
+    ? a.pct !== undefined && a.pct >= 100
+      ? "En blanco"
+      : `${ALERT_LABEL.visual} (${a.pct ?? 0} %)`
+    : a.days === undefined
+      ? ALERT_LABEL[a.kind]
+      : a.days < 0
+        ? `${ALERT_LABEL[a.kind].split(" ")[0]} vencido`
+        : `${ALERT_LABEL[a.kind]} (${a.days} d)`;
 
 export function Sites({
   rows,

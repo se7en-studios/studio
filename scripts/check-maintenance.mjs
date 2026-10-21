@@ -99,6 +99,14 @@ assert.deepEqual(h.siteAlerts([check({ domain_expires_on: "2026-10-10" })], toda
 assert.deepEqual(h.siteAlerts([check({ domain_expires_on: null })], today, new Map([["a", "2026-10-20"]])), [{ slug: "a", kind: "dominio", days: 6 }]);
 assert.deepEqual(h.siteAlerts([check()], today, new Map([["a", "2026-10-20"]])), []);
 assert.deepEqual(h.siteAlerts([], today, new Map([["b", "2026-10-20"]])), [{ slug: "b", kind: "dominio", days: 6 }]);
+// Alarma visual: responde pero se ve roto
+assert.deepEqual(h.siteAlerts([check({ visual_change: 0.62 })], today), [{ slug: "a", kind: "visual", pct: 62 }]);
+assert.deepEqual(h.siteAlerts([check({ visual_change: 0.29 })], today), []); // por debajo del umbral
+assert.deepEqual(h.siteAlerts([check({ visual_change: null })], today), []); // sin captura anterior
+assert.deepEqual(h.siteAlerts([check({ blank: true, visual_change: 0.1 })], today), [{ slug: "a", kind: "visual", pct: 100 }]);
+assert.deepEqual(h.siteAlerts([check({ ok: false, blank: true, visual_change: 0.9 })], today), [{ slug: "a", kind: "caido" }]); // caído ya lo dice
+assert.equal(h.visualDetail(62), "cambió el 62 % desde ayer");
+assert.equal(h.visualDetail(100), "quedó en blanco");
 const latest = h.latestBySlug([check({ checked_at: "2026-10-12T09:00:00Z", ok: false }), check(), check({ project_slug: "b" })]);
 assert.equal(latest.get("a").ok, true);
 assert.equal(latest.size, 2);

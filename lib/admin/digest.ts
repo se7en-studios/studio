@@ -62,9 +62,10 @@ function renewalLines(renewals: Renewal[]): string[] {
 /** «2 sitios caídos», «SSL por vencer en 1 sitio»: cuántos, nunca cuáles (son de clientes). */
 function siteLines(alerts: SiteAlert[]): string[] {
   const n = (kind: SiteAlert["kind"]) => alerts.filter((a) => a.kind === kind).length;
-  const down = n("caido"), slow = n("lento"), ssl = n("ssl"), domain = n("dominio");
+  const down = n("caido"), slow = n("lento"), ssl = n("ssl"), domain = n("dominio"), visual = n("visual");
   return [
     down ? plural(down, "sitio caído", "sitios caídos") : null,
+    visual ? `${plural(visual, "sitio", "sitios")} que se ${visual === 1 ? "ve" : "ven"} distinto` : null,
     slow ? plural(slow, "sitio lento", "sitios lentos") : null,
     ssl ? `SSL por vencer en ${plural(ssl, "sitio", "sitios")}` : null,
     domain ? `Dominio por vencer en ${plural(domain, "sitio", "sitios")}` : null,
