@@ -1544,7 +1544,7 @@ const SPRITE_X = Math.max(
 const SPRITE_UP = Math.max(...(Object.keys(SHEETS) as SheetKey[]).flatMap((k) => Object.values(SHEETS[k].frames).map(([, , , , , ay]) => ay * SK(k))));
 export const AVATAR_REACH: Reach = { x: Math.max(TOON_BOX.x1, SPRITE_X) + 3, up: Math.max(-TOON_BOX.y0, SPRITE_UP) + 12, down: TOON_BOX.y1 + 4 };
 /** Las poses que entran en cada rectángulo: caminando y saludando son las más anchas. */
-const REACH_POSES: Record<"walk" | "wave" | "still" | "sit", string[]> = { walk: ["walk", "back", "idle"], wave: ["wave", "talk", "idle", "back"], still: ["idle", "back", "phone", "talk", "think"], sit: ["sit", "idle"] };
+const REACH_POSES: Record<"walk" | "wave" | "still" | "sit", string[]> = { walk: ["walk", "back", "idle"], wave: ["wave", "talk", "idle", "back"], still: ["idle", "blink", "back", "phone", "talk", "think"], sit: ["sit", "idle"] };
 const reachMemo = new Map<string, Reach>();
 /**
  * El rectángulo que hay que rehacer alrededor de alguien según lo que está
@@ -1648,9 +1648,10 @@ const jacketOf = (who: ActorLook) => {
 };
 
 /**
- * Dibuja a `who` parado en (sx, sy) (los pies). `phase` 0–1 es el paso; null =
- * quieto. `typing` 0–1: sentado, tipeando. `wave` 0–1: saluda. `phone`: mira
- * el celular. `talk` 0–1: está hablando. `think`: se queda pensando.
+ * Dibuja a `who` parado en (sx, sy) (los pies). `phase` 0–1 es el ciclo de
+ * dos pasos; null = quieto. `blink`: parpadea (parado). `typing` 0–1:
+ * sentado, tipeando. `wave` 0–1: saluda. `phone`: mira el celular. `talk`
+ * 0–1: está hablando. `think`: se queda pensando.
  */
 export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: number | null, sitting = false, blink = false, typing: number | null = null, wave: number | null = null, phone = false, talk: number | null = null, think = false) {
   const mirror = dir === "SW" || dir === "NW";
@@ -1669,21 +1670,23 @@ export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: 
     };
     let name = "idle";
     let lift = 0;
+    // Caminando: el ciclo de dos pasos, un cuadro por octavo de `phase`
+    const walk = phase === null ? [] : framesOf(k, back ? "walkb" : "walk");
     if (back) {
-      name = "back";
-      if (step !== null && step % 2) lift = -1.2;
+      if (walk.length) name = walk[Math.floor((phase ?? 0) * walk.length) % walk.length];
+      else {
+        name = "back";
+        if (step !== null && step % 2) lift = -1.2;
+      }
     } else if (sitting) {
       name = SHEETS[k].frames.sit ? "sit" : "idle";
       if (typing !== null && typing >= 0.5) lift = -0.6;
-    } else if (step !== null) {
-      // Los que tienen un solo cuadro caminando alternan con el de parado
-      const walk = framesOf(k, "walk");
-      const cycle = walk.length > 1 ? walk : [walk[0] ?? "idle", "idle"];
-      name = cycle[(walk.length > 1 ? step : step >> 1) % cycle.length];
-    } else if (wave !== null) name = pick("wave", Math.floor(wave * 8));
+    } else if (walk.length) name = walk[Math.floor((phase ?? 0) * walk.length) % walk.length];
+    else if (wave !== null) name = pick("wave", Math.floor(wave * 8));
     else if (talk !== null) name = pick("talk", Math.floor(talk * 10));
     else if (phone) name = pick("phone", 0);
     else if (think) name = pick("think", 0);
+    if (name === "idle" && blink && SHEETS[k].frames.blink) name = "blink";
     const [fx, fy, fw, fh, ax, ay] = SHEETS[k].frames[name];
     const s = SK(k);
     const box = { x0: -ax * s - 1, x1: (fw - ax) * s + 1, y0: -ay * s - 1, y1: 6 };
@@ -1714,7 +1717,8 @@ export function avatar(who: ActorLook, sx: number, sy: number, dir: Dir, phase: 
   } else if (sheet === "error" || sheet === undefined) {
     const pose: ToonPose = {
       back,
-      walk: phase === null ? null : Math.floor(phase * 4) % 4,
+      // `phase` es el ciclo de dos pasos; el muñeco en código da cuatro pasitos por ciclo
+      walk: phase === null ? null : Math.floor(phase * 8) % 4,
       sit: sitting,
       type: typing === null ? null : typing < 0.5 ? 0 : 1,
       wave: wave === null ? null : ((Math.floor(wave * 8) % 2) as 0 | 1),

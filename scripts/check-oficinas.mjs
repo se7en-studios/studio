@@ -177,7 +177,9 @@ for (const n of [0, 1, 4, 5, 8, 9, 18]) {
 {
   const { SHEETS } = await import("../lib/oficinas/personajes.ts");
   for (const [who, sh] of Object.entries(SHEETS)) {
-    for (const pose of ["idle", "back", "walk0", "wave0", "phone0", "talk0"]) assert.ok(sh.frames[pose], `${who}: falta ${pose}`);
+    for (const pose of ["idle", "blink", "back", "wave0", "phone0", "talk0"]) assert.ok(sh.frames[pose], `${who}: falta ${pose}`);
+    // Las caminatas: un ciclo de ocho cuadros de frente y otro de espaldas
+    for (const base of ["walk", "walkb"]) assert.equal(Object.keys(sh.frames).filter((n) => new RegExp(`^${base}\\d$`).test(n)).length, 8, `${who}: ${base} de 8 cuadros`);
     if (who === "federico" || who === "franco") assert.ok(sh.frames.sit, `${who}: falta sentado`);
     for (const [pose, [x, y, w, h, ax, ay]] of Object.entries(sh.frames)) {
       assert.ok(x >= 0 && y >= 0 && w > 0 && h > 0, `${who}/${pose}: caja`);

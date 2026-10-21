@@ -4,7 +4,7 @@ export type SheetFrame = [number, number, number, number, number, number];
 export type Sheet = { src: string; height: number; frames: Record<string, SheetFrame> };
 export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = {
   "federico": {
-    "src": "/en-vivo/personajes/federico.webp?v=mvh9eztj",
+    "src": "/en-vivo/personajes/federico.webp?v=mvhchuzj",
     "height": 192,
     "frames": {
       "idle": [
@@ -15,40 +15,16 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         27.2,
         192
       ],
-      "walk0": [
+      "blink": [
         61,
-        5,
-        86,
-        189,
-        60.6,
-        189.2
-      ],
-      "walk1": [
-        151,
-        8,
-        71,
-        186,
-        41.5,
-        186.3
-      ],
-      "walk2": [
-        226,
-        6,
-        71,
-        188,
-        39.4,
-        188.3
-      ],
-      "walk3": [
-        301,
-        7,
-        97,
-        187,
-        51.3,
-        187.3
+        2,
+        55,
+        192,
+        27.2,
+        192
       ],
       "back": [
-        402,
+        120,
         3,
         53,
         191,
@@ -56,7 +32,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         191.4
       ],
       "sit": [
-        459,
+        177,
         9,
         73,
         185,
@@ -64,7 +40,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         185
       ],
       "wave0": [
-        536,
+        254,
         2,
         83,
         192,
@@ -72,7 +48,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         191.9
       ],
       "phone0": [
-        623,
+        341,
         3,
         56,
         191,
@@ -80,7 +56,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         191.4
       ],
       "phone1": [
-        683,
+        401,
         2,
         56,
         192,
@@ -88,7 +64,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         191.9
       ],
       "talk0": [
-        743,
+        461,
         2,
         77,
         192,
@@ -96,7 +72,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         191.9
       ],
       "talk1": [
-        824,
+        542,
         2,
         81,
         192,
@@ -104,7 +80,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         191.9
       ],
       "talk2": [
-        909,
+        627,
         2,
         76,
         192,
@@ -112,17 +88,145 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         191.9
       ],
       "talk3": [
-        989,
+        707,
         2,
         78,
         192,
         27.4,
         191.9
+      ],
+      "walk0": [
+        789,
+        6,
+        86,
+        188,
+        47.5,
+        187.7
+      ],
+      "walk1": [
+        879,
+        13,
+        78,
+        181,
+        50.4,
+        180.7
+      ],
+      "walk2": [
+        961,
+        3,
+        49,
+        191,
+        32.3,
+        190.9
+      ],
+      "walk3": [
+        1014,
+        5,
+        97,
+        189,
+        56,
+        188.8
+      ],
+      "walk4": [
+        1115,
+        3,
+        90,
+        191,
+        49.7,
+        191.5
+      ],
+      "walk5": [
+        1209,
+        7,
+        84,
+        187,
+        49.6,
+        187.1
+      ],
+      "walk6": [
+        1297,
+        2,
+        79,
+        192,
+        45.1,
+        192
+      ],
+      "walk7": [
+        1380,
+        3,
+        97,
+        191,
+        56.7,
+        191.5
+      ],
+      "walkb0": [
+        1481,
+        3,
+        91,
+        191,
+        30.8,
+        190.8
+      ],
+      "walkb1": [
+        1576,
+        7,
+        80,
+        187,
+        25.2,
+        186.6
+      ],
+      "walkb2": [
+        1660,
+        3,
+        60,
+        191,
+        16.6,
+        191.4
+      ],
+      "walkb3": [
+        1724,
+        3,
+        93,
+        191,
+        32,
+        191.4
+      ],
+      "walkb4": [
+        1821,
+        4,
+        90,
+        190,
+        30,
+        190.3
+      ],
+      "walkb5": [
+        1915,
+        8,
+        68,
+        186,
+        22.8,
+        185.5
+      ],
+      "walkb6": [
+        1987,
+        4,
+        59,
+        190,
+        17.7,
+        189.8
+      ],
+      "walkb7": [
+        2050,
+        4,
+        91,
+        190,
+        31.9,
+        189.8
       ]
     }
   },
   "franco": {
-    "src": "/en-vivo/personajes/franco.webp?v=mvh9f5qm",
+    "src": "/en-vivo/personajes/franco.webp?v=mvhchvju",
     "height": 192,
     "frames": {
       "idle": [
@@ -133,16 +237,16 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         26.9,
         192
       ],
-      "walk0": [
+      "blink": [
         58,
-        4,
-        73,
-        190,
-        50.7,
-        190.1
+        2,
+        52,
+        192,
+        26.9,
+        192
       ],
       "back": [
-        135,
+        114,
         5,
         54,
         189,
@@ -150,7 +254,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         189
       ],
       "sit": [
-        193,
+        172,
         8,
         83,
         186,
@@ -158,7 +262,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         186.5
       ],
       "wave0": [
-        280,
+        259,
         2,
         84,
         192,
@@ -166,7 +270,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         191.8
       ],
       "phone0": [
-        368,
+        347,
         2,
         55,
         192,
@@ -174,7 +278,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         191.9
       ],
       "phone1": [
-        427,
+        406,
         2,
         58,
         192,
@@ -182,7 +286,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         191.9
       ],
       "talk0": [
-        489,
+        468,
         2,
         83,
         192,
@@ -190,17 +294,145 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         192
       ],
       "talk1": [
-        576,
+        555,
         2,
         80,
         192,
         26.9,
         192
+      ],
+      "walk0": [
+        639,
+        5,
+        92,
+        189,
+        51.6,
+        188.7
+      ],
+      "walk1": [
+        735,
+        12,
+        74,
+        182,
+        47.8,
+        181.7
+      ],
+      "walk2": [
+        813,
+        3,
+        47,
+        191,
+        30.8,
+        190.9
+      ],
+      "walk3": [
+        864,
+        2,
+        63,
+        192,
+        39.4,
+        192
+      ],
+      "walk4": [
+        931,
+        7,
+        89,
+        187,
+        50.6,
+        187.1
+      ],
+      "walk5": [
+        1024,
+        10,
+        73,
+        184,
+        44.5,
+        184.4
+      ],
+      "walk6": [
+        1101,
+        5,
+        60,
+        189,
+        36.5,
+        189.3
+      ],
+      "walk7": [
+        1165,
+        6,
+        74,
+        188,
+        40.6,
+        187.7
+      ],
+      "walkb0": [
+        1243,
+        9,
+        89,
+        185,
+        32.1,
+        185.2
+      ],
+      "walkb1": [
+        1336,
+        21,
+        62,
+        173,
+        23.2,
+        173.4
+      ],
+      "walkb2": [
+        1402,
+        7,
+        53,
+        187,
+        14.6,
+        186.9
+      ],
+      "walkb3": [
+        1459,
+        6,
+        85,
+        188,
+        28.2,
+        187.9
+      ],
+      "walkb4": [
+        1548,
+        7,
+        83,
+        187,
+        26.9,
+        186.9
+      ],
+      "walkb5": [
+        1635,
+        16,
+        62,
+        178,
+        21.8,
+        177.7
+      ],
+      "walkb6": [
+        1701,
+        6,
+        55,
+        188,
+        15,
+        187.9
+      ],
+      "walkb7": [
+        1760,
+        5,
+        83,
+        189,
+        26.6,
+        189
       ]
     }
   },
   "guia": {
-    "src": "/en-vivo/personajes/guia.webp?v=mvh9feqs",
+    "src": "/en-vivo/personajes/guia.webp?v=mvhchw8h",
     "height": 192,
     "frames": {
       "idle": [
@@ -211,16 +443,16 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         21.7,
         192
       ],
-      "walk0": [
+      "blink": [
         56,
-        5,
-        72,
-        189,
-        41.8,
-        189
+        2,
+        50,
+        192,
+        21.7,
+        192
       ],
       "back": [
-        132,
+        110,
         5,
         49,
         189,
@@ -228,7 +460,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         189
       ],
       "wave0": [
-        185,
+        163,
         2,
         72,
         192,
@@ -236,7 +468,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         192.2
       ],
       "wave1": [
-        261,
+        239,
         2,
         76,
         192,
@@ -244,7 +476,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         192.2
       ],
       "phone0": [
-        341,
+        319,
         9,
         61,
         185,
@@ -252,7 +484,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         185.1
       ],
       "phone1": [
-        406,
+        384,
         2,
         55,
         192,
@@ -260,7 +492,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         192.1
       ],
       "phone2": [
-        465,
+        443,
         2,
         54,
         192,
@@ -268,7 +500,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         192.1
       ],
       "talk0": [
-        523,
+        501,
         2,
         76,
         192,
@@ -276,7 +508,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         192.1
       ],
       "talk1": [
-        603,
+        581,
         2,
         66,
         192,
@@ -284,7 +516,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         192.1
       ],
       "talk2": [
-        673,
+        651,
         2,
         75,
         192,
@@ -292,17 +524,145 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         192.1
       ],
       "talk3": [
-        752,
+        730,
         2,
         76,
         192,
         21.7,
         192.1
+      ],
+      "walk0": [
+        810,
+        3,
+        76,
+        191,
+        37,
+        190.9
+      ],
+      "walk1": [
+        890,
+        13,
+        68,
+        181,
+        40,
+        180.7
+      ],
+      "walk2": [
+        962,
+        4,
+        75,
+        190,
+        36.6,
+        189.8
+      ],
+      "walk3": [
+        1041,
+        2,
+        74,
+        192,
+        38.9,
+        192
+      ],
+      "walk4": [
+        1119,
+        7,
+        76,
+        187,
+        37,
+        187.1
+      ],
+      "walk5": [
+        1199,
+        11,
+        67,
+        183,
+        36.1,
+        183.4
+      ],
+      "walk6": [
+        1270,
+        6,
+        74,
+        188,
+        36.1,
+        187.7
+      ],
+      "walk7": [
+        1348,
+        6,
+        75,
+        188,
+        42.1,
+        188.2
+      ],
+      "walkb0": [
+        1427,
+        11,
+        76,
+        183,
+        34,
+        183.5
+      ],
+      "walkb1": [
+        1507,
+        17,
+        63,
+        177,
+        28,
+        176.8
+      ],
+      "walkb2": [
+        1574,
+        9,
+        55,
+        185,
+        21.7,
+        185.1
+      ],
+      "walkb3": [
+        1633,
+        9,
+        71,
+        185,
+        31.1,
+        185.1
+      ],
+      "walkb4": [
+        1708,
+        7,
+        77,
+        187,
+        34.1,
+        186.8
+      ],
+      "walkb5": [
+        1789,
+        12,
+        62,
+        182,
+        27.6,
+        181.8
+      ],
+      "walkb6": [
+        1855,
+        8,
+        64,
+        186,
+        27.1,
+        186.2
+      ],
+      "walkb7": [
+        1923,
+        5,
+        70,
+        189,
+        28.1,
+        189
       ]
     }
   },
   "visita": {
-    "src": "/en-vivo/personajes/visita.webp?v=mvh9fkte",
+    "src": "/en-vivo/personajes/visita.webp?v=mvhchwwj",
     "height": 192,
     "frames": {
       "idle": [
@@ -313,24 +673,16 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         22.9,
         192
       ],
-      "walk0": [
+      "blink": [
         57,
-        6,
-        82,
-        188,
-        57.1,
-        188.3
-      ],
-      "walk1": [
-        143,
-        9,
-        83,
-        185,
-        39.1,
-        185.4
+        2,
+        51,
+        192,
+        22.9,
+        192
       ],
       "back": [
-        230,
+        112,
         4,
         51,
         190,
@@ -338,7 +690,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         190.4
       ],
       "wave0": [
-        285,
+        167,
         2,
         77,
         192,
@@ -346,7 +698,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         191.9
       ],
       "wave1": [
-        366,
+        248,
         2,
         78,
         192,
@@ -354,7 +706,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         192
       ],
       "phone0": [
-        448,
+        330,
         3,
         53,
         191,
@@ -362,7 +714,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         191.5
       ],
       "phone1": [
-        505,
+        387,
         2,
         52,
         192,
@@ -370,7 +722,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         192
       ],
       "phone2": [
-        561,
+        443,
         2,
         53,
         192,
@@ -378,7 +730,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         192
       ],
       "think0": [
-        618,
+        500,
         2,
         48,
         192,
@@ -386,7 +738,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         192.1
       ],
       "think1": [
-        670,
+        552,
         2,
         70,
         192,
@@ -394,7 +746,7 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         192
       ],
       "talk0": [
-        744,
+        626,
         2,
         73,
         192,
@@ -402,12 +754,140 @@ export const SHEETS: Record<"federico" | "franco" | "guia" | "visita", Sheet> = 
         192.4
       ],
       "talk1": [
-        821,
+        703,
         2,
         51,
         192,
         23,
         191.9
+      ],
+      "walk0": [
+        758,
+        4,
+        100,
+        190,
+        53.6,
+        189.8
+      ],
+      "walk1": [
+        862,
+        16,
+        67,
+        178,
+        45.8,
+        177.8
+      ],
+      "walk2": [
+        933,
+        2,
+        61,
+        192,
+        32.4,
+        192
+      ],
+      "walk3": [
+        998,
+        3,
+        98,
+        191,
+        52.5,
+        191.5
+      ],
+      "walk4": [
+        1100,
+        5,
+        85,
+        189,
+        44.3,
+        189.3
+      ],
+      "walk5": [
+        1189,
+        18,
+        68,
+        176,
+        46.5,
+        175.6
+      ],
+      "walk6": [
+        1261,
+        4,
+        62,
+        190,
+        33.6,
+        189.8
+      ],
+      "walk7": [
+        1327,
+        6,
+        96,
+        188,
+        50.6,
+        187.6
+      ],
+      "walkb0": [
+        1427,
+        9,
+        87,
+        185,
+        32.3,
+        185
+      ],
+      "walkb1": [
+        1518,
+        14,
+        65,
+        180,
+        28.7,
+        180.2
+      ],
+      "walkb2": [
+        1587,
+        7,
+        70,
+        187,
+        26,
+        187.1
+      ],
+      "walkb3": [
+        1661,
+        4,
+        75,
+        190,
+        28.2,
+        190.4
+      ],
+      "walkb4": [
+        1740,
+        7,
+        83,
+        187,
+        30.2,
+        186.6
+      ],
+      "walkb5": [
+        1827,
+        11,
+        69,
+        183,
+        30.1,
+        182.8
+      ],
+      "walkb6": [
+        1900,
+        8,
+        78,
+        186,
+        26.4,
+        186.1
+      ],
+      "walkb7": [
+        1982,
+        7,
+        63,
+        187,
+        24,
+        186.6
       ]
     }
   }

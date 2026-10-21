@@ -181,6 +181,14 @@ function browse(t: number, travel: number) {
   return (1 - (k - HOLD - DOWN - END) / UP) * travel;
 }
 const SPEED = 4.2; // baldosas por segundo
+/** Cuánto acelera al arrancar y frena al llegar (baldosas/s²): a toda velocidad en un cuarto de segundo, y frena en media baldosa. */
+const ACCEL = SPEED * 4;
+/**
+ * La velocidad de alguien que camina: acelera hasta SPEED y frena a tiempo
+ * para quedar justo en la baldosa a la que va. `left`: cuántas baldosas le
+ * faltan (Infinity si sigue, con una flecha apretada).
+ */
+const pace = (v: number, left: number, dt: number) => Math.max(0.8, Math.min(SPEED, v + ACCEL * dt, Math.sqrt(2 * ACCEL * left)));
 const DIRS: Record<string, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const KEYS: Record<string, string> = { ArrowUp: "up", w: "up", W: "up", ArrowDown: "down", s: "down", S: "down", ArrowLeft: "left", a: "left", A: "left", ArrowRight: "right", d: "right", D: "right" };
 /**
@@ -289,7 +297,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   const cam = { x: 0, y: 0, ready: false };
   const disp = new Map<string, number>();
   const anim = new Map<string, { t0: number; from: number }>();
-  const player = { x: m.start.x, y: m.start.y, from: { ...m.start }, to: { ...m.start }, t: 0, moving: false, dir: "SW" as Dir, path: [] as Pt[], step: 0 };
+  const player = { x: m.start.x, y: m.start.y, from: { ...m.start }, to: { ...m.start }, t: 0, moving: false, dir: "SW" as Dir, path: [] as Pt[], step: 0, v: 0 };
   let current: MapRoom | null = null;
   let hover: Pt | null = null;
   let marker: (Pt & { t0: number }) | null = null;
@@ -675,7 +683,9 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     moving: boolean;
     dir: Dir;
     path: Pt[];
+    /** Baldosas caminadas (el paso de las piernas) y a qué velocidad va ahora. */
     step: number;
+    v: number;
     /** Dónde está sentado (null = de pie). */
     seat: Pt | null;
     /** Hacia dónde mira cuando llega (la tele). */
@@ -776,7 +786,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       const seat = sp.goal.kind === "seat" ? seatOf(sp.goal.who) : null;
       const at = seat ?? m.start;
       const seed = seedOf(sp.id);
-      actors.push({ id: sp.id, look: sp.look, goal: sp.goal, x: at.x, y: at.y, from: { ...at }, to: { ...at }, t: 0, moving: false, dir: "SW", path: [], step: 0, seat, face: null, wait: 0, stop: sp.goal.kind === "wander" ? Math.abs(seed) % 97 : 0, stuck: false, dest: null, seed, you: !!sp.you, tag: sp.tag ?? null, greet: null, own: null });
+      actors.push({ id: sp.id, look: sp.look, goal: sp.goal, x: at.x, y: at.y, from: { ...at }, to: { ...at }, t: 0, moving: false, dir: "SW", path: [], step: 0, v: 0, seat, face: null, wait: 0, stop: sp.goal.kind === "wander" ? Math.abs(seed) % 97 : 0, stuck: false, dest: null, seed, you: !!sp.you, tag: sp.tag ?? null, greet: null, own: null });
     }
     poke();
   }
@@ -921,10 +931,13 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       }
     }
     for (const a of actors) {
+      if (!a.moving && !a.path.length) a.v = 0;
       if (!a.moving && a.path.length) stepActor(a);
       if (a.moving) {
-        a.t += dt * SPEED;
-        a.step += dt * SPEED;
+        // Lo que le falta: el resto de esta baldosa y las que siguen (con una flecha apretada, sigue de largo)
+        a.v = pace(a.v, a === you && held.size ? Infinity : 1 - a.t + a.path.length, dt);
+        a.t += dt * a.v;
+        a.step += dt * a.v;
         if (a.t >= 1) {
           Object.assign(a, { x: a.to.x, y: a.to.y, moving: false });
           if (a.path.length) stepActor(a);
@@ -1066,6 +1079,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     }
     else {
       if (!player.moving) next();
+      if (!player.moving) player.v = 0;
       // Quieto al lado de tu silla un momento: te sentás
       const seat = ownSeat();
       if (player.moving || player.path.length || held.size || !seat) idleSince = 0;
@@ -1075,8 +1089,9 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       const still = player.moving || player.path.length || held.size ? 0 : (idleSince || ts);
       if (!sitting && still && !reduced && ts - still > 6000) player.dir = Math.floor((ts - still - 6000) / 2400) % 2 ? "SE" : "SW";
       if (player.moving) {
-        player.t += dt * SPEED;
-        player.step += dt * SPEED;
+        player.v = pace(player.v, held.size ? Infinity : 1 - player.t + player.path.length, dt);
+        player.t += dt * player.v;
+        player.step += dt * player.v;
         if (player.t >= 1) {
           player.x = player.to.x;
           player.y = player.to.y;
@@ -1919,7 +1934,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
           draw: () =>
             a.seat
               ? avatar(a.look, ax, ay, "SW", null, true, blink, typing)
-              : avatar(a.look, ax, ay, a.moving ? a.dir : (a.face ?? a.dir), a.moving && !reduced ? a.step % 1 : null, false, blink && !a.moving, null, wave, phoneOut(a), wave, thinkOut(a)),
+              : avatar(a.look, ax, ay, a.moving ? a.dir : (a.face ?? a.dir), a.moving && !reduced ? (a.step / 2) % 1 : null, false, blink && !a.moving, null, wave, phoneOut(a), wave, thinkOut(a)),
         });
       }
     } else {
@@ -1927,7 +1942,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       if (seat) {
         const [sx, sy] = P(seat.x + 0.5, seat.y + 0.5);
         people.push({ depth: seat.x + seat.y + 0.05, box: around(sx, sy, reachOf(me, "sit")), draw: () => avatar(me, sx, sy, "SW", null, true, blink, typing) });
-      } else people.push({ depth: pDepth, box: around(psx, psy, reachOf(me, player.moving ? "walk" : "still")), draw: () => avatar(me, psx, psy, player.dir, player.moving && !reduced ? player.step % 1 : null) });
+      } else people.push({ depth: pDepth, box: around(psx, psy, reachOf(me, player.moving ? "walk" : "still")), draw: () => avatar(me, psx, psy, player.dir, player.moving && !reduced ? (player.step / 2) % 1 : null) });
       if (po?.seat) {
         const seat = po.seat;
         const [sx, sy] = P(seat.x + 0.5, seat.y + 0.5);
