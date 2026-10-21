@@ -16,20 +16,22 @@ cacheado con el mismo nombre. Los clips de 2026-09c son grabaciones del sitio
 en vivo a 1280×800 (16:10, la misma proporción que las pantallas de la rueda
 3D y que las capturas): bajan por la página, pasan el cursor por el CTA y
 vuelven arriba. En Pravilo y Muzzaga recorren el sistema de turnos sin
-confirmar ninguna reserva. El de Apex es de 2026-10b, con la landing nueva: pasa
-el cursor por el CTA, baja a la app del atleta, recorre las tarjetas de costado y
-carga 100 kg en el simulador de discos; el final funde con el principio para que
-el loop no salte. En iPhone Vita el hero se arma
+confirmar ninguna reserva. El de Apex (2026-10c, 23 s) baja a ritmo de persona
+que descubre la página: pasa el cursor por el CTA y después giros de rueda
+cortos, con su frenado y una pausa para mirar, por el caos, el manifiesto y
+«Cómo funciona»; el loop vuelve al hero con un fundido en vez de subir
+corriendo. La primera versión cruzaba siete mil píxeles en un segundo y medio:
+se veía como un salto, no como alguien leyendo. En iPhone Vita el hero se arma
 con la rueda (bloquea el scroll hasta terminar), así que se grabó con eventos
 de rueda: arma el hero, baja por el catálogo y lo rebobina hasta el título.
 
 Apex tiene además recorridos en tablet y celular (`screenVideos` en
 `data/projects.ts`) para el simulador de dispositivos del caso, que sin ellos
-muestra las capturas fijas de `screens`: `apex-ai-tablet-2026-10` a 720×960
-(768×1024 grabado a 1.5x) y `apex-ai-mobile-2026-10` a 560×1212 (390×844 a 2x).
-Se graban como touch, con un círculo donde va el dedo: bajan por el caos y el
-mesociclo, deslizan las tarjetas de la app del atleta y cargan 100 kg. Sólo se
-bajan si alguien elige Tablet o Mobile en el simulador.
+muestra las capturas fijas de `screens`: `apex-ai-tablet-2026-10b` a 720×960
+(768×1024 grabado a 1.5x) y `apex-ai-mobile-2026-10b` a 560×1212 (390×844 a 2x).
+Se graban como touch y al mismo ritmo: deslizadas con un círculo donde va el
+dedo, que suelta y deja seguir la página por inercia, y una pausa en cada
+tramo. Sólo se bajan si alguien elige Tablet o Mobile en el simulador.
 
 Y hay que declararlos en `data/projects.ts`:
 

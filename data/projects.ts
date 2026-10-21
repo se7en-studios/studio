@@ -163,17 +163,17 @@ export const projects: Project[] = [
       mobile: "/projects/devices/apex-ai-mobile-2026-10.jpg",
     },
     video: {
-      mp4: "/projects/videos/apex-ai-2026-10b.mp4",
-      webm: "/projects/videos/apex-ai-2026-10b.webm",
+      mp4: "/projects/videos/apex-ai-2026-10c.mp4",
+      webm: "/projects/videos/apex-ai-2026-10c.webm",
     },
     screenVideos: {
       tablet: {
-        mp4: "/projects/videos/apex-ai-tablet-2026-10.mp4",
-        webm: "/projects/videos/apex-ai-tablet-2026-10.webm",
+        mp4: "/projects/videos/apex-ai-tablet-2026-10b.mp4",
+        webm: "/projects/videos/apex-ai-tablet-2026-10b.webm",
       },
       mobile: {
-        mp4: "/projects/videos/apex-ai-mobile-2026-10.mp4",
-        webm: "/projects/videos/apex-ai-mobile-2026-10.webm",
+        mp4: "/projects/videos/apex-ai-mobile-2026-10b.mp4",
+        webm: "/projects/videos/apex-ai-mobile-2026-10b.webm",
       },
     },
     // Sacadas de las muestras de marketing de APEX: el render real de la app con
