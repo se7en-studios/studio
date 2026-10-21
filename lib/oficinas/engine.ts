@@ -2234,7 +2234,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
           person(a.look, actorDepth(a), footAt(...actorPos(a)), ax, ay, reachOf(a.look, a.seat ? "sit" : a.moving ? "walk" : wave !== null ? "wave" : "still"), () =>
             a.seat
               ? avatar(a.look, ax, ay, "SW", null, true, blink, typing)
-              : avatar(a.look, ax, ay, a.moving ? a.dir : ts < a.hold ? (a.face ?? a.dir) : a.path.length ? a.dir : (a.face ?? a.dir), a.moving && !reduced ? (a.step / 2) % 1 : null, false, blink && !a.moving, null, wave, phoneOut(a), talkOut(a, ts), thinkOut(a)),
+              : avatar(a.look, ax, ay, a.moving ? a.dir : ts < a.hold ? (a.face ?? a.dir) : a.path.length ? a.dir : (a.face ?? a.dir), a.moving && !reduced ? (a.step / 2) % 1 : null, false, blink && !a.moving, null, wave, phoneOut(a), talkOut(a, ts), thinkOut(a), null, reduced ? null : ts / 1000 + (Math.abs(a.seed) % 97) * 0.37),
           !!a.seat),
         );
       }
@@ -2243,7 +2243,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       if (seat) {
         const st = seatedAt(me, seat);
         people.push(person(me, st.depth, st.foot, st.sx, st.sy, reachOf(me, "sit"), () => avatar(me, st.sx, st.sy, "SW", null, true, blink, typing, null, false, null, false, seatedPose(me, false)), true));
-      } else people.push(person(me, pDepth, footAt(pxT, pyT), psx, psy, reachOf(me, player.moving ? "walk" : "still"), () => avatar(me, psx, psy, player.dir, player.moving && !reduced ? (player.step / 2) % 1 : null)));
+      } else people.push(person(me, pDepth, footAt(pxT, pyT), psx, psy, reachOf(me, player.moving ? "walk" : "still"), () => avatar(me, psx, psy, player.dir, player.moving && !reduced ? (player.step / 2) % 1 : null, false, blink && !player.moving, null, null, false, null, false, null, reduced ? null : ts / 1000)));
       if (po?.seat) {
         const st = seatedAt(otherOf(me), po.seat);
         // Conectado, tipea; si no, se queda dormido (el aura, sólo si está conectado)

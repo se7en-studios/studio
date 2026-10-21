@@ -182,7 +182,7 @@ for (const n of [0, 1, 4, 5, 8, 9, 18]) {
     for (const base of ["walk", "walkb"]) assert.equal(Object.keys(sh.frames).filter((n) => new RegExp(`^${base}\\d$`).test(n)).length, 8, `${who}: ${base} de 8 cuadros`);
     if (who === "federico" || who === "franco") assert.ok(sh.frames.sit, `${who}: falta sentado`);
     // El saludo y la charla, de a cuatro cuadros; los dueños, sentados tipeando y sus pausas
-    for (const base of ["wave", "talk"]) for (let i = 0; i < 4; i++) assert.ok(sh.frames[`${base}${i}`], `${who}: falta ${base}${i}`);
+    for (const base of ["wave", "talk", "idle", "phone"]) for (let i = 0; i < 4; i++) assert.ok(sh.frames[`${base}${i}`], `${who}: falta ${base}${i}`);
     if (who === "federico" || who === "franco") for (const pose of ["type0", "type1", "type2", "type3", "think", "sip", "stretch", "doze"]) assert.ok(sh.frames[pose], `${who}: falta ${pose}`);
     for (const [pose, [x, y, w, h, ax, ay]] of Object.entries(sh.frames)) {
       assert.ok(x >= 0 && y >= 0 && w > 0 && h > 0, `${who}/${pose}: caja`);
