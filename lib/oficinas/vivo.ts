@@ -316,7 +316,8 @@ export async function joinLive(as: "visita" | "panel", h: Handlers, current: () 
  * El canal para un mapa: entra mientras `on` y la pestaña está a la vista (al
  * ocultarla sale, como la señal de visitas), le pasa al motor dónde está cada
  * uno y los gestos, y devuelve quiénes están, quién sos y el último gesto que
- * te mandaron. `report` va en onState del motor; `gesture`, en los botones.
+ * te mandaron. `report` va en onState del motor; `gesture`, en los botones;
+ * `leave` sale del canal ya (al despedirse: los demás te ven irte al toque).
  */
 export function useLive(on: boolean, as: "visita" | "panel", engine: Engine | null) {
   const [me, setMe] = useState<LivePerson | null>(null);
@@ -389,5 +390,6 @@ export function useLive(on: boolean, as: "visita" | "panel", engine: Engine | nu
     eng.current?.gesture(c.me.id, to, g);
     return true;
   }, []);
-  return { me, people, heard, report, gesture };
+  const leave = useCallback(() => conn.current?.close(), []);
+  return { me, people, heard, report, gesture, leave };
 }

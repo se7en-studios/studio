@@ -955,8 +955,11 @@ function mug(x: number, y: number, z: number, col: string, ctx: FurniCtx, room: 
  * igual, se espeja al azar), qué parte del ancho de sus baldosas ocupa (`fill`)
  * y su altura máxima en px del mundo (`z`). `top`: la altura de la tapa del
  * dibujado en código, para subir lo que lleva arriba hasta la tapa ilustrada.
+ * `screen`: la pantalla que se prende arriba del dibujo (el fichín), con sus
+ * cuatro esquinas en fracciones del dibujo (arriba a la izquierda, arriba a la
+ * derecha, abajo a la derecha, abajo a la izquierda).
  */
-type Spec = { name: string | string[]; face: Facing | "free"; fill: number; z: number; top?: number; glow?: "lamp" | "bubble" | "steam" };
+type Spec = { name: string | string[]; face: Facing | "free"; fill: number; z: number; top?: number; glow?: "lamp" | "bubble" | "steam"; screen?: [number, number][] };
 const SPRITES: Partial<Record<string, Spec>> = {
   desk: { name: "desk2", face: "x", fill: 0.97, z: 30, top: 28 },
   desk2: { name: "desk2", face: "x", fill: 0.97, z: 30, top: 28 },
@@ -998,6 +1001,9 @@ const SPRITES: Partial<Record<string, Spec>> = {
   boxes: { name: "boxes", face: "free", fill: 0.8, z: 40 },
   deploy: { name: "deploy", face: "x", fill: 0.62, z: 38 },
   catbed: { name: "catbed", face: "free", fill: 0.56, z: 12 },
+  // La pantalla del fichín está inclinada para atrás: un paralelogramo, un poco adentro del marco
+  arcade: { name: "arcade", face: "y", fill: 0.84, z: 74, screen: [[0.366, 0.231], [0.632, 0.301], [0.568, 0.469], [0.299, 0.399]] },
+  phonetable: { name: "phonetable", face: "free", fill: 0.82, z: 30, top: 24 },
   catbowl: { name: "catbowl", face: "free", fill: 0.34, z: 8 },
 };
 
@@ -1123,6 +1129,11 @@ function furniSprite(f: Furni, ctx: FurniCtx): boolean {
     if (sp.glow === "lamp") ctx.glows.push({ t: "lamp", at: at(0.5, 0.27), room: f.room });
     else if (sp.glow === "bubble") ctx.glows.push({ t: "bubble", at: at(0.5, 0.22), room: f.room });
     else if (sp.glow === "steam") ctx.glows.push({ t: "steam", at: at(0.3, 0.06), room: f.room });
+    if (sp.screen) {
+      const q = sp.screen.map(([u, v]) => at(u, v));
+      // Espejado, las esquinas cambian de lado: la pantalla no se da vuelta
+      ctx.glows.push({ t: "screen", quad: p.mirror ? [q[1], q[0], q[3], q[2]] : q, kind: "arcade", accent: PAL.signal, room: f.room });
+    }
     // Lo que lleva arriba (monitores, la tele, las tazas), subido hasta la tapa ilustrada
     if (sp.top !== undefined) {
       ZL = p.top - sp.top;
@@ -1133,6 +1144,20 @@ function furniSprite(f: Furni, ctx: FurniCtx): boolean {
       }
     }
   }
+  return true;
+}
+
+/**
+ * Un ícono de la lámina de los gestos (`mugicon`, `hearticon`, `sparkicon`)
+ * de `h` px de alto con el centro en (x, y), en el lienzo `t`. false si la
+ * lámina todavía no bajó (va el dibujado en código).
+ */
+export function icon(t: CanvasRenderingContext2D, name: string, x: number, y: number, h: number): boolean {
+  const fr = MUEBLES.frames[name];
+  if (!(atlas instanceof HTMLImageElement) || !fr) return false;
+  const [fx, fy, w, hh] = fr;
+  const k = h / hh;
+  t.drawImage(atlas, fx, fy, w, hh, x - (w * k) / 2, y - h / 2, w * k, h);
   return true;
 }
 
@@ -1615,8 +1640,8 @@ function furniCode(f: Furni, ctx: FurniCtx, base = true) {
       break;
     }
     case "phonetable": {
-      // Mesa de exhibición con tres celulares prendidos
-      box(x + 0.1, y + 0.2, 0, 0.8, 0.6, 24, PAL.paper, { right: "#d4d0e2" });
+      // Mesa de exhibición con tres celulares prendidos (la mesa, ilustrada si ya bajó)
+      if (base) box(x + 0.1, y + 0.2, 0, 0.8, 0.6, 24, PAL.paper, { right: "#d4d0e2" });
       for (let i = 0; i < 3; i++) {
         const px = x + 0.2 + i * 0.22;
         box(px, y + 0.45, 24, 0.13, 0.04, 17, PAL.char);

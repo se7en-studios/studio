@@ -124,8 +124,10 @@ Qué objeto es cada uno está en `SHEETS` del script; cómo se para cada uno en
 sus baldosas (hacia dónde mira en el dibujo, qué parte de la baldosa ocupa y su
 altura máxima), en `SPRITES` de `lib/oficinas/art.ts`. Lo que se prende sigue
 dibujado en código arriba del mueble: los monitores, la tele y las tazas suben
-hasta la tapa ilustrada. El fichín, el botón de deploy y la mesa de celulares
-siguen en código. Si la imagen no baja, quedan los muebles dibujados en código.
+hasta la tapa ilustrada, y la pantalla del fichín se prende arriba del dibujo
+(sus esquinas, en `screen` de `SPRITES`). Siguen en código sólo los pisos
+(alfombras, felpudos, la cancha, el mat): llevan los logos. Si la imagen no
+baja, quedan los muebles dibujados en código.
 La instrucción base:
 
     Use the reference image only for the drawing style; do not draw the
@@ -139,6 +141,12 @@ La instrucción base:
     #FF4D2E, near-black #0B0B0C, off-white #F2EEE6, greys and warm wood; no
     purple. Solid flat pure green background (#00FF00), no floor, no shadows,
     no text, no people. Objects: 1 …, 2 …
+
+`fichin.jpg` tiene el fichín del Chill-out y la mesa de los celulares, y
+`gestos.jpg`, los íconos del canal en vivo dibujados de frente (la taza, el
+corazón y los destellos: `icon()` de art.ts). Los destellos chicos están más
+separados que los pedazos sueltos de un mueble: `NEAR` del script les da más
+margen para juntarlos.
 
 Para los muebles largos (mostrador, escritorios, cocina, mesa de reuniones,
 sillón, mueble de la tele) hay que pedir la proporción («six times longer than
@@ -161,7 +169,11 @@ Los que tienen la oficina abierta (la landing a pantalla completa y el mapa del
 panel) se ven moverse de verdad: cada pestaña avisa a qué baldosa va su muñeco
 (o si se sentó en su escritorio) y las demás lo hacen caminar hasta ahí. Si
 Franco camina en su panel, Federico lo ve caminar en el suyo y las visitas de
-la landing también; ellas, a su vez, aparecen en los dos paneles. Tocar a
+la landing también; ellas, a su vez, aparecen en los dos paneles. Las visitas entran a la oficina por el fichín del Chill-out, como en la
+landing: salen de la pantalla con un haz y destellos y caminan desde ahí. Al
+irse (y al salir vos, con Esc, «Salir» o un link de la barra) la pantalla se
+las lleva; la oficina se cierra cuando termina. El guía entra por la recepción.
+Tocar a
 alguien del canal (o el botón «Saludar a…» de los socios) abre su ficha con
 tres gestos: saludar (levanta la mano con «HOLA!»), un corazón o un café, que
 vuelan hasta el otro. Al que lo recibe le aparece el aviso («Franco te

@@ -107,6 +107,7 @@ export function EnVivoMap({
   onReady,
   onClose,
   onNavigate,
+  exitRef,
 }: {
   active: boolean;
   visitors: VisitorsNow | null;
@@ -120,6 +121,11 @@ export function EnVivoMap({
   onClose?: () => void;
   /** A pantalla completa: ir a una sección de la landing (sale de la oficina y baja hasta ahí). */
   onNavigate?: (hash: string) => void;
+  /**
+   * A pantalla completa: acá queda cómo despedirse antes de salir (tu muñeco
+   * vuelve a entrar al fichín). Devuelve cuánto esperar en ms antes de cerrar.
+   */
+  exitRef?: { current: (() => number) | null };
 }) {
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -131,7 +137,7 @@ export function EnVivoMap({
   const [selected, setSelected] = useState<string | null>(null);
   // El canal en vivo: sólo con la oficina abierta a pantalla completa
   const live = useLive(fill && active && !hold && !!engine, "visita", engine);
-  const { report } = live;
+  const { report, leave } = live;
   const [person, setPerson] = useState<string | null>(null);
   const heardLine = useHeardLine(live.heard, live.people);
 
@@ -205,6 +211,19 @@ export function EnVivoMap({
   useEffect(() => {
     if (engine) onReady?.();
   }, [engine, onReady]);
+
+  useEffect(() => {
+    if (!exitRef) return;
+    // Tu muñeco vuelve a entrar al fichín y el canal avisa ya que te vas: los demás lo ven a la vez
+    exitRef.current = () => {
+      const ms = engine?.leave() ?? 0;
+      leave();
+      return ms;
+    };
+    return () => {
+      exitRef.current = null;
+    };
+  }, [engine, exitRef, leave]);
 
   useEffect(() => {
     if (engine && online) engine.setActors(actorsFor(online, map, visitors, live.people, live.me));
