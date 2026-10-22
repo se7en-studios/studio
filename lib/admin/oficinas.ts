@@ -4,6 +4,7 @@
 // oficinas-shared.ts).
 import { caseBrand } from "@/lib/en-vivo";
 import { latestCaptures, type SiteCapture } from "./capturas";
+import { officeStats } from "@/lib/en-vivo-medicion";
 import { db, missingTable } from "./db";
 import { kindOf, type EventKind } from "./event-shared";
 import { PanelNotReady, caseProjects, client, fail, getProject, listProjects, type PanelProject } from "./panel";
@@ -81,7 +82,7 @@ export async function getOficinasData(me: Who, { light = false } = {}): Promise<
     };
   }
   const c = client();
-  const [projects, states, tasksRes, eventsRes, visitsRes, readsRes, captures] = await Promise.all([
+  const [projects, states, tasksRes, eventsRes, visitsRes, readsRes, captures, office] = await Promise.all([
     listProjects(),
     listStates().catch((e) => {
       // Sin panel-v2.sql el mapa anda igual: todos con el estado por defecto.
@@ -94,6 +95,8 @@ export async function getOficinasData(me: Who, { light = false } = {}): Promise<
     c.from("panel_reads").select("who, channel, last_read_at").like("channel", "p:%"),
     // Sin capturas.sql, o si falla, la tele usa la captura fija: no corta el mapa.
     light ? new Map<string, SiteCapture>() : latestCaptures().catch(() => new Map<string, SiteCapture>()),
+    // Los números de la oficina de la landing (sin en-vivo.sql, null: se avisa qué correr)
+    light ? undefined : officeStats().catch(() => null),
   ]);
   if (tasksRes.error && !missingTable(tasksRes.error)) fail(tasksRes.error);
   if (eventsRes.error) fail(eventsRes.error);
@@ -124,6 +127,7 @@ export async function getOficinasData(me: Who, { light = false } = {}): Promise<
     projects: out,
     studioEvents: events.slice(0, 6),
     openTasks: tasks,
+    office,
   };
 }
 

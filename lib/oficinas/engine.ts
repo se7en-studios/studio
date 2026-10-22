@@ -131,7 +131,7 @@ export type EngineOptions = {
    * destino o se sienta. En el panel, tu muñeco; en la landing, el de «VOS».
    */
   onState?: (s: LiveState) => void;
-  /** Tocaste a alguien que está en vivo (null: tocaste otra cosa), para mandarle un gesto. */
+  /** Tocaste a alguien que está en vivo o a uno de los socios (null: tocaste otra cosa), para su ficha. */
   onPerson?: (id: string | null) => void;
 };
 
@@ -2368,13 +2368,16 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   }
   /** En el panel, el otro socio está en el canal en vivo: camina como en su pestaña (y no se lo dibuja fijo en su silla). */
   const partnerLive = () => !o.public && actors.some((a) => a.look === otherOf(me));
-  /** Alguien del canal en vivo bajo el puntero (no vos): el de adelante si hay varios. */
+  /**
+   * Alguien bajo el puntero (no vos): los del canal en vivo y, aunque no lo
+   * estén, los socios (para avisarles o escribirles). El de adelante si hay varios.
+   */
   function personAt(e: MouseEvent): string | null {
     const b = canvas.getBoundingClientRect();
     const wx = ((e.clientX - b.left) * dpr - offX) / scale, wy = ((e.clientY - b.top) * dpr - offY) / scale;
     let best: string | null = null, bd = -Infinity;
     for (const a of actors) {
-      if (!a.remote || a.you || a.warp) continue;
+      if ((!a.remote && !isOwner(a.look)) || a.you || a.warp) continue;
       const st = a.seat && isOwner(a.look) ? seatedAt(a.look as Who, a.seat) : null;
       const [px, py] = st ? [st.sx, st.sy] : P(...actorPos(a));
       const r = reachOf(a.look, st ? "sit" : "still");

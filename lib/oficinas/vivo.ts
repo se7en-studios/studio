@@ -138,6 +138,8 @@ export type LiveConn = {
   send: (s: LiveState) => void;
   /** false si todavía no pasó el rato desde el gesto anterior. */
   gesture: (to: string, g: Gesture) => boolean;
+  /** `data` firmado por esta pestaña, con su pase: para pedirle algo al servidor (el aviso a un socio). */
+  sign: (data: string) => Promise<{ p: string; s: string; z: string }>;
   close: () => void;
 };
 type Handlers = {
@@ -290,6 +292,10 @@ export async function joinLive(as: "visita" | "panel", h: Handlers, current: () 
           if (s) void post("st", JSON.stringify({ x: s.x, y: s.y, sit: s.sit }));
         }, wait);
       },
+      async sign(data) {
+        const z = b64u(await crypto.subtle.sign(SIG, pair.privateKey, enc.encode(data)));
+        return { p: mine.pass, s: mine.sig, z };
+      },
       gesture(to, g) {
         if (closed || wall() - gestureAt < GESTURE_MS || !peers.has(to)) return false;
         gestureAt = wall();
@@ -391,5 +397,22 @@ export function useLive(on: boolean, as: "visita" | "panel", engine: Engine | nu
     return true;
   }, []);
   const leave = useCallback(() => conn.current?.close(), []);
-  return { me, people, heard, report, gesture, leave };
+  /**
+   * «Avisale que estás acá»: le llega al celular a ese socio, que no está
+   * mirando la oficina (ver /api/en-vivo/aviso). "sent", "again" (ya le
+   * avisaste hace poco) o "fail" (sin canal, o el servidor no pudo).
+   */
+  const call = useCallback(async (to: "federico" | "franco"): Promise<"sent" | "again" | "fail"> => {
+    const c = conn.current;
+    if (!c) return "fail";
+    try {
+      const d = JSON.stringify({ to, t: Math.round(wall()) });
+      const r = await fetch("/api/en-vivo/aviso", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...(await c.sign(`aviso|${d}`)), d }) });
+      const j = (await r.json().catch(() => null)) as { sent?: boolean; again?: boolean } | null;
+      return j?.sent ? "sent" : j?.again ? "again" : "fail";
+    } catch {
+      return "fail";
+    }
+  }, []);
+  return { me, people, heard, report, gesture, leave, call };
 }

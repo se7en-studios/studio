@@ -20,6 +20,7 @@ import { team } from "@/data/team";
 import { SITE } from "@/data/site";
 import { MapFrame } from "./en-vivo-frame";
 import { Faces, FounderButtons, PersonCard, useHeardLine } from "./en-vivo-gestos";
+import { office } from "@/lib/oficinas/medir";
 
 // El mismo mapa de «En vivo» del panel, en modo público: sin el panel de la
 // derecha, sin días ni novedades, con todas las salas prendidas. Si alguno de
@@ -140,6 +141,35 @@ export function EnVivoMap({
   const { report, leave } = live;
   const [person, setPerson] = useState<string | null>(null);
   const heardLine = useHeardLine(live.heard, live.people);
+
+  // La medición (lib/en-vivo-medicion.ts): entrar, salir con cuánto se quedó y
+  // si se cruzó con alguno de los dos en vivo
+  const inside = fill && active && !hold;
+  useEffect(() => {
+    if (!inside) return;
+    const t0 = performance.now();
+    office("abrir");
+    let done = false;
+    const bye = () => {
+      if (done) return;
+      done = true;
+      office("salir", null, Math.min(86_400, Math.round((performance.now() - t0) / 1000)), true);
+    };
+    window.addEventListener("pagehide", bye);
+    return () => {
+      window.removeEventListener("pagehide", bye);
+      bye();
+    };
+  }, [inside]);
+  const met = useRef(new Set<string>());
+  useEffect(() => {
+    if (!inside) return met.current.clear();
+    for (const p of live.people)
+      if (isOwner(p.look) && !met.current.has(p.look)) {
+        met.current.add(p.look);
+        office("socio", p.look);
+      }
+  }, [inside, live.people]);
 
   const projects = useMemo(() => publicProjects(captures ?? {}), [captures]);
   const map = useMemo(() => buildMap(projects.map((p) => ({ slug: p.slug, status: p.status, theme: themeOf(p) }))), [projects]);
@@ -289,7 +319,10 @@ export function EnVivoMap({
   // La recepción primero; después las salas del estudio y los proyectos, en el orden del mapa
   const rooms = map.rooms.filter((r) => r.kind !== "storage" && r.kind !== "kitchen").sort((a, b) => +(b.kind === "reception") - +(a.kind === "reception"));
   const picked = selected ? map.rooms.find((r) => r.id === selected) ?? null : null;
-  const target = person ? live.people.find((p) => p.id === person) ?? null : null;
+  // Los dos socios: el que está en la oficina (canal en vivo) o, si no, su ficha para avisarle
+  const founders = (["federico", "franco"] as Who[]).map((w) => live.people.find((p) => p.look === w && p.id === w) ?? live.people.find((p) => p.look === w) ?? { id: w, look: w, name: NAMES[w] });
+  const away = new Set(founders.filter((p) => !live.people.includes(p)).map((p) => p.id));
+  const target = person ? (live.people.find((p) => p.id === person) ?? founders.find((p) => p.id === person) ?? null) : null;
   return (
     <div className={`relative h-full w-full overflow-hidden bg-[#0b0b0c] text-[#f2eee6] ${archivo.className}`}>
       <TopBar onClose={onClose} onNavigate={onNavigate} />
@@ -329,7 +362,14 @@ export function EnVivoMap({
             <PersonCard
               key={target.id}
               person={target}
-              onGesture={(g) => live.gesture(target.id, g)}
+              onGesture={(g) => {
+                const ok = live.gesture(target.id, g);
+                if (ok) office("gesto", `${g}:${isOwner(target.look) ? "socio" : "visita"}`);
+                return ok;
+              }}
+              away={away.has(target.id) ? { online: (online ?? []).some((o) => o.who === target.look), onCall: () => live.call(target.look as Who) } : null}
+              whatsapp={isOwner(target.look) ? whatsappTo(NAMES[target.look as Who]) : null}
+              onWhatsApp={() => office("whatsapp", "ficha")}
               onClose={() => setPerson(null)}
               className="mx-3 mb-2 md:mx-4 md:mb-3 md:w-[380px] md:p-4"
             />
@@ -344,14 +384,17 @@ export function EnVivoMap({
               onNavigate={onNavigate}
             />
           )}
-          {/* Los socios en vivo, también con un botón (con el teclado no se puede tocar el muñeco) */}
-          <FounderButtons people={live.people.filter((p) => p.id !== target?.id)} onPick={setPerson} className="mb-2 px-3 md:px-4" />
+          {/* Los dos socios, siempre con un botón: en la oficina se los saluda; si no, se les avisa o se les escribe */}
+          <FounderButtons people={founders.filter((p) => p.id !== target?.id)} away={away} onPick={setPerson} className="mb-2 px-3 md:px-4" />
           <RoomRail rooms={rooms} bySlug={bySlug} where={where} selected={selected} onPick={go} />
         </div>
       </div>
     </div>
   );
 }
+
+/** WhatsApp del estudio con el mensaje armado para ese socio. */
+const whatsappTo = (name: string) => `${SITE.whatsapp}?text=${encodeURIComponent(`¡Hola ${name}! Te vi en la oficina de la web de Se7en.`)}`;
 
 /** El nombre de una sala: el del proyecto o el de la sala del estudio. */
 function roomName(r: MapRoom, bySlug: Map<string, OfiProject>) {
@@ -397,6 +440,7 @@ function TopBar({ onClose, onNavigate }: { onClose?: () => void; onNavigate?: (h
         e.preventDefault();
         e.stopPropagation();
         setOpen(false);
+        if (n.hash === "#contacto") office("contacto", "barra");
         onNavigate?.(n.hash);
       }}
       className={cls}
@@ -441,7 +485,7 @@ function TopBar({ onClose, onNavigate }: { onClose?: () => void; onNavigate?: (h
         <nav id="oficina-menu" aria-label="Secciones de la web" className="absolute top-full right-3 mt-2 w-56 rounded-xl bg-[#151517] p-1.5 shadow-2xl ring-1 ring-[#ff4d2e]/40 md:hidden">
           {NAV.map((n) => link(n, "block rounded-lg px-3 py-2.5 text-[14px] font-semibold text-[#f2eee6] hover:bg-[#ff4d2e]/20"))}
           <span aria-hidden className="mx-3 my-1.5 block h-px bg-white/10" />
-          <a href={SITE.whatsapp} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between rounded-lg px-3 py-2.5 text-[14px] font-semibold text-[#ffb199] hover:bg-[#ff4d2e]/20">
+          <a href={SITE.whatsapp} target="_blank" rel="noopener noreferrer" onClick={() => office("whatsapp", "menu")} className="flex items-center justify-between rounded-lg px-3 py-2.5 text-[14px] font-semibold text-[#ffb199] hover:bg-[#ff4d2e]/20">
             WhatsApp <ArrowUpRight size={14} aria-hidden />
           </a>
           <a href={`mailto:${SITE.email}`} className="block truncate rounded-lg px-3 py-2.5 text-[13px] text-[#b9b4ab] hover:bg-[#ff4d2e]/20">
@@ -624,7 +668,7 @@ function RoomCard({
         <div className="mt-3 flex flex-wrap gap-2">
           {actions.map((a) =>
             a.external ? (
-              <a key={a.label} href={a.href} target="_blank" rel="noopener noreferrer" className={btn(a.primary)}>
+              <a key={a.label} href={a.href} target="_blank" rel="noopener noreferrer" onClick={() => a.href === SITE.whatsapp && office("whatsapp", "sala")} className={btn(a.primary)}>
                 {a.label} <ArrowUpRight size={14} aria-hidden />
               </a>
             ) : a.hash ? (
@@ -634,6 +678,7 @@ function RoomCard({
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  if (a.href === "#contacto") office("contacto", "sala");
                   onNavigate?.(a.href);
                 }}
                 className={btn(a.primary)}

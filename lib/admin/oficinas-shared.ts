@@ -120,6 +120,48 @@ export type OfiProject = {
   lastVisit: Record<Who, string | null>;
 };
 
+/**
+ * Los números de la oficina de la landing en los últimos `days` días (ver
+ * lib/en-vivo-medicion.ts). `visitors`: visitas distintas por día que la
+ * abrieron; `met`: cuántas de ésas se cruzaron con alguno de los dos en vivo.
+ */
+export type OfficeStats = {
+  days: number;
+  opens: number;
+  visitors: number;
+  avgSeconds: number | null;
+  medianSeconds: number | null;
+  met: number;
+  gestures: number;
+  calls: number;
+  whatsapp: number;
+  contact: number;
+};
+
+/** Una fila de en_vivo_events (supabase/en-vivo.sql). */
+export type OfficeRow = { visitor: string; kind: string; detail: string | null; value: number | null; at: string };
+
+/** Los números a partir de las filas de esos días (ver OfficeStats). */
+export function summarizeOffice(rows: OfficeRow[], days: number): OfficeStats {
+  const day = (r: OfficeRow) => `${r.visitor}|${r.at.slice(0, 10)}`;
+  const opened = new Set(rows.filter((r) => r.kind === "abrir").map(day));
+  const met = new Set(rows.filter((r) => r.kind === "socio").map(day));
+  const secs = rows.filter((r) => r.kind === "salir" && r.value !== null).map((r) => r.value as number).sort((a, b) => a - b);
+  const count = (k: string) => rows.filter((r) => r.kind === k).length;
+  return {
+    days,
+    opens: count("abrir"),
+    visitors: opened.size,
+    avgSeconds: secs.length ? Math.round(secs.reduce((a, b) => a + b, 0) / secs.length) : null,
+    medianSeconds: secs.length ? secs[Math.floor(secs.length / 2)] : null,
+    met: [...met].filter((k) => opened.has(k)).length,
+    gestures: count("gesto"),
+    calls: count("aviso"),
+    whatsapp: count("whatsapp"),
+    contact: count("contacto"),
+  };
+}
+
 export type OficinasData = {
   me: Who;
   generatedAt: string;
@@ -130,6 +172,8 @@ export type OficinasData = {
   studioEvents: OfiEvent[];
   /** Abiertas, de proyectos o sueltas (sin las de pedidos). */
   openTasks: OfiTask[];
+  /** La oficina de la landing en los últimos 30 días; null si falta supabase/en-vivo.sql; sin base, no viene. */
+  office?: OfficeStats | null;
 };
 
 /**
