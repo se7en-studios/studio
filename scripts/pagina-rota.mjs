@@ -14,7 +14,7 @@ if (!SRC) throw new Error("Falta la carpeta de las láminas");
 const OUT = path.join(import.meta.dirname, "..", "public", "en-vivo");
 const INK = [11, 11, 12];
 /** Cuánto negro se deja alrededor del agujero (de su lado más largo). */
-const MARGIN = 0.035;
+const MARGIN = 0.012;
 
 async function frame(file, out) {
   const { data, info } = await sharp(path.join(SRC, file)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
