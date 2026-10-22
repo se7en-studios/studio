@@ -15,6 +15,34 @@ cuadros), cortada en dos para que la intro y el zoom empalmen sin salto:
 con esta (`Retro_arcade_machine_turns_on`) no se usa: el encuadre no coincide
 con el del zoom y el corte se notaba.
 
+## El marco: la página rota (`pagina-rota*.webp`)
+
+El fichín se ve por un agujero rasgado en la página, como si se hubiera roto y
+del otro lado estuvieran las máquinas. Son dos láminas de Flow (Nano Banana,
+oct 2026): una apaisada para la compu y una parada para el celular, en la
+carpeta `landing/` de los personajes (no van al repo). `scripts/pagina-rota.mjs`
+pasa el verde del agujero a transparente, el negro de la hoja al negro de la
+página (así el borde de la imagen no se nota) y recorta el negro que sobra:
+
+    node scripts/pagina-rota.mjs "C:/Users/feder/OneDrive/Escritorio/personajes/landing"
+
+La caja del fichín ocupa el ancho de la columna, con la proporción de cada
+lámina (en `components/rd/arcade.tsx`), así no se deforma. Al entrar a la
+oficina la hoja se desvanece. La instrucción de la de compu (la de celular pide
+un agujero más alto que ancho):
+
+    Flat 2D illustration with a clean hand-cut paper look, crisp edges, flat
+    colors. A sheet of matte near-black paper (#0B0B0C) fills the entire image
+    edge to edge [...]. A big torn hole is ripped through the middle of the
+    sheet, as if the web page was torn open. The hole is large and roughly
+    follows the shape of the image: it reaches from about 7% to 93% of the width
+    and from about 8% to 92% of the height, so it is clearly wider than tall but
+    not a thin strip, and it never touches the image borders [...] a thin ragged off-white core
+    (#F2EEE6) like torn paper fibers, and a few small torn flaps curl back [...]
+    A thin warm orange (#FF4D2E) layer peeks between the black and the
+    off-white at a few spots. The inside of the hole is solid flat pure green
+    (#00FF00) [...]. No text, no letters, no objects, nothing else.
+
 ## Medidas que usa el código
 
 Sobre el cuadro de 1920×1080 (ver `SCREEN_ON`, `SCREEN_IN`, `GLASS` y `ZOOM_K`):
