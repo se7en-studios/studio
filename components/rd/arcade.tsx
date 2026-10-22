@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowUpRight, X } from "lucide-react";
 import type { EnVivoPublic } from "@/app/api/en-vivo/route";
 import type { VisitorsNow } from "@/lib/visitas";
@@ -16,7 +16,6 @@ import {
   RdLines,
   RdReveal,
   RdRoll,
-  Sparkle,
 } from "@/components/rd/primitives";
 
 // «En vivo» en la landing: un fichín con la oficina adentro. La intro (la
@@ -639,18 +638,6 @@ export function RdArcade() {
 
   const status = statusOf(online);
   const watching = watchingOf(visitors);
-  const ticker: ReactNode[] = [
-    <span key="vivo" className="flex items-center gap-[0.35em]">
-      <span className="rd-blink inline-block h-[0.42em] w-[0.42em] rounded-full bg-current" />
-      En vivo
-    </span>,
-    "Pasá, está abierto",
-    status ?? "Se7en Office",
-    ...(watching ? [watching] : []),
-    "Mirá cómo laburamos",
-    `Patagonia, AR · ${clock ?? "--:--"}`,
-    "Tocá la pantalla",
-  ];
   const inside = phase === "enter" || phase === "open" || phase === "leave";
 
   return (
@@ -692,25 +679,14 @@ export function RdArcade() {
           </div>
         </div>
 
-        {/* El marco: una cinta naranja que da vueltas alrededor del fichín, como las cintas de la página. */}
-        <div
-          ref={frameRef}
-          className={`rd-tick relative mt-14 overflow-hidden bg-(--signal) p-(--band) text-(--ink) md:mt-20 ${
-            inView ? "" : "rd-tick--still"
-          }`}
-        >
-          {(["top", "right", "bottom", "left"] as const).map((side) => (
-            <Ticker key={side} side={side} items={ticker} />
-          ))}
-          {(["top-(--corner) left-(--corner)", "top-(--corner) right-(--corner)", "right-(--corner) bottom-(--corner)", "bottom-(--corner) left-(--corner)"] as const).map((at) => (
-            <span key={at} aria-hidden className={`rd-tick__corner ${at}`}>
-              <Sparkle className="rd-spin h-[46%] w-[46%]" />
-            </span>
-          ))}
-
+        {/* El marco: la página rota. Por el agujero se ven las máquinas del otro lado
+            y el video del fichín; la hoja es del mismo negro que la página, así el
+            borde de la imagen no se nota. Tiene la forma de la lámina (una apaisada
+            y otra parada para el celular), sin deformarse. */}
+        <div ref={frameRef} className="relative mt-14 md:mt-20">
           <div
             ref={slotRef}
-            className="relative aspect-[4/5] rounded-[1.35rem] sm:aspect-[16/10] md:aspect-auto md:h-[min(74svh,50vw)] md:rounded-[1.9rem]"
+            className="relative mx-auto aspect-[798/1151] w-full max-w-[min(100%,calc(80svh*798/1151))] sm:aspect-[1008/724] sm:max-w-[min(100%,calc(78svh*1008/724))]"
           >
             <button
               ref={panelRef}
@@ -792,6 +768,17 @@ export function RdArcade() {
                 }`}
               />
             </button>
+            <picture>
+              <source media="(min-width: 640px)" srcSet="/en-vivo/pagina-rota.webp" />
+              <img
+                src="/en-vivo/pagina-rota-m.webp"
+                alt=""
+                aria-hidden
+                decoding="async"
+                draggable={false}
+                className={`pointer-events-none absolute inset-0 h-full w-full select-none transition-opacity duration-500 ${inside ? "opacity-0" : ""}`}
+              />
+            </picture>
           </div>
 
           <p id="en-vivo-estado" className="sr-only" aria-live="polite">
@@ -841,34 +828,6 @@ export function RdArcade() {
   );
 }
 
-/**
- * Un lado de la cinta. Arriba y a la derecha corre hacia adelante, abajo hacia
- * atrás y a la izquierda sube: da la vuelta en el sentido del reloj. Sólo se
- * mueve con transform, así no le cuesta nada a la página.
- */
-function Ticker({ side, items }: { side: "top" | "right" | "bottom" | "left"; items: ReactNode[] }) {
-  const group = (
-    <span className="flex shrink-0 items-center">
-      {[...items, ...items].map((item, i) => (
-        <span key={i} className="flex items-center">
-          <span className="px-[0.5em] whitespace-nowrap">{item}</span>
-          <Sparkle className="h-[0.5em] w-[0.5em] shrink-0" />
-        </span>
-      ))}
-    </span>
-  );
-  const track = (
-    <span className={`rd-tick__track ${side === "bottom" ? "rd-tick__track--back" : ""}`}>
-      {group}
-      {group}
-    </span>
-  );
-  return (
-    <span aria-hidden className={`rd-tick__side rd-tick__side--${side} rd-condensed`}>
-      {side === "left" || side === "right" ? <span className="rd-tick__rot">{track}</span> : track}
-    </span>
-  );
-}
 
 /** El cartel de la pantalla del fichín: quién está, quién mira y «tocá para entrar». */
 function Attract({
