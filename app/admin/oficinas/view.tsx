@@ -374,6 +374,50 @@ const Eyebrow = ({ children }: { children: React.ReactNode }) => (
 const Title = ({ children }: { children: React.ReactNode }) => (
   <h2 className="adm-display mt-2 text-[26px] text-foreground">{children}</h2>
 );
+/** «1 min 20 s». */
+const duration = (s: number | null) => (s === null ? "—" : s < 60 ? `${s} s` : `${Math.floor(s / 60)} min${s % 60 ? ` ${s % 60} s` : ""}`);
+
+/**
+ * La oficina de la landing en los últimos 30 días (lib/en-vivo-medicion.ts):
+ * si entra gente, cuánto se queda, si se cruza con ustedes, si les avisa y si
+ * termina yendo a escribir. Sin la tabla, qué SQL correr.
+ */
+function OfficeNumbers({ stats }: { stats: OficinasData["office"] }) {
+  if (stats === undefined) return null;
+  const tiles: [string, string | number, string | null][] = stats
+    ? [
+        ["Entraron", stats.visitors, `${stats.opens} ${stats.opens === 1 ? "vez" : "veces"} en total`],
+        ["Se quedan", duration(stats.medianSeconds), stats.avgSeconds !== null ? `promedio ${duration(stats.avgSeconds)}` : null],
+        ["Se cruzaron con ustedes", stats.met, stats.visitors ? `${Math.round((stats.met / stats.visitors) * 100)}% de las visitas` : null],
+        ["Les avisaron", stats.calls, "«avisale que estás acá»"],
+        ["Gestos", stats.gestures, "saludos, corazones y cafés"],
+        ["Fueron a escribir", stats.whatsapp + stats.contact, `${stats.whatsapp} a WhatsApp · ${stats.contact} a Contacto`],
+      ]
+    : [];
+  return (
+    <section>
+      <h3 className="adm-title mb-1 flex items-center gap-2 text-[12px] text-foreground">
+        La oficina en la web {stats && <span className="font-mono text-[11px] font-normal text-muted">últimos {stats.days} días</span>}
+      </h3>
+      {!stats ? (
+        <p className="rounded-lg border border-[var(--line-strong)] bg-[var(--well)] p-3 text-[12px] text-muted">
+          Falta correr <code className="text-foreground">supabase/en-vivo.sql</code> en Supabase: la oficina anda, pero no se mide.
+        </p>
+      ) : (
+        <dl className="grid grid-cols-2 gap-2">
+          {tiles.map(([label, value, hint]) => (
+            <div key={label} className="rounded-lg border border-[var(--line)] bg-[var(--panel-2)] px-3 py-2">
+              <dt className="font-mono text-[10px] tracking-[0.12em] text-muted uppercase">{label}</dt>
+              <dd className="mt-0.5 text-[18px] font-semibold text-foreground tabular-nums">{value}</dd>
+              {hint && <dd className="text-[11px] leading-snug text-muted">{hint}</dd>}
+            </div>
+          ))}
+        </dl>
+      )}
+    </section>
+  );
+}
+
 const Section = ({ title, n, children }: { title: string; n?: number; children: React.ReactNode }) => (
   <section>
     <h3 className="adm-title mb-1 flex items-center gap-2 text-[12px] text-foreground">
@@ -469,6 +513,7 @@ function Hall({ data, bySlug, map, visits, me, now, onGo }: { data: OficinasData
           </button>
         </div>
       )}
+      <OfficeNumbers stats={data.office} />
       <section>
         <h3 className="adm-title mb-1 flex items-center gap-2 text-[12px] text-foreground">
           Salas <span className="font-mono text-[11px] font-normal text-muted">{rows.length}</span>

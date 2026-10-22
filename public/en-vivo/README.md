@@ -198,3 +198,21 @@ saludó»). No hay texto libre.
   Al ocultar la pestaña sale del canal; los que dejan de dar noticias 50 s se
   dan por idos.
 
+## Avisarles, escribirles y medir
+
+- **Los dos socios, siempre a mano.** En la oficina a pantalla completa hay un
+  botón por socio. Si está en la oficina (en el canal en vivo), se lo saluda
+  con los gestos. Si no, «Avisale que estás acá» le manda un aviso al celular
+  por ntfy (`/api/en-vivo/aviso`, a su tema personal `NTFY_TOPIC_<NOMBRE>` o
+  al compartido): sólo con el pase del canal y firmado por esa pestaña, y con
+  freno (uno por visita y socio cada 5 minutos, 12 por hora por IP). Tocar a
+  un socio en el mapa abre la misma ficha.
+- **«Hablale por WhatsApp»**, en la ficha de cada socio: el WhatsApp de la web
+  con el mensaje armado («¡Hola Federico! Te vi en la oficina de la web…»).
+- **La medición** (`lib/en-vivo-medicion.ts`, tabla de `supabase/en-vivo.sql`):
+  entrar, salir con cuánto se quedó, cruzarse con un socio en vivo, los
+  gestos, los avisos y los clics a WhatsApp y a Contacto desde adentro. Con el
+  id corto de la visita del día, nunca la IP. Los números de los últimos 30
+  días se ven en el panel, en En vivo (columna del pasillo). Sin la tabla no se
+  mide y la oficina sigue igual.
+

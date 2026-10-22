@@ -11,7 +11,7 @@
 // una etiqueta propia: no hay que cargar nada nuevo en Vercel. Sin ese secreto
 // (o si tiene menos de 32 caracteres) no hay pases y la oficina sigue como
 // antes, sin el canal. Sólo servidor.
-import { createECDH, createPrivateKey, hkdfSync, sign, type KeyObject } from "node:crypto";
+import { createECDH, createPrivateKey, createPublicKey, hkdfSync, sign, verify, type KeyObject } from "node:crypto";
 import type { ActorLook } from "@/lib/oficinas/art";
 
 /** Cuánto vale un pase: la pestaña pide otro antes de que venza. */
@@ -28,7 +28,7 @@ export type PassReply = {
   topic: string | null;
 };
 
-let keys: { priv: KeyObject; pub: string } | null | undefined;
+let keys: { priv: KeyObject; pubKey: KeyObject; pub: string } | null | undefined;
 function serverKeys() {
   if (keys !== undefined) return keys;
   const secret = process.env.ADMIN_SESSION_SECRET;
@@ -44,7 +44,7 @@ function serverKeys() {
         key: { kty: "EC", crv: "P-256", d: d.toString("base64url"), x: pub.subarray(1, 33).toString("base64url"), y: pub.subarray(33).toString("base64url") },
         format: "jwk",
       });
-      return (keys = { priv, pub: pub.toString("base64url") });
+      return (keys = { priv, pubKey: createPublicKey(priv), pub: pub.toString("base64url") });
     } catch {
       // siguiente
     }
@@ -68,4 +68,32 @@ export function issuePass(who: { id: string; look: ActorLook; name: string | nul
   const pass = Buffer.from(JSON.stringify(body)).toString("base64url");
   const sig = sign("sha256", Buffer.from(pass), { key: s.priv, dsaEncoding: "ieee-p1363" }).toString("base64url");
   return { pass, sig, server: s.pub, topic: topicOf() };
+}
+
+/** Una llave pública P-256 cruda (65 bytes) como llave de Node. */
+const fromRaw = (raw: Buffer) =>
+  createPublicKey({ key: { kty: "EC", crv: "P-256", x: raw.subarray(1, 33).toString("base64url"), y: raw.subarray(33).toString("base64url") }, format: "jwk" });
+
+/** El pase, si lo firmó este servidor y no venció (lo que manda una pestaña para pedir algo, como el aviso). */
+export function readPass(pass: string, sig: string, now = Date.now()): PassBody | null {
+  const s = serverKeys();
+  if (!s || pass.length > 400 || sig.length > 100) return null;
+  try {
+    if (!verify("sha256", Buffer.from(pass), { key: s.pubKey, dsaEncoding: "ieee-p1363" }, Buffer.from(sig, "base64url"))) return null;
+    const body = JSON.parse(Buffer.from(pass, "base64url").toString()) as PassBody;
+    if (typeof body.i !== "string" || typeof body.l !== "string" || typeof body.e !== "number" || body.e < now || !validTabKey(body.k)) return null;
+    return body;
+  } catch {
+    return null;
+  }
+}
+
+/** Si `data` lo firmó la pestaña de ese pase (con la llave que nunca sale del navegador). */
+export function tabSigned(pass: PassBody, data: string, sig: string): boolean {
+  if (sig.length > 100) return false;
+  try {
+    return verify("sha256", Buffer.from(data), { key: fromRaw(Buffer.from(pass.k, "base64url")), dsaEncoding: "ieee-p1363" }, Buffer.from(sig, "base64url"));
+  } catch {
+    return false;
+  }
 }
