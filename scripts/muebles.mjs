@@ -38,10 +38,15 @@ const SHEETS = {
   largos: ["counter", null, null, "kitchen", "meettable", "sofa", null, "tvcabinet"],
   escritorios: ["desk3", "desk2", null, "plinth"],
   deploy: ["deploy", null, "catbed", "catbowl"],
+  // El fichín del Chill-out y la mesa de los celulares; y los iconos de los gestos del canal en vivo (de frente, no isométricos)
+  fichin: ["arcade", "phonetable"],
+  gestos: ["mugicon", "hearticon", "sparkicon"],
 };
 
 // Objetos que se tocan en la imagen: un punto adentro de cada uno.
 const SEEDS = { largos: [[[740, 110], [930, 140]]] };
+// Hasta qué distancia (px) una manchita suelta es de la mancha grande: los destellos chicos están más separados
+const NEAR = { gestos: 60 };
 
 const norm = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 function find(name) {
@@ -76,7 +81,7 @@ async function keyed(file) {
  * más cercana. `seeds`: si dos objetos se tocan, un punto adentro de cada uno;
  * lo que comparten se reparte según a cuál llega antes caminando por adentro.
  */
-function objects(img, want, seeds = []) {
+function objects(img, want, seeds = [], near = 30) {
   const { data, w, h } = img;
   const on = (i) => data[i * 4 + 3] > 120;
   const lab = new Int32Array(w * h).fill(-1);
@@ -130,7 +135,7 @@ function objects(img, want, seeds = []) {
       const d = Math.hypot(dx, dy);
       if (d < bd) { bd = d; best = m; }
     }
-    if (best && bd < 30) Object.assign(best, { x0: Math.min(best.x0, r.x0), y0: Math.min(best.y0, r.y0), x1: Math.max(best.x1, r.x1), y1: Math.max(best.y1, r.y1), g: [...best.g, ...r.g] });
+    if (best && bd < near) Object.assign(best, { x0: Math.min(best.x0, r.x0), y0: Math.min(best.y0, r.y0), x1: Math.max(best.x1, r.x1), y1: Math.max(best.y1, r.y1), g: [...best.g, ...r.g] });
   }
   // Dos filas: arriba las que tienen el centro en la mitad de arriba
   const row = (b) => ((b.y0 + b.y1) / 2 < h / 2 ? 0 : 1);
@@ -138,12 +143,12 @@ function objects(img, want, seeds = []) {
 }
 
 /** Los que tienen vidrio (se ve el fondo a través) o un borde verdoso, sin nada verde de verdad. */
-const GLASS = new Set(["deploy", "vitrine", "catbed", "catbowl"]);
+const GLASS = new Set(["deploy", "vitrine", "catbed", "catbowl", "mugicon", "sparkicon"]);
 
 const parts = [];
 for (const [sheet, names] of Object.entries(SHEETS)) {
   const img = await keyed(find(sheet));
-  const objs = objects(img, names.length, SEEDS[sheet]);
+  const objs = objects(img, names.length, SEEDS[sheet], NEAR[sheet]);
   if (objs.length !== names.length) throw new Error(`${sheet}: salieron ${objs.length} objetos, no ${names.length}`);
   for (let i = 0; i < names.length; i++) {
     if (!names[i]) continue;

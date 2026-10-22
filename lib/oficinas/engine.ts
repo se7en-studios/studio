@@ -49,6 +49,7 @@ import {
   floorTile,
   furni,
   hash,
+  icon,
   lightPool,
   lightSpill,
   mix,
@@ -177,6 +178,11 @@ export type Engine = {
    * Puede llegar antes que su setActors: aparece directamente ahí.
    */
   setRemote: (id: string, s: LiveState | null) => void;
+  /**
+   * Sólo en la landing, al salir de la oficina: tu muñeco vuelve a entrar al
+   * fichín. Devuelve cuánto tarda en ms (0: no hay efecto, se sale ya).
+   */
+  leave: () => number;
   /** Un gesto de `from` a `to` (cualquiera de los dos puede ser tu muñeco: en el panel, con tu nombre). */
   gesture: (from: string, to: string, g: Gesture) => void;
   /**
@@ -218,6 +224,8 @@ const ACCEL = SPEED * 4;
  * faltan (Infinity si sigue, con una flecha apretada).
  */
 const pace = (v: number, left: number, dt: number) => Math.max(0.8, Math.min(SPEED, v + ACCEL * dt, Math.sqrt(2 * ACCEL * left)));
+/** Arranca y termina despacio (0 a 1). */
+const easeIO = (k: number) => (k < 0.5 ? 2 * k * k : 1 - (2 - 2 * k) ** 2 / 2);
 const DIRS: Record<string, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const KEYS: Record<string, string> = { ArrowUp: "up", w: "up", W: "up", ArrowDown: "down", s: "down", S: "down", ArrowLeft: "left", a: "left", A: "left", ArrowRight: "right", d: "right", D: "right" };
 /**
@@ -398,7 +406,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   const disp = new Map<string, number>();
   const anim = new Map<string, { t0: number; from: number }>();
   // En el panel, cada socio arranca en su baldosa al lado de la entrada: con los
-  // dos en el canal en vivo no quedan encimados (la de la entrada es de las visitas)
+  // dos en el canal en vivo no quedan encimados (las visitas entran por la recepción)
   const spawn = [[1, 0], [0, 1], [-1, 0], [0, -1]].map(([dx, dy]) => ({ x: m.start.x + dx, y: m.start.y + dy })).filter((q) => walkable(m, q.x, q.y))[o.me === "franco" ? 1 : 0] ?? m.start;
   const player = { x: spawn.x, y: spawn.y, from: { ...spawn }, to: { ...spawn }, t: 0, moving: false, dir: "SW" as Dir, path: [] as Pt[], step: 0, v: 0 };
   let current: MapRoom | null = null;
@@ -843,6 +851,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     own: OwnGoal | null;
     /** Alguien del canal en vivo: va a donde dice su pestaña (manda sobre `goal`). */
     remote: LiveState | null;
+    /** Recién llegada: sale de la pantalla del fichín desde ese momento (-1: espera adentro a que la oficina se vea). */
+    warp: number | null;
   };
   /** Lo que hace tu muñeco cuando lo manejás: ir a una sala, a una baldosa, o quedarse (con las flechas). */
   type OwnGoal = { kind: "room"; room: string } | { kind: "spot"; at: Pt } | { kind: "manual" };
@@ -912,8 +922,15 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     return n;
   };
   function syncActors(specs: ActorSpec[]) {
-    for (let i = actors.length - 1; i >= 0; i--) if (!specs.some((sp) => sp.id === actors[i].id)) actors.splice(i, 1);
+    for (let i = actors.length - 1; i >= 0; i--)
+      if (!specs.some((sp) => sp.id === actors[i].id)) {
+        const [a] = actors.splice(i, 1);
+        // Una visita que se va vuelve a entrar al fichín
+        if (a.goal.kind === "wander" && warpable()) ghosts.push({ a, t0: performance.now() });
+      }
     for (const sp of specs) {
+      // Saliendo de la oficina: tu muñeco ya se fue por el fichín
+      if (sp.you && leaving) continue;
       const a = actors.find((x) => x.id === sp.id);
       if (a) {
         if (JSON.stringify(a.goal) !== JSON.stringify(sp.goal)) Object.assign(a, { goal: sp.goal, stuck: false, wait: 0, face: null });
@@ -922,16 +939,62 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         a.tag = sp.tag ?? null;
         continue;
       }
-      // Los socios aparecen en su escritorio; el guía y las visitas, en el pasillo
-      // frente a la recepción. Los del canal en vivo, donde están en su pestaña.
+      // Los socios aparecen en su escritorio, el guía en la entrada de la recepción
+      // y las visitas salen del fichín del Chill-out. Los del canal en vivo, donde
+      // están en su pestaña (si recién entraron, eso es al lado del fichín).
       const remote = remotes.get(sp.id) ?? null;
       const rseat = remote?.sit && isOwner(sp.look) ? seatOf(sp.look as Who) : null;
       const seat = remote ? rseat : sp.goal.kind === "seat" ? seatOf(sp.goal.who) : null;
-      const at = remote && walkable(m, remote.x, remote.y) ? { x: remote.x, y: remote.y } : (seat ?? m.start);
+      const visitor = sp.goal.kind === "wander";
+      const arrive = (visitor ? freeIn(arcadeTiles) : null) ?? (visitor || sp.goal.kind === "tour" ? freeIn(entryTiles) : null) ?? m.start;
+      const at = remote && walkable(m, remote.x, remote.y) ? { x: remote.x, y: remote.y } : (seat ?? arrive);
       const seed = seedOf(sp.id);
-      actors.push({ id: sp.id, look: sp.look, goal: sp.goal, x: at.x, y: at.y, from: { ...at }, to: { ...at }, t: 0, moving: false, dir: "SW", path: [], step: 0, v: 0, seat, face: null, wait: 0, stop: sp.goal.kind === "wander" ? Math.abs(seed) % 97 : 0, stuck: false, dest: null, seed, you: !!sp.you, tag: sp.tag ?? null, greet: null, own: null, hold: 0, remote });
+      const warp = visitor && warpable() && arcadeTiles.some((q) => q.x === at.x && q.y === at.y) ? -1 : null;
+      actors.push({ id: sp.id, look: sp.look, goal: sp.goal, x: at.x, y: at.y, from: { ...at }, to: { ...at }, t: 0, moving: false, dir: "SW", path: [], step: 0, v: 0, seat, face: null, wait: 0, stop: visitor ? Math.abs(seed) % 97 : 0, stuck: false, dest: null, seed, you: !!sp.you, tag: sp.tag ?? null, greet: null, own: null, hold: warp ? Infinity : 0, remote, warp });
     }
     poke();
+  }
+  // La entrada de la recepción: las dos filas del lado abierto a la plaza, de la
+  // más cerca de la puerta a la más lejos. Cada uno que llega ocupa una libre.
+  const reception = m.rooms.find((r) => r.kind === "reception") ?? null;
+  const entryTiles: Pt[] = [];
+  if (reception) {
+    for (let y = reception.y + reception.d - 2; y < reception.y + reception.d; y++)
+      for (let x = reception.x; x < reception.x + reception.w; x++) if (walkable(m, x, y)) entryTiles.push({ x, y });
+    const d = (q: Pt) => Math.abs(q.x - reception.inside.x) + Math.abs(q.y - reception.inside.y);
+    entryTiles.sort((a, b) => d(a) - d(b));
+  }
+  // --- Entrar y salir por el fichín ----------------------------------------------
+  // Como en la landing, a la oficina se entra por un fichín: las visitas salen
+  // de la pantalla del del Chill-out con destellos y caminan desde ahí. Al irse
+  // (y al salir vos de la oficina, con Esc o «Salir»), la pantalla se las lleva.
+  const WARP_MS = 1100;
+  /** Cuánto después de que la oficina se ve sale el primero (en la landing, lo que dura el zoom de entrada), y cuánto se queda al lado del fichín. */
+  const SHOW_MS = 950, LINGER_MS = 700;
+  /** Desde cuándo se está dibujando (al crearse, o al retomar después de estar quieto). */
+  let shownAt = performance.now();
+  const arcadeF = m.furni.find((f) => f.k === "arcade") ?? null;
+  /** El centro de la pantalla del fichín, en px del mundo: de ahí salen y ahí vuelven. */
+  const mouth = (): XY | null => (arcadeF ? P(arcadeF.x + 0.5, arcadeF.y + 0.5, 50) : null);
+  // Las baldosas de adelante del fichín, de la más cerca a la más lejos
+  const arcadeTiles: Pt[] = [];
+  if (arcadeF) {
+    const front = arcadeF.face === "y" ? { x: arcadeF.x, y: arcadeF.y + 1 } : { x: arcadeF.x + 1, y: arcadeF.y };
+    for (let y = front.y - 2; y <= front.y + 2; y++)
+      for (let x = front.x - 2; x <= front.x + 2; x++) if (walkable(m, x, y) && (!arcadeF.room || roomAt(m, x, y)?.id === arcadeF.room)) arcadeTiles.push({ x, y });
+    const d = (q: Pt) => Math.abs(q.x - front.x) + Math.abs(q.y - front.y);
+    arcadeTiles.sort((a, b) => d(a) - d(b));
+  }
+  /** Con movimiento reducido, o sin fichín en el mapa, se aparece y se desaparece sin efecto. */
+  const warpable = () => !reduced && !!arcadeF;
+  /** Los que se van: se dibujan entrando al fichín hasta que termina el efecto. */
+  let ghosts: { a: Actor; t0: number }[] = [];
+  /** Saliste de la oficina: tu muñeco ya está entrando al fichín (y no vuelve a aparecer). */
+  let leaving = false;
+  /** Una baldosa libre de la lista (nadie parado ni yendo ahí), o la primera si están todas. */
+  function freeIn(tiles: Pt[]): Pt | null {
+    const busy = (q: Pt) => actors.some((o) => (o.x === q.x && o.y === q.y) || (endOf(o).x === q.x && endOf(o).y === q.y));
+    return tiles.find((q) => !busy(q)) ?? tiles[0] ?? null;
   }
   /** Lo último que dijo cada uno del canal en vivo (aunque todavía no esté en setActors). */
   const remotes = new Map<string, LiveState>();
@@ -1078,7 +1141,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   const greeted = new Map<string, number>();
   const faceTo = (dx: number, dy: number): Dir => (Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "SE" : "NW") : dy > 0 ? "SW" : "NE");
   function greetings(ts: number) {
-    const free = actors.filter((a) => !a.seat);
+    const free = actors.filter((a) => !a.seat && !a.warp);
     for (let i = 0; i < free.length; i++)
       for (let j = i + 1; j < free.length; j++) {
         const a = free[i], b = free[j];
@@ -1154,7 +1217,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       s = { x: e.x, y: e.y, sit: sitting };
     } else {
       const you = youActor();
-      const e = you ? endOf(you) : null;
+      // Mientras sale del fichín, donde está (así los demás también lo ven salir de la pantalla)
+      const e = !you ? null : you.warp ? { x: you.x, y: you.y } : endOf(you);
       if (e) s = { x: e.x, y: e.y, sit: false };
     }
     if (!s) return;
@@ -1193,6 +1257,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       }
     }
     for (const a of actors) {
+      if (a.warp === -1 && ts - shownAt >= SHOW_MS) Object.assign(a, { warp: ts, hold: ts + WARP_MS + LINGER_MS });
+      else if (a.warp && a.warp > 0 && ts - a.warp >= WARP_MS) a.warp = null;
       if (!a.moving && !a.path.length) a.v = 0;
       if (!a.moving && a.path.length && ts > a.hold) stepActor(a);
       if (a.moving) {
@@ -2255,6 +2321,20 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     ctx.lineWidth = 1;
     ctx.stroke();
   }
+  /** Un destello de cuatro puntas (si la lámina de los gestos todavía no bajó). */
+  function sparkle(x: number, y: number, r: number) {
+    ctx.beginPath();
+    ctx.moveTo(x, y - r * 2);
+    ctx.quadraticCurveTo(x, y, x + r * 2, y);
+    ctx.quadraticCurveTo(x, y, x, y + r * 2);
+    ctx.quadraticCurveTo(x, y, x - r * 2, y);
+    ctx.quadraticCurveTo(x, y, x, y - r * 2);
+    ctx.fillStyle = "#fff6ee";
+    ctx.fill();
+    ctx.strokeStyle = PAL.signal;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
   /** Una taza de café humeando, de alto `h` con el centro en (x, y): blanca, con la franja naranja de la casa. */
   function cup(x: number, y: number, h: number) {
     const w = h * 0.8, top = y - h * 0.3;
@@ -2294,7 +2374,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     const wx = ((e.clientX - b.left) * dpr - offX) / scale, wy = ((e.clientY - b.top) * dpr - offY) / scale;
     let best: string | null = null, bd = -Infinity;
     for (const a of actors) {
-      if (!a.remote || a.you) continue;
+      if (!a.remote || a.you || a.warp) continue;
       const st = a.seat && isOwner(a.look) ? seatedAt(a.look as Who, a.seat) : null;
       const [px, py] = st ? [st.sx, st.sy] : P(...actorPos(a));
       const r = reachOf(a.look, st ? "sit" : "still");
@@ -2313,7 +2393,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     ctx.fillStyle = BG;
     ctx.fillRect(0, 0, W, H);
     scale = ZOOMS[zi] * dpr;
-    const focus = o.public ? focusActor() : null;
+    const focus = o.public ? (ghosts.find((g) => g.a.you)?.a ?? focusActor()) : null;
     // Sin nadie en el mapa, la cámara mira la recepción
     const [pxT, pyT] = o.public ? (focus ? actorPos(focus) : home) : playerPos();
     // La cámara sigue al que camina; si elegiste una sala sin estar en el mapa, a la sala; si la arrastraste, se queda
@@ -2407,6 +2487,24 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       };
     };
     const po = byId.get(`off-${otherOf(me)}`);
+    // Entrando por el fichín (o saliendo, `out`): de la pantalla a su baldosa,
+    // creciendo; `k` de 0 a 1. Se dibuja achicado alrededor de los pies.
+    const warpAt = (ax: number, ay: number, k: number, out: boolean) => {
+      const mo = mouth() ?? [ax, ay];
+      const e = out ? 1 - easeIO(k) : easeIO(k);
+      return { x: mo[0] + (ax - mo[0]) * e, y: mo[1] + (ay - mo[1]) * e, s: 0.12 + 0.88 * e, e };
+    };
+    const shrunk = (x: number, y: number, sc: number, alpha: number, fn: () => void) => () => {
+      ctx.save();
+      ctx.globalAlpha *= alpha;
+      ctx.translate(x, y);
+      ctx.scale(sc, sc);
+      ctx.translate(-x, -y);
+      fn();
+      ctx.restore();
+    };
+    /** Los que están entrando o saliendo por el fichín, para el haz y los destellos de arriba. */
+    const warps: { x: number; y: number; s: number; k: number }[] = [];
     // En la landing, todos; en el panel, los del canal en vivo
     {
       for (const a of actors) {
@@ -2417,13 +2515,29 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
           people.push(person(a.look, st.depth, st.foot, st.sx, st.sy, reachOf(a.look, "sit"), () => avatar(a.look, st.sx, st.sy, "SW", null, true, blink, typing, null, false, null, false, seatedPose(a.look as Who, false)), true));
           continue;
         }
-        people.push(
-          person(a.look, actorDepth(a), footAt(...actorPos(a)), ax, ay, reachOf(a.look, a.seat ? "sit" : a.moving ? "walk" : wave !== null ? "wave" : "still"), () =>
-            a.seat
-              ? avatar(a.look, ax, ay, "SW", null, true, blink, typing)
-              : avatar(a.look, ax, ay, a.moving ? a.dir : ts < a.hold ? (a.face ?? a.dir) : a.path.length ? a.dir : (a.face ?? a.dir), a.moving && !reduced ? (a.step / 2) % 1 : null, false, blink && !a.moving, null, wave, phoneOut(a), talkOut(a, ts), thinkOut(a), null, reduced ? null : ts / 1000 + (Math.abs(a.seed) % 97) * 0.37),
-          !!a.seat),
-        );
+        const body = (x: number, y: number) =>
+          a.seat
+            ? avatar(a.look, x, y, "SW", null, true, blink, typing)
+            : avatar(a.look, x, y, a.moving ? a.dir : ts < a.hold ? (a.face ?? a.dir) : a.path.length ? a.dir : (a.face ?? a.dir), a.moving && !reduced ? (a.step / 2) % 1 : null, false, blink && !a.moving, null, wave, phoneOut(a), talkOut(a, ts), thinkOut(a), null, reduced ? null : ts / 1000 + (Math.abs(a.seed) % 97) * 0.37);
+        const reach = reachOf(a.look, a.seat ? "sit" : a.moving ? "walk" : wave !== null ? "wave" : "still");
+        if (a.warp === -1) continue;
+        if (a.warp) {
+          const k = Math.min(1, Math.max(0, ts - a.warp) / WARP_MS);
+          const w = warpAt(ax, ay, k, false);
+          warps.push({ x: w.x, y: w.y, s: w.s, k });
+          // Sin el aura de los dueños mientras tanto: el anillo no se achica con el muñeco
+          people.push(person(a.look, actorDepth(a), footAt(...actorPos(a)), w.x, w.y, reach, shrunk(w.x, w.y, w.s, 0.3 + 0.7 * w.e, () => body(w.x, w.y)), false, false));
+          continue;
+        }
+        people.push(person(a.look, actorDepth(a), footAt(...actorPos(a)), ax, ay, reach, () => body(ax, ay), !!a.seat));
+      }
+      ghosts = ghosts.filter((g) => ts - g.t0 < WARP_MS);
+      for (const { a, t0 } of ghosts) {
+        const k = Math.min(1, Math.max(0, ts - t0) / WARP_MS);
+        const [ax, ay] = P(...actorPos(a));
+        const w = warpAt(ax, ay, k, true);
+        warps.push({ x: w.x, y: w.y, s: w.s, k });
+        people.push(person(a.look, actorDepth(a), footAt(...actorPos(a)), w.x, w.y, reachOf(a.look, "still"), shrunk(w.x, w.y, w.s, 0.3 + 0.7 * w.e, () => avatar(a.look, w.x, w.y, a.dir, null, false, false, null, null, false, null, false, null, reduced ? null : ts / 1000)), false, false));
       }
     }
     if (!o.public) {
@@ -2506,7 +2620,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       for (const a of actors) {
         const label = a.you ? "VOS" : a.tag?.toUpperCase();
         const word = a.greet && ts >= a.greet.t0 ? a.greet.word : null;
-        if (!label && !word) continue;
+        if ((!label && !word) || a.warp) continue;
         const [ax, ay] = actorPos(a);
         const [tx, ty] = toScreen(P(ax, ay, a.seat ? 72 : 90));
         const bob = reduced ? 0 : Math.sin(ts / 260 + a.seed) * 1.5;
@@ -2563,7 +2677,8 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
           const k = Math.min(1, Math.max(0, hk - i * 0.25) / 0.75);
           if (k <= 0) continue;
           ctx.globalAlpha = Math.sin(k * Math.PI);
-          heart(hx + (i ? 6 : -3) * zf + Math.sin(k * 7 + i) * 2, hy - k * 22 * zf, (2.4 + i * 0.4) * zf);
+          const x = hx + (i ? 6 : -3) * zf + Math.sin(k * 7 + i) * 2, y = hy - k * 22 * zf, r = (2.4 + i * 0.4) * zf;
+          if (!icon(ctx, "hearticon", x, y, r * 3)) heart(x, y, r);
         }
       if (cat.sleeping) {
         const k = reduced ? 0.5 : (ts / 3000) % 1;
@@ -2601,9 +2716,51 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
         y = by - k * 10;
         ctx.globalAlpha = reduced ? 1 : Math.min(1, (1 - k) * 3);
       }
-      if (f.g === "corazon") heart(x, y, 6 * s * Math.max(1, zf));
-      else cup(x, y, 17 * s * Math.max(1, zf));
+      const z = Math.max(1, zf);
+      if (f.g === "corazon") {
+        if (!icon(ctx, "hearticon", x, y, 16 * s * z)) heart(x, y, 6 * s * z);
+      } else if (!icon(ctx, "mugicon", x, y, 22 * s * z)) cup(x, y, 17 * s * z);
+      // Al llegar, unos destellos
+      if (age >= FLY_MS && !reduced) icon(ctx, "sparkicon", x + 13 * z, y - 10 * z, 12 * s * z);
       ctx.globalAlpha = 1;
+    }
+    // Los que entran o salen por el fichín: un haz desde la pantalla y destellos que giran alrededor
+    {
+      const mo = mouth();
+      const zf = ZOOMS[zi];
+      if (mo)
+        for (const w of warps) {
+          const [mx, my] = toScreen(mo), [px, py] = toScreen([w.x, w.y - 34 * w.s]);
+          const fade = Math.sin(w.k * Math.PI);
+          // El fogonazo de la pantalla
+          const glow = ctx.createRadialGradient(mx, my, 0, mx, my, 26 * zf);
+          glow.addColorStop(0, "rgba(255, 246, 238, 0.95)");
+          glow.addColorStop(0.35, "rgba(255, 106, 79, 0.55)");
+          glow.addColorStop(1, "rgba(255, 77, 46, 0)");
+          ctx.globalAlpha = fade;
+          ctx.fillStyle = glow;
+          ctx.fillRect(mx - 26 * zf, my - 26 * zf, 52 * zf, 52 * zf);
+          ctx.lineCap = "round";
+          ctx.globalAlpha = 0.5 * fade;
+          ctx.strokeStyle = PAL.signal2;
+          ctx.lineWidth = 12 * zf;
+          ctx.beginPath();
+          ctx.moveTo(mx, my);
+          ctx.lineTo(px, py);
+          ctx.stroke();
+          ctx.globalAlpha = 0.85 * fade;
+          ctx.strokeStyle = "#fff6ee";
+          ctx.lineWidth = 2.4 * zf;
+          ctx.stroke();
+          for (let i = 0; i < 4; i++) {
+            const ang = w.k * 6 + i * 1.6, r = (14 + i * 6) * zf * (0.5 + 0.5 * w.s);
+            const sx = px + Math.cos(ang) * r, sy = py + Math.sin(ang) * r * 0.7;
+            ctx.globalAlpha = fade;
+            if (!icon(ctx, "sparkicon", sx, sy, (9 + i * 3) * zf)) sparkle(sx, sy, (3 + i) * zf);
+          }
+          ctx.lineCap = "butt";
+          ctx.globalAlpha = 1;
+        }
     }
     // El otro socio, dormido: las zetas suben desde su cabeza
     if (po?.seat && partnerAway && !partnerLive()) {
@@ -2667,7 +2824,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
   let camMoving = true;
   let lastDraw = -Infinity;
   function busy(ts: number) {
-    if (camMoving || anim.size || motes.length || bubbles.length || marker || dragging || flights.length) return true;
+    if (camMoving || anim.size || motes.length || bubbles.length || marker || dragging || flights.length || ghosts.length || actors.some((a) => a.warp)) return true;
     if (cat.moving || cat.path.length || ts - cat.heart < 1700) return true;
     const walking = actors.some((a) => a.moving || a.path.length || (a.greet && ts - a.greet.t0 < GREET_MS + 400));
     if (o.public) return walking;
@@ -2918,6 +3075,17 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
     setActors: syncActors,
     setRemote,
     gesture,
+    leave() {
+      const you = youActor();
+      if (!you || leaving || !warpable() || you.seat) return 0;
+      leaving = true;
+      // La cámara se queda donde está: el fichín está ahí nomás, y no salta a otro mientras se cierra
+      camFree = true;
+      actors.splice(actors.indexOf(you), 1);
+      ghosts.push({ a: you, t0: performance.now() });
+      poke();
+      return WARP_MS;
+    },
     visit(id) {
       if (!byId.has(id)) return;
       selected = id;
@@ -2946,6 +3114,7 @@ export function createEngine(canvas: HTMLCanvasElement, o: EngineOptions): Engin
       timer = 0;
       if (!on) {
         last = performance.now();
+        shownAt = last;
         raf = requestAnimationFrame(frame);
       }
     },

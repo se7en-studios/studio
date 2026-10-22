@@ -256,6 +256,19 @@ export function RdArcade() {
   const zoomRef = useRef<HTMLVideoElement>(null);
   const layerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<HTMLDivElement>(null);
+  /** La despedida de la oficina (tu muñeco entra al fichín): la deja el mapa, ver EnVivoMap. */
+  const exitRef = useRef<(() => number) | null>(null);
+  const byeRef = useRef(false);
+  /** Espera la despedida del mapa; false si ya había una en curso (un segundo Esc no sale dos veces). */
+  async function farewell() {
+    if (byeRef.current) return false;
+    const ms = exitRef.current?.() ?? 0;
+    if (!ms) return true;
+    byeRef.current = true;
+    await new Promise((r) => window.setTimeout(r, ms));
+    byeRef.current = false;
+    return true;
+  }
   const flashRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const unlockRef = useRef<(() => void) | null>(null);
@@ -470,6 +483,8 @@ export function RdArcade() {
 
   async function leave() {
     if (phase !== "open" && signal !== "lost") return;
+    // Primero tu muñeco vuelve a entrar al fichín de la oficina (con movimiento reducido, nada)
+    if (phase === "open" && !(await farewell())) return;
     const panel = panelRef.current;
     const stage = stageRef.current;
     const front = frontRef.current;
@@ -562,7 +577,7 @@ export function RdArcade() {
    * hasta la sección (con el scroll suave, que escucha los clics en anclas).
    */
   async function go(hash: string) {
-    if (phase !== "open") return;
+    if (phase !== "open" || !(await farewell())) return;
     const panel = panelRef.current;
     const stage = stageRef.current;
     const front = frontRef.current;
@@ -801,7 +816,7 @@ export function RdArcade() {
             style={{ visibility: "hidden" }}
           >
             <div ref={mapRef} className="h-full w-full">
-              <EnVivoMap fill active hold={!live} visitors={visitors} onReady={onMapReady} onClose={() => void leave()} onNavigate={(hash) => void go(hash)} />
+              <EnVivoMap fill active hold={!live} visitors={visitors} onReady={onMapReady} onClose={() => void leave()} onNavigate={(hash) => void go(hash)} exitRef={exitRef} />
             </div>
             <div
               ref={flashRef}

@@ -1,10 +1,16 @@
 // Generado por scripts/muebles.mjs: no editar a mano.
 // Cada mueble: [x, y, ancho, alto] dentro de la lámina, en px.
 export const MUEBLES = {
-  src: "/en-vivo/muebles.webp?v=mvij8hvl",
+  src: "/en-vivo/muebles.webp?v=mvira0um",
   frames: {
+    "arcade": [
+      1930,
+      553,
+      73,
+      140
+    ],
     "balls": [
-      290,
+      687,
       697,
       140,
       127
@@ -16,7 +22,7 @@ export const MUEBLES = {
       140
     ],
     "beanbag": [
-      2,
+      399,
       697,
       140,
       132
@@ -34,13 +40,13 @@ export const MUEBLES = {
       140
     ],
     "bush": [
-      578,
+      1119,
       697,
       140,
       113
     ],
     "bush2": [
-      434,
+      831,
       697,
       140,
       122
@@ -58,13 +64,13 @@ export const MUEBLES = {
       140
     ],
     "catbed": [
-      866,
+      1407,
       697,
       140,
       105
     ],
     "catbowl": [
-      722,
+      1263,
       697,
       140,
       106
@@ -124,7 +130,7 @@ export const MUEBLES = {
       140
     ],
     "dumbbells": [
-      146,
+      543,
       697,
       140,
       131
@@ -152,6 +158,12 @@ export const MUEBLES = {
       553,
       71,
       140
+    ],
+    "hearticon": [
+      975,
+      697,
+      140,
+      122
     ],
     "kitchen": [
       1451,
@@ -195,6 +207,18 @@ export const MUEBLES = {
       126,
       140
     ],
+    "mugicon": [
+      2,
+      697,
+      109,
+      140
+    ],
+    "phonetable": [
+      255,
+      697,
+      140,
+      139
+    ],
     "plant": [
       1915,
       306,
@@ -230,6 +254,12 @@ export const MUEBLES = {
       2,
       300,
       251
+    ],
+    "sparkicon": [
+      115,
+      697,
+      136,
+      140
     ],
     "squatrack": [
       288,
@@ -274,7 +304,7 @@ export const MUEBLES = {
       140
     ],
     "yogaprops": [
-      1010,
+      1551,
       697,
       140,
       93
