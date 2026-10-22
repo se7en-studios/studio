@@ -391,7 +391,7 @@ function OfficeNumbers({ stats }: { stats: OficinasData["office"] }) {
         ["Se cruzaron con ustedes", stats.met, stats.visitors ? `${Math.round((stats.met / stats.visitors) * 100)}% de las visitas` : null],
         ["Les avisaron", stats.calls, "«avisale que estás acá»"],
         ["Gestos", stats.gestures, "saludos, corazones y cafés"],
-        ["Fueron a escribir", stats.whatsapp + stats.contact, `${stats.whatsapp} a WhatsApp · ${stats.contact} a Contacto`],
+        ["Fueron a escribir", stats.whatsapp + stats.contact, `${stats.whatsapp} a WhatsApp · ${stats.contact} por mail o Contacto`],
       ]
     : [];
   return (

@@ -207,11 +207,13 @@ saludó»). No hay texto libre.
   al compartido): sólo con el pase del canal y firmado por esa pestaña, y con
   freno (uno por visita y socio cada 5 minutos, 12 por hora por IP). Tocar a
   un socio en el mapa abre la misma ficha.
-- **«Hablale por WhatsApp»**, en la ficha de cada socio: el WhatsApp de la web
-  con el mensaje armado («¡Hola Federico! Te vi en la oficina de la web…»).
+- **«Escribile un mail»**, en la ficha de cada socio: el mail de la web
+  (`SITE.email`) con el asunto y el saludo armados. WhatsApp directo desde la
+  ficha no: a pedido de Federico, para que no lo usen para molestar.
 - **La medición** (`lib/en-vivo-medicion.ts`, tabla de `supabase/en-vivo.sql`):
   entrar, salir con cuánto se quedó, cruzarse con un socio en vivo, los
-  gestos, los avisos y los clics a WhatsApp y a Contacto desde adentro. Con el
+  gestos, los avisos y los clics a WhatsApp, al mail y a Contacto desde adentro
+  (el mail de la ficha se cuenta como Contacto). Con el
   id corto de la visita del día, nunca la IP. Los números de los últimos 30
   días se ven en el panel, en En vivo (columna del pasillo). Sin la tabla no se
   mide y la oficina sigue igual.
