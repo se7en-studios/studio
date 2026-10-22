@@ -26,13 +26,18 @@ página (así el borde de la imagen no se nota) y recorta el negro que sobra:
 
     node scripts/pagina-rota.mjs "C:/Users/feder/OneDrive/Escritorio/personajes/landing"
 
-La caja del fichín tiene la proporción de cada lámina (en `components/rd/arcade.tsx`),
-así no se deforma. Al entrar a la oficina la hoja se desvanece. La instrucción:
+La caja del fichín ocupa el ancho de la columna, con la proporción de cada
+lámina (en `components/rd/arcade.tsx`), así no se deforma. Al entrar a la
+oficina la hoja se desvanece. La instrucción de la de compu (la de celular pide
+un agujero más alto que ancho):
 
     Flat 2D illustration with a clean hand-cut paper look, crisp edges, flat
     colors. A sheet of matte near-black paper (#0B0B0C) fills the entire image
-    edge to edge [...]. In the center a big irregular hole is ripped through the
-    sheet, as if the web page was torn open [...] a thin ragged off-white core
+    edge to edge [...]. A big torn hole is ripped through the middle of the
+    sheet, as if the web page was torn open. The hole is large and roughly
+    follows the shape of the image: it reaches from about 7% to 93% of the width
+    and from about 8% to 92% of the height, so it is clearly wider than tall but
+    not a thin strip, and it never touches the image borders [...] a thin ragged off-white core
     (#F2EEE6) like torn paper fibers, and a few small torn flaps curl back [...]
     A thin warm orange (#FF4D2E) layer peeks between the black and the
     off-white at a few spots. The inside of the hole is solid flat pure green

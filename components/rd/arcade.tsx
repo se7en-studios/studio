@@ -645,7 +645,7 @@ export function RdArcade() {
       id="en-vivo"
       data-theme="ink"
       aria-label="La oficina en vivo"
-      className="relative overflow-x-clip bg-(--ink) pt-10 pb-32 md:pt-16 md:pb-48"
+      className="relative bg-(--ink) pt-10 pb-32 md:pt-16 md:pb-48"
     >
       <div className="rd-wrap">
         <div className="grid gap-8 lg:grid-cols-12">
@@ -681,13 +681,13 @@ export function RdArcade() {
 
         {/* El marco: la página rota. Por el agujero se ven las máquinas del otro lado
             y el video del fichín; la hoja es del mismo negro que la página, así el
-            borde de la imagen no se nota. Tiene la forma de la lámina (una apaisada
-            y otra parada para el celular), sin deformarse. En el celular se sale un
-            poco de los costados: la rotura sigue más allá de la pantalla. */}
+            borde de la imagen no se nota. Ocupa el ancho de la columna, como el marco
+            de antes, con la forma de la lámina (una apaisada y otra parada para el
+            celular), sin deformarse. */}
         <div ref={frameRef} className="relative mt-14 md:mt-20">
           <div
             ref={slotRef}
-            className="relative left-1/2 aspect-[748/1101] w-[110vw] max-w-[calc(86svh*748/1101)] -translate-x-1/2 sm:left-auto sm:mx-auto sm:aspect-[964/680] sm:w-full sm:max-w-[min(100%,calc(88svh*964/680))] sm:translate-x-0"
+            className="relative mx-auto aspect-[748/1101] w-full sm:aspect-[1029/612] sm:max-w-[min(100%,calc(92svh*1029/612))]"
           >
             <button
               ref={panelRef}
