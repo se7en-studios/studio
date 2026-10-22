@@ -5,7 +5,7 @@
 // alguien, el aviso de uno que te mandaron y las caras de los socios.
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { Bell, Coffee, Hand, Heart, MessageCircle, X } from "lucide-react";
+import { Bell, Coffee, Hand, Heart, Mail, X } from "lucide-react";
 import { isOwner } from "@/lib/oficinas/art";
 import type { Gesture, Heard, LivePerson } from "@/lib/oficinas/vivo";
 import type { Who } from "@/lib/admin/oficinas-shared";
@@ -53,7 +53,7 @@ const CALLED = {
   sending: "Avisando…",
   sent: "Listo: le llegó el aviso al celular. Si está cerca, entra a saludarte.",
   again: "Ya le avisaste hace un rato: dale unos minutos.",
-  fail: "No se pudo avisar ahora. Escribile por WhatsApp.",
+  fail: "No se pudo avisar ahora. Escribile un mail.",
 } as const;
 
 const btn = (primary: boolean) =>
@@ -66,7 +66,7 @@ const btn = (primary: boolean) =>
  * oficina: los gestos para mandarle (sin texto libre: saludar, un corazón o un
  * café); `onGesture` devuelve false si todavía no pasó el rato desde el
  * anterior. Un socio que no la está mirando (`away`): avisarle que estás, y le
- * llega al celular. A los socios, además, `whatsapp`: escribirles directo.
+ * llega al celular. A los socios, además, `mail`: escribirles un mail.
  */
 export function PersonCard({
   person,
@@ -74,16 +74,16 @@ export function PersonCard({
   onClose,
   className,
   away,
-  whatsapp,
-  onWhatsApp,
+  mail,
+  onMail,
 }: {
   person: LivePerson;
   onGesture: (g: Gesture) => boolean;
   onClose: () => void;
   className: string;
   away?: Away | null;
-  whatsapp?: string | null;
-  onWhatsApp?: () => void;
+  mail?: string | null;
+  onMail?: () => void;
 }) {
   const [wait, setWait] = useState(false);
   const [called, setCalled] = useState<keyof typeof CALLED | null>(null);
@@ -141,9 +141,9 @@ export function PersonCard({
             </button>
           ))
         )}
-        {whatsapp && (
-          <a href={whatsapp} target="_blank" rel="noopener noreferrer" onClick={onWhatsApp} className={btn(false)}>
-            <MessageCircle size={14} aria-hidden /> Hablale por WhatsApp
+        {mail && (
+          <a href={mail} onClick={onMail} className={btn(false)}>
+            <Mail size={14} aria-hidden /> Escribile un mail
           </a>
         )}
       </div>

@@ -368,8 +368,8 @@ export function EnVivoMap({
                 return ok;
               }}
               away={away.has(target.id) ? { online: (online ?? []).some((o) => o.who === target.look), onCall: () => live.call(target.look as Who) } : null}
-              whatsapp={isOwner(target.look) ? whatsappTo(NAMES[target.look as Who]) : null}
-              onWhatsApp={() => office("whatsapp", "ficha")}
+              mail={isOwner(target.look) ? mailTo(NAMES[target.look as Who]) : null}
+              onMail={() => office("contacto", "mail")}
               onClose={() => setPerson(null)}
               className="mx-3 mb-2 md:mx-4 md:mb-3 md:w-[380px] md:p-4"
             />
@@ -393,8 +393,8 @@ export function EnVivoMap({
   );
 }
 
-/** WhatsApp del estudio con el mensaje armado para ese socio. */
-const whatsappTo = (name: string) => `${SITE.whatsapp}?text=${encodeURIComponent(`¡Hola ${name}! Te vi en la oficina de la web de Se7en.`)}`;
+/** El mail del estudio con el asunto y el saludo armados para ese socio. */
+const mailTo = (name: string) => `mailto:${SITE.email}?subject=${encodeURIComponent("Te vi en la oficina de la web")}&body=${encodeURIComponent(`¡Hola ${name}! `)}`;
 
 /** El nombre de una sala: el del proyecto o el de la sala del estudio. */
 function roomName(r: MapRoom, bySlug: Map<string, OfiProject>) {
