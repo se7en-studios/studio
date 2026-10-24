@@ -5,67 +5,123 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import Image from "next/image";
 import {
+  AnimatePresence,
   m,
+  useMotionTemplate,
+  useMotionValue,
   useMotionValueEvent,
   useScroll,
   useSpring,
   useTransform,
+  type MotionValue,
 } from "framer-motion";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 import { MD, useMediaQuery } from "@/lib/use-media-query";
 import { projects } from "@/data/projects";
 import { brandFonts } from "@/lib/brand-fonts";
 import type { Project } from "@/types";
-import { RdButton, RdLines } from "./primitives";
+import { EASE_OUT, RdButton, RdLines } from "./primitives";
 
-// Trabajos: carril horizontal que avanza con el scroll vertical (sticky) en
-// desktop; en celular, tablet o sin movimiento, un carrusel que se desliza con
-// el dedo (la sección queda del alto de una tarjeta, no de ocho).
+// Trabajos: las tarjetas flotan en un anillo 3D que gira con el scroll
+// (sticky), como tarjetas en órbita. En desktop son apaisadas, con la captura
+// de la compu; en celular y tablet, paradas, con la del celular. Sin
+// movimiento, un carrusel que se desliza con el dedo (la sección queda del
+// alto de una tarjeta, no de ocho).
 
 const sorted = [...projects].sort((a, b) => a.order - b.order);
 
+/** Tarjetas del anillo: los proyectos y, al final, «¿Y el tuyo?». */
+const COUNT = sorted.length + 1;
+/** Grados entre tarjeta y tarjeta. */
+const STEP = 360 / COUNT;
+/** Radio del anillo en anchos de tarjeta (var(--w)): con 9 tarjetas, 1.37 las deja pegadas. */
+const RADIUS = 1.5;
+
 export function RdWork() {
+  // Al revés que useReducedMotion: en el servidor da false, así arranca sin movimiento.
+  const motion = useMediaQuery("(prefers-reduced-motion: no-preference)");
+  const desktop = useMediaQuery("(min-width: 1024px)");
+  return motion ? <Orbit compact={!desktop} /> : (
+    <section id="trabajos" data-theme="ink" className="relative bg-(--ink)">
+      <Rail />
+    </section>
+  );
+}
+
+/** De 0 a 1 con arranque y llegada suaves. */
+const smooth = (t: number) => t * t * (3 - 2 * t);
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+/** Ángulo en (-180, 180]. */
+const wrap = (a: number) => ((((a + 180) % 360) + 360) % 360) - 180;
+
+/** Medidas de cada forma: ancho de tarjeta (--w), alto sobre ancho y cuánto scroll por tarjeta. */
+const SHAPE = {
+  wide: { w: "[--w:min(42vw,76vh,880px)]", ratio: 0.625, aspect: "aspect-[16/10]", step: "70vh" },
+  compact: { w: "[--w:min(60vw,31svh,380px)]", ratio: 1.6, aspect: "aspect-[10/16]", step: "55svh" },
+} as const;
+
+function Orbit({ compact }: { compact: boolean }) {
+  const shape = SHAPE[compact ? "compact" : "wide"];
   const sectionRef = useRef<HTMLElement>(null);
-  const trackRef = useRef<HTMLDivElement>(null);
-  const reduced = useReducedMotion();
-  const pinned = useMediaQuery("(min-width: 1024px)") && !reduced;
-  const [overflow, setOverflow] = useState(0);
   const [active, setActive] = useState(0);
 
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track || !pinned) return;
-    const measure = () =>
-      setOverflow(Math.max(0, track.scrollWidth - window.innerWidth));
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(track);
-    window.addEventListener("resize", measure);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-  }, [pinned]);
-
+  // Entrada: mientras la sección sube a la pantalla, el anillo llega girando y se endereza.
+  const { scrollYProgress: enter } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "start start"],
+  });
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ["start start", "end end"],
   });
-  const spring = useSpring(scrollYProgress, {
-    stiffness: 120,
-    damping: 30,
-    mass: 0.4,
-  });
-  const x = useTransform(spring, [0, 1], [0, -overflow]);
-  const scaleX = useTransform(spring, [0, 1], [0, 1]);
 
-  useMotionValueEvent(scrollYProgress, "change", (v) => {
-    if (!pinned) return;
-    const idx = Math.round(Math.max(0, v * 1.12 - 0.06) * (sorted.length - 1));
-    setActive(Math.min(sorted.length - 1, idx));
+  // Escalera: cada tarjeta se queda de frente un rato y recién después gira a la siguiente.
+  const stepped = useTransform(scrollYProgress, (v) => {
+    const x = clamp(v, 0, 1) * (COUNT - 1);
+    const i = Math.floor(x);
+    return i + smooth(clamp((x - i - 0.22) / 0.56, 0, 1));
   });
+  const pos = useSpring(stepped, { stiffness: 90, damping: 22, mass: 0.6 });
 
-  const accent = sorted[active]?.brand?.accent ?? "#ff4d2e";
+  useMotionValueEvent(stepped, "change", (v) => setActive(Math.round(v)));
+
+  // El puntero inclina un poco todo el anillo.
+  const px = useMotionValue(0);
+  const py = useMotionValue(0);
+  const sx = useSpring(px, { stiffness: 50, damping: 18 });
+  const sy = useSpring(py, { stiffness: 50, damping: 18 });
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      px.set((e.clientX / window.innerWidth - 0.5) * 2);
+      py.set((e.clientY / window.innerHeight - 0.5) * 2);
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => window.removeEventListener("pointermove", onMove);
+  }, [px, py]);
+
+  const angle = useTransform(
+    [pos, sx, enter],
+    ([p, x, e]: number[]) => -p * STEP + x * 5 + (1 - e) * 70,
+  );
+  const tiltX = useTransform([sy, enter], ([y, e]: number[]) => 7 - y * 4 + (1 - e) * 18);
+  const tiltZ = useTransform(sx, (x) => -2.5 + x * 1.5);
+  const tilt = useMotionTemplate`rotateX(${tiltX}deg) rotateZ(${tiltZ}deg)`;
+  const spin = useMotionTemplate`translateZ(calc(var(--w) * -${RADIUS})) rotateY(${angle}deg)`;
+
+  const floorY = useTransform(scrollYProgress, [0, 1], ["0px", "960px"]);
+  const progress = useTransform(scrollYProgress, [0, 1], [0, 1]);
+
+  /** Con el teclado: al enfocar una tarjeta, el scroll la trae de frente. */
+  const focusCard = (i: number) => {
+    const s = sectionRef.current;
+    if (!s) return;
+    const top = s.getBoundingClientRect().top + window.scrollY;
+    const span = s.offsetHeight - window.innerHeight;
+    window.scrollTo({ top: top + (span * i) / (COUNT - 1), behavior: "instant" });
+  };
+
+  const project = sorted[active];
+  const accent = project?.brand?.accent ?? "#ff4d2e";
 
   return (
     <section
@@ -73,47 +129,327 @@ export function RdWork() {
       ref={sectionRef}
       data-theme="ink"
       className="relative bg-(--ink)"
-      style={pinned ? { height: `calc(${overflow}px + 100svh)` } : undefined}
+      style={{ height: `calc(${shape.step} * ${COUNT - 1} + 100svh)` }}
     >
-      {!pinned && <Rail />}
-      {pinned && (
-        <div className="sticky top-0 flex h-screen flex-col justify-center overflow-hidden">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 transition-[background] duration-1000"
-            style={{
-              background: `radial-gradient(60% 55% at 60% 55%, ${accent}2e, transparent 70%)`,
-            }}
-          />
+      <div className={`sticky top-0 h-svh overflow-hidden ${shape.w}`}>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 transition-[background] duration-1000"
+          style={{
+            background: `radial-gradient(55% 50% at 50% 50%, ${accent}33, transparent 70%)`,
+          }}
+        />
+        {/* Piso de grilla que corre con el scroll, hacia el horizonte. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-[-40%] bottom-[-8%] h-[55%] [perspective:520px]"
+        >
           <m.div
-            ref={trackRef}
-            style={{ x }}
-            className="relative flex w-max items-stretch gap-6 pr-[8vw] pl-(--gutter)"
+            className="rd-floor absolute inset-0 origin-bottom"
+            style={{ backgroundPositionY: floorY }}
+          />
+        </div>
+
+        <div className="absolute inset-0 [perspective:calc(var(--w)*2.6)]">
+          <m.div
+            className="absolute inset-0 [transform-style:preserve-3d]"
+            style={{ transform: tilt }}
           >
-            <Header pinned />
-            {sorted.map((p, i) => (
-              <Card key={p.slug} project={p} index={i} pinned />
-            ))}
-            <EndCard pinned />
-          </m.div>
-          <div className="rd-wrap absolute inset-x-0 bottom-6 flex items-center gap-6">
-            <span className="rd-label tabular-nums text-(--paper)/70">
-              {String(active + 1).padStart(2, "0")} /{" "}
-              {String(sorted.length).padStart(2, "0")}
-            </span>
-            <div className="h-px flex-1 bg-(--line)">
-              <m.div
-                className="h-px origin-left bg-(--signal)"
-                style={{ scaleX }}
+            <m.div
+              className="absolute inset-0 [transform-style:preserve-3d]"
+              style={{ transform: spin }}
+            >
+              <OrbitPath ratio={shape.ratio} />
+              {sorted.map((p, i) => (
+                <OrbitCard
+                  key={p.slug}
+                  index={i}
+                  project={p}
+                  compact={compact}
+                  angle={angle}
+                  active={i === active}
+                  onFocus={() => focusCard(i)}
+                />
+              ))}
+              <OrbitCard
+                index={sorted.length}
+                compact={compact}
+                angle={angle}
+                active={active === sorted.length}
+                onFocus={() => focusCard(sorted.length)}
               />
-            </div>
-            <span className="rd-label text-(--paper)/70">
-              {sorted[active]?.name}
-            </span>
+            </m.div>
+          </m.div>
+        </div>
+
+        {/* HUD de arriba: título de la sección y en qué tarjeta vas. */}
+        <div className="rd-wrap pointer-events-none absolute inset-x-0 top-20 flex items-start justify-between gap-6 lg:top-24">
+          <div>
+            <p className="rd-label text-(--paper)/60 max-sm:hidden">
+              ( 02 — Trabajos seleccionados )
+            </p>
+            <RdLines
+              lines={[
+                <>
+                  Trabajos que ya{" "}
+                  <span className="rd-serif text-(--signal)">venden</span>
+                </>,
+              ]}
+              className="rd-display text-[clamp(1.5rem,3vw,3.4rem)] sm:mt-3"
+            />
+          </div>
+          <div className="text-right">
+            <p className="rd-display tabular-nums text-[clamp(1.5rem,3vw,3.4rem)] text-(--paper)">
+              {String(active + 1).padStart(2, "0")}
+              <span className="text-(--paper)/30">
+                /{String(COUNT).padStart(2, "0")}
+              </span>
+            </p>
+            <p className="rd-label mt-2 flex items-center justify-end gap-3 text-(--paper)/60 max-lg:hidden">
+              Seguí bajando
+              <span aria-hidden className="inline-block h-px w-10 bg-current" />↓
+            </p>
           </div>
         </div>
-      )}
+
+        {/* HUD de abajo: la tarjeta de frente, con su marca. */}
+        <div className="rd-wrap absolute inset-x-0 bottom-5 lg:bottom-6">
+          <div className="flex items-end justify-between gap-4 lg:gap-8">
+            <div className="min-h-[6.5rem] min-w-0 flex-1 lg:min-h-[7.5rem]" aria-live="polite">
+              <AnimatePresence mode="wait" initial={false}>
+                <m.div
+                  key={active}
+                  initial={{ opacity: 0, y: 24 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -16 }}
+                  transition={{ duration: 0.45, ease: EASE_OUT }}
+                >
+                  {project ? <OrbitCaption project={project} /> : <EndCaption />}
+                </m.div>
+              </AnimatePresence>
+            </div>
+            <div className="shrink-0 pb-1">
+              {compact ? (
+                <Link
+                  href={project ? `/work/${project.slug}` : "#contacto"}
+                  aria-label={project ? `Ver el caso de ${project.name}` : "Contanos tu idea"}
+                  className="grid h-14 w-14 place-items-center rounded-full text-(--ink) transition-colors duration-500"
+                  style={{ background: project?.brand?.accent ?? "var(--signal)" }}
+                >
+                  <ArrowRight size={22} aria-hidden />
+                </Link>
+              ) : project ? (
+                <RdButton href={`/work/${project.slug}`} variant="ghost">
+                  Ver caso
+                </RdButton>
+              ) : (
+                <RdButton href="#contacto">Contanos tu idea</RdButton>
+              )}
+            </div>
+          </div>
+          <div className="relative mt-4 h-px bg-(--line) lg:mt-5">
+            <m.div
+              className="absolute inset-0 origin-left bg-(--signal)"
+              style={{ scaleX: progress }}
+            />
+            {Array.from({ length: COUNT }, (_, i) => (
+              <span
+                key={i}
+                aria-hidden
+                className={`absolute top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full transition-colors duration-500 ${
+                  i <= active ? "bg-(--signal)" : "bg-(--paper)/25"
+                }`}
+                style={{ left: `${(i / (COUNT - 1)) * 100}%` }}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
     </section>
+  );
+}
+
+/** La órbita por donde pasan las tarjetas, acostada debajo de ellas. */
+function OrbitPath({ ratio }: { ratio: number }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 100 100"
+      className="pointer-events-none absolute top-1/2 left-1/2 overflow-visible"
+      style={{
+        width: `calc(var(--w) * ${RADIUS * 2})`,
+        height: `calc(var(--w) * ${RADIUS * 2})`,
+        transform: `translate(-50%, -50%) translateY(calc(var(--w) * ${ratio / 2 + 0.07})) rotateX(90deg)`,
+      }}
+    >
+      <circle cx="50" cy="50" r="50" fill="none" stroke="var(--paper)" strokeOpacity="0.16" strokeWidth="0.12" />
+    </svg>
+  );
+}
+
+function OrbitCard({
+  index,
+  project,
+  compact,
+  angle,
+  active,
+  onFocus,
+}: {
+  index: number;
+  /** Parada, con la captura del celular y sin video. */
+  compact: boolean;
+  /** Sin proyecto, es la tarjeta del final. */
+  project?: Project;
+  angle: MotionValue<number>;
+  active: boolean;
+  onFocus: () => void;
+}) {
+  const own = index * STEP;
+  // Cuánto le falta para estar de frente, en tarjetas: oscurece las de los costados y, mientras
+  // gira, le pasa el brillo de holograma por encima (quieta, de frente o al costado, no tiene).
+  const off = useTransform(angle, (a) => Math.abs(wrap(own + a)) / STEP);
+  const dim = useTransform(off, (o) => Math.min(0.72, o * 0.6));
+  const holo = useTransform(off, (o) => Math.min(1, o));
+  const accent = project?.brand?.accent ?? "#ff4d2e";
+  const shape = SHAPE[compact ? "compact" : "wide"];
+  const shot = compact ? (project?.screens?.mobile ?? project?.image) : project?.image;
+
+  return (
+    <Link
+      href={project ? `/work/${project.slug}` : "#contacto"}
+      data-cursor={project ? "Ver caso" : "Hablemos"}
+      onFocus={onFocus}
+      className={`group absolute top-1/2 left-1/2 w-(--w) [backface-visibility:hidden] ${shape.aspect}`}
+      style={{
+        marginLeft: "calc(var(--w) / -2)",
+        marginTop: `calc(var(--w) * ${-shape.ratio / 2})`,
+        transform: `rotateY(${own}deg) translateZ(calc(var(--w) * ${RADIUS}))`,
+      }}
+    >
+      <div
+        className="rd-float h-full w-full"
+        style={{ animationDelay: `${-index * 0.83}s` }}
+      >
+        <m.div
+          className="relative h-full w-full overflow-hidden rounded-[1.6rem] bg-(--ink-2) shadow-[0_50px_90px_-35px_rgba(0,0,0,0.95)] ring-1 ring-white/12"
+          style={{ ["--holo" as string]: holo }}
+        >
+          {project && shot ? (
+            <>
+              <Image
+                src={shot}
+                alt={`${project.name}: ${project.shortDescription}`}
+                fill
+                sizes="(min-width: 1024px) 44vw, 60vw"
+                className="object-cover object-top transition-transform duration-[1.2s] ease-(--ease-out) group-hover:scale-[1.04]"
+              />
+              {active && !compact && project.video && (
+                <video
+                  className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-[1.2s] ease-(--ease-out) group-hover:scale-[1.04]"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                >
+                  <source src={project.video.webm} type="video/webm" />
+                  <source src={project.video.mp4} type="video/mp4" />
+                </video>
+              )}
+              <div
+                aria-hidden
+                className="absolute inset-0 bg-[linear-gradient(to_top,rgba(11,11,12,0.75),transparent_40%),linear-gradient(to_bottom,rgba(11,11,12,0.6),transparent_28%)]"
+              />
+              {/* Paradas, la captura del celular ya trae su barra arriba: sin etiquetas encima. */}
+              {!compact && (
+                <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-4 px-5 pt-4">
+                  <span className="rd-label text-(--paper)/80">
+                    {String(index + 1).padStart(2, "0")} — {project.category}
+                  </span>
+                  <span className="rd-label text-(--paper)/80">{project.year}</span>
+                </div>
+              )}
+              {project.impactMetric && (
+                <span
+                  className="rd-label absolute right-3 bottom-3 left-3 w-fit rounded-full px-3 py-1.5 text-[10px] font-bold text-(--ink) lg:right-auto lg:bottom-4 lg:left-4"
+                  style={{ background: accent }}
+                >
+                  {project.impactMetric}
+                </span>
+              )}
+            </>
+          ) : (
+            <div className="flex h-full flex-col justify-between bg-(--signal) p-5 text-(--ink) lg:p-8">
+              <p className="rd-label">( ¿Y el tuyo? )</p>
+              <p className={`rd-display ${compact ? "text-[calc(var(--w)*0.135)]" : "text-[calc(var(--w)*0.085)]"}`}>
+                El próximo <span className="rd-serif">puede ser</span> el tuyo.
+              </p>
+            </div>
+          )}
+          {project && <div aria-hidden className="rd-holo pointer-events-none absolute inset-0" />}
+          <m.div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-(--ink)"
+            style={{ opacity: dim }}
+          />
+        </m.div>
+      </div>
+    </Link>
+  );
+}
+
+function OrbitCaption({ project }: { project: Project }) {
+  const brand = project.brand;
+  const accent = brand?.accent ?? "#ff4d2e";
+  return (
+    <>
+      <p className="rd-label flex flex-wrap gap-x-3 text-(--paper)/60">
+        <span>{project.category}</span>
+        {OWNER[project.slug] && <span style={{ color: accent }}>{OWNER[project.slug]}</span>}
+      </p>
+      <h3
+        className={`${brand ? brandFonts[brand.font] : ""} mt-2 text-[clamp(2rem,min(4.2vw,7vh),4.6rem)] leading-[0.95]`}
+        style={{
+          fontWeight: brand?.weight,
+          fontStyle: brand?.italic ? "italic" : undefined,
+          textTransform: brand?.uppercase ? "uppercase" : undefined,
+          letterSpacing: brand?.tracking !== undefined ? `${brand.tracking}em` : undefined,
+        }}
+      >
+        {project.name}
+      </h3>
+      <Tagline project={project} className="rd-body mt-2 line-clamp-2 max-w-2xl text-sm leading-snug text-(--paper)/70 lg:truncate lg:text-base" />
+    </>
+  );
+}
+
+function EndCaption() {
+  return (
+    <>
+      <p className="rd-label text-(--paper)/60">( ¿Y el tuyo? )</p>
+      <p className="rd-display mt-2 text-[clamp(1.6rem,min(4.2vw,7vh),4.6rem)]">
+        El próximo <span className="rd-serif text-(--signal)">puede ser</span> el tuyo.
+      </p>
+    </>
+  );
+}
+
+/** El tagline de la marca, con la parte destacada en su color. */
+function Tagline({ project, className }: { project: Project; className: string }) {
+  const brand = project.brand;
+  const accent = brand?.accent ?? "#ff4d2e";
+  const tagline = brand?.tagline ?? project.shortDescription;
+  const highlight = brand?.highlight;
+  const at = highlight ? tagline.indexOf(highlight) : -1;
+  const [before, after] =
+    highlight && at >= 0
+      ? [tagline.slice(0, at), tagline.slice(at + highlight.length)]
+      : [tagline, ""];
+  return (
+    <p className={className}>
+      {before}
+      {highlight && at >= 0 && <span style={{ color: accent }}>{highlight}</span>}
+      {after}
+    </p>
   );
 }
 
@@ -121,7 +457,7 @@ export function RdWork() {
 const SLIDE = "w-[84vw] shrink-0 snap-start sm:w-[62vw] lg:w-[44vw]";
 
 /**
- * Celular, tablet y sin movimiento: las tarjetas en fila, con scroll horizontal
+ * Sin movimiento: las tarjetas en fila, con scroll horizontal
  * nativo y encastre en cada una. Abajo, en qué tarjeta vas, una barra y flechas
  * (para mouse y teclado; con el dedo se desliza).
  */
@@ -131,7 +467,7 @@ function Rail() {
   const reduced = useReducedMotion();
   const [active, setActive] = useState(0);
   const [moved, setMoved] = useState(false);
-  const count = sorted.length + 1;
+  const count = COUNT;
 
   useEffect(() => {
     const rail = railRef.current;
@@ -161,7 +497,7 @@ function Rail() {
   return (
     <div className="py-24">
       <div className="rd-wrap">
-        <Header pinned={false} />
+        <Header />
       </div>
       <div
         ref={railRef}
@@ -171,9 +507,9 @@ function Rail() {
         className="flex snap-x snap-mandatory scroll-px-(--gutter) gap-4 overflow-x-auto overscroll-x-contain px-(--gutter) [scrollbar-width:none] focus-visible:outline-offset-[-2px] [&::-webkit-scrollbar]:hidden"
       >
         {sorted.map((p, i) => (
-          <Card key={p.slug} project={p} index={i} pinned={false} />
+          <Card key={p.slug} project={p} index={i} />
         ))}
-        <EndCard pinned={false} />
+        <EndCard />
       </div>
       <div className="rd-wrap mt-6 flex items-center gap-4">
         <span className="rd-label shrink-0 tabular-nums text-(--paper)/70">
@@ -213,13 +549,9 @@ function Rail() {
   );
 }
 
-function Header({ pinned }: { pinned: boolean }) {
+function Header() {
   return (
-    <div
-      className={`flex shrink-0 flex-col justify-between gap-10 ${
-        pinned ? "h-[72vh] w-[38vw] pr-[4vw]" : "pb-6"
-      }`}
-    >
+    <div className="flex shrink-0 flex-col justify-between gap-10 pb-6">
       <p className="rd-label text-(--paper)/60">
         ( 02 — Trabajos seleccionados )
       </p>
@@ -238,22 +570,14 @@ function Header({ pinned }: { pinned: boolean }) {
           clientes reales. Diseñados y programados por nosotros dos.
         </p>
       </div>
-      {pinned && (
-        <p className="rd-label flex items-center gap-3 text-(--paper)/60">
-          Seguí bajando
-          <span aria-hidden className="inline-block h-px w-16 bg-current" />→
-        </p>
-      )}
     </div>
   );
 }
 
-function EndCard({ pinned }: { pinned: boolean }) {
+function EndCard() {
   return (
     <div
-      className={`flex shrink-0 flex-col justify-center gap-8 rounded-[2rem] bg-(--signal) p-8 text-(--ink) md:p-12 ${
-        pinned ? "h-[72vh] w-[34vw]" : SLIDE
-      }`}
+      className={`flex flex-col justify-center gap-8 rounded-[2rem] bg-(--signal) p-8 text-(--ink) md:p-12 ${SLIDE}`}
     >
       <p className="rd-label">( ¿Y el tuyo? )</p>
       <p className="rd-display text-[clamp(2.4rem,4.6vw,5.5rem)]">
@@ -289,20 +613,12 @@ const OWNER: Record<string, string> = {
   "apex-ai": "Producto de Federico",
 };
 
-function Card({
-  project,
-  index,
-  pinned,
-}: {
-  project: Project;
-  index: number;
-  pinned: boolean;
-}) {
+function Card({ project, index }: { project: Project; index: number }) {
   const linkRef = useRef<HTMLAnchorElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const reduced = useReducedMotion();
   const wide = useMediaQuery(MD);
-  const phoneShot = !pinned ? project.screens?.mobile : undefined;
+  const phoneShot = project.screens?.mobile;
   const brand = project.brand;
   const accent = brand?.accent ?? "#ff4d2e";
 
@@ -337,22 +653,12 @@ function Card({
     </video>
   );
 
-  const tagline = brand?.tagline ?? project.shortDescription;
-  const highlight = brand?.highlight;
-  const at = highlight ? tagline.indexOf(highlight) : -1;
-  const [before, after] =
-    highlight && at >= 0
-      ? [tagline.slice(0, at), tagline.slice(at + highlight.length)]
-      : [tagline, ""];
-
   return (
     <Link
       ref={linkRef}
       href={`/work/${project.slug}`}
       data-cursor="Ver caso"
-      className={`group relative flex shrink-0 flex-col overflow-hidden rounded-[2rem] border border-(--line) bg-(--ink-2) ${
-        pinned ? "h-[72vh] w-[min(52vw,940px)]" : SLIDE
-      }`}
+      className={`group relative flex flex-col overflow-hidden rounded-[2rem] border border-(--line) bg-(--ink-2) ${SLIDE}`}
     >
       <div className="flex items-center justify-between gap-4 px-6 pt-5 pb-4 md:px-8">
         <span className="rd-label text-(--paper)/60">
@@ -362,11 +668,7 @@ function Card({
       </div>
       <div
         className={`relative mx-3 overflow-hidden rounded-[1.4rem] bg-(--ink-3) ${
-          pinned
-            ? "flex-1"
-            : phoneShot
-              ? "aspect-[5/4] md:aspect-[16/10]"
-              : "aspect-[4/3] md:aspect-[16/10]"
+          phoneShot ? "aspect-[5/4] md:aspect-[16/10]" : "aspect-[4/3] md:aspect-[16/10]"
         }`}
         style={
           phoneShot
@@ -451,11 +753,7 @@ function Card({
           >
             {project.name}
           </h3>
-          <p className="rd-body mt-2 text-sm text-(--paper)/70 md:truncate md:text-base">
-            {before}
-            {highlight && <span style={{ color: accent }}>{highlight}</span>}
-            {after}
-          </p>
+          <Tagline project={project} className="rd-body mt-2 text-sm text-(--paper)/70 md:truncate md:text-base" />
         </div>
         <span
           aria-hidden
@@ -478,31 +776,29 @@ function Card({
           </svg>
         </span>
       </div>
-      {!pinned && (
-        <div className="px-6 pb-6 md:hidden">
-          <p className="rd-label text-(--paper)/50">
-            Qué hicimos
-            {OWNER[project.slug] && (
-              <span style={{ color: accent }}> · {OWNER[project.slug]}</span>
-            )}
-          </p>
-          <p className="rd-body mt-2 text-sm leading-snug text-(--paper)/75">
-            {PITCH[project.slug] ?? project.shortDescription}
-          </p>
-          {project.technology && (
-            <ul className="mt-4 flex flex-wrap gap-1.5">
-              {project.technology.slice(0, 4).map((t) => (
-                <li
-                  key={t}
-                  className="rd-label rounded-full border border-(--line) px-2.5 py-1 text-[10px] text-(--paper)/70"
-                >
-                  {t}
-                </li>
-              ))}
-            </ul>
+      <div className="px-6 pb-6 md:hidden">
+        <p className="rd-label text-(--paper)/50">
+          Qué hicimos
+          {OWNER[project.slug] && (
+            <span style={{ color: accent }}> · {OWNER[project.slug]}</span>
           )}
-        </div>
-      )}
+        </p>
+        <p className="rd-body mt-2 text-sm leading-snug text-(--paper)/75">
+          {PITCH[project.slug] ?? project.shortDescription}
+        </p>
+        {project.technology && (
+          <ul className="mt-4 flex flex-wrap gap-1.5">
+            {project.technology.slice(0, 4).map((t) => (
+              <li
+                key={t}
+                className="rd-label rounded-full border border-(--line) px-2.5 py-1 text-[10px] text-(--paper)/70"
+              >
+                {t}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </Link>
   );
 }
