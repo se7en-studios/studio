@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import Image from "next/image";
 import {
   AnimatePresence,
+  animate,
   m,
   useMotionTemplate,
   useMotionValue,
@@ -22,11 +23,11 @@ import { brandFonts } from "@/lib/brand-fonts";
 import type { Project } from "@/types";
 import { EASE_OUT, RdButton, RdLines } from "./primitives";
 
-// Trabajos: las tarjetas flotan en un anillo 3D que gira con el scroll
-// (sticky), como tarjetas en órbita. En desktop son apaisadas, con la captura
-// de la compu; en celular y tablet, paradas, con la del celular. Sin
-// movimiento, un carrusel que se desliza con el dedo (la sección queda del
-// alto de una tarjeta, no de ocho).
+// Trabajos: las tarjetas flotan en un anillo 3D, como tarjetas en órbita. En
+// desktop son apaisadas, con la captura de la compu, y el anillo gira con el
+// scroll (sticky); en celular y tablet, paradas, con la del celular, y gira
+// deslizando con el dedo (la sección queda del alto de una pantalla). Sin
+// movimiento, un carrusel que se desliza con el dedo.
 
 const sorted = [...projects].sort((a, b) => a.order - b.order);
 
@@ -41,7 +42,8 @@ export function RdWork() {
   // Al revés que useReducedMotion: en el servidor da false, así arranca sin movimiento.
   const motion = useMediaQuery("(prefers-reduced-motion: no-preference)");
   const desktop = useMediaQuery("(min-width: 1024px)");
-  return motion ? <Orbit compact={!desktop} /> : (
+  // Con key: al cruzar el breakpoint se rearma, porque cada forma mueve el anillo con otra cosa.
+  return motion ? <Orbit key={desktop ? "wide" : "compact"} compact={!desktop} /> : (
     <section id="trabajos" data-theme="ink" className="relative bg-(--ink)">
       <Rail />
     </section>
@@ -53,17 +55,23 @@ const smooth = (t: number) => t * t * (3 - 2 * t);
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 /** Ángulo en (-180, 180]. */
 const wrap = (a: number) => ((((a + 180) % 360) + 360) % 360) - 180;
+/** Índice de tarjeta en [0, COUNT): el anillo da vueltas. */
+const mod = (i: number) => ((i % COUNT) + COUNT) % COUNT;
+const SNAP = { type: "spring", stiffness: 140, damping: 22, mass: 0.7 } as const;
 
-/** Medidas de cada forma: ancho de tarjeta (--w), alto sobre ancho y cuánto scroll por tarjeta. */
+/** Medidas de cada forma: ancho de tarjeta (--w), alto sobre ancho. */
 const SHAPE = {
-  wide: { w: "[--w:min(42vw,76vh,880px)]", ratio: 0.625, aspect: "aspect-[16/10]", step: "70vh" },
-  compact: { w: "[--w:min(60vw,31svh,380px)]", ratio: 1.6, aspect: "aspect-[10/16]", step: "55svh" },
+  wide: { w: "[--w:min(42vw,76vh,880px)]", ratio: 0.625, aspect: "aspect-[16/10]" },
+  compact: { w: "[--w:min(60vw,31svh,380px)]", ratio: 1.6, aspect: "aspect-[10/16]" },
 } as const;
 
 function Orbit({ compact }: { compact: boolean }) {
   const shape = SHAPE[compact ? "compact" : "wide"];
   const sectionRef = useRef<HTMLElement>(null);
   const [active, setActive] = useState(0);
+
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [swiped, setSwiped] = useState(false);
 
   // Entrada: mientras la sección sube a la pantalla, el anillo llega girando y se endereza.
   const { scrollYProgress: enter } = useScroll({
@@ -81,23 +89,112 @@ function Orbit({ compact }: { compact: boolean }) {
     const i = Math.floor(x);
     return i + smooth(clamp((x - i - 0.22) / 0.56, 0, 1));
   });
-  const pos = useSpring(stepped, { stiffness: 90, damping: 22, mass: 0.6 });
+  const scrolled = useSpring(stepped, { stiffness: 90, damping: 22, mass: 0.6 });
+  // En celular, en qué tarjeta está el anillo lo maneja el dedo (sin módulo: puede dar vueltas).
+  const swipe = useMotionValue(0);
+  const pos = compact ? swipe : scrolled;
 
-  useMotionValueEvent(stepped, "change", (v) => setActive(Math.round(v)));
+  useMotionValueEvent(stepped, "change", (v) => !compact && setActive(Math.round(v)));
+  useMotionValueEvent(swipe, "change", (v) => setActive(mod(Math.round(v))));
 
-  // El puntero inclina un poco todo el anillo.
+  // El puntero inclina un poco todo el anillo (con el dedo no: lo mueve).
   const px = useMotionValue(0);
   const py = useMotionValue(0);
   const sx = useSpring(px, { stiffness: 50, damping: 18 });
   const sy = useSpring(py, { stiffness: 50, damping: 18 });
   useEffect(() => {
+    if (compact) return;
     const onMove = (e: PointerEvent) => {
       px.set((e.clientX / window.innerWidth - 0.5) * 2);
       py.set((e.clientY / window.innerHeight - 0.5) * 2);
     };
     window.addEventListener("pointermove", onMove, { passive: true });
     return () => window.removeEventListener("pointermove", onMove);
-  }, [px, py]);
+  }, [compact, px, py]);
+
+  /** Lleva el anillo a la tarjeta i por el camino más corto. */
+  const goTo = (i: number) => {
+    const base = Math.round(swipe.get());
+    let d = mod(i - base);
+    if (d > COUNT / 2) d -= COUNT;
+    animate(swipe, base + d, SNAP);
+  };
+
+  // Deslizar: sólo lo horizontal es nuestro (touch-action: pan-y deja el scroll vertical al
+  // navegador). Al soltar encastra en una tarjeta, con la inercia del gesto.
+  const dragged = useRef(false);
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!compact || !stage) return;
+    let id = -1;
+    let x0 = 0;
+    let y0 = 0;
+    let p0 = 0;
+    let card = 1;
+    let on = false;
+    let samples: { x: number; t: number }[] = [];
+    const down = (e: PointerEvent) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      id = e.pointerId;
+      x0 = e.clientX;
+      y0 = e.clientY;
+      on = false;
+      dragged.current = false;
+      card = stage.querySelector<HTMLElement>("[data-orbit-card]")?.offsetWidth || 1;
+      samples = [{ x: e.clientX, t: e.timeStamp }];
+    };
+    const move = (e: PointerEvent) => {
+      if (e.pointerId !== id) return;
+      const dx = e.clientX - x0;
+      if (!on) {
+        if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(e.clientY - y0)) return;
+        on = true;
+        dragged.current = true;
+        swipe.stop();
+        p0 = swipe.get();
+        stage.setPointerCapture(id);
+        setSwiped(true);
+      }
+      swipe.set(p0 - dx / card);
+      samples = [...samples.slice(-4), { x: e.clientX, t: e.timeStamp }];
+    };
+    const up = (e: PointerEvent) => {
+      if (e.pointerId !== id) return;
+      id = -1;
+      if (!on) return;
+      const first = samples[0];
+      const last = samples[samples.length - 1];
+      const v = last.t > first.t ? (last.x - first.x) / (last.t - first.t) : 0;
+      const target = Math.round(swipe.get() - (v * 180) / card);
+      animate(swipe, clamp(target, p0 - 3, p0 + 3), SNAP);
+    };
+    // El click que llega al soltar un arrastre no es un toque: ni navega ni elige tarjeta.
+    const click = (e: MouseEvent) => {
+      if (!dragged.current) return;
+      dragged.current = false;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    stage.addEventListener("click", click, true);
+    stage.addEventListener("pointerdown", down);
+    stage.addEventListener("pointermove", move);
+    stage.addEventListener("pointerup", up);
+    stage.addEventListener("pointercancel", up);
+    return () => {
+      stage.removeEventListener("click", click, true);
+      stage.removeEventListener("pointerdown", down);
+      stage.removeEventListener("pointermove", move);
+      stage.removeEventListener("pointerup", up);
+      stage.removeEventListener("pointercancel", up);
+    };
+  }, [compact, swipe]);
+
+  /** Un toque en una tarjeta de costado la trae de frente en vez de abrir el caso. */
+  const onCardClick = (i: number, e: React.MouseEvent) => {
+    if (!compact || i === active) return;
+    e.preventDefault();
+    goTo(i);
+  };
 
   const angle = useTransform(
     [pos, sx, enter],
@@ -109,10 +206,14 @@ function Orbit({ compact }: { compact: boolean }) {
   const spin = useMotionTemplate`translateZ(calc(var(--w) * -${RADIUS})) rotateY(${angle}deg)`;
 
   const floorY = useTransform(scrollYProgress, [0, 1], ["0px", "960px"]);
-  const progress = useTransform(scrollYProgress, [0, 1], [0, 1]);
+  const floorX = useTransform(swipe, (v) => `${-v * 120}px`);
+  const progress = useTransform(compact ? swipe : scrollYProgress, (v) =>
+    compact ? clamp(mod(v) / (COUNT - 1), 0, 1) : v,
+  );
 
-  /** Con el teclado: al enfocar una tarjeta, el scroll la trae de frente. */
+  /** Con el teclado: al enfocar una tarjeta, la trae de frente (en desktop, con el scroll). */
   const focusCard = (i: number) => {
+    if (compact) return goTo(i);
     const s = sectionRef.current;
     if (!s) return;
     const top = s.getBoundingClientRect().top + window.scrollY;
@@ -128,10 +229,16 @@ function Orbit({ compact }: { compact: boolean }) {
       id="trabajos"
       ref={sectionRef}
       data-theme="ink"
-      className="relative bg-(--ink)"
-      style={{ height: `calc(${shape.step} * ${COUNT - 1} + 100svh)` }}
+      // En celular, el colchón de abajo es lo que Servicios se sube encima (su -mt), para que no tape los puntos.
+      className={`relative bg-(--ink) ${compact ? "pb-10 md:pb-16" : ""}`}
+      style={compact ? undefined : { height: `calc(70vh * ${COUNT - 1} + 100svh)` }}
     >
-      <div className={`sticky top-0 h-svh overflow-hidden ${shape.w}`}>
+      <div
+        ref={stageRef}
+        className={`top-0 h-svh overflow-hidden ${shape.w} ${
+          compact ? "relative min-h-[560px] touch-pan-y select-none" : "sticky"
+        }`}
+      >
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 transition-[background] duration-1000"
@@ -146,11 +253,13 @@ function Orbit({ compact }: { compact: boolean }) {
         >
           <m.div
             className="rd-floor absolute inset-0 origin-bottom"
-            style={{ backgroundPositionY: floorY }}
+            style={compact ? { backgroundPositionX: floorX } : { backgroundPositionY: floorY }}
           />
         </div>
 
-        <div className="absolute inset-0 [perspective:calc(var(--w)*2.6)]">
+        {/* Los contenedores del 3D no reciben toques: el de inclinación queda en z=0 y tapaba a las
+            tarjetas de los costados, que están más atrás. Sólo las tarjetas los vuelven a tomar. */}
+        <div className="pointer-events-none absolute inset-0 [perspective:calc(var(--w)*2.6)]">
           <m.div
             className="absolute inset-0 [transform-style:preserve-3d]"
             style={{ transform: tilt }}
@@ -169,6 +278,7 @@ function Orbit({ compact }: { compact: boolean }) {
                   angle={angle}
                   active={i === active}
                   onFocus={() => focusCard(i)}
+                  onClick={(e) => onCardClick(i, e)}
                 />
               ))}
               <OrbitCard
@@ -177,6 +287,7 @@ function Orbit({ compact }: { compact: boolean }) {
                 angle={angle}
                 active={active === sorted.length}
                 onFocus={() => focusCard(sorted.length)}
+                onClick={(e) => onCardClick(sorted.length, e)}
               />
             </m.div>
           </m.div>
@@ -205,10 +316,19 @@ function Orbit({ compact }: { compact: boolean }) {
                 /{String(COUNT).padStart(2, "0")}
               </span>
             </p>
-            <p className="rd-label mt-2 flex items-center justify-end gap-3 text-(--paper)/60 max-lg:hidden">
-              Seguí bajando
-              <span aria-hidden className="inline-block h-px w-10 bg-current" />↓
-            </p>
+            {compact ? (
+              <p
+                className={`rd-label mt-2 whitespace-nowrap text-(--paper)/60 transition-opacity duration-500 ${swiped ? "opacity-0" : ""}`}
+                aria-hidden
+              >
+                ← Deslizá →
+              </p>
+            ) : (
+              <p className="rd-label mt-2 flex items-center justify-end gap-3 text-(--paper)/60">
+                Seguí bajando
+                <span aria-hidden className="inline-block h-px w-10 bg-current" />↓
+              </p>
+            )}
           </div>
         </div>
 
@@ -294,6 +414,7 @@ function OrbitCard({
   angle,
   active,
   onFocus,
+  onClick,
 }: {
   index: number;
   /** Parada, con la captura del celular y sin video. */
@@ -303,6 +424,7 @@ function OrbitCard({
   angle: MotionValue<number>;
   active: boolean;
   onFocus: () => void;
+  onClick: (e: React.MouseEvent) => void;
 }) {
   const own = index * STEP;
   // Cuánto le falta para estar de frente, en tarjetas: oscurece las de los costados y, mientras
@@ -319,7 +441,10 @@ function OrbitCard({
       href={project ? `/work/${project.slug}` : "#contacto"}
       data-cursor={project ? "Ver caso" : "Hablemos"}
       onFocus={onFocus}
-      className={`group absolute top-1/2 left-1/2 w-(--w) [backface-visibility:hidden] ${shape.aspect}`}
+      onClick={onClick}
+      draggable={false}
+      data-orbit-card
+      className={`group pointer-events-auto absolute top-1/2 left-1/2 w-(--w) [backface-visibility:hidden] ${shape.aspect}`}
       style={{
         marginLeft: "calc(var(--w) / -2)",
         marginTop: `calc(var(--w) * ${-shape.ratio / 2})`,
@@ -339,6 +464,7 @@ function OrbitCard({
               <Image
                 src={shot}
                 alt={`${project.name}: ${project.shortDescription}`}
+                draggable={false}
                 fill
                 sizes="(min-width: 1024px) 44vw, 60vw"
                 className="object-cover object-top transition-transform duration-[1.2s] ease-(--ease-out) group-hover:scale-[1.04]"
