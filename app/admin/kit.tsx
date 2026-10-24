@@ -24,6 +24,8 @@ export const cn = (...xs: (string | false | null | undefined)[]) => xs.filter(Bo
  *   `adm-num`, etiquetas en mono mayúscula (`adm-label`).
  * - El acento es para la acción principal, lo nuevo y lo no leído. Lo elegido
  *   (sección, filtro, pestaña) se invierte: papel sobre tinta.
+ * - `adm-in` en un bloque de primer nivel (tarjeta, encabezado, pestañas) lo
+ *   suma a la entrada en escalera de la sección (Entrance, en shell.tsx).
  */
 
 /** Botones. `btn` + una variante. */
@@ -106,7 +108,7 @@ export function PageHeader({
   accent?: React.ReactNode;
 }) {
   return (
-    <header className="flex flex-wrap items-end justify-between gap-4">
+    <header className="adm-in flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
         {eyebrow && <p className="adm-label mb-3">{eyebrow}</p>}
         <h1 className="adm-display text-[clamp(30px,4.2vw,52px)] text-balance text-foreground">
@@ -143,7 +145,7 @@ export function Card({
   return (
     <section
       className={cn(
-        "overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)]",
+        "adm-in overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)]",
         className,
       )}
     >
@@ -219,7 +221,7 @@ export function Kpi({
     </>
   );
   const cls = cn(
-    "block h-full rounded-xl border p-4",
+    "adm-in block h-full rounded-xl border p-4",
     filled ? "border-transparent bg-accent" : "border-[var(--line)] bg-[var(--panel)]",
   );
   return href ? (
@@ -321,7 +323,7 @@ export function TabLinks({
   current: string;
 }) {
   return (
-    <nav className="-mx-4 overflow-x-auto border-b border-[var(--line)] px-4 [scrollbar-width:none] md:mx-0 md:px-0">
+    <nav className="adm-in -mx-4 overflow-x-auto border-b border-[var(--line)] px-4 [scrollbar-width:none] md:mx-0 md:px-0">
       <div className="flex w-max gap-1">
         {tabs.map((t) => {
           const on = t.id === current;

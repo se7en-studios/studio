@@ -1,9 +1,10 @@
 "use client";
 
-// Marco del panel: barra lateral con contadores, barra superior en mobile y
-// la paleta de comandos (⌘K). Los contadores salen de /admin/api/pulse, que se
-// consulta al entrar, al navegar y cada 30 s con la pestaña visible.
-import { createContext, useCallback, useContext, useEffect, useState, useTransition } from "react";
+// Marco del panel: barra de íconos flotante en la compu (Rail), barra superior
+// y menú lateral en el celular (Sidebar), la paleta de comandos (⌘K) y la
+// entrada de cada sección (Entrance). Los contadores salen de /admin/api/pulse,
+// que se consulta al entrar, al navegar y cada 30 s con la pestaña visible.
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
@@ -114,6 +115,13 @@ export function AdminShell({
   const [pulse, setPulse] = useState<Pulse | null>(null);
   const [menu, setMenu] = useState(false);
   const [palette, setPalette] = useState(false);
+  // La primera sección se ve tal como llega del servidor; desde la primera navegación, cada una entra animada.
+  const [shown, setShown] = useState(pathname);
+  const [navigated, setNavigated] = useState(false);
+  if (shown !== pathname) {
+    setShown(pathname);
+    setNavigated(true);
+  }
 
   const refresh = useCallback(() => {
     fetch("/admin/api/pulse", { cache: "no-store" })
@@ -181,14 +189,19 @@ export function AdminShell({
   const sidebar = (
     <Sidebar who={who} myRoom={myRoom} pathname={pathname} pulse={pulse} theme={theme} onTheme={toggleTheme} onSearch={() => setPalette(true)} />
   );
+  const rail = (
+    <Rail who={who} myRoom={myRoom} pathname={pathname} pulse={pulse} theme={theme} onTheme={toggleTheme} onSearch={() => setPalette(true)} />
+  );
 
   return (
     <PulseCtx.Provider value={{ pulse, refresh }}>
       <ToastProvider>
         <div className="admin-app min-h-dvh text-foreground" data-theme={theme}>
-          <aside className="fixed inset-y-0 left-0 z-40 hidden w-[244px] border-r border-[var(--line)] bg-[var(--panel-0)] lg:block">
-            {sidebar}
-          </aside>
+          <aside className="fixed inset-y-3 left-3 z-40 hidden w-16 lg:block">{rail}</aside>
+          {/* El cronómetro, si corre, flota al pie junto a la barra: se ve desde cualquier sección. */}
+          <div className="fixed bottom-4 left-[92px] z-40 hidden rounded-lg bg-[var(--panel-2)] shadow-[var(--shadow-pop)] lg:block">
+            <RunningTimer />
+          </div>
 
           {menu && (
             <div className="fixed inset-0 z-[75] lg:hidden">
@@ -202,7 +215,7 @@ export function AdminShell({
             </div>
           )}
 
-          <div className="lg:pl-[244px]">
+          <div className="lg:pl-[88px]">
             <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-[var(--line)] bg-[var(--bg)]/90 px-3 backdrop-blur lg:hidden">
               <button onClick={() => setMenu(true)} aria-label="Abrir menú" className="focus-ring relative rounded-lg p-2 text-muted hover:text-foreground">
                 <Menu size={18} />
@@ -215,7 +228,11 @@ export function AdminShell({
                 <Search size={18} />
               </button>
             </header>
-            <main className="mx-auto w-full max-w-[1440px] px-4 py-6 md:px-8 md:py-8">{children}</main>
+            <main className="mx-auto w-full max-w-[1440px] px-4 py-6 md:px-8 md:py-8">
+              <Entrance key={pathname} animate={navigated}>
+                {children}
+              </Entrance>
+            </main>
           </div>
 
           {palette && <CommandPalette onClose={() => setPalette(false)} />}
@@ -224,6 +241,263 @@ export function AdminShell({
       </ToastProvider>
     </PulseCtx.Provider>
   );
+}
+
+/**
+ * Cada sección entra como en un tablero: el contenido nuevo aparece por tarjetas
+ * (las que llevan `adm-in`), de a una, subiendo y desenfocadas. Las que llegan
+ * después por streaming (cuando termina de cargar el esqueleto) también entran
+ * escalonadas. Pasado el arranque, lo que se agrega (un mensaje nuevo, un filtro)
+ * aparece sin animación. La primera carga no se anima: llega lista del servidor.
+ */
+function Entrance({ animate, children }: { animate: boolean; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [entering, setEntering] = useState(animate);
+  useLayoutEffect(() => {
+    const root = ref.current;
+    if (!root || !animate) return;
+    // Cada tanda de tarjetas nuevas se numera desde cero: --i es su lugar en la escalera.
+    const mark = () => {
+      let i = 0;
+      root.querySelectorAll<HTMLElement>(".adm-in:not([data-in])").forEach((el) => {
+        el.dataset.in = "";
+        el.style.setProperty("--i", String(Math.min(i++, 12)));
+      });
+    };
+    mark();
+    const mo = new MutationObserver(mark);
+    mo.observe(root, { childList: true, subtree: true });
+    const t = window.setTimeout(() => {
+      mo.disconnect();
+      setEntering(false);
+    }, 2500);
+    return () => {
+      mo.disconnect();
+      window.clearTimeout(t);
+    };
+  }, [animate]);
+  return (
+    <div ref={ref} data-entering={entering ? "" : undefined}>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Desde la compu, la barra es una pastilla de tinta que flota al costado, sólo con
+ * íconos. La sección elegida la marca un círculo de papel que se desliza de una a
+ * otra; el nombre sale en un cartelito al pasar o enfocar. Abajo, Ajustes y la
+ * cara de quien está, que abre lo demás (llamar, tema, ver el sitio, salir).
+ * Va siempre en tinta (también en el tema claro): por eso sus colores son fijos.
+ */
+function Rail({
+  who,
+  myRoom,
+  pathname,
+  pulse,
+  theme,
+  onTheme,
+  onSearch,
+}: {
+  who: LeadOwner;
+  myRoom: string | null;
+  pathname: string;
+  pulse: Pulse | null;
+  theme: Theme;
+  onTheme: () => void;
+  onSearch: () => void;
+}) {
+  const isActive = (href: string) =>
+    href === "/admin" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+  const inSettings = SETTINGS_PATHS.some(isActive);
+  const other = PEOPLE_IDS.find((p) => p !== who) ?? null;
+  const mod = useModKey();
+  const navRef = useRef<HTMLElement>(null);
+  const markRef = useRef<HTMLSpanElement>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
+  const [menu, setMenu] = useState(false);
+
+  // El círculo de la sección elegida: se mide dónde quedó su ícono y se desliza hasta ahí.
+  useLayoutEffect(() => {
+    const mark = markRef.current;
+    const on = navRef.current?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!mark) return;
+    mark.style.opacity = on ? "1" : "0";
+    if (on) mark.style.transform = `translateY(${on.offsetTop}px)`;
+  }, [pathname]);
+
+  // El cartelito con el nombre: uno solo, fijo en la pantalla (la lista scrollea y lo cortaría).
+  const tip = (label: string | null) => (e: React.SyntheticEvent<HTMLElement>) => {
+    const el = tipRef.current;
+    if (!el) return;
+    if (!label) {
+      el.dataset.on = "false";
+      return;
+    }
+    const r = e.currentTarget.getBoundingClientRect();
+    el.textContent = label;
+    el.style.top = `${r.top + r.height / 2}px`;
+    el.dataset.on = "true";
+  };
+  const hint = (label: string) => ({ onPointerEnter: tip(label), onPointerLeave: tip(null), onFocus: tip(label), onBlur: tip(null) });
+
+  useEffect(() => {
+    if (!menu) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenu(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menu]);
+
+  // 36 px por ícono: las 14 secciones entran enteras en una pantalla de 900 de alto.
+  const item = "focus-ring relative z-10 flex h-9 w-9 items-center justify-center rounded-full transition-colors duration-300";
+  const idle = "text-[#f2eee6]/55 hover:bg-[#f2eee6]/10 hover:text-[#f2eee6]";
+
+  return (
+    <div className="flex h-full flex-col items-center rounded-[2rem] bg-[var(--rail)] py-4 shadow-[0_24px_60px_-30px_rgba(0,0,0,0.6)] ring-1 ring-[var(--rail-line)]">
+      <Link href="/admin" aria-label="Inicio" className="focus-ring mb-3 flex h-10 w-10 items-center justify-center rounded-full">
+        <Image src="/logo-simbolo.png" alt="" width={28} height={28} className="h-7 w-7" />
+      </Link>
+      <button type="button" onClick={onSearch} aria-label="Buscar o saltar a una sección" {...hint(`Buscar · ${mod} K`)} className={cn(item, idle)}>
+        <Search size={17} />
+      </button>
+      <span aria-hidden className="my-2 h-px w-6 bg-[#f2eee6]/12" />
+
+      <nav ref={navRef} aria-label="Secciones del panel" className="admin-scroll relative flex w-full flex-1 flex-col items-center gap-0.5 overflow-y-auto [scrollbar-width:none]">
+        {/* La marca de la sección elegida: círculo de papel y una rayita al borde de la barra. */}
+        <span
+          ref={markRef}
+          aria-hidden
+          className="pointer-events-none absolute top-0 left-1/2 -ml-[18px] h-9 w-9 rounded-full bg-[#f2eee6] opacity-0 transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]"
+        >
+          <span className="absolute top-1/2 -left-[11px] h-4 w-[3px] -translate-y-1/2 rounded-full bg-[#f2eee6]" />
+        </span>
+        {NAV.map((group, gi) => (
+          <div key={group.title ?? gi} className="contents">
+            {gi > 0 && <span aria-hidden className="my-1.5 h-px w-6 shrink-0 bg-[#f2eee6]/12" />}
+            {group.items.map((it) => {
+              const on = isActive(it.href);
+              const n = it.badge ? pulse?.[it.badge] ?? 0 : 0;
+              return (
+                <Link
+                  key={it.href}
+                  href={it.href}
+                  aria-label={n ? `${it.label} (${n})` : it.label}
+                  aria-current={on ? "page" : undefined}
+                  {...hint(it.label)}
+                  className={cn(item, "shrink-0", on ? "text-[#0b0b0c]" : idle)}
+                >
+                  {it.icon}
+                  <RailPending />
+                  {n > 0 && (
+                    <span
+                      className={cn(
+                        "absolute -top-0.5 -right-0.5 min-w-4 rounded-full px-1 text-center font-mono text-[10px] leading-4 font-medium ring-2 ring-[var(--rail)]",
+                        it.tone === "red" ? "bg-red-500 text-white" : "bg-accent text-[#0b0b0c]",
+                      )}
+                    >
+                      {n > 99 ? "99+" : n}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+            {gi === 0 && (
+              <Link
+                href="/admin/oficinas"
+                aria-label="En vivo"
+                aria-current={isActive("/admin/oficinas") ? "page" : undefined}
+                {...hint("En vivo")}
+                className={cn(item, "shrink-0", isActive("/admin/oficinas") ? "text-[#0b0b0c]" : idle)}
+              >
+                <span aria-hidden className="relative flex h-2.5 w-2.5">
+                  <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/60 motion-reduce:animate-none" />
+                  <span className="relative h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                </span>
+                <RailPending />
+              </Link>
+            )}
+          </div>
+        ))}
+      </nav>
+
+      <span aria-hidden className="my-2 h-px w-6 bg-[#f2eee6]/12" />
+      <Link
+        href="/admin/ajustes"
+        aria-label="Ajustes"
+        aria-current={inSettings ? "page" : undefined}
+        {...hint("Ajustes")}
+        className={cn(item, inSettings ? "bg-[#f2eee6] text-[#0b0b0c]" : idle)}
+      >
+        <Settings size={17} />
+        <RailPending />
+      </Link>
+
+      <div className="relative mt-2">
+        <button
+          type="button"
+          onClick={() => setMenu((v) => !v)}
+          aria-expanded={menu}
+          aria-haspopup="menu"
+          aria-label={`${PEOPLE[who].name}: llamar, tema, sitio y salir`}
+          {...hint(PEOPLE[who].name)}
+          className="focus-ring relative flex h-11 w-11 items-center justify-center rounded-full transition-transform hover:scale-105"
+        >
+          <Face who={who} size={32} alt="" />
+          <span className="absolute right-0.5 bottom-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--rail)] bg-emerald-400" />
+        </button>
+        {menu && (
+          <>
+            <button type="button" aria-label="Cerrar" tabIndex={-1} onClick={() => setMenu(false)} className="fixed inset-0 z-40 cursor-default" />
+            <div
+              role="menu"
+              onClickCapture={(e) => (e.target as HTMLElement).closest("a") && setMenu(false)}
+              className="admin-pop absolute bottom-0 left-[calc(100%+14px)] z-50 w-64 overflow-hidden rounded-xl bg-[var(--panel-2)] p-1.5 text-foreground shadow-[var(--shadow-pop)]"
+            >
+              <div className="flex items-center gap-2.5 px-2.5 py-2">
+                <Face who={who} size={28} alt="" />
+                <span className="min-w-0 flex-1 leading-tight">
+                  <span className="block truncate text-[13px] font-medium">{PEOPLE[who].name}</span>
+                  <span className="block truncate text-[11px] text-muted">{other ? `Con ${PEOPLE[other].name}` : "Equipo"}</span>
+                </span>
+                {other && <CallButton other={other} myRoom={myRoom} />}
+              </div>
+              <span aria-hidden className="mx-2 my-1 block h-px bg-[var(--line)]" />
+              <Link href="/" role="menuitem" className="focus-ring flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-muted transition-colors hover:bg-white/[0.05] hover:text-foreground">
+                <ArrowUpRight size={15} /> Ver el sitio
+              </Link>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={onTheme}
+                className="focus-ring flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-muted transition-colors hover:bg-white/[0.05] hover:text-foreground"
+              >
+                {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+                {theme === "dark" ? "Tema claro" : "Tema oscuro"}
+              </button>
+              <form action={logout}>
+                <button role="menuitem" className="focus-ring flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-muted transition-colors hover:bg-white/[0.05] hover:text-red-400">
+                  <LogOut size={15} /> Salir
+                </button>
+              </form>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div
+        ref={tipRef}
+        aria-hidden
+        data-on="false"
+        className="pointer-events-none fixed left-[92px] z-50 -translate-y-1/2 rounded-md bg-foreground px-2 py-1 text-[12px] font-medium whitespace-nowrap text-background opacity-0 transition-opacity duration-150 data-[on=true]:opacity-100"
+      />
+    </div>
+  );
+}
+
+/** En la barra de íconos, mientras carga la sección elegida: un punto naranja abajo del ícono. */
+function RailPending() {
+  const { pending } = useLinkStatus();
+  return pending ? <span aria-hidden className="absolute bottom-0.5 h-1 w-1 animate-pulse rounded-full bg-accent" /> : null;
 }
 
 function Sidebar({

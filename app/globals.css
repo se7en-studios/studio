@@ -541,6 +541,9 @@ body:has(.admin-app)::after {
   --shadow-btn: none;
   --shadow-pop: 0 0 0 1px var(--line-strong), 0 24px 60px -24px rgba(0, 0, 0, 0.7);
   --glow: transparent;
+  /* La barra de íconos flotante: siempre tinta, apenas despegada del fondo en el tema oscuro. */
+  --rail: #18181b;
+  --rail-line: rgba(242, 238, 230, 0.08);
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
   --radius-xl: 1.125rem;
@@ -597,6 +600,26 @@ body:has(.admin-app)::after {
     transform: translate3d(0, 6px, 0) scale(0.985);
   }
 }
+/* Entrada de una sección: cada tarjeta (.adm-in) sube desenfocada, en escalera (--i,
+   que pone <Entrance> en shell.tsx). `backwards` y no `both`: al terminar no deja
+   nada fijo, así el hover de las tarjetas (que se levantan) sigue andando. */
+@keyframes admin-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0) scale(0.985);
+    filter: blur(6px);
+  }
+}
+.admin-app .adm-in[data-in] {
+  animation: admin-rise 0.6s var(--ease) backwards;
+  animation-delay: calc(var(--i, 0) * 55ms);
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* Mientras entra la sección, lo que todavía no tiene su turno no se ve. */
+  .admin-app [data-entering] .adm-in:not([data-in]) {
+    opacity: 0;
+  }
+}
 @keyframes admin-shimmer {
   to {
     background-position: -200% 0;
@@ -627,7 +650,8 @@ body:has(.admin-app)::after {
   .admin-overlay,
   .admin-drawer,
   .admin-pop,
-  .admin-skeleton {
+  .admin-skeleton,
+  .admin-app .adm-in[data-in] {
     animation: none;
   }
 }
@@ -660,6 +684,8 @@ body:has(.admin-app)::after {
   --shadow-btn: none;
   --shadow-pop: 0 0 0 1px var(--line-strong), 0 24px 50px -28px rgba(11, 11, 12, 0.35);
   --glow: transparent;
+  --rail: #0b0b0c;
+  --rail-line: transparent;
 }
 :root:has(.admin-app[data-theme="light"]) {
   color-scheme: light;

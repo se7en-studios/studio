@@ -32,7 +32,8 @@ import { listTools } from "@/lib/admin/tools";
 import { fmt } from "@/lib/admin/finance-shared";
 import { Attention } from "./attention";
 import { EventList } from "./feed";
-import { Card, CardLink, Empty, Face, Kpi, PageHeader, btnPrimary, btnSecondary, cn, kpiRow, usdShort } from "./kit";
+import { Card, CardLink, Empty, Face, Kpi, btnPrimary, btnSecondary, cn, kpiRow, usdShort } from "./kit";
+import { HomeHero, WeekCard } from "./home-hero";
 import { MyTasks } from "./tareas/my-tasks";
 import { FinanceCard } from "./finance-card";
 import { ProjectsCard, type HomeProject } from "./projects-card";
@@ -147,7 +148,7 @@ async function loadHome(who: LeadOwner) {
   const hour = Number(new Date().toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit" }));
   const hello = hour < 13 ? "Buen día" : hour < 20 ? "Buenas tardes" : "Buenas noches";
 
-  return { failed, fixedIncome, sites, requests, meetings, lateDeliveries, sala: salaR.value, renewals, owing, unpaid, hasDb, fresh, active: projectRows(active), maintenance: projectRows(maintenance).sort(byNeed), projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now, actsR, eventsR, linksR, content: contentR.value, finance: financeR.value && [...financeR.value, ...toolEntries(toolsR.value, fx)] };
+  return { failed, fixedIncome, sites, requests, meetings, upcoming: meetingsR.value, lateDeliveries, sala: salaR.value, renewals, owing, unpaid, hasDb, fresh, active: projectRows(active), maintenance: projectRows(maintenance).sort(byNeed), projects, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now, actsR, eventsR, linksR, content: contentR.value, finance: financeR.value && [...financeR.value, ...toolEntries(toolsR.value, fx)] };
 }
 
 // Lo primero que se ve al entrar: qué está pendiente, cómo vienen los
@@ -158,39 +159,41 @@ export default async function AdminHome() {
 
   const d = await loadHome(me.who);
   const { hasDb, fresh, active, maintenance, pipeline, wonMonth, tasks, overdue, today, names, leadNames, chats, unread, setup, date, hello, leads, now } = d;
-  const { actsR, eventsR, linksR, owing, unpaid, content, finance, renewals, failed, fixedIncome, sites, requests, meetings, lateDeliveries } = d;
+  const { actsR, eventsR, linksR, owing, unpaid, content, finance, renewals, failed, fixedIncome, sites, requests, meetings, upcoming, lateDeliveries } = d;
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        eyebrow={date.charAt(0).toUpperCase() + date.slice(1)}
-        title={`${hello},`}
-        accent={`${PEOPLE[me.who].name}.`}
-        right={
-          <>
-            <Link href="/admin/mensajes" className={btnSecondary}>
-              <MessagesSquare size={14} /> Mensajes
-              {unread > 0 && <span className="rounded-full bg-accent px-1.5 font-mono text-[11px] text-background">{unread}</span>}
-            </Link>
-            <Link href="/admin/tareas?nueva=1" className={btnSecondary}>
-              <Plus size={14} /> Tarea
-            </Link>
-            <Link href="/admin/pedidos?nuevo=1" className={btnPrimary}>
-              <Plus size={14} /> Pedido
-            </Link>
-          </>
-        }
-      >
-        {[
-          fresh ? `${fresh} ${fresh === 1 ? "pedido espera" : "pedidos esperan"} respuesta` : "Ningún pedido sin responder",
-          active.length ? `${active.length} ${active.length === 1 ? "proyecto en curso" : "proyectos en curso"}` : null,
-          maintenance.length ? `${maintenance.length} ${maintenance.length === 1 ? "sitio" : "sitios"} en mantenimiento` : null,
-          overdue ? `${overdue} ${overdue === 1 ? "tarea tuya vencida" : "tareas tuyas vencidas"}` : null,
-        ]
-          .filter(Boolean)
-          .join(" · ")}
-        .
-      </PageHeader>
+      {/* Arriba, como un tablero: el saludo en un banner y, al lado, la semana. */}
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+        <HomeHero
+          eyebrow={date.charAt(0).toUpperCase() + date.slice(1)}
+          hello={hello}
+          name={PEOPLE[me.who].name}
+          actions={
+            <>
+              <Link href="/admin/mensajes" className={btnSecondary}>
+                <MessagesSquare size={14} /> Mensajes
+                {unread > 0 && <span className="rounded-full bg-accent px-1.5 font-mono text-[11px] text-background">{unread}</span>}
+              </Link>
+              <Link href="/admin/tareas?nueva=1" className={btnSecondary}>
+                <Plus size={14} /> Tarea
+              </Link>
+              <Link href="/admin/pedidos?nuevo=1" className={btnPrimary}>
+                <Plus size={14} /> Pedido
+              </Link>
+            </>
+          }
+          summary={`${[
+            fresh ? `${fresh} ${fresh === 1 ? "pedido espera" : "pedidos esperan"} respuesta` : "Ningún pedido sin responder",
+            active.length ? `${active.length} ${active.length === 1 ? "proyecto en curso" : "proyectos en curso"}` : null,
+            maintenance.length ? `${maintenance.length} ${maintenance.length === 1 ? "sitio" : "sitios"} en mantenimiento` : null,
+            overdue ? `${overdue} ${overdue === 1 ? "tarea tuya vencida" : "tareas tuyas vencidas"}` : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}.`}
+        />
+        <WeekCard today={today} meetings={upcoming} />
+      </div>
 
       {setup && <SetupNotice reason={setup} />}
 
