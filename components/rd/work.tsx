@@ -22,10 +22,11 @@ import { brandFonts } from "@/lib/brand-fonts";
 import type { Project } from "@/types";
 import { EASE_OUT, RdButton, RdLines } from "./primitives";
 
-// Trabajos: en desktop, las tarjetas flotan en un anillo 3D que gira con el
-// scroll (sticky), como tarjetas en órbita; en celular, tablet o sin
-// movimiento, un carrusel que se desliza con el dedo y se inclina como un
-// coverflow (la sección queda del alto de una tarjeta, no de ocho).
+// Trabajos: las tarjetas flotan en un anillo 3D que gira con el scroll
+// (sticky), como tarjetas en órbita. En desktop son apaisadas, con la captura
+// de la compu; en celular y tablet, paradas, con la del celular. Sin
+// movimiento, un carrusel que se desliza con el dedo (la sección queda del
+// alto de una tarjeta, no de ocho).
 
 const sorted = [...projects].sort((a, b) => a.order - b.order);
 
@@ -37,9 +38,10 @@ const STEP = 360 / COUNT;
 const RADIUS = 1.5;
 
 export function RdWork() {
-  const reduced = useReducedMotion();
-  const pinned = useMediaQuery("(min-width: 1024px)") && !reduced;
-  return pinned ? <Orbit /> : (
+  // Al revés que useReducedMotion: en el servidor da false, así arranca sin movimiento.
+  const motion = useMediaQuery("(prefers-reduced-motion: no-preference)");
+  const desktop = useMediaQuery("(min-width: 1024px)");
+  return motion ? <Orbit compact={!desktop} /> : (
     <section id="trabajos" data-theme="ink" className="relative bg-(--ink)">
       <Rail />
     </section>
@@ -52,7 +54,14 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 /** Ángulo en (-180, 180]. */
 const wrap = (a: number) => ((((a + 180) % 360) + 360) % 360) - 180;
 
-function Orbit() {
+/** Medidas de cada forma: ancho de tarjeta (--w), alto sobre ancho y cuánto scroll por tarjeta. */
+const SHAPE = {
+  wide: { w: "[--w:min(42vw,76vh,880px)]", ratio: 0.625, aspect: "aspect-[16/10]", step: "70vh" },
+  compact: { w: "[--w:min(60vw,31svh,380px)]", ratio: 1.6, aspect: "aspect-[10/16]", step: "55svh" },
+} as const;
+
+function Orbit({ compact }: { compact: boolean }) {
+  const shape = SHAPE[compact ? "compact" : "wide"];
   const sectionRef = useRef<HTMLElement>(null);
   const [active, setActive] = useState(0);
 
@@ -120,9 +129,9 @@ function Orbit() {
       ref={sectionRef}
       data-theme="ink"
       className="relative bg-(--ink)"
-      style={{ height: `calc(${(COUNT - 1) * 70}vh + 100svh)` }}
+      style={{ height: `calc(${shape.step} * ${COUNT - 1} + 100svh)` }}
     >
-      <div className="sticky top-0 h-screen overflow-hidden [--w:min(42vw,76vh,880px)]">
+      <div className={`sticky top-0 h-svh overflow-hidden ${shape.w}`}>
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 transition-[background] duration-1000"
@@ -150,12 +159,13 @@ function Orbit() {
               className="absolute inset-0 [transform-style:preserve-3d]"
               style={{ transform: spin }}
             >
-              <OrbitPath />
+              <OrbitPath ratio={shape.ratio} />
               {sorted.map((p, i) => (
                 <OrbitCard
                   key={p.slug}
                   index={i}
                   project={p}
+                  compact={compact}
                   angle={angle}
                   active={i === active}
                   onFocus={() => focusCard(i)}
@@ -163,6 +173,7 @@ function Orbit() {
               ))}
               <OrbitCard
                 index={sorted.length}
+                compact={compact}
                 angle={angle}
                 active={active === sorted.length}
                 onFocus={() => focusCard(sorted.length)}
@@ -172,9 +183,9 @@ function Orbit() {
         </div>
 
         {/* HUD de arriba: título de la sección y en qué tarjeta vas. */}
-        <div className="rd-wrap pointer-events-none absolute inset-x-0 top-24 flex items-start justify-between gap-8">
+        <div className="rd-wrap pointer-events-none absolute inset-x-0 top-20 flex items-start justify-between gap-6 lg:top-24">
           <div>
-            <p className="rd-label text-(--paper)/60">
+            <p className="rd-label text-(--paper)/60 max-sm:hidden">
               ( 02 — Trabajos seleccionados )
             </p>
             <RdLines
@@ -184,17 +195,17 @@ function Orbit() {
                   <span className="rd-serif text-(--signal)">venden</span>
                 </>,
               ]}
-              className="rd-display mt-3 text-[clamp(1.8rem,3vw,3.4rem)]"
+              className="rd-display text-[clamp(1.5rem,3vw,3.4rem)] sm:mt-3"
             />
           </div>
           <div className="text-right">
-            <p className="rd-display tabular-nums text-[clamp(1.8rem,3vw,3.4rem)] text-(--paper)">
+            <p className="rd-display tabular-nums text-[clamp(1.5rem,3vw,3.4rem)] text-(--paper)">
               {String(active + 1).padStart(2, "0")}
               <span className="text-(--paper)/30">
                 /{String(COUNT).padStart(2, "0")}
               </span>
             </p>
-            <p className="rd-label mt-2 flex items-center justify-end gap-3 text-(--paper)/60">
+            <p className="rd-label mt-2 flex items-center justify-end gap-3 text-(--paper)/60 max-lg:hidden">
               Seguí bajando
               <span aria-hidden className="inline-block h-px w-10 bg-current" />↓
             </p>
@@ -202,9 +213,9 @@ function Orbit() {
         </div>
 
         {/* HUD de abajo: la tarjeta de frente, con su marca. */}
-        <div className="rd-wrap absolute inset-x-0 bottom-6">
-          <div className="flex items-end justify-between gap-8">
-            <div className="min-h-[7.5rem] min-w-0 flex-1" aria-live="polite">
+        <div className="rd-wrap absolute inset-x-0 bottom-5 lg:bottom-6">
+          <div className="flex items-end justify-between gap-4 lg:gap-8">
+            <div className="min-h-[6.5rem] min-w-0 flex-1 lg:min-h-[7.5rem]" aria-live="polite">
               <AnimatePresence mode="wait" initial={false}>
                 <m.div
                   key={active}
@@ -218,7 +229,16 @@ function Orbit() {
               </AnimatePresence>
             </div>
             <div className="shrink-0 pb-1">
-              {project ? (
+              {compact ? (
+                <Link
+                  href={project ? `/work/${project.slug}` : "#contacto"}
+                  aria-label={project ? `Ver el caso de ${project.name}` : "Contanos tu idea"}
+                  className="grid h-14 w-14 place-items-center rounded-full text-(--ink) transition-colors duration-500"
+                  style={{ background: project?.brand?.accent ?? "var(--signal)" }}
+                >
+                  <ArrowRight size={22} aria-hidden />
+                </Link>
+              ) : project ? (
                 <RdButton href={`/work/${project.slug}`} variant="ghost">
                   Ver caso
                 </RdButton>
@@ -227,7 +247,7 @@ function Orbit() {
               )}
             </div>
           </div>
-          <div className="relative mt-5 h-px bg-(--line)">
+          <div className="relative mt-4 h-px bg-(--line) lg:mt-5">
             <m.div
               className="absolute inset-0 origin-left bg-(--signal)"
               style={{ scaleX: progress }}
@@ -250,7 +270,7 @@ function Orbit() {
 }
 
 /** La órbita por donde pasan las tarjetas, acostada debajo de ellas. */
-function OrbitPath() {
+function OrbitPath({ ratio }: { ratio: number }) {
   return (
     <svg
       aria-hidden
@@ -259,7 +279,7 @@ function OrbitPath() {
       style={{
         width: `calc(var(--w) * ${RADIUS * 2})`,
         height: `calc(var(--w) * ${RADIUS * 2})`,
-        transform: `translate(-50%, -50%) translateY(calc(var(--w) * 0.38)) rotateX(90deg)`,
+        transform: `translate(-50%, -50%) translateY(calc(var(--w) * ${ratio / 2 + 0.07})) rotateX(90deg)`,
       }}
     >
       <circle cx="50" cy="50" r="50" fill="none" stroke="var(--paper)" strokeOpacity="0.16" strokeWidth="0.12" />
@@ -270,11 +290,14 @@ function OrbitPath() {
 function OrbitCard({
   index,
   project,
+  compact,
   angle,
   active,
   onFocus,
 }: {
   index: number;
+  /** Parada, con la captura del celular y sin video. */
+  compact: boolean;
   /** Sin proyecto, es la tarjeta del final. */
   project?: Project;
   angle: MotionValue<number>;
@@ -288,16 +311,18 @@ function OrbitCard({
   const dim = useTransform(off, (o) => Math.min(0.72, o * 0.6));
   const holo = useTransform(off, (o) => Math.min(1, o));
   const accent = project?.brand?.accent ?? "#ff4d2e";
+  const shape = SHAPE[compact ? "compact" : "wide"];
+  const shot = compact ? (project?.screens?.mobile ?? project?.image) : project?.image;
 
   return (
     <Link
       href={project ? `/work/${project.slug}` : "#contacto"}
       data-cursor={project ? "Ver caso" : "Hablemos"}
       onFocus={onFocus}
-      className="group absolute top-1/2 left-1/2 aspect-[16/10] w-(--w) [backface-visibility:hidden]"
+      className={`group absolute top-1/2 left-1/2 w-(--w) [backface-visibility:hidden] ${shape.aspect}`}
       style={{
         marginLeft: "calc(var(--w) / -2)",
-        marginTop: "calc(var(--w) * -0.3125)",
+        marginTop: `calc(var(--w) * ${-shape.ratio / 2})`,
         transform: `rotateY(${own}deg) translateZ(calc(var(--w) * ${RADIUS}))`,
       }}
     >
@@ -309,16 +334,16 @@ function OrbitCard({
           className="relative h-full w-full overflow-hidden rounded-[1.6rem] bg-(--ink-2) shadow-[0_50px_90px_-35px_rgba(0,0,0,0.95)] ring-1 ring-white/12"
           style={{ ["--holo" as string]: holo }}
         >
-          {project ? (
+          {project && shot ? (
             <>
               <Image
-                src={project.image}
+                src={shot}
                 alt={`${project.name}: ${project.shortDescription}`}
                 fill
-                sizes="(min-width: 1024px) 44vw, 100vw"
+                sizes="(min-width: 1024px) 44vw, 60vw"
                 className="object-cover object-top transition-transform duration-[1.2s] ease-(--ease-out) group-hover:scale-[1.04]"
               />
-              {active && project.video && (
+              {active && !compact && project.video && (
                 <video
                   className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-[1.2s] ease-(--ease-out) group-hover:scale-[1.04]"
                   autoPlay
@@ -334,15 +359,18 @@ function OrbitCard({
                 aria-hidden
                 className="absolute inset-0 bg-[linear-gradient(to_top,rgba(11,11,12,0.75),transparent_40%),linear-gradient(to_bottom,rgba(11,11,12,0.6),transparent_28%)]"
               />
-              <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-4 px-5 pt-4">
-                <span className="rd-label text-(--paper)/80">
-                  {String(index + 1).padStart(2, "0")} — {project.category}
-                </span>
-                <span className="rd-label text-(--paper)/80">{project.year}</span>
-              </div>
+              {/* Paradas, la captura del celular ya trae su barra arriba: sin etiquetas encima. */}
+              {!compact && (
+                <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-4 px-5 pt-4">
+                  <span className="rd-label text-(--paper)/80">
+                    {String(index + 1).padStart(2, "0")} — {project.category}
+                  </span>
+                  <span className="rd-label text-(--paper)/80">{project.year}</span>
+                </div>
+              )}
               {project.impactMetric && (
                 <span
-                  className="rd-label absolute bottom-4 left-4 rounded-full px-3 py-1.5 text-[10px] font-bold text-(--ink)"
+                  className="rd-label absolute right-3 bottom-3 left-3 w-fit rounded-full px-3 py-1.5 text-[10px] font-bold text-(--ink) lg:right-auto lg:bottom-4 lg:left-4"
                   style={{ background: accent }}
                 >
                   {project.impactMetric}
@@ -350,9 +378,9 @@ function OrbitCard({
               )}
             </>
           ) : (
-            <div className="flex h-full flex-col justify-between bg-(--signal) p-8 text-(--ink)">
+            <div className="flex h-full flex-col justify-between bg-(--signal) p-5 text-(--ink) lg:p-8">
               <p className="rd-label">( ¿Y el tuyo? )</p>
-              <p className="rd-display text-[calc(var(--w)*0.085)]">
+              <p className={`rd-display ${compact ? "text-[calc(var(--w)*0.135)]" : "text-[calc(var(--w)*0.085)]"}`}>
                 El próximo <span className="rd-serif">puede ser</span> el tuyo.
               </p>
             </div>
@@ -379,7 +407,7 @@ function OrbitCaption({ project }: { project: Project }) {
         {OWNER[project.slug] && <span style={{ color: accent }}>{OWNER[project.slug]}</span>}
       </p>
       <h3
-        className={`${brand ? brandFonts[brand.font] : ""} mt-2 text-[clamp(2.2rem,min(4.2vw,7vh),4.6rem)] leading-[0.95]`}
+        className={`${brand ? brandFonts[brand.font] : ""} mt-2 text-[clamp(2rem,min(4.2vw,7vh),4.6rem)] leading-[0.95]`}
         style={{
           fontWeight: brand?.weight,
           fontStyle: brand?.italic ? "italic" : undefined,
@@ -389,7 +417,7 @@ function OrbitCaption({ project }: { project: Project }) {
       >
         {project.name}
       </h3>
-      <Tagline project={project} className="rd-body mt-2 max-w-2xl truncate text-base text-(--paper)/70" />
+      <Tagline project={project} className="rd-body mt-2 line-clamp-2 max-w-2xl text-sm leading-snug text-(--paper)/70 lg:truncate lg:text-base" />
     </>
   );
 }
@@ -398,7 +426,7 @@ function EndCaption() {
   return (
     <>
       <p className="rd-label text-(--paper)/60">( ¿Y el tuyo? )</p>
-      <p className="rd-display mt-2 text-[clamp(2.2rem,min(4.2vw,7vh),4.6rem)]">
+      <p className="rd-display mt-2 text-[clamp(1.6rem,min(4.2vw,7vh),4.6rem)]">
         El próximo <span className="rd-serif text-(--signal)">puede ser</span> el tuyo.
       </p>
     </>
@@ -429,9 +457,8 @@ function Tagline({ project, className }: { project: Project; className: string }
 const SLIDE = "w-[84vw] shrink-0 snap-start sm:w-[62vw] lg:w-[44vw]";
 
 /**
- * Celular, tablet y sin movimiento: las tarjetas en fila, con scroll horizontal
- * nativo y encastre en cada una. Con movimiento, las que no están en su lugar se
- * inclinan como un coverflow. Abajo, en qué tarjeta vas, una barra y flechas
+ * Sin movimiento: las tarjetas en fila, con scroll horizontal
+ * nativo y encastre en cada una. Abajo, en qué tarjeta vas, una barra y flechas
  * (para mouse y teclado; con el dedo se desliza).
  */
 function Rail() {
@@ -451,22 +478,11 @@ function Rail() {
       if (barRef.current) barRef.current.style.transform = `scaleX(${Math.max(1 / count, k)})`;
       setActive(Math.round(k * (count - 1)));
       if (rail.scrollLeft > 8) setMoved(true);
-      // Coverflow: cuánto le falta a cada tarjeta para quedar en su lugar, en tarjetas.
-      const style = getComputedStyle(rail);
-      const pad = parseFloat(style.paddingLeft) || 0;
-      const gap = parseFloat(style.columnGap) || 0;
-      for (const child of Array.from(rail.children) as HTMLElement[]) {
-        const off = clamp((child.offsetLeft - pad - rail.scrollLeft) / (child.offsetWidth + gap), -1.5, 1.5);
-        child.style.setProperty("--holo", Math.min(1, Math.abs(off)).toFixed(3));
-        child.style.transform = reduced
-          ? ""
-          : `perspective(1400px) rotateY(${off * 16}deg) scale(${1 - Math.abs(off) * 0.06})`;
-      }
     };
     onScroll();
     rail.addEventListener("scroll", onScroll, { passive: true });
     return () => rail.removeEventListener("scroll", onScroll);
-  }, [count, reduced]);
+  }, [count]);
 
   /** Una tarjeta para un lado o para el otro. */
   const go = (dir: 1 | -1) => {
@@ -488,7 +504,7 @@ function Rail() {
         role="region"
         aria-label="Trabajos: deslizá para ver los demás"
         tabIndex={0}
-        className="relative flex snap-x snap-mandatory scroll-px-(--gutter) gap-4 overflow-x-auto overscroll-x-contain px-(--gutter) [scrollbar-width:none] focus-visible:outline-offset-[-2px] [&::-webkit-scrollbar]:hidden"
+        className="flex snap-x snap-mandatory scroll-px-(--gutter) gap-4 overflow-x-auto overscroll-x-contain px-(--gutter) [scrollbar-width:none] focus-visible:outline-offset-[-2px] [&::-webkit-scrollbar]:hidden"
       >
         {sorted.map((p, i) => (
           <Card key={p.slug} project={p} index={i} />
@@ -710,7 +726,6 @@ function Card({ project, index }: { project: Project; index: number }) {
             {media}
           </>
         )}
-        <div aria-hidden className="rd-holo pointer-events-none absolute inset-0" />
         {project.impactMetric && (
           <span
             className={`rd-label absolute left-4 rounded-full px-3 py-1.5 text-[10px] font-bold text-(--ink) ${
