@@ -20,7 +20,8 @@ import { useReducedMotion } from "@/lib/use-reduced-motion";
 import { MD, useMediaQuery } from "@/lib/use-media-query";
 import { projects } from "@/data/projects";
 import { brandFonts } from "@/lib/brand-fonts";
-import type { Project } from "@/types";
+import { caseBrand } from "@/lib/en-vivo";
+import type { Project, ProjectBrand } from "@/types";
 import { EASE_OUT, RdButton, RdLines } from "./primitives";
 
 // Trabajos: las tarjetas flotan en un anillo 3D, como tarjetas en órbita. En
@@ -344,7 +345,7 @@ function Orbit({ compact }: { compact: boolean }) {
                   exit={{ opacity: 0, y: -16 }}
                   transition={{ duration: 0.45, ease: EASE_OUT }}
                 >
-                  {project ? <OrbitCaption project={project} /> : <EndCaption />}
+                  {project ? <OrbitCaption project={project} compact={compact} /> : <EndCaption />}
                 </m.div>
               </AnimatePresence>
             </div>
@@ -434,7 +435,6 @@ function OrbitCard({
   const holo = useTransform(off, (o) => Math.min(1, o));
   const accent = project?.brand?.accent ?? "#ff4d2e";
   const shape = SHAPE[compact ? "compact" : "wide"];
-  const shot = compact ? (project?.screens?.mobile ?? project?.image) : project?.image;
 
   return (
     <Link
@@ -459,17 +459,19 @@ function OrbitCard({
           className="relative h-full w-full overflow-hidden rounded-[1.6rem] bg-(--ink-2) shadow-[0_50px_90px_-35px_rgba(0,0,0,0.95)] ring-1 ring-white/12"
           style={{ ["--holo" as string]: holo }}
         >
-          {project && shot ? (
+          {project && compact ? (
+            <Banner project={project} index={index} />
+          ) : project ? (
             <>
               <Image
-                src={shot}
+                src={project.image}
                 alt={`${project.name}: ${project.shortDescription}`}
                 draggable={false}
                 fill
-                sizes="(min-width: 1024px) 44vw, 60vw"
+                sizes="44vw"
                 className="object-cover object-top transition-transform duration-[1.2s] ease-(--ease-out) group-hover:scale-[1.04]"
               />
-              {active && !compact && project.video && (
+              {active && project.video && (
                 <video
                   className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-[1.2s] ease-(--ease-out) group-hover:scale-[1.04]"
                   autoPlay
@@ -485,18 +487,15 @@ function OrbitCard({
                 aria-hidden
                 className="absolute inset-0 bg-[linear-gradient(to_top,rgba(11,11,12,0.75),transparent_40%),linear-gradient(to_bottom,rgba(11,11,12,0.6),transparent_28%)]"
               />
-              {/* Paradas, la captura del celular ya trae su barra arriba: sin etiquetas encima. */}
-              {!compact && (
-                <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-4 px-5 pt-4">
-                  <span className="rd-label text-(--paper)/80">
-                    {String(index + 1).padStart(2, "0")} — {project.category}
-                  </span>
-                  <span className="rd-label text-(--paper)/80">{project.year}</span>
-                </div>
-              )}
+              <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-4 px-5 pt-4">
+                <span className="rd-label text-(--paper)/80">
+                  {String(index + 1).padStart(2, "0")} — {project.category}
+                </span>
+                <span className="rd-label text-(--paper)/80">{project.year}</span>
+              </div>
               {project.impactMetric && (
                 <span
-                  className="rd-label absolute right-3 bottom-3 left-3 w-fit rounded-full px-3 py-1.5 text-[10px] font-bold text-(--ink) lg:right-auto lg:bottom-4 lg:left-4"
+                  className="rd-label absolute bottom-4 left-4 rounded-full px-3 py-1.5 text-[10px] font-bold text-(--ink)"
                   style={{ background: accent }}
                 >
                   {project.impactMetric}
@@ -523,7 +522,105 @@ function OrbitCard({
   );
 }
 
-function OrbitCaption({ project }: { project: Project }) {
+/** La letra de la marca: su tipografía, peso, itálica, mayúsculas y espaciado. */
+function brandType(brand?: ProjectBrand) {
+  return {
+    className: brand ? brandFonts[brand.font] : "",
+    style: {
+      fontWeight: brand?.weight,
+      fontStyle: brand?.italic ? "italic" : undefined,
+      textTransform: brand?.uppercase ? ("uppercase" as const) : undefined,
+      letterSpacing: brand?.tracking !== undefined ? `${brand.tracking}em` : undefined,
+    },
+  };
+}
+
+/**
+ * La tarjeta parada, armada como un banner de la marca y no como una captura: arriba el
+ * logo y su frase en su letra, con el dato que más vende; abajo, el sitio en un celular
+ * que asoma desde el borde. Todo se mide en anchos de tarjeta (--w), así escala entero.
+ */
+function Banner({ project, index }: { project: Project; index: number }) {
+  const brand = project.brand;
+  const accent = brand?.accent ?? "#ff4d2e";
+  const logo = caseBrand(project.slug);
+  const type = brandType(brand);
+  const tagline = brand?.tagline ?? project.name;
+  const highlight = brand?.highlight;
+  const at = highlight ? tagline.indexOf(highlight) : -1;
+  return (
+    <div
+      className="absolute inset-0"
+      style={{
+        background: `radial-gradient(120% 70% at 85% 105%, ${accent}66, transparent 60%), radial-gradient(90% 55% at 0% 0%, ${accent}26, transparent 70%), var(--ink-2)`,
+      }}
+    >
+      <div className="flex items-center justify-between gap-3 px-[7%] pt-[7%]">
+        {logo?.logo || logo?.mark ? (
+          <span className="relative block h-[calc(var(--w)*0.11)] w-1/2">
+            <Image
+              src={(logo.logo ?? logo.mark)!}
+              alt={project.name}
+              draggable={false}
+              fill
+              sizes="40vw"
+              className="object-contain object-left"
+            />
+          </span>
+        ) : (
+          <span
+            className={`${type.className} text-[calc(var(--w)*0.09)] leading-none`}
+            style={type.style}
+          >
+            {project.name}
+          </span>
+        )}
+        <span className="rd-label text-(--paper)/60">{String(index + 1).padStart(2, "0")}</span>
+      </div>
+      <p
+        className={`${type.className} mt-[6%] px-[7%] text-[calc(var(--w)*0.092)] leading-[1.02] text-(--paper)`}
+        style={type.style}
+      >
+        {at >= 0 && highlight ? (
+          <>
+            {tagline.slice(0, at)}
+            <span style={{ color: accent }}>{highlight}</span>
+            {tagline.slice(at + highlight.length)}
+          </>
+        ) : (
+          tagline
+        )}
+      </p>
+      {project.impactMetric && (
+        <span
+          className="rd-label absolute left-[7%] top-[47%] z-10 rounded-full px-2.5 py-1 text-[calc(var(--w)*0.034)] font-bold text-(--ink) shadow-lg"
+          style={{ background: accent }}
+        >
+          {project.impactMetric}
+        </span>
+      )}
+      {/* El celular: marco con fondo (no borde: el color de los bordes lo pisa globals.css). */}
+      <div className="absolute top-[52%] left-1/2 w-[64%] -translate-x-1/2 rotate-[-4deg] rounded-[calc(var(--w)*0.09)] bg-[#2b2b31] p-[calc(var(--w)*0.012)] shadow-[0_24px_50px_-12px_rgba(0,0,0,0.9)] ring-1 ring-white/25 transition-transform duration-[1.2s] ease-(--ease-out) group-hover:-translate-y-2">
+        <div className="relative aspect-[390/844] overflow-hidden rounded-[calc(var(--w)*0.08)] bg-black">
+          <Image
+            src={project.screens?.mobile ?? project.image}
+            alt={`${project.name}: ${project.shortDescription}`}
+            draggable={false}
+            fill
+            sizes="40vw"
+            className="object-cover object-top"
+          />
+          <span
+            aria-hidden
+            className="absolute top-[2%] left-1/2 h-[3%] w-[30%] -translate-x-1/2 rounded-full bg-black"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OrbitCaption({ project, compact }: { project: Project; compact: boolean }) {
   const brand = project.brand;
   const accent = brand?.accent ?? "#ff4d2e";
   return (
@@ -533,17 +630,19 @@ function OrbitCaption({ project }: { project: Project }) {
         {OWNER[project.slug] && <span style={{ color: accent }}>{OWNER[project.slug]}</span>}
       </p>
       <h3
-        className={`${brand ? brandFonts[brand.font] : ""} mt-2 text-[clamp(2rem,min(4.2vw,7vh),4.6rem)] leading-[0.95]`}
-        style={{
-          fontWeight: brand?.weight,
-          fontStyle: brand?.italic ? "italic" : undefined,
-          textTransform: brand?.uppercase ? "uppercase" : undefined,
-          letterSpacing: brand?.tracking !== undefined ? `${brand.tracking}em` : undefined,
-        }}
+        className={`${brandType(brand).className} mt-2 text-[clamp(2rem,min(4.2vw,7vh),4.6rem)] leading-[0.95]`}
+        style={brandType(brand).style}
       >
         {project.name}
       </h3>
-      <Tagline project={project} className="rd-body mt-2 line-clamp-2 max-w-2xl text-sm leading-snug text-(--paper)/70 lg:truncate lg:text-base" />
+      {/* En celular la frase ya va en el banner: abajo, qué hicimos. */}
+      {compact ? (
+        <p className="rd-body mt-2 line-clamp-2 max-w-xl text-sm leading-snug text-(--paper)/70">
+          {PITCH[project.slug] ?? project.shortDescription}
+        </p>
+      ) : (
+        <Tagline project={project} className="rd-body mt-2 max-w-2xl truncate text-base text-(--paper)/70" />
+      )}
     </>
   );
 }
