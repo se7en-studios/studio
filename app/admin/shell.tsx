@@ -1,6 +1,6 @@
 "use client";
 
-// Marco del panel: barra de íconos flotante en la compu (Rail), barra superior
+// Marco del panel: barra flotante en la compu (Rail: angosta o abierta), barra superior
 // y menú lateral en el celular (Sidebar), la paleta de comandos (⌘K) y la
 // entrada de cada sección (Entrance). Los contadores salen de /admin/api/pulse,
 // que se consulta al entrar, al navegar y cada 30 s con la pestaña visible.
@@ -24,6 +24,8 @@ import {
   Phone,
   Moon,
   Palette,
+  PanelLeftClose,
+  PanelLeftOpen,
   Search,
   Settings,
   Sun,
@@ -33,6 +35,7 @@ import {
 } from "lucide-react";
 import type { LeadOwner } from "@/lib/admin/db";
 import { otherTheme, themeCookie, type Theme } from "@/lib/admin/theme";
+import { railCookie } from "@/lib/admin/rail";
 import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
 import type { Pulse } from "./api/pulse/route";
 import { logout } from "./actions";
@@ -98,12 +101,15 @@ export const usePulse = () => useContext(PulseCtx);
 export function AdminShell({
   who,
   theme: initialTheme,
+  railOpen: initialRailOpen,
   callFeed,
   myRoom,
   children,
 }: {
   who: LeadOwner;
   theme: Theme;
+  /** La barra de la compu abierta (con los nombres) o angosta (sólo íconos): sale de la cookie. */
+  railOpen: boolean;
   /** Sala fija de Meet de quien está (MEET_LINK_<NOMBRE>): con ella, «Llamar» es un clic. */
   myRoom: string | null;
   /** De dónde recibe las llamadas: null si los avisos no están configurados. */
@@ -112,6 +118,7 @@ export function AdminShell({
 }) {
   const pathname = usePathname();
   const [theme, setTheme] = useState(initialTheme);
+  const [railOpen, setRailOpen] = useState(initialRailOpen);
   const [pulse, setPulse] = useState<Pulse | null>(null);
   const [menu, setMenu] = useState(false);
   const [palette, setPalette] = useState(false);
@@ -162,16 +169,29 @@ export function AdminShell({
     };
   }, [pathname]);
 
+  const toggleRail = useCallback(() => {
+    setRailOpen((v) => {
+      document.cookie = railCookie(!v);
+      return !v;
+    });
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPalette((v) => !v);
       }
+      // ⌘B abre o achica la barra, salvo escribiendo (ahí puede ser negrita).
+      const typing = (e.target as HTMLElement | null)?.closest("input, textarea, select, [contenteditable='true']");
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b" && !typing) {
+        e.preventDefault();
+        toggleRail();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [toggleRail]);
 
   // En la pestaña del navegador: (3) Panel — así se ve desde otra pestaña que hay algo.
   const total = (pulse?.unread ?? 0) + (pulse?.newLeads ?? 0);
@@ -190,16 +210,39 @@ export function AdminShell({
     <Sidebar who={who} myRoom={myRoom} pathname={pathname} pulse={pulse} theme={theme} onTheme={toggleTheme} onSearch={() => setPalette(true)} />
   );
   const rail = (
-    <Rail who={who} myRoom={myRoom} pathname={pathname} pulse={pulse} theme={theme} onTheme={toggleTheme} onSearch={() => setPalette(true)} />
+    <Rail who={who} myRoom={myRoom} pathname={pathname} pulse={pulse} theme={theme} open={railOpen} onTheme={toggleTheme} onSearch={() => setPalette(true)} />
   );
 
   return (
     <PulseCtx.Provider value={{ pulse, refresh }}>
       <ToastProvider>
         <div className="admin-app min-h-dvh text-foreground" data-theme={theme}>
-          <aside className="fixed inset-y-3 left-3 z-40 hidden w-16 lg:block">{rail}</aside>
+          <aside
+            className={cn(
+              "fixed inset-y-3 left-3 z-40 hidden transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] lg:block",
+              railOpen ? "w-[232px]" : "w-16",
+            )}
+          >
+            {rail}
+            {/* Abrir o achicar la barra: un botoncito redondo montado en el borde, a la altura del logo. */}
+            <button
+              type="button"
+              onClick={toggleRail}
+              aria-expanded={railOpen}
+              aria-label={railOpen ? "Achicar la barra (⌘B)" : "Abrir la barra (⌘B)"}
+              title={railOpen ? "Achicar la barra (⌘B)" : "Abrir la barra (⌘B)"}
+              className="focus-ring absolute top-[26px] -right-3 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--rail)] text-[#f2eee6]/70 shadow-[0_4px_12px_-4px_rgba(0,0,0,0.6)] ring-1 ring-[var(--rail-line)] transition-colors hover:text-[#f2eee6]"
+            >
+              {railOpen ? <PanelLeftClose size={13} /> : <PanelLeftOpen size={13} />}
+            </button>
+          </aside>
           {/* El cronómetro, si corre, flota al pie junto a la barra: se ve desde cualquier sección. */}
-          <div className="fixed bottom-4 left-[92px] z-40 hidden rounded-lg bg-[var(--panel-2)] shadow-[var(--shadow-pop)] lg:block">
+          <div
+            className={cn(
+              "fixed bottom-4 z-40 hidden rounded-lg bg-[var(--panel-2)] shadow-[var(--shadow-pop)] transition-[left] duration-300 lg:block",
+              railOpen ? "left-[260px]" : "left-[92px]",
+            )}
+          >
             <RunningTimer />
           </div>
 
@@ -215,7 +258,7 @@ export function AdminShell({
             </div>
           )}
 
-          <div className="lg:pl-[88px]">
+          <div className={cn("transition-[padding] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]", railOpen ? "lg:pl-[256px]" : "lg:pl-[88px]")}>
             <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-[var(--line)] bg-[var(--bg)]/90 px-3 backdrop-blur lg:hidden">
               <button onClick={() => setMenu(true)} aria-label="Abrir menú" className="focus-ring relative rounded-lg p-2 text-muted hover:text-foreground">
                 <Menu size={18} />
@@ -284,10 +327,12 @@ function Entrance({ animate, children }: { animate: boolean; children: React.Rea
 }
 
 /**
- * Desde la compu, la barra es una pastilla de tinta que flota al costado, sólo con
- * íconos. La sección elegida la marca un círculo de papel que se desliza de una a
- * otra; el nombre sale en un cartelito al pasar o enfocar. Abajo, Ajustes y la
- * cara de quien está, que abre lo demás (llamar, tema, ver el sitio, salir).
+ * Desde la compu, la barra es una pastilla de tinta que flota al costado. Angosta
+ * muestra sólo los íconos (el nombre sale en un cartelito al pasar o enfocar);
+ * abierta, los nombres y los grupos. Todo va alineado a la izquierda con el mismo
+ * margen, así los íconos no se mueven al abrirla. La sección elegida la marca una
+ * pastilla de papel que se desliza de una a otra. Abajo, Ajustes y la cara de
+ * quien está, que abre lo demás (llamar, tema, ver el sitio, salir).
  * Va siempre en tinta (también en el tema claro): por eso sus colores son fijos.
  */
 function Rail({
@@ -296,6 +341,7 @@ function Rail({
   pathname,
   pulse,
   theme,
+  open,
   onTheme,
   onSearch,
 }: {
@@ -304,6 +350,7 @@ function Rail({
   pathname: string;
   pulse: Pulse | null;
   theme: Theme;
+  open: boolean;
   onTheme: () => void;
   onSearch: () => void;
 }) {
@@ -317,16 +364,16 @@ function Rail({
   const tipRef = useRef<HTMLDivElement>(null);
   const [menu, setMenu] = useState(false);
 
-  // El círculo de la sección elegida: se mide dónde quedó su ícono y se desliza hasta ahí.
+  // La marca de la sección elegida: se mide dónde quedó su fila y se desliza hasta ahí.
   useLayoutEffect(() => {
     const mark = markRef.current;
     const on = navRef.current?.querySelector<HTMLElement>('[aria-current="page"]');
     if (!mark) return;
     mark.style.opacity = on ? "1" : "0";
     if (on) mark.style.transform = `translateY(${on.offsetTop}px)`;
-  }, [pathname]);
+  }, [pathname, open]);
 
-  // El cartelito con el nombre: uno solo, fijo en la pantalla (la lista scrollea y lo cortaría).
+  // El cartelito con el nombre (sólo angosta): uno solo, fijo en la pantalla (la lista scrollea y lo cortaría).
   const tip = (label: string | null) => (e: React.SyntheticEvent<HTMLElement>) => {
     const el = tipRef.current;
     if (!el) return;
@@ -339,7 +386,12 @@ function Rail({
     el.style.top = `${r.top + r.height / 2}px`;
     el.dataset.on = "true";
   };
-  const hint = (label: string) => ({ onPointerEnter: tip(label), onPointerLeave: tip(null), onFocus: tip(label), onBlur: tip(null) });
+  const hint = (label: string) =>
+    open ? {} : { onPointerEnter: tip(label), onPointerLeave: tip(null), onFocus: tip(label), onBlur: tip(null) };
+  // Al abrirla, el cartelito que hubiera quedado se apaga (ya no hay íconos sueltos).
+  useEffect(() => {
+    if (open && tipRef.current) tipRef.current.dataset.on = "false";
+  }, [open]);
 
   useEffect(() => {
     if (!menu) return;
@@ -348,32 +400,53 @@ function Rail({
     return () => window.removeEventListener("keydown", onKey);
   }, [menu]);
 
-  // 36 px por ícono: las 14 secciones entran enteras en una pantalla de 900 de alto.
-  const item = "focus-ring relative z-10 flex h-9 w-9 items-center justify-center rounded-full transition-colors duration-300";
+  // 36 px por fila: las 14 secciones entran enteras en una pantalla de 900 de alto. Angosta,
+  // la fila es un círculo; abierta, una pastilla a todo el ancho con el ícono en el mismo lugar.
+  const row = cn(
+    "focus-ring relative z-10 flex h-9 shrink-0 items-center rounded-full transition-colors duration-300",
+    open ? "w-full gap-3 px-2.5 text-[13px]" : "w-9 justify-center",
+  );
   const idle = "text-[#f2eee6]/55 hover:bg-[#f2eee6]/10 hover:text-[#f2eee6]";
+  const label = (text: string) => open && <span className="admin-fade truncate">{text}</span>;
+  const rule = <span aria-hidden className="my-2 h-px w-full shrink-0 bg-[#f2eee6]/12" />;
 
   return (
-    <div className="flex h-full flex-col items-center rounded-[2rem] bg-[var(--rail)] py-4 shadow-[0_24px_60px_-30px_rgba(0,0,0,0.6)] ring-1 ring-[var(--rail-line)]">
-      <Link href="/admin" aria-label="Inicio" className="focus-ring mb-3 flex h-10 w-10 items-center justify-center rounded-full">
-        <Image src="/logo-simbolo.png" alt="" width={28} height={28} className="h-7 w-7" />
+    <div className="flex h-full flex-col overflow-hidden rounded-[2rem] bg-[var(--rail)] px-3.5 py-4 shadow-[0_24px_60px_-30px_rgba(0,0,0,0.6)] ring-1 ring-[var(--rail-line)]">
+      <Link href="/admin" aria-label="Inicio" className="focus-ring mb-3 flex h-9 shrink-0 items-center gap-2.5 rounded-full">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center">
+          <Image src="/logo-simbolo.png" alt="" width={28} height={28} className="h-7 w-7" />
+        </span>
+        {open && <Wordmark className="admin-fade text-[18px] text-[#f2eee6]" />}
       </Link>
-      <button type="button" onClick={onSearch} aria-label="Buscar o saltar a una sección" {...hint(`Buscar · ${mod} K`)} className={cn(item, idle)}>
-        <Search size={17} />
+      <button type="button" onClick={onSearch} aria-label="Buscar o saltar a una sección" {...hint(`Buscar · ${mod} K`)} className={cn(row, idle)}>
+        <Search size={17} className="shrink-0" />
+        {open && (
+          <>
+            <span className="admin-fade">Buscar…</span>
+            <span className="admin-fade ml-auto font-mono text-[11px] text-[#f2eee6]/40">{mod} K</span>
+          </>
+        )}
       </button>
-      <span aria-hidden className="my-2 h-px w-6 bg-[#f2eee6]/12" />
+      {rule}
 
-      <nav ref={navRef} aria-label="Secciones del panel" className="admin-scroll relative flex w-full flex-1 flex-col items-center gap-0.5 overflow-y-auto [scrollbar-width:none]">
-        {/* La marca de la sección elegida: círculo de papel y una rayita al borde de la barra. */}
+      <nav ref={navRef} aria-label="Secciones del panel" className={cn("relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto [scrollbar-width:none]", open ? "gap-0" : "gap-0.5")}>
+        {/* La marca de la sección elegida: pastilla de papel y una rayita al borde de la barra. */}
         <span
           ref={markRef}
           aria-hidden
-          className="pointer-events-none absolute top-0 left-1/2 -ml-[18px] h-9 w-9 rounded-full bg-[#f2eee6] opacity-0 transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]"
-        >
-          <span className="absolute top-1/2 -left-[11px] h-4 w-[3px] -translate-y-1/2 rounded-full bg-[#f2eee6]" />
-        </span>
+          className={cn(
+            "pointer-events-none absolute top-0 left-0 h-9 rounded-full bg-[#f2eee6] opacity-0 transition-[transform,opacity,width] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
+            open ? "w-full" : "w-9",
+          )}
+        />
         {NAV.map((group, gi) => (
           <div key={group.title ?? gi} className="contents">
-            {gi > 0 && <span aria-hidden className="my-1.5 h-px w-6 shrink-0 bg-[#f2eee6]/12" />}
+            {gi > 0 &&
+              (open && group.title ? (
+                <p className="admin-fade mt-2.5 mb-0.5 shrink-0 truncate px-2.5 font-mono text-[10px] tracking-[0.13em] text-[#f2eee6]/35 uppercase">{group.title}</p>
+              ) : (
+                rule
+              ))}
             {group.items.map((it) => {
               const on = isActive(it.href);
               const n = it.badge ? pulse?.[it.badge] ?? 0 : 0;
@@ -384,14 +457,16 @@ function Rail({
                   aria-label={n ? `${it.label} (${n})` : it.label}
                   aria-current={on ? "page" : undefined}
                   {...hint(it.label)}
-                  className={cn(item, "shrink-0", on ? "text-[#0b0b0c]" : idle)}
+                  className={cn(row, on ? "font-medium text-[#0b0b0c]" : idle)}
                 >
-                  {it.icon}
-                  <RailPending />
+                  <span className="shrink-0">{it.icon}</span>
+                  {label(it.label)}
+                  <RailPending open={open} />
                   {n > 0 && (
                     <span
                       className={cn(
-                        "absolute -top-0.5 -right-0.5 min-w-4 rounded-full px-1 text-center font-mono text-[10px] leading-4 font-medium ring-2 ring-[var(--rail)]",
+                        "min-w-4 rounded-full px-1 text-center font-mono text-[10px] leading-4 font-medium",
+                        open ? "ml-auto" : "absolute -top-0.5 -right-0.5 ring-2 ring-[var(--rail)]",
                         it.tone === "red" ? "bg-red-500 text-white" : "bg-accent text-[#0b0b0c]",
                       )}
                     >
@@ -407,82 +482,97 @@ function Rail({
                 aria-label="En vivo"
                 aria-current={isActive("/admin/oficinas") ? "page" : undefined}
                 {...hint("En vivo")}
-                className={cn(item, "shrink-0", isActive("/admin/oficinas") ? "text-[#0b0b0c]" : idle)}
+                className={cn(row, isActive("/admin/oficinas") ? "font-medium text-[#0b0b0c]" : idle)}
               >
-                <span aria-hidden className="relative flex h-2.5 w-2.5">
-                  <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/60 motion-reduce:animate-none" />
+                <span aria-hidden className="relative flex h-4 w-4 shrink-0 items-center justify-center">
+                  <span className="absolute h-2.5 w-2.5 animate-ping rounded-full bg-emerald-400/60 motion-reduce:animate-none" />
                   <span className="relative h-2.5 w-2.5 rounded-full bg-emerald-400" />
                 </span>
-                <RailPending />
+                {label("En vivo")}
+                <RailPending open={open} />
               </Link>
             )}
           </div>
         ))}
       </nav>
 
-      <span aria-hidden className="my-2 h-px w-6 bg-[#f2eee6]/12" />
+      {rule}
       <Link
         href="/admin/ajustes"
         aria-label="Ajustes"
         aria-current={inSettings ? "page" : undefined}
         {...hint("Ajustes")}
-        className={cn(item, inSettings ? "bg-[#f2eee6] text-[#0b0b0c]" : idle)}
+        className={cn(row, inSettings ? "bg-[#f2eee6] font-medium text-[#0b0b0c]" : idle)}
       >
-        <Settings size={17} />
-        <RailPending />
+        <Settings size={17} className="shrink-0" />
+        {label("Ajustes")}
+        <RailPending open={open} />
       </Link>
 
-      <div className="relative mt-2">
-        <button
-          type="button"
-          onClick={() => setMenu((v) => !v)}
-          aria-expanded={menu}
-          aria-haspopup="menu"
-          aria-label={`${PEOPLE[who].name}: llamar, tema, sitio y salir`}
-          {...hint(PEOPLE[who].name)}
-          className="focus-ring relative flex h-11 w-11 items-center justify-center rounded-full transition-transform hover:scale-105"
-        >
-          <Face who={who} size={32} alt="" />
-          <span className="absolute right-0.5 bottom-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--rail)] bg-emerald-400" />
-        </button>
-        {menu && (
-          <>
-            <button type="button" aria-label="Cerrar" tabIndex={-1} onClick={() => setMenu(false)} className="fixed inset-0 z-40 cursor-default" />
-            <div
-              role="menu"
-              onClickCapture={(e) => (e.target as HTMLElement).closest("a") && setMenu(false)}
-              className="admin-pop absolute bottom-0 left-[calc(100%+14px)] z-50 w-64 overflow-hidden rounded-xl bg-[var(--panel-2)] p-1.5 text-foreground shadow-[var(--shadow-pop)]"
-            >
-              <div className="flex items-center gap-2.5 px-2.5 py-2">
-                <Face who={who} size={28} alt="" />
-                <span className="min-w-0 flex-1 leading-tight">
-                  <span className="block truncate text-[13px] font-medium">{PEOPLE[who].name}</span>
-                  <span className="block truncate text-[11px] text-muted">{other ? `Con ${PEOPLE[other].name}` : "Equipo"}</span>
-                </span>
-                {other && <CallButton other={other} myRoom={myRoom} />}
-              </div>
-              <span aria-hidden className="mx-2 my-1 block h-px bg-[var(--line)]" />
-              <Link href="/" role="menuitem" className="focus-ring flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-muted transition-colors hover:bg-white/[0.05] hover:text-foreground">
-                <ArrowUpRight size={15} /> Ver el sitio
-              </Link>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={onTheme}
-                className="focus-ring flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-muted transition-colors hover:bg-white/[0.05] hover:text-foreground"
-              >
-                {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-                {theme === "dark" ? "Tema claro" : "Tema oscuro"}
-              </button>
-              <form action={logout}>
-                <button role="menuitem" className="focus-ring flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-muted transition-colors hover:bg-white/[0.05] hover:text-red-400">
-                  <LogOut size={15} /> Salir
-                </button>
-              </form>
-            </div>
-          </>
+      <button
+        type="button"
+        onClick={() => setMenu((v) => !v)}
+        aria-expanded={menu}
+        aria-haspopup="menu"
+        aria-label={`${PEOPLE[who].name}: llamar, tema, sitio y salir`}
+        {...hint(PEOPLE[who].name)}
+        className={cn(
+          "focus-ring relative mt-2 flex h-11 shrink-0 items-center gap-2.5 rounded-full text-left transition-colors",
+          open ? "w-full pr-2 hover:bg-[#f2eee6]/10" : "w-9",
         )}
-      </div>
+      >
+        <span className="relative flex h-11 w-9 shrink-0 items-center justify-center">
+          <Face who={who} size={32} alt="" />
+          <span className="absolute right-0 bottom-1 h-2.5 w-2.5 rounded-full border-2 border-[var(--rail)] bg-emerald-400" />
+        </span>
+        {open && (
+          <span className="admin-fade min-w-0 flex-1 leading-tight">
+            <span className="block truncate text-[13px] font-medium text-[#f2eee6]">{PEOPLE[who].name}</span>
+            <span className="block truncate text-[11px] text-[#f2eee6]/50">{other ? `Con ${PEOPLE[other].name}` : "Equipo"}</span>
+          </span>
+        )}
+      </button>
+      {menu && (
+        <>
+          <button type="button" aria-label="Cerrar" tabIndex={-1} onClick={() => setMenu(false)} className="fixed inset-0 z-40 cursor-default" />
+          {/* Fijo y no adentro de la barra: la barra recorta lo que se sale (para abrirse y cerrarse limpia). */}
+          <div
+            role="menu"
+            onClickCapture={(e) => (e.target as HTMLElement).closest("a") && setMenu(false)}
+            className={cn(
+              "admin-pop fixed bottom-3 z-50 w-64 overflow-hidden rounded-xl bg-[var(--panel-2)] p-1.5 text-foreground shadow-[var(--shadow-pop)]",
+              open ? "left-[260px]" : "left-[92px]",
+            )}
+          >
+            <div className="flex items-center gap-2.5 px-2.5 py-2">
+              <Face who={who} size={28} alt="" />
+              <span className="min-w-0 flex-1 leading-tight">
+                <span className="block truncate text-[13px] font-medium">{PEOPLE[who].name}</span>
+                <span className="block truncate text-[11px] text-muted">{other ? `Con ${PEOPLE[other].name}` : "Equipo"}</span>
+              </span>
+              {other && <CallButton other={other} myRoom={myRoom} />}
+            </div>
+            <span aria-hidden className="mx-2 my-1 block h-px bg-[var(--line)]" />
+            <Link href="/" role="menuitem" className="focus-ring flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-muted transition-colors hover:bg-white/[0.05] hover:text-foreground">
+              <ArrowUpRight size={15} /> Ver el sitio
+            </Link>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={onTheme}
+              className="focus-ring flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-muted transition-colors hover:bg-white/[0.05] hover:text-foreground"
+            >
+              {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+              {theme === "dark" ? "Tema claro" : "Tema oscuro"}
+            </button>
+            <form action={logout}>
+              <button role="menuitem" className="focus-ring flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-muted transition-colors hover:bg-white/[0.05] hover:text-red-400">
+                <LogOut size={15} /> Salir
+              </button>
+            </form>
+          </div>
+        </>
+      )}
 
       <div
         ref={tipRef}
@@ -494,10 +584,11 @@ function Rail({
   );
 }
 
-/** En la barra de íconos, mientras carga la sección elegida: un punto naranja abajo del ícono. */
-function RailPending() {
+/** En la barra, mientras carga la sección elegida: un punto naranja (abajo del ícono, o al final de la fila abierta). */
+function RailPending({ open }: { open: boolean }) {
   const { pending } = useLinkStatus();
-  return pending ? <span aria-hidden className="absolute bottom-0.5 h-1 w-1 animate-pulse rounded-full bg-accent" /> : null;
+  if (!pending) return null;
+  return <span aria-hidden className={cn("h-1 w-1 animate-pulse rounded-full bg-accent", open ? "ml-auto shrink-0" : "absolute bottom-0.5")} />;
 }
 
 function Sidebar({

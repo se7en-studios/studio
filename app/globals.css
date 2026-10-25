@@ -634,6 +634,10 @@ body:has(.admin-app)::after {
 .admin-pop {
   animation: admin-pop 0.2s var(--ease) both;
 }
+/* Lo que aparece al abrir la barra (nombres, grupos): entra cuando ya se ensanchó. */
+.admin-fade {
+  animation: admin-fade 0.25s ease-out 0.12s both;
+}
 /* La tarjeta que se está arrastrando queda como hueco: se ve de dónde salió.
    La franja destino ya se resalta sola (onDragOver). */
 .admin-app [data-dragging] {
@@ -650,6 +654,7 @@ body:has(.admin-app)::after {
   .admin-overlay,
   .admin-drawer,
   .admin-pop,
+  .admin-fade,
   .admin-skeleton,
   .admin-app .adm-in[data-in] {
     animation: none;
