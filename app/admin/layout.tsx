@@ -4,6 +4,7 @@ import { getSession } from "@/lib/admin/auth";
 import { parseMeetLink } from "@/lib/admin/calls";
 import { listenTopic, notificationServer } from "@/lib/admin/notify";
 import { THEME_COOKIE, parseTheme } from "@/lib/admin/theme";
+import { RAIL_COOKIE, parseRailOpen } from "@/lib/admin/rail";
 import "./admin-light.css";
 import { serif, wide } from "@/lib/rd-fonts";
 import { AdminShell } from "./shell";
@@ -29,7 +30,8 @@ export async function generateViewport(): Promise<Viewport> {
 // página y en cada acción: el layout no se vuelve a renderizar al navegar.
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const me = await getSession();
-  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
+  const jar = await cookies();
+  const theme = parseTheme(jar.get(THEME_COOKIE)?.value);
   // `contents`: el div sólo reparte las variables de fuente (--font-wide, --font-serif) al panel.
   const fonts = `contents ${wide.variable} ${serif.variable}`;
   if (!me) {
@@ -48,6 +50,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <AdminShell
         who={me.who}
         theme={theme}
+        railOpen={parseRailOpen(jar.get(RAIL_COOKIE)?.value)}
         callFeed={topic ? { topic, server: notificationServer() } : null}
         myRoom={parseMeetLink(process.env[`MEET_LINK_${me.who.toUpperCase()}`])}
       >
