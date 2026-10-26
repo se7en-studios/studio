@@ -6,7 +6,7 @@ export const team: TeamMember[] = [
     name: "Franco Riquero",
     role: "Fundador · Desarrollo",
     bio: "Ingeniero industrial y fundador de dos startups propias (Sentinel y Takefyy). Construye cada producto digital del estudio de punta a punta: desde la base de datos hasta lo que ves en pantalla.",
-    imageUrl: "/team/franco-riquero.jpg",
+    imageUrl: "/team/franco-riquero-2026-10.jpg",
     linkedin: "https://www.linkedin.com/in/franco-riquero-117492355/",
     focus: ["Arquitectura", "Base de datos", "Backend", "Frontend"],
   },
