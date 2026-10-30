@@ -37,3 +37,4 @@ Tu objetivo es redactar un artículo técnico/comercial de 800 a 1200 palabras e
 18. Por qué las agencias tradicionales tardan 5 meses en lo que un estudio de 2 personas hace en 3 semanas.
 19. Cómo calcular el retorno de inversión (ROI) antes de contratar el rediseño de tu web corporativa.
 20. Plan Canje y cotizadores online: Cómo aumentar el ticket promedio de una tienda de tecnología.
+

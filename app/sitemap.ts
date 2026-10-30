@@ -3,6 +3,7 @@ import { SITE } from "@/data/site";
 import { projects } from "@/data/projects";
 import { blogPosts } from "@/data/blog";
 import { comparisons } from "@/data/comparisons";
+import { industries } from "@/data/industries";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const staticRoutes = [
@@ -16,13 +17,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/tech",
     "/blog",
     "/audit",
+    "/cotizador",
+    "/para",
     "/calculadora-comisiones",
     "/testimonials",
     "/kickoff",
   ].map((path) => ({
     url: `${SITE.url}${path}`,
     changeFrequency: "monthly" as const,
-    priority: path === "" ? 1 : path === "/en" ? 0.9 : 0.7,
+    priority: path === "" ? 1 : path === "/en" ? 0.9 : path === "/cotizador" || path === "/para" ? 0.9 : 0.7,
     // La home y /en son la misma página en dos idiomas: hreflang en el sitemap.
     ...((path === "" || path === "/en") && {
       alternates: {
@@ -35,6 +38,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     url: `${SITE.url}/work/${p.slug}`,
     changeFrequency: "monthly" as const,
     priority: 0.8,
+  }));
+
+  const industryRoutes = industries.map((i) => ({
+    url: `${SITE.url}/para/${i.slug}`,
+    changeFrequency: "monthly" as const,
+    priority: 0.9,
   }));
 
   const blogRoutes = blogPosts.map((b) => ({
@@ -51,5 +60,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.8,
   }));
 
-  return [...staticRoutes, ...workRoutes, ...vsRoutes, ...blogRoutes];
+  return [...staticRoutes, ...workRoutes, ...industryRoutes, ...vsRoutes, ...blogRoutes];
 }

@@ -51,6 +51,14 @@ Todos los proyectos incluyen diseño exclusivo en Figma, desarrollo a medida en 
 
 ## Mapa del Sitio y Páginas Principales
 
+- [Cotizador Interactivo en 1 Minuto](https://www.se7en.com.ar/cotizador): Cotizador dinámico para que dueños de negocios calculen el costo, tiempo de entrega y funciones recomendadas para su web en pesos y USD con envío directo a WhatsApp.
+- [Soluciones Web para Negocios por Rubro](https://www.se7en.com.ar/para): Páginas web especializadas por industria en Argentina:
+  - [Inmobiliarias & Real Estate](https://www.se7en.com.ar/para/inmobiliarias): Portales inmobiliarios con catálogo propio, filtros por zona y WhatsApp directo por propiedad.
+  - [Restaurantes & Gastronomía](https://www.se7en.com.ar/para/gastronomia): Menú QR digital y pedidos directos a WhatsApp para ahorrar el 30% de comisión de PedidosYa y Rappi.
+  - [Marcas de Ropa & Indumentaria](https://www.se7en.com.ar/para/marcas-de-ropa): Tiendas de moda de alta conversión con variantes de talle/color y 0% comisión por venta.
+  - [Estudios & Profesionales](https://www.se7en.com.ar/para/profesionales): Sitios corporativos para abogados, contadores y consultoras para captar clientes corporativos.
+  - [Clínicas, Médicos & Estética](https://www.se7en.com.ar/para/salud-estetica): Webs para centros de salud, estética y odontología con gestión de turnos online.
+- [Calculadora de Pérdida por Comisiones](https://www.se7en.com.ar/calculadora-comisiones): Herramienta interactiva para calcular cuánto dinero pierde un negocio por mes en comisiones de PedidosYa, Mercado Libre y plataformas cerradas.
 - [Portada (Español)](https://www.se7en.com.ar/): Definición del estudio, trabajos en producción, servicios, proceso de 4 semanas, equipo y preguntas frecuentes.
 - [English Version — Custom Software & Product Studio](https://www.se7en.com.ar/en): Información completa en inglés para fundadores y empresas internacionales (Nearshore Next.js & AI Product Studio).
 - [Servicios y Entregables](https://www.se7en.com.ar/services): Detalle de los 4 paquetes de desarrollo, tiempos y garantías.
