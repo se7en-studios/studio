@@ -11,23 +11,23 @@ const COUNT_EASE = [0.22, 1, 0.36, 1] as const;
 const STATS = [
   {
     value: `${projects.length}`,
-    label: "Proyectos en producción",
-    note: "y en mantenimiento activo",
+    label: "Negocios funcionando online",
+    note: "marcas y clientes activos",
   },
   {
     value: "2–3",
-    label: "Semanas de idea a producción",
-    note: "en una landing o sitio",
+    label: "Semanas para tener tu web lista",
+    note: "rápido y con fecha exacta",
   },
   {
     value: "24h",
-    label: "Para responder tu consulta",
-    note: "hábiles, por WhatsApp o mail",
+    label: "Para responderte por WhatsApp",
+    note: "directo con Franco y Fede",
   },
   {
     value: "100%",
-    label: "Del código es tuyo",
-    note: "sin licencias ni ataduras",
+    label: "La web es tuya para siempre",
+    note: "cero cuotas de alquiler mensual",
   },
 ];
 
@@ -58,7 +58,9 @@ export function RdStats() {
               <p className="rd-body mt-4 text-base leading-tight font-semibold md:text-lg">
                 {stat.label}
               </p>
-              <p className="rd-label mt-1 text-(--ink)/65">{stat.note}</p>
+              <p className="rd-label mt-1 text-xs text-(--ink)/70">
+                {stat.note}
+              </p>
             </div>
           </m.div>
         ))}
@@ -67,35 +69,30 @@ export function RdStats() {
   );
 }
 
-/** Cuenta de 0 al número del valor ("24h", "100%"); si no hay número, lo muestra tal cual. */
 function CountUp({ value }: { value: string }) {
-  const match = value.match(/^(\D*)(\d+)(\D*)$/);
-  const prefix = match?.[1] ?? "";
-  const target = match ? parseInt(match[2], 10) : null;
-  const suffix = match?.[3] ?? "";
   const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-10% 0px" });
   const reduced = useReducedMotion();
-  const [shown, setShown] = useState("0");
-  const started = useRef(false);
+  const inView = useInView(ref, { once: true, margin: "0px 0px -10% 0px" });
+  const [display, setDisplay] = useState(value);
+
+  const num = parseInt(value, 10);
+  const hasNum = !isNaN(num);
 
   useEffect(() => {
-    if (target === null || !inView || reduced || started.current) return;
-    started.current = true;
-    const controls = animate(0, target, {
-      duration: 1.4,
+    if (!hasNum || reduced || !inView) {
+      setDisplay(value);
+      return;
+    }
+    const controls = animate(0, num, {
+      duration: 1.6,
       ease: COUNT_EASE,
-      onUpdate: (v) => setShown(String(Math.round(v))),
+      onUpdate: (latest) => {
+        const current = Math.round(latest);
+        setDisplay(value.replace(String(num), String(current)));
+      },
     });
     return () => controls.stop();
-  }, [inView, target, reduced]);
+  }, [hasNum, inView, num, reduced, value]);
 
-  if (target === null) return <span ref={ref}>{value}</span>;
-  return (
-    <span ref={ref}>
-      {prefix}
-      {reduced ? String(target) : shown}
-      {suffix}
-    </span>
-  );
+  return <span ref={ref}>{display}</span>;
 }

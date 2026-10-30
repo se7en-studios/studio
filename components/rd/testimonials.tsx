@@ -51,7 +51,7 @@ export function RdTestimonials() {
     >
       <div className="rd-wrap">
         <div className="flex flex-wrap items-end justify-between gap-6">
-          <RdLabel index="05" className="text-(--paper)/60">
+          <RdLabel index="07" className="text-(--paper)/60">
             Clientes
           </RdLabel>
           <div className="flex gap-2" role="tablist" aria-label="Testimonios">

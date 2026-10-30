@@ -18,19 +18,19 @@ import { RdHeroRing } from "@/components/rd/hero-ring";
 import { EASE_OUT, RdLabel, RdRoll } from "@/components/rd/primitives";
 
 const PROJECT_TYPES = [
-  "Landing page",
-  "Plataforma o app web",
-  "E-commerce",
-  "Inteligencia artificial",
-  "Rediseño",
+  "Página para mi negocio",
+  "Tienda online para vender",
+  "Sistema de turnos o pedidos",
+  "Renovar mi web actual",
+  "Asistente con IA",
 ];
 
 const BUDGETS = [
   "Menos de USD 1.500",
   "USD 1.500 – 3.000",
-  "USD 3.000 – 6.000",
-  "Más de USD 6.000",
-  "Todavía no sé",
+  "USD 3.000 – 5.000",
+  "Más de USD 5.000",
+  "Quiero que me asesoren",
 ];
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -108,7 +108,7 @@ export function RdContact() {
       />
       <div className="rd-wrap relative">
         <div className="flex items-center justify-between gap-4">
-          <RdLabel index="09" className="text-(--ink)/70">
+          <RdLabel index="11" className="text-(--ink)/70">
             Contacto
           </RdLabel>
           <span className="rd-label hidden text-(--ink)/70 sm:inline">

@@ -22,14 +22,14 @@ const PROJECT_NAMES = [...projects]
   .map((p) => p.name);
 
 const SERVICES = [
-  "Estrategia de producto",
-  "Diseño de interfaz",
-  "Motion & interacción",
-  "Desarrollo web",
-  "E-commerce",
-  "Integraciones de IA",
-  "Identidad digital",
-  "Performance & SEO",
+  "Páginas web a medida",
+  "Tiendas online sin comisiones",
+  "Cobros con Mercado Pago",
+  "Turnos y pedidos automáticos",
+  "Aparecer primero en Google",
+  "Diseño exclusivo en Figma",
+  "Carga en menos de 1 segundo",
+  "Asistentes inteligentes",
 ];
 
 export function RdMarquee() {

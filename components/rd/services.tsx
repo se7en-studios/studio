@@ -16,46 +16,46 @@ import { EASE_OUT, RdLabel, RdLines, RdReveal } from "./primitives";
 const services = [
   {
     number: "01",
-    title: "Experiencias Digitales",
-    tagline: "Landing pages y sitios de marca",
+    title: "Páginas Web para Empresas",
+    tagline: "Para que te encuentren en Google y te contacten",
     deliverables: [
-      "Landing pages",
-      "Sitios corporativos",
-      "Animaciones y detalles",
-      "SEO técnico",
+      "Aparecer primero en Google",
+      "Abre al instante en celular",
+      "Diseño exclusivo para tu marca",
+      "Botón directo a WhatsApp",
     ],
   },
   {
     number: "02",
-    title: "E-Commerce",
-    tagline: "Tiendas y catálogos",
+    title: "Tiendas Online a Medida",
+    tagline: "Vendé por internet con 0% de comisiones",
     deliverables: [
-      "Catálogo interactivo",
-      "Checkout optimizado",
-      "Panel de gestión",
-      "Pagos online",
+      "Cobros con Mercado Pago y tarjeta",
+      "Catálogo con fotos y stock en vivo",
+      "0% comisiones por venta para nosotros",
+      "Panel fácil para cambiar precios",
     ],
   },
   {
     number: "03",
-    title: "Productos Digitales",
-    tagline: "Plataformas y paneles a medida",
+    title: "Sistemas y Aplicaciones Web",
+    tagline: "Para turnos, pedidos y gestión de tu negocio",
     deliverables: [
-      "Plataformas a medida",
-      "Paneles de control",
-      "Usuarios y permisos",
-      "Sistema de diseño",
+      "Reservas de turnos y canchas",
+      "Menú digital y pedidos para comida",
+      "Acceso para empleados o clientes",
+      "Avisos automáticos por WhatsApp",
     ],
   },
   {
     number: "04",
-    title: "IA y Automatización",
-    tagline: "Procesos que se hacen solos",
+    title: "Inteligencia Artificial y Asistentes",
+    tagline: "Atención automática a tus clientes 24/7",
     deliverables: [
-      "Asistentes con IA",
-      "Integraciones entre sistemas",
-      "Datos en tiempo real",
-      "Tareas automáticas",
+      "Respuestas inteligentes a preguntas",
+      "Atención automática por WhatsApp",
+      "Recomendador de productos o platos",
+      "Cierre de ventas los 365 días",
     ],
   },
 ];
@@ -105,8 +105,8 @@ export function RdServices() {
             />
             <RdReveal className="mt-8 max-w-xl">
               <p className="rd-body text-lg leading-snug text-(--ink)/70 md:text-xl">
-                Diseño, desarrollo e IA en el mismo equipo. Todo hecho desde
-                cero, sin plantillas, y con el código a tu nombre.
+                Diseño, programación y atención personalizada en el mismo equipo.
+                Todo hecho desde cero para tu negocio, sin plantillas y 100% a tu nombre.
               </p>
             </RdReveal>
           </div>

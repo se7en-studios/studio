@@ -58,7 +58,7 @@ export const landingFaqs: FAQItem[] = faqs.map((item) =>
     ? {
         ...item,
         answer:
-          "Depende del alcance, así que lo calculamos juntos: nos contás qué necesitás y te pasamos una propuesta. Antes de empezar acordamos por escrito el alcance y el precio.",
+          "Depende de lo que necesites, pero para que tengas una referencia clara: una página para tu negocio arranca en USD 1.200 y una tienda online en USD 2.400. Podés calcular tu presupuesto exacto en 1 minuto en nuestro cotizador online antes de hablar con nosotros.",
       }
     : item,
 );
