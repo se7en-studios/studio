@@ -16,6 +16,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/tech",
     "/blog",
     "/audit",
+    "/calculadora-comisiones",
     "/testimonials",
     "/kickoff",
   ].map((path) => ({

@@ -331,6 +331,16 @@ function ContactForm() {
               <RdRoll>Ir a WhatsApp</RdRoll>
             </a>
           )}
+          <a
+            href={`https://wa.me/5492994247985?text=${encodeURIComponent(
+              `Hola Franco y Fede! Tengo en mente un proyecto para mi negocio:\n• Tipo: ${projectType || "A definir"}\n• Presupuesto: ${budget || "A definir"}\n• Nombre: ${name || "-"}\n• Idea: ${idea || "Quiero consultar cotización y plazos"}`
+            )}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rd-btn rd-btn--ghost text-xs md:text-sm"
+          >
+            <RdRoll>Escribir al WhatsApp</RdRoll>
+          </a>
           <button
             type="submit"
             disabled={status.kind === "sending"}
