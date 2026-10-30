@@ -21,6 +21,7 @@ import { MD, useMediaQuery } from "@/lib/use-media-query";
 import { projects } from "@/data/projects";
 import { brandFonts } from "@/lib/brand-fonts";
 import { caseBrand } from "@/lib/en-vivo";
+import { PhoneScreen } from "@/components/work/phone-screen";
 import type { Project, ProjectBrand } from "@/types";
 import { EASE_OUT, RdButton, RdLines } from "./primitives";
 
@@ -601,20 +602,12 @@ function Banner({ project, index }: { project: Project; index: number }) {
       )}
       {/* El celular: marco con fondo (no borde: el color de los bordes lo pisa globals.css). */}
       <div className="absolute top-[52%] left-1/2 w-[64%] -translate-x-1/2 rotate-[-4deg] rounded-[calc(var(--w)*0.09)] bg-[#2b2b31] p-[calc(var(--w)*0.012)] shadow-[0_24px_50px_-12px_rgba(0,0,0,0.9)] ring-1 ring-white/25 transition-transform duration-[1.2s] ease-(--ease-out) group-hover:-translate-y-2">
-        <div className="relative aspect-[390/844] overflow-hidden rounded-[calc(var(--w)*0.08)] bg-black">
-          <Image
-            src={project.screens?.mobile ?? project.image}
-            alt={`${project.name}: ${project.shortDescription}`}
-            draggable={false}
-            fill
-            sizes="40vw"
-            className="object-cover object-top"
-          />
-          <span
-            aria-hidden
-            className="absolute top-[2%] left-1/2 h-[3%] w-[30%] -translate-x-1/2 rounded-full bg-black"
-          />
-        </div>
+        <PhoneScreen
+          src={project.screens?.mobile ?? project.image}
+          alt={`${project.name}: ${project.shortDescription}`}
+          sizes="40vw"
+          className="rounded-[calc(var(--w)*0.08)]"
+        />
       </div>
     </div>
   );
@@ -924,19 +917,12 @@ function Card({ project, index }: { project: Project; index: number }) {
             {/* Y en el celular: más chico, adelante y a la derecha. El marco va con
                 fondo y no con borde: el color de los bordes lo pisa globals.css. */}
             <div className="absolute right-[6%] bottom-[7%] w-[27%] rounded-[1rem] bg-[#2b2b31] p-[3px] shadow-[0_18px_40px_-12px_rgba(0,0,0,0.85)] ring-1 ring-white/30 md:w-[21%] md:rounded-[1.3rem] md:p-1">
-              <div className="relative aspect-[390/844] overflow-hidden rounded-[0.8rem] bg-black md:rounded-[1.05rem]">
-                <Image
-                  src={phoneShot}
-                  alt={`${project.name} en celular`}
-                  fill
-                  sizes="(min-width: 768px) 14vw, 26vw"
-                  className="object-cover object-top"
-                />
-                <span
-                  aria-hidden
-                  className="absolute top-[2.2%] left-1/2 h-[3.4%] w-[30%] -translate-x-1/2 rounded-full bg-black"
-                />
-              </div>
+              <PhoneScreen
+                src={phoneShot}
+                alt={`${project.name} en celular`}
+                sizes="(min-width: 768px) 14vw, 26vw"
+                className="rounded-[0.8rem] md:rounded-[1.05rem]"
+              />
             </div>
           </>
         ) : (
