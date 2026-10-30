@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { Laptop, Smartphone, Tablet, ExternalLink } from "lucide-react";
 import { useSoundFx } from "@/components/providers/sound-provider";
+import { PhoneScreen } from "@/components/work/phone-screen";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 import type { Project } from "@/types";
 
@@ -162,20 +163,9 @@ export function ViewportSimulator({
 
         {device === "mobile" && (
           <div className="w-full max-w-[280px] overflow-hidden rounded-[40px] border-[8px] border-[#2c2c34] bg-black shadow-2xl">
-            {/* Barra de estado con la Dynamic Island: la captura empieza debajo, como en un teléfono */}
-            <div className="flex h-7 items-center justify-center bg-black">
-              <div className="h-4 w-20 rounded-full bg-[#111] ring-1 ring-white/10" />
-            </div>
-            <div className="relative aspect-[390/844] w-full overflow-hidden bg-surface">
-              <Image
-                src={screen ?? imageSrc}
-                alt={`${projectName} en celular`}
-                fill
-                sizes="280px"
-                className="object-cover object-top"
-              />
+            <PhoneScreen src={screen ?? imageSrc} alt={`${projectName} en celular`} sizes="280px">
               {clipVideo}
-            </div>
+            </PhoneScreen>
           </div>
         )}
       </div>

@@ -28,7 +28,7 @@ export const projects: Project[] = [
     image: "/projects/takefyy-2026-09.jpg",
     screens: {
       tablet: "/projects/devices/takefyy-tablet-2026-09.jpg",
-      mobile: "/projects/devices/takefyy-mobile-2026-09.jpg",
+      mobile: "/projects/devices/takefyy-mobile-2026-10.jpg",
     },
     video: {
       mp4: "/projects/videos/takefyy-2026-09c.mp4",
@@ -69,14 +69,14 @@ export const projects: Project[] = [
     outcome:
       "Tienda en producción, con stock y catálogo actualizados en tiempo real.",
     url: "https://ponelapavayerbas.com/",
-    image: "/projects/pone-la-pava-2026-09b.jpg",
+    image: "/projects/pone-la-pava-2026-10.jpg",
     screens: {
-      tablet: "/projects/devices/pone-la-pava-tablet-2026-09.jpg",
-      mobile: "/projects/devices/pone-la-pava-mobile-2026-09.jpg",
+      tablet: "/projects/devices/pone-la-pava-tablet-2026-10.jpg",
+      mobile: "/projects/devices/pone-la-pava-mobile-2026-10.jpg",
     },
     video: {
-      mp4: "/projects/videos/pone-la-pava-2026-09c.mp4",
-      webm: "/projects/videos/pone-la-pava-2026-09c.webm",
+      mp4: "/projects/videos/pone-la-pava-2026-10.mp4",
+      webm: "/projects/videos/pone-la-pava-2026-10.webm",
     },
     featured: true,
     order: 3,
@@ -113,14 +113,14 @@ export const projects: Project[] = [
     outcome:
       "Plataforma en producción con datos satelitales en vivo (NASA FIRMS) e índice de riesgo de incendio.",
     url: "https://www.sentineltech.com.ar/",
-    image: "/projects/sentinel-2026-09.jpg",
+    image: "/projects/sentinel-2026-10.jpg",
     screens: {
-      tablet: "/projects/devices/sentinel-tablet-2026-09.jpg",
-      mobile: "/projects/devices/sentinel-mobile-2026-09.jpg",
+      tablet: "/projects/devices/sentinel-tablet-2026-10.jpg",
+      mobile: "/projects/devices/sentinel-mobile-2026-10.jpg",
     },
     video: {
-      mp4: "/projects/videos/sentinel-2026-09c.mp4",
-      webm: "/projects/videos/sentinel-2026-09c.webm",
+      mp4: "/projects/videos/sentinel-2026-10.mp4",
+      webm: "/projects/videos/sentinel-2026-10.webm",
     },
     featured: false,
     order: 6,
@@ -160,7 +160,7 @@ export const projects: Project[] = [
     image: "/projects/apex-ai-2026-10.jpg",
     screens: {
       tablet: "/projects/devices/apex-ai-tablet-2026-10.jpg",
-      mobile: "/projects/devices/apex-ai-mobile-2026-10.jpg",
+      mobile: "/projects/devices/apex-ai-mobile-2026-10b.jpg",
     },
     video: {
       mp4: "/projects/videos/apex-ai-2026-10c.mp4",
@@ -259,14 +259,14 @@ export const projects: Project[] = [
     outcome:
       "Sitio en producción, usado como canal principal de consulta para compradores e inversores en la Patagonia.",
     url: "https://altumsci.com.ar/",
-    image: "/projects/altum-sci-2026-09.jpg",
+    image: "/projects/altum-sci-2026-10.jpg",
     screens: {
-      tablet: "/projects/devices/altum-sci-tablet-2026-09.jpg",
-      mobile: "/projects/devices/altum-sci-mobile-2026-09.jpg",
+      tablet: "/projects/devices/altum-sci-tablet-2026-10.jpg",
+      mobile: "/projects/devices/altum-sci-mobile-2026-10.jpg",
     },
     video: {
-      mp4: "/projects/videos/altum-sci-2026-09c.mp4",
-      webm: "/projects/videos/altum-sci-2026-09c.webm",
+      mp4: "/projects/videos/altum-sci-2026-10.mp4",
+      webm: "/projects/videos/altum-sci-2026-10.webm",
     },
     featured: false,
     order: 7,
@@ -306,7 +306,7 @@ export const projects: Project[] = [
     image: "/projects/pravilo-2026-09.jpg",
     screens: {
       tablet: "/projects/devices/pravilo-tablet-2026-09.jpg",
-      mobile: "/projects/devices/pravilo-mobile-2026-09.jpg",
+      mobile: "/projects/devices/pravilo-mobile-2026-10.jpg",
     },
     video: {
       mp4: "/projects/videos/pravilo-2026-09c.mp4",
@@ -347,14 +347,14 @@ export const projects: Project[] = [
     outcome:
       "Sitio en producción con reservas online, Canchas Abiertas comunitarias y herramientas para jugadores.",
     url: "https://muzzaga-padel-seven.vercel.app/",
-    image: "/projects/muzzaga-2026-09.jpg",
+    image: "/projects/muzzaga-2026-10.jpg",
     screens: {
-      tablet: "/projects/devices/muzzaga-tablet-2026-09.jpg",
-      mobile: "/projects/devices/muzzaga-mobile-2026-09.jpg",
+      tablet: "/projects/devices/muzzaga-tablet-2026-10.jpg",
+      mobile: "/projects/devices/muzzaga-mobile-2026-10.jpg",
     },
     video: {
-      mp4: "/projects/videos/muzzaga-2026-09c.mp4",
-      webm: "/projects/videos/muzzaga-2026-09c.webm",
+      mp4: "/projects/videos/muzzaga-2026-10.mp4",
+      webm: "/projects/videos/muzzaga-2026-10.webm",
     },
     featured: false,
     order: 5,
@@ -394,8 +394,8 @@ export const projects: Project[] = [
     url: "https://iphonevita.vercel.app/",
     image: "/projects/iphone-vita-2026-09.jpg",
     screens: {
-      tablet: "/projects/devices/iphone-vita-tablet-2026-09.jpg",
-      mobile: "/projects/devices/iphone-vita-mobile-2026-09.jpg",
+      tablet: "/projects/devices/iphone-vita-tablet-2026-10.jpg",
+      mobile: "/projects/devices/iphone-vita-mobile-2026-10.jpg",
     },
     video: {
       mp4: "/projects/videos/iphone-vita-2026-09c.mp4",

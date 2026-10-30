@@ -12,10 +12,13 @@ Dos archivos por proyecto, con el slug exacto de `data/projects.ts`:
     public/projects/videos/<slug>-<aaaa-mm>.webm
 
 El sufijo de fecha evita que el navegador o la CDN sirvan un clip viejo
-cacheado con el mismo nombre. Los clips de 2026-09c son grabaciones del sitio
+cacheado con el mismo nombre. Los de Poné La Pava, Muzzaga, Sentinel y Altum
+(2026-10) se regrabaron con los sitios nuevos, con el screencast de Chrome: el
+cursor pasa por el CTA, baja en tres tramos con una pausa en cada uno y el
+final funde con el primer cuadro. Los clips de 2026-09c son grabaciones del sitio
 en vivo a 1280×800 (16:10, la misma proporción que las pantallas de la rueda
 3D y que las capturas): bajan por la página, pasan el cursor por el CTA y
-vuelven arriba. En Pravilo y Muzzaga recorren el sistema de turnos sin
+vuelven arriba. En Pravilo recorre el sistema de turnos sin
 confirmar ninguna reserva. El de Apex (2026-10c, 23 s) baja a ritmo de persona
 que descubre la página: pasa el cursor por el CTA y después giros de rueda
 cortos, con su frenado y una pausa para mirar, por el caos, el manifiesto y

@@ -2,12 +2,19 @@ Capturas de cada proyecto, tomadas del sitio en vivo a 1440×900 (@1.5x).
 
 - takefyy-2026-09.jpg
 - apex-ai-2026-10.jpg (la landing nueva, rediseño «CARGA»)
-- pone-la-pava-2026-09b.jpg
+- pone-la-pava-2026-10.jpg (el rediseño de octubre)
 - pravilo-2026-09.jpg
-- sentinel-2026-09.jpg
-- altum-sci-2026-09.jpg
-- muzzaga-2026-09.jpg
+- sentinel-2026-10.jpg («El aviso llega antes que el humo»)
+- altum-sci-2026-10.jpg (el buscador «Quiero comprar…»)
+- muzzaga-2026-10.jpg
 - iphone-vita-2026-09.jpg
+
+`devices/` tiene las de tablet (768×1024 @1.5) y celular (campo `screens`).
+Las de celular se sacan a **390×790 @2** (780×1580), no a 390×844: los 54 pt de
+arriba son la barra de estado con la Dynamic Island, que dibuja
+`components/work/phone-screen.tsx`, y el sitio empieza debajo, como en el
+teléfono. Si la captura ocupara la pantalla entera, la isla taparía la barra de
+arriba del sitio.
 
 Referenciadas desde `data/projects.ts` (campo `image`). Al actualizar una
 captura, cambiar el sufijo de fecha: next/image cachea por URL y con el mismo
