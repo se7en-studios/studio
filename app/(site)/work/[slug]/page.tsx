@@ -339,12 +339,20 @@ export default async function CaseStudyPage({
                     </h3>
                   </div>
 
-                  <Magnetic className="shrink-0">
-                    <ButtonLink href="/#contact">
-                      Iniciar conversación
-                      <ArrowUpRight size={16} />
-                    </ButtonLink>
-                  </Magnetic>
+                  <div className="flex flex-wrap items-center gap-3 shrink-0">
+                    <Magnetic>
+                      <ButtonLink href="/cotizador" variant="secondary">
+                        Cotizar en 1 min
+                        <ArrowUpRight size={16} />
+                      </ButtonLink>
+                    </Magnetic>
+                    <Magnetic>
+                      <ButtonLink href="/#contacto">
+                        Iniciar conversación
+                        <ArrowUpRight size={16} />
+                      </ButtonLink>
+                    </Magnetic>
+                  </div>
                 </div>
               </div>
             </div>

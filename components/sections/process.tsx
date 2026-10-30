@@ -141,7 +141,7 @@ export function Process() {
             </p>
           </div>
           <ButtonLink
-            href="/#contact"
+            href="/#contacto"
             variant="secondary"
             className="shrink-0 self-start md:self-auto"
           >

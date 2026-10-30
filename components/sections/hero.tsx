@@ -160,7 +160,7 @@ export function Hero() {
               style={{ animationDelay: SEQUENCE.cta }}
             >
               <Magnetic>
-                <ButtonLink href="/#contact">
+                <ButtonLink href="/#contacto">
                   Iniciar un proyecto
                   <ArrowRight
                     size={16}

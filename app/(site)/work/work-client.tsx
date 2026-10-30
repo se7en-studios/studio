@@ -163,7 +163,7 @@ export function WorkArchiveClient() {
                 <ArrowRight size={16} />
               </Link>
               <Link
-                href="/#contact"
+                href="/#contacto"
                 className="focus-ring inline-flex items-center gap-2 rounded-full border border-border bg-background px-6 py-3.5 text-sm font-medium text-muted transition-colors hover:text-foreground"
               >
                 <span>Contacto directo</span>

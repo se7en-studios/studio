@@ -240,7 +240,7 @@ export default function ServicesPage() {
                         <ArrowRight size={12} />
                       </Link>
                       <Link
-                        href="/#contact"
+                        href="/#contacto"
                         className="focus-ring inline-flex items-center gap-1.5 text-xs font-mono text-muted hover:text-foreground"
                       >
                         <span>Consultar</span>
@@ -305,7 +305,7 @@ export default function ServicesPage() {
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
               <Link
-                href="/#contact"
+                href="/#contacto"
                 className="focus-ring inline-flex items-center gap-2 rounded-full bg-accent px-8 py-4 text-sm font-medium text-background transition-all hover:bg-accent/90 hover:shadow-[0_0_25px_rgba(255,77,46,0.35)]"
               >
                 <span>Hablemos de tu idea</span>
