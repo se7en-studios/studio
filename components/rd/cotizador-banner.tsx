@@ -1,33 +1,31 @@
 "use client";
 
 import { useRef, useState, MouseEvent } from "react";
-import { m } from "framer-motion";
-import { ArrowUpRight, Calculator, CheckCircle2, Clock, Sparkles, ShieldCheck, Zap } from "lucide-react";
+import { ArrowUpRight, Calculator, CheckCircle2, Clock, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { RdButton, RdLabel, RdRoll } from "@/components/rd/primitives";
-import { RdHeroRing } from "@/components/rd/hero-ring";
+import { RdButton, RdRoll } from "@/components/rd/primitives";
 
 const PACKAGES = [
   {
-    title: "Landing Corporativa",
+    title: "Página para tu Negocio",
     price: "Desde USD 1.200",
     time: "7 a 10 días hábiles",
-    desc: "Para empresas de servicios, inmobiliarias y marcas que buscan captar leads sin vueltas.",
+    desc: "Para que tus clientes te encuentren en Google, conozcan tus servicios y te manden WhatsApp directo.",
     href: "/cotizador",
   },
   {
-    title: "E-Commerce a Medida",
+    title: "Tienda Online para Vender",
     price: "Desde USD 2.400",
     time: "14 a 18 días hábiles",
-    desc: "Tienda online rápida con cobro por Mercado Pago, stock en vivo y 0% de comisiones por venta.",
+    desc: "Para mostrar tus productos con fotos, cobrar con Mercado Pago y recibir pedidos sin pagar comisiones.",
     popular: true,
     href: "/cotizador",
   },
   {
-    title: "Plataforma / SaaS MVP",
+    title: "Sistema de Turnos o Pedidos",
     price: "Desde USD 2.800",
     time: "18 a 25 días hábiles",
-    desc: "Aplicación web con usuarios, base de datos PostgreSQL, panel de control y módulos de IA.",
+    desc: "Para restaurantes, clubes de pádel, clínicas o gimnasios que necesitan reservas y pedidos automáticos.",
     href: "/cotizador",
   },
 ];
@@ -56,14 +54,13 @@ export function RdCotizadorBanner() {
       data-theme="ink"
       className="relative overflow-hidden bg-(--ink) py-24 md:py-36 border-t border-(--line)"
     >
-      {/* Anillo de resplandor decorativo de fondo */}
+      {/* Resplandor decorativo de fondo */}
       <div
         aria-hidden
         className="pointer-events-none absolute top-1/2 left-1/2 h-[75vw] w-[75vw] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(255,77,46,0.12),transparent)]"
       />
 
       <div className="rd-wrap relative">
-        {/* Banner principal enmarcado */}
         <div
           ref={containerRef}
           onMouseMove={handleMouseMove}
@@ -85,7 +82,7 @@ export function RdCotizadorBanner() {
             <div className="lg:col-span-7">
               <div className="inline-flex items-center gap-2 rounded-full border border-(--signal)/40 bg-(--signal)/10 px-4 py-1.5 text-xs font-mono text-(--signal)">
                 <Calculator size={14} />
-                <span>COTIZADOR INTERACTIVO 2026</span>
+                <span>COTIZADOR EN LÍNEA EN 1 MINUTO</span>
               </div>
 
               <h2 className="rd-condensed mt-6 text-[clamp(2.75rem,6.5vw,5.5rem)] leading-[0.9] text-(--paper)">
@@ -94,37 +91,36 @@ export function RdCotizadorBanner() {
                 <span className="text-(--signal)">ANTES DE HABLAR CON NADIE.</span>
               </h2>
 
-              <p className="rd-body mt-6 max-w-xl text-base leading-relaxed text-(--paper)/75 md:text-lg">
-                Seleccioná el tipo de proyecto, las integraciones que necesitás y obtené al
-                instante el presupuesto en USD / ARS y la fecha exacta de entrega. Sin llamadas
-                sorpresa ni formularios eternos.
+              <p className="rd-body mt-6 max-w-xl text-base leading-relaxed text-(--paper)/80 md:text-lg">
+                Elegí qué tipo de página necesitás y calculá al instante el precio en pesos o
+                dólares y en cuántos días la tenés lista. Sin llamadas sorpresa, sin vueltas y sin compromiso.
               </p>
 
-              {/* Badges de garantía */}
+              {/* Badges de garantía en cristiano */}
               <div className="mt-8 flex flex-wrap gap-4 text-xs font-mono text-(--paper)/70">
                 <span className="flex items-center gap-1.5">
                   <CheckCircle2 size={15} className="text-(--signal)" />
-                  Garantía 30 días post-lanzamiento
+                  Hablás directo con Franco y Fede
                 </span>
                 <span className="flex items-center gap-1.5">
                   <CheckCircle2 size={15} className="text-(--signal)" />
-                  Código 100% tuyo en GitHub
+                  La página es 100% tuya para siempre
                 </span>
                 <span className="flex items-center gap-1.5">
                   <CheckCircle2 size={15} className="text-(--signal)" />
-                  0% comisiones por venta
+                  30 días de garantía incluidos
                 </span>
               </div>
 
               <div className="mt-10 flex flex-wrap items-center gap-4">
                 <RdButton href="/cotizador" variant="signal" className="text-sm md:text-base">
-                  Calcular presupuesto en 1 min
+                  Calcular mi página en 1 min
                 </RdButton>
                 <Link
                   href="/calculadora-comisiones"
                   className="rd-btn rd-btn--ghost text-xs md:text-sm"
                 >
-                  <RdRoll>Calculadora de comisiones</RdRoll>
+                  <RdRoll>¿Cuánto perdés en comisiones?</RdRoll>
                 </Link>
               </div>
             </div>
@@ -149,16 +145,16 @@ export function RdCotizadorBanner() {
                       {pkg.price}
                     </span>
                   </div>
-                  <p className="rd-body mt-2 text-xs text-(--paper)/65 leading-relaxed">
+                  <p className="rd-body mt-2 text-xs text-(--paper)/70 leading-relaxed">
                     {pkg.desc}
                   </p>
-                  <div className="mt-3 flex items-center justify-between pt-3 border-t border-white/[0.05] text-[11px] font-mono text-(--paper)/40">
+                  <div className="mt-3 flex items-center justify-between pt-3 border-t border-white/[0.05] text-[11px] font-mono text-(--paper)/45">
                     <span className="flex items-center gap-1">
                       <Clock size={12} />
                       {pkg.time}
                     </span>
                     <span className="text-(--signal) group-hover:underline inline-flex items-center gap-1">
-                      Cotizar este plan <ArrowUpRight size={12} />
+                      Calcular esta opción <ArrowUpRight size={12} />
                     </span>
                   </div>
                 </Link>
