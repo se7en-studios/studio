@@ -18,14 +18,16 @@ import {
 import { prospectLeads, type ProspectLead } from "@/data/prospects";
 import { WhatsAppLogo } from "@/components/icons/whatsapp-logo";
 
-const CITIES = ["Todas", "Catriel", "Neuquén", "San Rafael", "Mendoza"] as const;
+const CITIES = ["Todas", "Catriel", "Neuquén", "Cipolletti", "Plottier", "San Rafael", "Mendoza"] as const;
 const CATEGORIES = [
   "Todas",
+  "Club de Pádel & Deporte",
+  "Gimnasio & Entrenamiento",
   "Inmobiliaria",
   "Bodega & Enoturismo",
+  "Hotelería & Cabañas",
   "Gastronomía & Cervecería",
-  "Hotelería & Turismo",
-  "Comercio & Moda",
+  "Comercio & Gourmet",
 ] as const;
 
 export function ProspectosClient() {
