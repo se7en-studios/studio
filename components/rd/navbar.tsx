@@ -180,7 +180,12 @@ export function RdNavbar() {
             className="fixed inset-0 z-[105] flex flex-col justify-between bg-(--signal) px-(--gutter) pt-24 pb-8 text-(--ink)"
           >
             <nav aria-label="Secciones" className="flex flex-col">
-              {[...LINKS, { href: "#contacto", label: "Contacto" }].map(
+              {[
+                ...LINKS,
+                { href: "/cotizador", label: "Cotizador" },
+                { href: "/para", label: "Para Negocios" },
+                { href: "#contacto", label: "Contacto" },
+              ].map(
                 (l, i) => (
                   <span key={l.href} className="rd-mask">
                     <m.a

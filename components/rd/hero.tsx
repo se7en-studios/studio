@@ -99,7 +99,16 @@ export function RdHero() {
           transition={{ duration: 0.8, delay: 0.2 }}
           className="rd-label flex items-center justify-between gap-4 text-(--paper)/70"
         >
-          <span>( Estudio de producto digital )</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <span>( Estudio de producto digital )</span>
+            <Link
+              href="/cotizador"
+              className="inline-flex items-center gap-1.5 rounded-full border border-(--signal)/40 bg-(--signal)/10 px-3 py-1 text-[11px] font-mono text-(--signal) transition-all hover:bg-(--signal)/20 hover:border-(--signal)"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-(--signal) animate-pulse" />
+              Cotizá tu web en 1 min ↗
+            </Link>
+          </div>
           <span className="hidden sm:inline">Est. 2025 — Patagonia, AR</span>
         </m.div>
 
@@ -155,6 +164,9 @@ export function RdHero() {
               </p>
               <div className="mt-7 flex flex-wrap items-center gap-3">
                 <RdButton href="#contacto">Empezá tu proyecto</RdButton>
+                <RdButton href="/cotizador" variant="ghost">
+                  Cotizador 1 min ↗
+                </RdButton>
                 <RdButton href="#trabajos" variant="ghost">
                   Ver trabajos
                 </RdButton>

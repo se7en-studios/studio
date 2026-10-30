@@ -7,7 +7,11 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { testimonials } from "@/data/team";
 
 export function Testimonials() {
-  if (!testimonials || testimonials.length === 0) return null;
+  const visible = testimonials
+    .filter((t) => t.published)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  if (!visible || visible.length === 0) return null;
 
   return (
     <section className="border-t border-border py-20 md:py-28">
@@ -29,7 +33,7 @@ export function Testimonials() {
         </div>
 
         <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2">
-          {testimonials.map((t) => {
+          {visible.map((t) => {
             const initials = t.name
               .split(" ")
               .map((n) => n[0])
