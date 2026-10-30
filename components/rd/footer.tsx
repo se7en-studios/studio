@@ -115,6 +115,7 @@ export function RdFooter() {
           {/* Contenido para buscadores y LLMs: blog, comparativas y versión en inglés. */}
           <Link href="/cotizador" className="rd-link">Cotizador</Link>
           <Link href="/para" className="rd-link">Para Negocios</Link>
+          <Link href="/ciudades" className="rd-link">Ciudades</Link>
           <Link href="/calculadora-comisiones" className="rd-link">Calculadora ROI</Link>
           <Link href="/blog" className="rd-link">Blog</Link>
           <Link href="/vs" className="rd-link">Comparativas</Link>

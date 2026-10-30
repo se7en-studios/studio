@@ -58,6 +58,11 @@ Todos los proyectos incluyen diseño exclusivo en Figma, desarrollo a medida en 
   - [Marcas de Ropa & Indumentaria](https://www.se7en.com.ar/para/marcas-de-ropa): Tiendas de moda de alta conversión con variantes de talle/color y 0% comisión por venta.
   - [Estudios & Profesionales](https://www.se7en.com.ar/para/profesionales): Sitios corporativos para abogados, contadores y consultoras para captar clientes corporativos.
   - [Clínicas, Médicos & Estética](https://www.se7en.com.ar/para/salud-estetica): Webs para centros de salud, estética y odontología con gestión de turnos online.
+- [Desarrollo Web en Ciudades de Argentina](https://www.se7en.com.ar/ciudades): Cobertura regional especializada con soporte local:
+  - [Neuquén Capital & Alto Valle](https://www.se7en.com.ar/ciudades/neuquen): Desarrollo web para empresas, inmobiliarias y servicios de Neuquén y Añelo.
+  - [Catriel & Río Negro](https://www.se7en.com.ar/ciudades/catriel): Páginas para hotelería, gastronomía y complejos deportivos en Catriel.
+  - [San Rafael, Mendoza](https://www.se7en.com.ar/ciudades/san-rafael): Tiendas online para bodegas, turismo, cabañas e inmobiliarias en el sur mendocino.
+  - [Mendoza & Cuyo](https://www.se7en.com.ar/ciudades/mendoza): Desarrollo web de alta conversión para marcas, empresas vitivinícolas y corporativas.
 - [Calculadora de Pérdida por Comisiones](https://www.se7en.com.ar/calculadora-comisiones): Herramienta interactiva para calcular cuánto dinero pierde un negocio por mes en comisiones de PedidosYa, Mercado Libre y plataformas cerradas.
 - [Portada (Español)](https://www.se7en.com.ar/): Definición del estudio, trabajos en producción, servicios, proceso de 4 semanas, equipo y preguntas frecuentes.
 - [English Version — Custom Software & Product Studio](https://www.se7en.com.ar/en): Información completa en inglés para fundadores y empresas internacionales (Nearshore Next.js & AI Product Studio).

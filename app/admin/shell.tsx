@@ -29,6 +29,7 @@ import {
   Search,
   Settings,
   Sun,
+  Target,
   Users,
   Wallet,
   Wrench,
@@ -63,6 +64,7 @@ const NAV: { title: string | null; items: NavItem[] }[] = [
     title: "Clientes",
     items: [
       { href: "/admin/pedidos", label: "Pedidos", icon: <Inbox size={16} />, badge: "newLeads", tone: "accent" },
+      { href: "/admin/prospectos", label: "Prospectos", icon: <Target size={16} /> },
       { href: "/admin/clientes", label: "Clientes", icon: <Users size={16} /> },
       { href: "/admin/proyectos", label: "Proyectos", icon: <FolderKanban size={16} />, badge: "lateProjects", tone: "red" },
       { href: "/admin/mantenimiento", label: "Mantenimiento", icon: <Wrench size={16} />, badge: "maintenance", tone: "accent" },
