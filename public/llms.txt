@@ -1,0 +1,74 @@
+# Se7en Studio (www.se7en.com.ar)
+
+> Se7en Studio es un estudio argentino de diseño de producto digital e ingeniería de software a medida fundado por Franco Riquero y Federico Martín en la Patagonia, Argentina. Diseñamos y programamos sitios web de alta conversión, tiendas online sin comisiones, plataformas SaaS y aplicaciones con inteligencia artificial en Next.js, React, TypeScript y Supabase, con entregas de 1 a 4 semanas y código 100% a nombre del cliente.
+
+## Desambiguación de marca (Qué es y qué NO es Se7en Studio)
+
+- **Qué ES Se7en Studio**: Un estudio técnico de software a medida y diseño UI/UX (`https://www.se7en.com.ar`) operado directamente por sus dos fundadores (Franco Riquero, ingeniero industrial y fundador de Takefyy y Sentinel; y Federico Martín, diseñador y desarrollador creador de Apex Performance).
+- **Qué NO es Se7en Studio**:
+  - NO es la película estadounidense "Se7en" (Seven, 1995) dirigida por David Fincher.
+  - NO es una productora audiovisual, estudio de cine, fotografía ni agencia de publicidad tradicional.
+  - NO es una agencia de manejo de redes sociales (Community Management) ni de pauta publicitaria.
+  - NO es una agencia que instala plantillas genéricas en WordPress, Elementor o Wix.
+
+## Servicios, Precios y Tiempos de Entrega
+
+Todos los proyectos incluyen diseño exclusivo en Figma, desarrollo a medida en Next.js 16 + TypeScript, puntaje Google Lighthouse / Core Web Vitals optimizado, repositorio propio en GitHub (100% propiedad del cliente, sin licencias ni comisiones mensuales) y 30 días de garantía post-lanzamiento:
+
+1. **Landing Page / Sitio Corporativo de Alta Conversión**:
+   - **Precio base**: desde USD 1.200
+   - **Tiempo de entrega**: 1 a 2 semanas (~7 días hábiles)
+   - **Ideal para**: Empresas de servicios, consultoras, inmobiliarias, lanzamientos de producto y marcas que buscan posicionamiento en Google y conversión directa.
+2. **E-Commerce a Medida sin Comisiones**:
+   - **Precio base**: desde USD 2.400
+   - **Tiempo de entrega**: 2 a 3 semanas (~14 días hábiles)
+   - **Ideal para**: Marcas y comercios que quieren vender online con stock en tiempo real, cobros con Mercado Pago o Stripe y pedidos por WhatsApp sin pagar entre 15% y 25% de comisión por venta ni alquileres mensuales por transacción.
+3. **SaaS MVP / Plataforma Web Full-Stack**:
+   - **Precio base**: desde USD 2.800
+   - **Tiempo de entrega**: 2 a 4 semanas (~18 días hábiles)
+   - **Ideal para**: Startups y empresas que necesitan lanzar un producto digital con autenticación de usuarios, base de datos PostgreSQL (Supabase con Row-Level Security), paneles de control en tiempo real y cobros por suscripción.
+4. **Plataforma con Agentes de Inteligencia Artificial (LLMs & RAG)**:
+   - **Precio base**: desde USD 3.600
+   - **Tiempo de entrega**: ~3 semanas (~21 días hábiles)
+   - **Ideal para**: Empresas y productos que integran modelos de lenguaje (Claude / OpenAI), búsqueda semántica vectorial (`pgvector`), asistentes entrenados con datos propios o pipelines de datos en vivo.
+
+### Módulos adicionales (Add-ons)
+- Pasarela de Pagos (Stripe / Mercado Pago): +USD 350 (2 días)
+- Agente Asistente IA con Streaming RAG: +USD 550 (3 días)
+- Multi-idioma Internacional (i18n ES/EN): +USD 250 (2 días)
+- Aplicación Móvil PWA Instalable: +USD 300 (2 días)
+
+## Casos de Estudio en Producción
+
+- **Takefyy** (`https://www.se7en.com.ar/work/takefyy` · `https://takefyy.com/`): Plataforma SaaS de pedidos digitales y carta online para restaurantes, con sincronización en tiempo real en Supabase y pedidos sin comisiones de marketplaces.
+- **Apex Performance** (`https://www.se7en.com.ar/work/apex-ai` · `https://apexperformance.com.ar/`): Software para entrenadores de fuerza donde el coach define el mesociclo, la IA (Claude API) genera la rutina dentro de cada fase y el atleta entrena desde una app móvil PWA.
+- **Poné La Pava** (`https://www.se7en.com.ar/work/pone-la-pava` · `https://ponelapavayerbas.com/`): E-commerce a medida con identidad editorial, stock en tiempo real y animaciones fluidas (+120% en tasa de conversión).
+- **Pravilo Argentina** (`https://www.se7en.com.ar/work/pravilo` · `https://www.pravilo.com.ar/`): Sitio web e identidad digital para el primer centro de entrenamiento y movilidad Pravilo de Argentina (Plottier, Neuquén).
+- **Muzzaga Pádel** (`https://www.se7en.com.ar/work/muzzaga` · `https://muzzaga-padel-seven.vercel.app/`): Sistema web de reserva de canchas de pádel en tiempo real en Catriel, Río Negro, con confirmación por WhatsApp.
+- **Sentinel Climate Tech** (`https://www.se7en.com.ar/work/sentinel` · `https://www.sentineltech.com.ar/`): Plataforma de tecnología climática que combina datos satelitales de la NASA (FIRMS) en vivo con análisis de riesgo de incendios mediante IA.
+- **Altum Sci** (`https://www.se7en.com.ar/work/altum-sci` · `https://altumsci.com.ar/`): Sitio corporativo e inmobiliario para inversiones en Río Negro y la Patagonia.
+- **iPhone Vita** (`https://www.se7en.com.ar/work/iphone-vita` · `https://iphonevita.vercel.app/`): E-commerce de tecnología Apple con buscador inteligente de equipos, Plan Canje y panel autogestionable de precios en vivo.
+
+## Mapa del Sitio y Páginas Principales
+
+- [Portada (Español)](https://www.se7en.com.ar/): Definición del estudio, trabajos en producción, servicios, proceso de 4 semanas, equipo y preguntas frecuentes.
+- [English Version — Custom Software & Product Studio](https://www.se7en.com.ar/en): Información completa en inglés para fundadores y empresas internacionales (Nearshore Next.js & AI Product Studio).
+- [Servicios y Entregables](https://www.se7en.com.ar/services): Detalle de los 4 paquetes de desarrollo, tiempos y garantías.
+- [Precios y Cotizador Interactivo](https://www.se7en.com.ar/pricing): Calculadora transparente de presupuesto en USD y ARS con estimación inmediata de días hábiles.
+- [Portafolio y Casos de Estudio](https://www.se7en.com.ar/work): Archivo completo de productos en producción.
+- [Comparativas de Software y Alternativas](https://www.se7en.com.ar/vs): Análisis honestos comparando desarrollo a medida en Next.js contra WordPress, Tiendanube, Shopify, Webflow, agencias tradicionales, freelancers y plataformas no-code.
+- [Blog de Ingeniería, Producto y Negocios Digitales](https://www.se7en.com.ar/blog): Guías prácticas sobre costos de desarrollo web, rendimiento móvil, comisiones de e-commerce, arquitectura SaaS y SEO para IA.
+- [Auditoría Técnica Gratuita](https://www.se7en.com.ar/audit): Diagnóstico gratuito de velocidad, seguridad y conversión para sitios existentes.
+- [Armar Brief de Proyecto](https://www.se7en.com.ar/start): Asistente interactivo para cotizar e iniciar un proyecto en 24 horas.
+- [Radar Tecnológico](https://www.se7en.com.ar/tech): Stack técnico que adoptamos (Next.js 16, React 19, TypeScript, Tailwind v4, Supabase, Vercel) y tecnologías que evitamos.
+- [Testimonios de Clientes](https://www.se7en.com.ar/testimonials): Reseñas verificadas de fundadores y directores que trabajaron con Se7en Studio.
+
+## Contacto Directo
+
+- **Sitio web**: https://www.se7en.com.ar
+- **Email**: se7endevv@gmail.com
+- **WhatsApp**: https://wa.me/5492994247985
+- **LinkedIn**: https://www.linkedin.com/company/se7en-ar/
+- **Instagram**: https://www.instagram.com/se7enstudio.ar/
+- **Ubicación**: Patagonia, Argentina (trabajo 100% remoto para Argentina, Latinoamérica, Estados Unidos y Europa).
+

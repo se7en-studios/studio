@@ -112,6 +112,10 @@ export function RdFooter() {
               LinkedIn
             </a>
           )}
+          {/* Contenido para buscadores y LLMs: blog, comparativas y versión en inglés. */}
+          <Link href="/blog" className="rd-link">Blog</Link>
+          <Link href="/vs" className="rd-link">Comparativas</Link>
+          <Link href="/en" hrefLang="en" className="rd-link">English</Link>
           {/* El sitio anterior ya no es la home. */}
           <Link href="/services" className="rd-link">
             Sitio actual

@@ -22,7 +22,10 @@ const DESCRIPTION =
 export const metadata: Metadata = {
   title: { absolute: TITLE },
   description: DESCRIPTION,
-  alternates: { canonical: "/" },
+  alternates: {
+    canonical: "/",
+    languages: { "es-AR": "/", en: "/en", "x-default": "/" },
+  },
   openGraph: { title: TITLE, description: DESCRIPTION, url: "/", siteName: "Se7en Studio", type: "website", locale: "es_AR" },
   twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
 };

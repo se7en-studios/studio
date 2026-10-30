@@ -146,12 +146,12 @@ export function RdHero() {
             >
               <ProofPill slug={proof.slug} what={proof.what} />
               <p className="rd-body max-w-[30rem] text-lg leading-snug text-(--paper)/80 md:text-xl">
-                Webs, tiendas y apps a medida,{" "}
+                <span className="text-(--paper)">Se7en Studio</span> es un estudio argentino que diseña y programa webs, tiendas online y apps con IA a medida,{" "}
                 <span className="text-(--paper)">
                   de la idea a producción en 2 a 3 semanas.
                 </span>{" "}
-                Hablás directo con los dos fundadores que las diseñan y
-                programan.
+                Hablás directo con los dos fundadores y el código queda a tu
+                nombre.
               </p>
               <div className="mt-7 flex flex-wrap items-center gap-3">
                 <RdButton href="#contacto">Empezá tu proyecto</RdButton>
