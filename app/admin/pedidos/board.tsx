@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { CalendarClock, Database, Download, LayoutGrid, List, RotateCcw, Search, Snowflake } from "lucide-react";
+import Link from "next/link";
+import { CalendarClock, Database, Download, LayoutGrid, List, RotateCcw, Search, Snowflake, Target } from "lucide-react";
 import type { Lead, LeadOwner, LeadStatus } from "@/lib/admin/db";
 import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
 import { compareTasks, dayKey, dueLabel, type Task, type TaskLinks } from "@/lib/admin/task-shared";
@@ -276,6 +277,14 @@ export function Dashboard({
         right={
           dbReady && (
             <>
+              <Link
+                href="/admin/prospectos"
+                title="Ver lista de prospectos y leads locales"
+                className="focus-ring inline-flex items-center justify-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3.5 py-1.5 text-[13px] font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+              >
+                <Target size={14} />
+                <span>Radar Prospectos (15)</span>
+              </Link>
               <button
                 onClick={() => downloadCsv(visible)}
                 disabled={!visible.length}
