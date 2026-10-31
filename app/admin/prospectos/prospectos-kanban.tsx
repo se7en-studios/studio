@@ -55,21 +55,21 @@ const COLUMNS: {
   {
     id: "contactado",
     title: "Loom / Enviado",
-    badge: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+    badge: "border adm-badge-amber",
     accent: "text-amber-600 dark:text-amber-400",
     icon: <Video size={13} className="text-amber-600 dark:text-amber-400 shrink-0" />,
   },
   {
     id: "en_charla",
     title: "En Conversación",
-    badge: "border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400",
+    badge: "border adm-badge-sky",
     accent: "text-sky-600 dark:text-sky-400",
     icon: <MessageSquare size={13} className="text-sky-600 dark:text-sky-400 shrink-0" />,
   },
   {
     id: "ganado",
     title: "¡Cliente Ganado!",
-    badge: "border-emerald-500/40 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold",
+    badge: "border adm-badge-green font-bold",
     accent: "text-emerald-600 dark:text-emerald-400",
     icon: <Trophy size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />,
   },
@@ -215,7 +215,7 @@ export function ProspectosKanban({
                           {isHot && (
                             <span
                               title="Deal con interacción activa"
-                              className="flex items-center gap-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 adm-label text-[9px] text-amber-600 dark:text-amber-300"
+                              className="flex items-center gap-0.5 rounded-full border adm-badge-amber px-1.5 py-0.5 adm-label text-[9px]"
                             >
                               <Flame size={10} className="fill-current" />
                               HOT
@@ -327,7 +327,7 @@ export function ProspectosKanban({
                                 type="button"
                                 onClick={() => handleMove(lead.id, "ganado")}
                                 title="¡Cerrar como Cliente Ganado!"
-                                className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/20 px-2.5 py-0.5 adm-label text-[9.5px] font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-black transition-colors"
+                                className="inline-flex items-center gap-1 rounded-full border adm-badge-green px-2.5 py-0.5 adm-label text-[9.5px] font-bold hover:bg-emerald-500 hover:text-black transition-colors"
                               >
                                 <Trophy size={11} className="shrink-0" />
                                 <span>Ganado</span>
@@ -501,7 +501,7 @@ export function ProspectosKanban({
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+                <div className="rounded-xl border adm-badge-amber p-4">
                   <span className="adm-label text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
                     <Sparkles size={12} />
                     Dolor Crítico & Fuga de Ventas

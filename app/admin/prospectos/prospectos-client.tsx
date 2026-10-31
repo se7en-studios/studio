@@ -20,7 +20,7 @@ import { AiQualifier } from "./ai-qualifier";
 import { useSoundFx } from "@/lib/use-sound-fx";
 import { Chip, Segmented, btn, btnPrimary, btnSecondary, searchInput, kpiRow, cn } from "../kit";
 
-const CITIES = ["Todas", "Catriel", "Neuquén", "Cipolletti", "Plottier", "San Rafael", "Mendoza"] as const;
+const CITIES = ["Todas", "Catriel", "25 de Mayo", "Neuquén", "Cipolletti", "Plottier", "San Rafael", "Mendoza"] as const;
 const CATEGORIES = [
   "Todas",
   "Club de Pádel & Deporte",
@@ -45,22 +45,22 @@ const STATUS_CONFIG: Record<LeadStatus, { label: string; badge: string; dot: str
   },
   contactado: {
     label: "Mensaje enviado",
-    badge: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-300",
+    badge: "border adm-badge-amber",
     dot: "bg-amber-400",
   },
   en_charla: {
     label: "En conversación",
-    badge: "border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-300",
+    badge: "border adm-badge-sky",
     dot: "bg-sky-400",
   },
   ganado: {
     label: "¡Cliente ganado!",
-    badge: "border-emerald-500/40 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold",
+    badge: "border adm-badge-green font-bold",
     dot: "bg-emerald-400",
   },
   descartado: {
     label: "Descartado",
-    badge: "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400",
+    badge: "border adm-badge-red",
     dot: "bg-red-400",
   },
 };
@@ -226,7 +226,7 @@ export function ProspectosClient() {
             </span>
           </div>
           <p className="mt-1 text-[12px] text-muted">
-            Empresas y clubes de Catriel, Neuquén, San Rafael y Mendoza con diagnósticos de dolor y propuestas a medida.
+            Empresas, clubes y emprendimientos de Catriel, 25 de Mayo, Neuquén, San Rafael y Mendoza con diagnósticos de dolor y propuestas a medida.
           </p>
         </div>
 

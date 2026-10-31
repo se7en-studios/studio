@@ -554,6 +554,77 @@ body:has(.admin-app)::after {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
+/* Badges semánticos con contraste sólido e impenetrable (sin traslucirse en tema claro) */
+.admin-app .adm-badge-green {
+  background-color: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #34d399;
+}
+.admin-app[data-theme="light"] .adm-badge-green,
+.admin-app[data-theme="light"] .bg-emerald-500\/5,
+.admin-app[data-theme="light"] .bg-emerald-500\/10,
+.admin-app[data-theme="light"] .bg-emerald-500\/15,
+.admin-app[data-theme="light"] .bg-emerald-500\/20 {
+  background-color: #e6f4ea !important;
+}
+.admin-app[data-theme="light"] .border-emerald-500\/20,
+.admin-app[data-theme="light"] .border-emerald-500\/30,
+.admin-app[data-theme="light"] .border-emerald-500\/40 {
+  border-color: #a8dab5 !important;
+}
+
+.admin-app .adm-badge-amber {
+  background-color: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+}
+.admin-app[data-theme="light"] .adm-badge-amber,
+.admin-app[data-theme="light"] .bg-amber-500\/10,
+.admin-app[data-theme="light"] .bg-amber-500\/15,
+.admin-app[data-theme="light"] .bg-amber-500\/20,
+.admin-app[data-theme="light"] .bg-amber-500\/\[0\.06\] {
+  background-color: #fef7e0 !important;
+}
+.admin-app[data-theme="light"] .border-amber-500\/20,
+.admin-app[data-theme="light"] .border-amber-500\/30,
+.admin-app[data-theme="light"] .border-amber-500\/40 {
+  border-color: #fdd663 !important;
+}
+
+.admin-app .adm-badge-sky {
+  background-color: rgba(14, 165, 233, 0.12);
+  border-color: rgba(14, 165, 233, 0.3);
+  color: #38bdf8;
+}
+.admin-app[data-theme="light"] .adm-badge-sky,
+.admin-app[data-theme="light"] .bg-sky-500\/5,
+.admin-app[data-theme="light"] .bg-sky-500\/10,
+.admin-app[data-theme="light"] .bg-sky-500\/15,
+.admin-app[data-theme="light"] .bg-sky-500\/20 {
+  background-color: #e8f0fe !important;
+}
+.admin-app[data-theme="light"] .border-sky-500\/20,
+.admin-app[data-theme="light"] .border-sky-500\/30,
+.admin-app[data-theme="light"] .border-sky-500\/40 {
+  border-color: #aecbfa !important;
+}
+
+.admin-app .adm-badge-red {
+  background-color: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+.admin-app[data-theme="light"] .adm-badge-red,
+.admin-app[data-theme="light"] .bg-red-500\/10,
+.admin-app[data-theme="light"] .bg-red-500\/\[0\.08\] {
+  background-color: #fce8e6 !important;
+}
+.admin-app[data-theme="light"] .border-red-500\/20,
+.admin-app[data-theme="light"] .border-red-500\/30,
+.admin-app[data-theme="light"] .border-red-500\/40 {
+  border-color: #f6aea9 !important;
+}
+
 .admin-app ::selection {
   background: var(--accent-soft);
   color: var(--foreground);
