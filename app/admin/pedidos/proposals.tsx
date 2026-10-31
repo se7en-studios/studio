@@ -48,10 +48,10 @@ import {
 
 const TONE: Record<ProposalStatus, string> = {
   borrador: "text-muted",
-  enviada: "text-sky-300",
-  vista: "text-amber-300",
-  aceptada: "text-emerald-300",
-  rechazada: "text-red-400",
+  enviada: "text-sky-600 dark:text-sky-300",
+  vista: "text-amber-600 dark:text-amber-300",
+  aceptada: "text-emerald-600 dark:text-emerald-300 font-semibold",
+  rechazada: "text-red-600 dark:text-red-400",
   vencida: "text-muted",
 };
 
@@ -135,7 +135,7 @@ export function Proposals({
 
   if (setup)
     return (
-      <p className="mt-6 rounded-lg border border-amber-400/30 bg-amber-400/[0.06] px-3.5 py-3 text-[13px] text-amber-300">
+      <p className="mt-6 rounded-lg border border-amber-400/30 bg-amber-400/[0.06] px-3.5 py-3 text-[13px] text-amber-700 dark:text-amber-300">
         Propuestas: {setup}
       </p>
     );
@@ -164,7 +164,7 @@ export function Proposals({
           </button>
         )}
       </div>
-      {error && <p className="mt-1 text-[12px] text-red-400">{error}</p>}
+      {error && <p className="mt-1 text-[12px] text-red-600 dark:text-red-400">{error}</p>}
 
       {editing && (
         <Builder
@@ -228,7 +228,7 @@ export function Proposals({
                   {p.viewed_at && ` · la vio el ${when(p.viewed_at)}`}
                 </p>
                 {p.acceptance && (
-                  <p className="mt-1 text-[12px] text-emerald-300">
+                  <p className="mt-1 text-[12px] text-emerald-600 dark:text-emerald-300 font-medium">
                     Aceptó {p.acceptance.name} ({p.acceptance.email}) el{" "}
                     {when(p.acceptance.at)} ·{" "}
                     <span className="font-mono" title={p.acceptance.hash}>
