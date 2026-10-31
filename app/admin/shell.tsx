@@ -7,7 +7,7 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import Link, { useLinkStatus } from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowUpRight,
   BarChart3,
@@ -17,6 +17,7 @@ import {
   FolderKanban,
   Home,
   Inbox,
+  Keyboard,
   KeyRound,
   LogOut,
   Menu,
@@ -42,6 +43,7 @@ import type { Pulse } from "./api/pulse/route";
 import { logout } from "./actions";
 import { CallListener } from "./call-listener";
 import { CommandPalette } from "./command";
+import { ShortcutsDialog } from "./shortcuts-dialog";
 import { mapRoom, onMapRoom } from "./presence";
 import { Face, Kbd, cn } from "./kit";
 import { ToastProvider, useModKey, useToast } from "./overlay";
@@ -123,7 +125,9 @@ export function AdminShell({
   const [railOpen, setRailOpen] = useState(initialRailOpen);
   const [pulse, setPulse] = useState<Pulse | null>(null);
   const [menu, setMenu] = useState(false);
+  const router = useRouter();
   const [palette, setPalette] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   // La primera sección se ve tal como llega del servidor; desde la primera navegación, cada una entra animada.
   const [shown, setShown] = useState(pathname);
   const [navigated, setNavigated] = useState(false);
@@ -179,16 +183,65 @@ export function AdminShell({
   }, []);
 
   useEffect(() => {
+    let gActive = false;
+    let gTimer: any = null;
+
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPalette((v) => !v);
+        return;
       }
-      // ⌘B abre o achica la barra, salvo escribiendo (ahí puede ser negrita).
       const typing = (e.target as HTMLElement | null)?.closest("input, textarea, select, [contenteditable='true']");
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b" && !typing) {
         e.preventDefault();
         toggleRail();
+        return;
+      }
+
+      if (!typing && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (e.key === "?") {
+          e.preventDefault();
+          setShowShortcuts((v) => !v);
+          return;
+        }
+
+        if (e.key.toLowerCase() === "g") {
+          gActive = true;
+          if (gTimer) clearTimeout(gTimer);
+          gTimer = setTimeout(() => {
+            gActive = false;
+          }, 900);
+          return;
+        }
+
+        if (gActive) {
+          gActive = false;
+          if (gTimer) clearTimeout(gTimer);
+          const k = e.key.toLowerCase();
+          if (k === "p") {
+            e.preventDefault();
+            router.push("/admin/proyectos");
+          } else if (k === "l") {
+            e.preventDefault();
+            router.push("/admin/prospectos");
+          } else if (k === "f") {
+            e.preventDefault();
+            router.push("/admin/finanzas");
+          } else if (k === "t") {
+            e.preventDefault();
+            router.push("/admin/tareas");
+          } else if (k === "m") {
+            e.preventDefault();
+            router.push("/admin/mensajes");
+          } else if (k === "c") {
+            e.preventDefault();
+            router.push("/admin/clientes");
+          } else if (k === "o") {
+            e.preventDefault();
+            router.push("/admin/oficinas");
+          }
+        }
       }
     };
     window.addEventListener("keydown", onKey);
@@ -209,10 +262,10 @@ export function AdminShell({
   }
 
   const sidebar = (
-    <Sidebar who={who} myRoom={myRoom} pathname={pathname} pulse={pulse} theme={theme} onTheme={toggleTheme} onSearch={() => setPalette(true)} />
+    <Sidebar who={who} myRoom={myRoom} pathname={pathname} pulse={pulse} theme={theme} onTheme={toggleTheme} onSearch={() => setPalette(true)} onShortcuts={() => setShowShortcuts(true)} />
   );
   const rail = (
-    <Rail who={who} myRoom={myRoom} pathname={pathname} pulse={pulse} theme={theme} open={railOpen} onTheme={toggleTheme} onSearch={() => setPalette(true)} />
+    <Rail who={who} myRoom={myRoom} pathname={pathname} pulse={pulse} theme={theme} open={railOpen} onTheme={toggleTheme} onSearch={() => setPalette(true)} onShortcuts={() => setShowShortcuts(true)} />
   );
 
   return (
@@ -280,7 +333,17 @@ export function AdminShell({
             </main>
           </div>
 
-          {palette && <CommandPalette onClose={() => setPalette(false)} />}
+          {palette && (
+            <CommandPalette
+              onClose={() => setPalette(false)}
+              onToggleTheme={toggleTheme}
+              onShowShortcuts={() => {
+                setPalette(false);
+                setShowShortcuts(true);
+              }}
+            />
+          )}
+          {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
           {callFeed && <CallListener who={who} topic={callFeed.topic} server={callFeed.server} />}
         </div>
       </ToastProvider>
@@ -346,6 +409,7 @@ function Rail({
   open,
   onTheme,
   onSearch,
+  onShortcuts,
 }: {
   who: LeadOwner;
   myRoom: string | null;
@@ -355,6 +419,7 @@ function Rail({
   open: boolean;
   onTheme: () => void;
   onSearch: () => void;
+  onShortcuts: () => void;
 }) {
   const isActive = (href: string) =>
     href === "/admin" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
@@ -553,11 +618,31 @@ function Rail({
                 <span className="block truncate text-[11px] text-muted">{other ? `Con ${PEOPLE[other].name}` : "Equipo"}</span>
               </span>
               {other && <CallButton other={other} myRoom={myRoom} />}
+          <button
+            type="button"
+            onClick={onShortcuts}
+            aria-label="Atajos de teclado"
+            title="Atajos de teclado (?)"
+            className="focus-ring rounded-lg p-1.5 text-muted transition-colors hover:bg-white/[0.06] hover:text-foreground"
+          >
+            <Keyboard size={16} />
+          </button>
             </div>
             <span aria-hidden className="mx-2 my-1 block h-px bg-[var(--line)]" />
             <Link href="/" role="menuitem" className="focus-ring flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-muted transition-colors hover:bg-white/[0.05] hover:text-foreground">
               <ArrowUpRight size={15} /> Ver el sitio
             </Link>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setMenu(false);
+                onShortcuts();
+              }}
+              className="focus-ring flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-muted transition-colors hover:bg-white/[0.05] hover:text-foreground"
+            >
+              <Keyboard size={15} /> Atajos de teclado (?)
+            </button>
             <button
               type="button"
               role="menuitem"
@@ -601,6 +686,7 @@ function Sidebar({
   theme,
   onTheme,
   onSearch,
+  onShortcuts,
 }: {
   who: LeadOwner;
   myRoom: string | null;
@@ -609,6 +695,7 @@ function Sidebar({
   theme: Theme;
   onTheme: () => void;
   onSearch: () => void;
+  onShortcuts: () => void;
 }) {
   const isActive = (href: string) =>
     href === "/admin" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);

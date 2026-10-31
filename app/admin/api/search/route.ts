@@ -1,11 +1,12 @@
 // Lo que busca la paleta de comandos (⌘K): pedidos, clientes, proyectos, tareas,
-// mensajes y movimientos de Finanzas, sólo lo necesario para mostrarlos y saltar a cada uno.
+// mensajes, movimientos de Finanzas y prospectos radar.
 // Cada lista es lo más reciente: una tabla que falte (o falle) queda vacía y el
 // resto se busca igual.
 import { db } from "@/lib/admin/db";
 import { categoryLabel, fmt, type Currency, type FinanceKind } from "@/lib/admin/finance-shared";
 import { parseChannel } from "@/lib/admin/message-shared";
 import { caseProjects, projectNames } from "@/lib/admin/panel";
+import { prospectLeads } from "@/data/prospects";
 import { withSession } from "../guard";
 
 export type SearchIndex = {
@@ -15,6 +16,7 @@ export type SearchIndex = {
   tasks: { id: string; title: string; done: boolean }[];
   messages: { id: string; channel: string; body: string; where: string }[];
   movements: { id: string; label: string; hint: string }[];
+  prospects: { id: string; name: string; city: string; category: string }[];
 };
 
 const RECENT = 500;
@@ -26,8 +28,24 @@ type MovementRow = { id: string; kind: FinanceKind; category: string; descriptio
 export function GET() {
   return withSession<SearchIndex>(async () => {
     const c = db();
+    const staticProspects = prospectLeads.map((p) => ({
+      id: p.id,
+      name: p.name,
+      city: p.city,
+      category: p.category,
+    }));
+
     if (!c)
-      return { leads: [], clients: [], projects: caseProjects().map((p) => ({ slug: p.slug, name: p.name })), tasks: [], messages: [], movements: [] };
+      return {
+        leads: [],
+        clients: [],
+        projects: caseProjects().map((p) => ({ slug: p.slug, name: p.name })),
+        tasks: [],
+        messages: [],
+        movements: [],
+        prospects: staticProspects,
+      };
+
     const [leads, clients, names, tasks, messages, movements] = await Promise.all([
       c.from("leads").select("id, name, company, status").order("created_at", { ascending: false }).limit(RECENT),
       c.from("panel_clients").select("id, name").order("name").limit(RECENT),
@@ -68,6 +86,7 @@ export function GET() {
         label: f.description || categoryLabel(f.kind, f.category),
         hint: `${f.kind === "costo" ? "−" : "+"}${fmt(Number(f.amount), f.currency)} · ${f.occurred_on}`,
       })),
+      prospects: staticProspects,
     };
   });
 }
