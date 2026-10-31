@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AnimatePresence, m } from "framer-motion";
 import { SITE } from "@/data/site";
 import { landingFaqs as faqs } from "@/data/faq";
+import { useSoundFx } from "@/lib/use-sound-fx";
 import {
   EASE_OUT,
   RdButton,
@@ -13,6 +14,7 @@ import {
 
 export function RdFaq() {
   const [openId, setOpenId] = useState<string | null>(faqs[0]?.id ?? null);
+  const sound = useSoundFx();
 
   return (
     <section
@@ -55,7 +57,10 @@ export function RdFaq() {
                     type="button"
                     aria-expanded={open}
                     aria-controls={`rd-faq-${item.id}`}
-                    onClick={() => setOpenId(open ? null : item.id)}
+                    onClick={() => {
+                      sound.pop();
+                      setOpenId(open ? null : item.id);
+                    }}
                     className="group flex w-full items-center gap-6 py-6 text-left md:py-8"
                   >
                     <span className="rd-label w-8 shrink-0 text-(--paper)/40">

@@ -49,6 +49,18 @@ export const faqs: FAQItem[] = [
     answer:
       "Todos los proyectos incluyen 30 días de garantía y soporte sin costo. Después seguimos disponibles para mantener y mejorar el producto a medida que crece.",
   },
+  {
+    id: "maintenance",
+    question: "¿Cobran mensualidad o mantenimiento obligatorio para que la web siga online?",
+    answer:
+      "No. A diferencia de las agencias tradicionales o plataformas que te atan a un alquiler mensual de por vida, nosotros no te cobramos ningún mantenimiento obligatorio. La web y el código son 100% tuyos. Si en el futuro querés sumar funciones nuevas o cambios, nos escribís y lo cotizamos de forma puntual.",
+  },
+  {
+    id: "domain",
+    question: "¿Qué pasa si ya tengo un dominio (.com.ar o .com) o redes sociales?",
+    answer:
+      "Conectamos todo sin costo adicional. Tu dominio sigue siendo tuyo, configuramos los servidores rápidos de Next.js y enlazamos tus cuentas de Instagram, WhatsApp y Mercado Pago para que todo quede funcionando de punta a punta desde el día 1.",
+  },
 ];
 
 // La home no publica precio: se calcula con cada cliente. Parte de la misma lista

@@ -70,6 +70,30 @@ export const testimonials: Testimonial[] = [
     quote:
       "Lograron transformar un flujo complejo de datos satelitales en una interfaz intuitiva, con tiempos de respuesta instantáneos y una arquitectura técnica impecable.",
     published: true,
-    order: 4,
+    order: 3,
+  },
+  {
+    id: "test-05",
+    name: "Matías Muzzaga",
+    role: "Fundador & Director",
+    company: "Muzzaga Pádel",
+    projectSlug: "muzzaga",
+    highlight: "Turnos y señas en automático",
+    quote:
+      "El sistema de turnero nos cambió el club por completo. Los jugadores reservan la cancha solos las 24 horas y pagan la seña por Mercado Pago. Dejamos de responder 150 mensajes manuales por día y las canchas están siempre llenas.",
+    published: true,
+    order: 2,
+  },
+  {
+    id: "test-06",
+    name: "Nicolás Vita",
+    role: "Fundador",
+    company: "iPhone Vita",
+    projectSlug: "iphone-vita",
+    highlight: "Catálogo en vivo y más ventas",
+    quote:
+      "Tener una tienda online que transmite el nivel de calidad de los equipos Apple marcó un antes y un después. Los clientes eligen modelo, color y batería, y el pedido entra cerrado a WhatsApp sin fricciones.",
+    published: true,
+    order: 5,
   },
 ];

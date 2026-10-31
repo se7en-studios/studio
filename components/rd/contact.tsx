@@ -16,6 +16,7 @@ import { COARSE_POINTER, useMediaQuery } from "@/lib/use-media-query";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 import { RdHeroRing } from "@/components/rd/hero-ring";
 import { EASE_OUT, RdLabel, RdRoll } from "@/components/rd/primitives";
+import { useSoundFx } from "@/lib/use-sound-fx";
 
 const PROJECT_TYPES = [
   "Página para mi negocio",
@@ -244,6 +245,7 @@ function ContactForm() {
   const [idea, setIdea] = useState("");
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [fieldError, setFieldError] = useState<string | null>(null);
+  const sound = useSoundFx();
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -261,6 +263,7 @@ function ContactForm() {
       budget: budget || undefined,
       idea: idea.trim() || undefined,
     });
+    if (res.ok) sound.success();
     setStatus(
       res.ok ? { kind: "sent" } : { kind: "error", message: res.error },
     );
