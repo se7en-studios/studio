@@ -108,7 +108,7 @@ export function RdContact() {
       />
       <div className="rd-wrap relative">
         <div className="flex items-center justify-between gap-4">
-          <RdLabel index="11" className="text-(--ink)/70">
+          <RdLabel index="13" className="text-(--ink)/70">
             Contacto
           </RdLabel>
           <span className="rd-label hidden text-(--ink)/70 sm:inline">

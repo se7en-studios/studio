@@ -4,9 +4,11 @@ import { RdManifesto } from "@/components/rd/manifesto";
 import { RdStats } from "@/components/rd/stats";
 import { RdWork } from "@/components/rd/work";
 import { RdServices } from "@/components/rd/services";
+import { RdInteractivePlayground } from "@/components/rd/interactive-playground";
 import { RdComparison } from "@/components/rd/comparison";
 import { RdProcess } from "@/components/rd/process";
 import { RdTechStack } from "@/components/rd/tech-stack";
+import { RdSpeedDuel } from "@/components/rd/speed-duel";
 import { RdCotizadorBanner } from "@/components/rd/cotizador-banner";
 import { RdTestimonials } from "@/components/rd/testimonials";
 import { RdArcade } from "@/components/rd/arcade";
@@ -25,9 +27,11 @@ export default function Home() {
       <RdStats />
       <RdWork />
       <RdServices />
+      <RdInteractivePlayground />
       <RdComparison />
       <RdProcess />
       <RdTechStack />
+      <RdSpeedDuel />
       <RdCotizadorBanner />
       <RdTestimonials />
       <RdArcade />

@@ -649,7 +649,7 @@ export function RdArcade() {
     >
       <div className="rd-wrap">
         <div className="grid gap-8 lg:grid-cols-12">
-          <RdLabel index="08" className="text-(--paper)/60 lg:col-span-3">
+          <RdLabel index="10" className="text-(--paper)/60 lg:col-span-3">
             En vivo
           </RdLabel>
           <div className="lg:col-span-9">

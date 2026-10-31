@@ -55,3 +55,4 @@ export async function notifyLead(payload: LeadNotificationPayload): Promise<bool
     return false;
   }
 }
+

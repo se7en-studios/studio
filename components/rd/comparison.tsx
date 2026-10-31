@@ -152,7 +152,7 @@ export function RdComparison() {
         {/* Cabecera en lenguaje humano y simple */}
         <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div>
-            <RdLabel index="04" className="text-(--paper)/60">
+            <RdLabel index="05" className="text-(--paper)/60">
               Sin tecnicismos
             </RdLabel>
             <h2 className="rd-condensed mt-4 text-[clamp(2.5rem,6vw,5.5rem)] leading-[0.92] text-(--paper)">

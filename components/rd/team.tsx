@@ -32,7 +32,7 @@ export function RdTeam() {
     >
       <div className="rd-wrap">
         <div className="grid gap-8 lg:grid-cols-12">
-          <RdLabel index="09" className="text-(--ink)/60 lg:col-span-3">
+          <RdLabel index="11" className="text-(--ink)/60 lg:col-span-3">
             Fundadores
           </RdLabel>
           <div className="lg:col-span-9">

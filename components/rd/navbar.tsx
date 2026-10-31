@@ -12,6 +12,7 @@ import {
 import { SITE } from "@/data/site";
 import { useIntroReady } from "@/components/rd/intro";
 import { EASE_IO, EASE_OUT, RdRoll } from "@/components/rd/primitives";
+import { SoundToggle } from "@/components/rd/sound-toggle";
 
 const LINKS = [
   { href: "#trabajos", label: "Trabajos" },
@@ -127,6 +128,7 @@ export function RdNavbar() {
             ))}
           </nav>
           <div className="flex items-center gap-2">
+            <SoundToggle />
             <span className="rd-label hidden items-center gap-2 rounded-full border border-(--line) bg-(--ink)/55 px-3.5 py-2.5 text-[10px] text-(--paper)/80 backdrop-blur-xl xl:inline-flex">
               <span className="relative flex h-2 w-2">
                 <span className="rd-ping absolute inset-0 rounded-full bg-(--signal)" />
