@@ -157,7 +157,7 @@ function MonthBars({
             title={label}
             className="group flex h-full min-w-0 flex-1 flex-col items-center justify-end"
           >
-            <span className="mb-1 font-mono text-[11px] text-muted tabular-nums group-hover:text-foreground">
+            <span className="mb-1 adm-num text-[11px] text-muted group-hover:text-foreground">
               {d.leads || ""}
             </span>
             <span
@@ -167,8 +167,8 @@ function MonthBars({
                 minHeight: d.leads ? 3 : 0,
               }}
             />
-            <span className="mt-1.5 h-px w-full bg-border" aria-hidden />
-            <span className="mt-1.5 font-mono text-[11px] text-muted uppercase">
+            <span className="mt-1.5 h-px w-full bg-[var(--line)]" aria-hidden />
+            <span className="mt-1.5 adm-label text-[11px] text-muted">
               {monthLabel(d.month)}
             </span>
           </div>
@@ -198,14 +198,14 @@ function StageBars({
           >
             <div className="mb-1 flex items-baseline justify-between text-xs">
               <span className="text-foreground">{s.label}</span>
-              <span className="font-mono text-muted tabular-nums">
+              <span className="adm-num text-muted">
                 {n}{" "}
                 <span className="text-muted">
                   · {Math.round((n / total) * 100)}%
                 </span>
               </span>
             </div>
-            <div className="h-2 rounded-full bg-white/[0.04]">
+            <div className="h-2 rounded-full bg-[var(--well)] border border-[var(--line)]">
               <div
                 className="h-2 rounded-full bg-accent/80"
                 style={{ width: `${(n / max) * 100}%`, minWidth: n ? 4 : 0 }}
@@ -231,7 +231,7 @@ function GroupTable({
     <div className="-mx-1 overflow-x-auto">
       <table className="w-full min-w-[420px] text-sm">
         <thead>
-          <tr className="text-left font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">
+          <tr className="text-left adm-label text-muted">
             <th className="px-1 pb-2 font-normal">Nombre</th>
             <th className="px-1 pb-2 font-normal">Pedidos</th>
             <th className="px-1 pb-2 text-right font-normal">Ganados</th>
@@ -241,7 +241,7 @@ function GroupTable({
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.key} className="border-t border-border">
+            <tr key={r.key} className="border-t border-[var(--line)]">
               <td className="px-1 py-2.5 text-foreground">{name(r.key)}</td>
               <td className="px-1 py-2.5">
                 <span className="flex items-center gap-2">
@@ -250,18 +250,18 @@ function GroupTable({
                     style={{ width: `${(r.leads / max) * 72}px` }}
                     aria-hidden
                   />
-                  <span className="font-mono text-xs text-foreground tabular-nums">
+                  <span className="adm-num text-xs text-foreground">
                     {r.leads}
                   </span>
                 </span>
               </td>
-              <td className="px-1 py-2.5 text-right font-mono text-xs tabular-nums">
+              <td className="px-1 py-2.5 text-right adm-num text-xs text-foreground">
                 {r.won}
               </td>
-              <td className="px-1 py-2.5 text-right font-mono text-xs tabular-nums">
+              <td className="px-1 py-2.5 text-right adm-num text-xs text-foreground">
                 {pct(r.winRate)}
               </td>
-              <td className="px-1 py-2.5 text-right font-mono text-xs tabular-nums">
+              <td className="px-1 py-2.5 text-right adm-num text-xs text-foreground">
                 {usd(r.wonValue)}
               </td>
             </tr>
@@ -275,7 +275,7 @@ function GroupTable({
 function Empty() {
   return (
     <div className="flex flex-col items-center gap-2.5 py-10 text-center">
-      <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--line-strong)] bg-white/[0.03] text-muted">
+      <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--line-strong)] bg-[var(--well)] text-muted">
         <BarChart3 size={16} />
       </span>
       <p className="text-[13px] text-muted">Sin pedidos en este período.</p>

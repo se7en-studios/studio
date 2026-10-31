@@ -152,7 +152,7 @@ export function TasksBoard({
               }`}
             >
               {c.label}
-              <span className="font-mono text-[11px] text-muted">
+              <span className="adm-num text-[11px] text-muted">
                 {openCount(c.id)}
               </span>
             </button>
@@ -215,7 +215,7 @@ export function TasksBoard({
             return (
               <section key={b.id}>
                 <h2
-                  className={`mb-2 flex items-baseline gap-2 px-1 font-mono text-[10.5px] tracking-[0.13em] uppercase ${
+                  className={`mb-2 flex items-baseline gap-2 px-1 adm-label ${
                     b.id === "vencidas"
                       ? "text-red-400"
                       : b.id === "hoy"

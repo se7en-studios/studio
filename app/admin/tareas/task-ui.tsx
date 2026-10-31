@@ -36,7 +36,7 @@ import {
 const PRIORITY_DOT: Record<TaskPriority, string> = {
   alta: "bg-accent",
   media: "bg-amber-400",
-  baja: "bg-white/25",
+  baja: "bg-[var(--line-strong)]",
 };
 
 const PRIORITY_LABEL: Record<TaskPriority, string> = {
@@ -80,14 +80,14 @@ export function TaskRow({
   const b = bucket(task);
   const link = hideLink ? null : linkName(task, links);
   return (
-    <li className="group flex items-start gap-3 px-4 py-2.5 transition-colors hover:bg-white/[0.02]">
+    <li className="group flex items-start gap-3 px-4 py-2.5 transition-colors hover:bg-[var(--well)]">
       <button
         onClick={() => onToggle(!done)}
         aria-label={done ? "Marcar como pendiente" : "Marcar como hecha"}
         className={`focus-ring mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border transition-colors ${
           done
             ? "border-accent bg-accent text-background"
-            : "border-white/30 hover:border-accent"
+            : "border-[var(--line-strong)] hover:border-accent"
         }`}
       >
         {done && <Check size={11} strokeWidth={3} />}
@@ -104,7 +104,7 @@ export function TaskRow({
         <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
           {task.due && !done && (
             <span
-              className={`inline-flex items-center gap-1 ${b === "vencidas" ? "text-red-400" : b === "hoy" ? "text-accent" : ""}`}
+              className={`inline-flex items-center gap-1 ${b === "vencidas" ? "text-red-600 dark:text-red-400 font-medium" : b === "hoy" ? "text-accent" : ""}`}
             >
               <Calendar size={11} /> {dueLabel(task.due)}
             </span>
@@ -120,7 +120,7 @@ export function TaskRow({
             </span>
           )}
           {task.waiting && !done && (
-            <span className="inline-flex items-center gap-1 text-amber-300">
+            <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-300">
               <Hourglass size={11} /> esperando al cliente
             </span>
           )}
@@ -191,7 +191,7 @@ export function DuePicker({
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value || null)}
         aria-label="Fecha límite"
-        className="focus-ring rounded-md border border-[var(--line-strong)] bg-[var(--well)] px-2 py-1 text-[12px] text-foreground [color-scheme:dark]"
+        className="focus-ring rounded-md border border-[var(--line-strong)] bg-[var(--well)] px-2 py-1 text-[12px] text-foreground"
       />
     </div>
   );
@@ -291,7 +291,7 @@ export function LinkPicker({
 }
 
 const Label = ({ children }: { children: React.ReactNode }) => (
-  <p className="mb-1.5 font-mono text-[10.5px] tracking-[0.13em] text-muted uppercase">
+  <p className="adm-label mb-1.5 text-muted">
     {children}
   </p>
 );
@@ -565,7 +565,7 @@ export function TaskDrawer({
           ) : (
             <button
               onClick={() => setConfirm(true)}
-              className="focus-ring inline-flex items-center gap-1.5 text-xs text-muted hover:text-red-400"
+              className="focus-ring inline-flex items-center gap-1.5 text-xs text-muted hover:text-red-600 dark:hover:text-red-400"
             >
               <Trash2 size={14} /> Borrar tarea
             </button>

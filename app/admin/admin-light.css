@@ -4,7 +4,6 @@
 .admin-app[data-theme="light"] .bg-black\/20 { background-color: rgba(11, 11, 12, 0.05); }
 .admin-app[data-theme="light"] .bg-white\/10 { background-color: rgba(11, 11, 12, 0.11); }
 .admin-app[data-theme="light"] .bg-white\/20 { background-color: rgba(11, 11, 12, 0.22); }
-.admin-app[data-theme="light"] .bg-white\/25 { background-color: rgba(11, 11, 12, 0.275); }
 .admin-app[data-theme="light"] .bg-white\/5 { background-color: rgba(11, 11, 12, 0.055); }
 .admin-app[data-theme="light"] .bg-white\/\[0\.012\] { background-color: rgba(11, 11, 12, 0.013); }
 .admin-app[data-theme="light"] .bg-white\/\[0\.02\] { background-color: rgba(11, 11, 12, 0.022); }
@@ -15,7 +14,6 @@
 .admin-app[data-theme="light"] .bg-white\/\[0\.07\] { background-color: rgba(11, 11, 12, 0.077); }
 .admin-app[data-theme="light"] .bg-white\/\[0\.08\] { background-color: rgba(11, 11, 12, 0.088); }
 .admin-app[data-theme="light"] .border-white\/25 { border-color: rgba(11, 11, 12, 0.325); }
-.admin-app[data-theme="light"] .border-white\/30 { border-color: rgba(11, 11, 12, 0.39); }
 .admin-app[data-theme="light"] .focus\:bg-black\/40:focus { background-color: rgba(11, 11, 12, 0.1); }
 .admin-app[data-theme="light"] .hover\:bg-white\/\[0\.025\]:hover { background-color: rgba(11, 11, 12, 0.028); }
 .admin-app[data-theme="light"] .hover\:bg-white\/\[0\.02\]:hover { background-color: rgba(11, 11, 12, 0.022); }

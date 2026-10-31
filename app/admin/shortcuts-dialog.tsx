@@ -124,3 +124,4 @@ export function ShortcutsDialog({ onClose }: { onClose: () => void }) {
     </Dialog>
   );
 }
+

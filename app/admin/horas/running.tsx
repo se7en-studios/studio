@@ -73,7 +73,7 @@ export function RunningTimer({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "inline-flex max-w-full items-center gap-1.5 rounded-lg border border-[var(--line-strong)] bg-white/[0.03] py-1 pr-1 pl-2 text-[12px]",
+        "inline-flex max-w-full items-center gap-1.5 rounded-lg border border-[var(--line-strong)] bg-[var(--well)] py-1 pr-1 pl-2 text-[12px]",
         className,
       )}
     >
@@ -88,7 +88,7 @@ export function RunningTimer({ className }: { className?: string }) {
       >
         {run.name}
       </Link>
-      <span className="font-mono text-foreground tabular-nums">
+      <span className="adm-num text-[12px] text-foreground">
         {clock(now - Date.parse(run.entry.started_at))}
       </span>
       <button
@@ -96,7 +96,7 @@ export function RunningTimer({ className }: { className?: string }) {
         onClick={stop}
         disabled={pending}
         aria-label="Frenar el cronómetro"
-        className="focus-ring rounded-md p-1 text-muted hover:bg-white/[0.06] hover:text-foreground"
+        className="focus-ring rounded-md p-1 text-muted hover:bg-[var(--line)] hover:text-foreground"
       >
         <Square size={11} />
       </button>

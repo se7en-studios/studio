@@ -180,13 +180,13 @@ export function ProjectsView({
                   }}
                   className={cn(
                     "rounded-xl border p-2 transition-colors",
-                    over === st ? "border-accent/50 bg-accent/[0.05]" : "border-[var(--line)] bg-white/[0.012]",
+                    over === st ? "border-accent/50 bg-accent/[0.05]" : "border-[var(--line)] bg-[var(--well)]",
                   )}
                 >
                   <header className="flex items-center gap-2 px-1.5 pt-1 pb-2.5">
                     <span className={cn("h-2 w-2 rounded-full", PROJECT_STATUS[st].dot)} />
                     <h2 className="adm-title text-[12px]">{PROJECT_STATUS[st].label}</h2>
-                    <span className="rounded-full bg-white/[0.06] px-1.5 py-px font-mono text-[11px] text-muted">{items.length}</span>
+                    <span className="rounded-full border border-[var(--line)] bg-[var(--panel)] px-1.5 py-px font-mono text-[11px] text-muted">{items.length}</span>
                   </header>
                   {items.length ? (
                     <div className="-mx-0.5 flex gap-2 overflow-x-auto px-0.5 pb-1">
@@ -226,7 +226,7 @@ function Due({ due, today, status }: { due: string | null; today: string; status
   if (!due) return <span className="text-muted">Sin fecha</span>;
   const late = due < today && ACTIVE_STATUSES.includes(status);
   return (
-    <span className={cn("inline-flex items-center gap-1", late ? "text-red-400" : "text-muted")}>
+    <span className={cn("inline-flex items-center gap-1", late ? "text-red-600 dark:text-red-400 font-medium" : "text-muted")}>
       <CalendarClock size={12} /> {dueLabel(due, today)}
     </span>
   );
@@ -285,7 +285,7 @@ function GalleryCard({ row: { p, s }, today }: { row: Row; today: string }) {
       <span className="relative block aspect-[16/10] overflow-hidden bg-[var(--panel-2)]">
         <Thumb p={p} className="block h-full w-full transition-transform duration-500 group-hover:scale-[1.03]" />
         <span className="absolute top-2.5 left-2.5">
-          <StatusPill status={s.status} className="bg-black/60 backdrop-blur" />
+          <StatusPill status={s.status} className="bg-[var(--panel)]/90 backdrop-blur shadow-sm" />
         </span>
       </span>
       <span className="block p-3.5">
@@ -336,7 +336,7 @@ function ProjectTable({
         </thead>
         <tbody className="divide-y divide-[var(--line)]">
           {rows.map(({ p, s }) => (
-            <tr key={p.slug} className="transition-colors hover:bg-white/[0.02]">
+            <tr key={p.slug} className="transition-colors hover:bg-[var(--well)]">
               <td className="px-4 py-2">
                 <Link href={`/admin/proyectos/${p.slug}`} className="focus-ring flex items-center gap-3">
                   <Thumb p={p} className="h-8 w-12 shrink-0 rounded border border-[var(--line)]" />
@@ -391,7 +391,7 @@ function ProjectTable({
                     disabled={!editable}
                     onChange={(e) => onSave(p, { due: e.target.value || null })}
                     aria-label={`Entrega de ${p.name}`}
-                    className={cn(cell, "[color-scheme:dark]", s.due && s.due < today && ACTIVE_STATUSES.includes(s.status) && "text-red-400")}
+                    className={cn(cell, s.due && s.due < today && ACTIVE_STATUSES.includes(s.status) && "text-red-600 dark:text-red-400 font-medium")}
                   />
                 </span>
               </td>
@@ -437,8 +437,8 @@ export function ProgressInput({
         onKeyUp={commit}
         onBlur={commit}
         aria-label="Avance"
-        className="h-1 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-white/10 disabled:cursor-default [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-foreground"
-        style={{ background: `linear-gradient(90deg, ${accent ?? "var(--accent)"} ${draft}%, rgba(255,255,255,0.1) ${draft}%)` }}
+        className="h-1 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-[var(--line-strong)] disabled:cursor-default [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-foreground"
+        style={{ background: `linear-gradient(90deg, ${accent ?? "var(--accent)"} ${draft}%, var(--line-strong) ${draft}%)` }}
       />
       <span className="w-9 text-right text-[12px] text-muted tabular-nums">{draft}%</span>
     </span>
