@@ -150,6 +150,23 @@ export function RdContact() {
               </Magnetic>
             </div>
             <CopyEmail />
+            {/* Gancho de Auditoría Gratuita en 60s */}
+            <div className="mt-2 rounded-2xl border border-(--ink)/20 bg-(--ink)/10 p-5 backdrop-blur-sm">
+              <span className="rd-label block text-[11px] font-bold text-(--ink) uppercase">
+                ⚡ ¿Ya tenés una página web?
+              </span>
+              <p className="rd-body mt-1.5 text-xs text-(--ink)/80 leading-relaxed">
+                Mandanos el link por WhatsApp y te grabamos un video de 1 minuto mostrándote por qué tarda en abrir o por qué no te genera consultas.
+              </p>
+              <a
+                href="https://wa.me/5492994247985?text=Hola%20Franco%20y%20Fede!%20Les%20paso%20el%20link%20de%20mi%20web%20actual%20para%20la%20auditor%C3%ADa%20gratuita%20de%2060%20segundos:%20"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rd-roll mt-3 inline-flex items-center gap-1.5 font-mono text-xs font-bold text-(--ink) hover:underline"
+              >
+                <span>Pedir auditoría de 1 min por WhatsApp ↗</span>
+              </a>
+            </div>
           </div>
           <ContactForm />
         </div>

@@ -130,7 +130,7 @@ export function CotizadorClient() {
 
     const extrasLabels = EXTRA_FEATURES.filter((e) => activeExtras.includes(e.id)).map((e) => e.label);
 
-    const waText = `Hola Franco! Armé una cotización en el cotizador de Se7en Studio:
+    const waText = `Hola Franco y Fede! Armé una cotización en el cotizador de Se7en Studio:
 - Rubro: ${selectedIndustry.name}
 - Objetivo: ${selectedGoal.label}
 - Situación: ${selectedSituation.label}
@@ -393,7 +393,7 @@ Quiero coordinar para ver cómo podemos avanzar con la web de mi negocio.`;
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    Atención directa con Franco y el equipo fundador (sin intermediarios)
+                    Atención directa con Franco y Fede (los dos fundadores)
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
