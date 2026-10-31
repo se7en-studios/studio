@@ -44,6 +44,7 @@ import { PortalApprovals } from "./portal-approvals";
 import { ProjectTasks } from "./project-tasks";
 import { EditInfo, StatePanel } from "./state-panel";
 import { Uploader } from "./uploader";
+import { ProjectQAAuditor } from "./qa-auditor";
 
 type Props = {
   params: Promise<{ slug: string }>;
