@@ -6,16 +6,11 @@ import {
   Sparkles,
   Zap,
   Globe,
-  Bot,
   Video,
   Copy,
   Check,
-  ArrowRight,
-  TrendingUp,
   AlertTriangle,
-  Send,
   Loader2,
-  DollarSign,
   Flame,
 } from "lucide-react";
 import { useSoundFx } from "@/lib/use-sound-fx";
@@ -32,7 +27,7 @@ interface AiQualifierResult {
   winProbability: number;
 }
 
-export function AiQualifier({ onAddLead }: { onAddLead?: (result: AiQualifierResult) => void }) {
+export function AiQualifier() {
   const [targetInput, setTargetInput] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<AiQualifierResult | null>(null);
@@ -47,13 +42,11 @@ export function AiQualifier({ onAddLead }: { onAddLead?: (result: AiQualifierRes
     setResult(null);
     sound.click();
 
-    // Simula el análisis forense inteligente de 2.2 segundos
     setTimeout(() => {
       const input = targetInput.trim();
       const isPadel = /padel|paddle|cancha|club/i.test(input);
       const isFood = /resto|bar|cafe|pizza|burger|cerveza|gastro/i.test(input);
       const isWine = /bodega|vino|enoturismo/i.test(input);
-      const isRealEstate = /inmobiliaria|propiedades|lotes/i.test(input);
 
       let category = "Comercio / Empresa Local";
       let ticket = 1200;
@@ -112,7 +105,7 @@ En un local de su volumen, esto significa ahorrarse más de $1.800.000 ARS por m
         criticalLeaks: leaks,
         loomScript: script,
         whatsappHook: hook,
-        winProbability: Math.floor(Math.random() * 20) + 75, // 75% a 95%
+        winProbability: Math.floor(Math.random() * 20) + 75,
       });
 
       setAnalyzing(false);
@@ -128,18 +121,18 @@ En un local de su volumen, esto significa ahorrarse más de $1.800.000 ARS por m
   };
 
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 md:p-7 backdrop-blur-md">
+    <div className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-5 md:p-6">
       {/* Cabecera */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] pb-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-3 py-1 font-mono text-[11px] text-accent uppercase tracking-wider">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-3 py-1 adm-label text-accent">
             <Sparkles size={13} />
             Se7en AI Copilot & Lead Intelligence
           </div>
-          <h3 className="mt-2 text-lg font-bold text-foreground">
-            Cualificador Forense de Prospectos & Generador de Guiones
+          <h3 className="adm-title mt-2 text-base text-foreground">
+            Cualificador Forense de Prospectos & Guiones
           </h3>
-          <p className="text-xs text-muted/70 mt-0.5">
+          <p className="mt-1 text-xs text-muted">
             Ingresá el nombre, Instagram o web de cualquier negocio para generar la auditoría de 60s y el mensaje de apertura.
           </p>
         </div>
@@ -148,20 +141,20 @@ En un local de su volumen, esto significa ahorrarse más de $1.800.000 ARS por m
       {/* Input de Búsqueda */}
       <form onSubmit={handleAnalyze} className="mt-5 flex gap-2 sm:gap-3">
         <div className="relative flex-1">
-          <Globe className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted/50" />
+          <Globe className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <input
             type="text"
             value={targetInput}
             onChange={(e) => setTargetInput(e.target.value)}
             placeholder="Ej: Impacto Pádel Cipolletti, Cervecería Owe, Bodega del Fin del Mundo..."
-            className="w-full rounded-full border border-white/10 bg-black/50 py-2.5 pr-4 pl-10 text-xs font-mono text-foreground placeholder:text-muted/40 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+            className="w-full rounded-full border border-[var(--line-strong)] bg-[var(--well)] py-2 pr-4 pl-10 text-xs text-foreground placeholder:text-muted/60 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
           />
         </div>
 
         <button
           type="submit"
           disabled={analyzing || !targetInput.trim()}
-          className="flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-xs font-mono font-bold text-black transition-all hover:bg-foreground disabled:opacity-40 shrink-0"
+          className="flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-xs font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-40 shrink-0"
         >
           {analyzing ? (
             <>
@@ -170,7 +163,7 @@ En un local de su volumen, esto significa ahorrarse más de $1.800.000 ARS por m
             </>
           ) : (
             <>
-              <Zap className="h-4 w-4 fill-black" />
+              <Zap className="h-4 w-4 fill-current" />
               <span>Auditar con IA ⚡</span>
             </>
           )}
@@ -181,51 +174,51 @@ En un local de su volumen, esto significa ahorrarse más de $1.800.000 ARS por m
       <AnimatePresence>
         {result && (
           <m.div
-            initial={{ opacity: 0, y: 14 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -14 }}
-            className="mt-6 space-y-5 rounded-2xl border border-accent/30 bg-black/60 p-5 md:p-6 shadow-2xl"
+            exit={{ opacity: 0, y: -12 }}
+            className="mt-6 space-y-5 rounded-xl border border-[var(--line-strong)] bg-[var(--panel-2)] p-5"
           >
             {/* Cabecera del Resultado */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] pb-3">
               <div>
-                <span className="font-mono text-[10px] uppercase tracking-wider text-accent">
+                <span className="adm-label text-accent block">
                   Diagnóstico IA Completado
                 </span>
-                <h4 className="text-xl font-bold text-foreground">{result.businessName}</h4>
-                <p className="font-mono text-xs text-muted/70 mt-0.5">
+                <h4 className="adm-title mt-1 text-lg text-foreground">{result.businessName}</h4>
+                <p className="adm-label text-[10.5px] text-muted mt-0.5">
                   Rubro: {result.category} · {result.city}
                 </p>
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-1.5 text-right font-mono text-xs">
-                  <span className="text-[10px] text-muted/60 block">Ticket sugerido:</span>
-                  <span className="font-bold text-accent">USD ${result.estimatedTicketUsd}</span>
+                <div className="rounded-xl border border-[var(--line)] bg-[var(--well)] px-3 py-1.5 text-right">
+                  <span className="adm-label text-[9.5px] block">Ticket sugerido:</span>
+                  <span className="adm-num text-sm text-accent">USD ${result.estimatedTicketUsd}</span>
                 </div>
 
-                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-right font-mono text-xs text-emerald-300">
-                  <span className="text-[10px] text-emerald-400/70 block flex items-center gap-1">
-                    <Flame size={10} className="fill-emerald-400 text-emerald-400" /> Probabilidad de cierre:
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-right text-emerald-600 dark:text-emerald-300">
+                  <span className="adm-label text-[9.5px] block text-emerald-600 dark:text-emerald-400">
+                    Probabilidad de cierre:
                   </span>
-                  <span className="font-bold">{result.winProbability}% (Alta)</span>
+                  <span className="adm-num text-sm font-bold">{result.winProbability}% (Alta)</span>
                 </div>
               </div>
             </div>
 
             {/* 3 Fugas Críticas */}
             <div>
-              <p className="text-xs font-mono uppercase tracking-wider text-muted/70 flex items-center gap-1.5">
-                <AlertTriangle size={13} className="text-amber-400" />
+              <p className="adm-label mb-2 flex items-center gap-1.5 text-foreground">
+                <AlertTriangle size={13} className="text-amber-500" />
                 3 Fugas Críticas Detectadas en su Negocio Actual:
               </p>
-              <div className="mt-2.5 space-y-2">
+              <div className="space-y-2">
                 {result.criticalLeaks.map((leak, i) => (
                   <div
                     key={i}
-                    className="flex items-start gap-2.5 rounded-xl border border-white/[0.04] bg-white/[0.02] p-2.5 text-xs text-foreground/80 leading-relaxed font-sans"
+                    className="flex items-start gap-2.5 rounded-lg border border-[var(--line)] bg-[var(--well)] p-2.5 text-xs text-foreground leading-relaxed"
                   >
-                    <span className="font-mono text-xs font-bold text-accent shrink-0">0{i + 1}.</span>
+                    <span className="adm-num text-xs font-bold text-accent shrink-0">0{i + 1}.</span>
                     <span>{leak}</span>
                   </div>
                 ))}
@@ -233,43 +226,43 @@ En un local de su volumen, esto significa ahorrarse más de $1.800.000 ARS por m
             </div>
 
             {/* Guión de Video de Loom (60 Segundos) */}
-            <div className="rounded-xl border border-white/10 bg-black/40 p-4">
-              <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                <span className="flex items-center gap-1.5 font-mono text-xs font-bold uppercase text-foreground">
+            <div className="rounded-xl border border-[var(--line)] bg-[var(--well)] p-4">
+              <div className="flex items-center justify-between border-b border-[var(--line)] pb-2">
+                <span className="adm-title text-xs flex items-center gap-1.5 text-foreground">
                   <Video size={14} className="text-accent" />
                   Guión de Video Loom (60 Segundos para Franco o Fede):
                 </span>
                 <button
                   type="button"
                   onClick={() => handleCopy("loom", result.loomScript)}
-                  className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-mono text-muted hover:text-foreground"
+                  className="flex items-center gap-1 rounded-full border border-[var(--line-strong)] bg-[var(--panel)] px-2.5 py-1 adm-label text-muted hover:text-foreground"
                 >
-                  {copiedType === "loom" ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                  {copiedType === "loom" ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
                   <span>{copiedType === "loom" ? "¡Copiado!" : "Copiar Guión"}</span>
                 </button>
               </div>
-              <p className="mt-3 whitespace-pre-wrap font-mono text-xs leading-relaxed text-muted/90 bg-black/50 p-3 rounded-lg border border-white/[0.04]">
+              <p className="mt-3 whitespace-pre-wrap text-xs leading-relaxed text-muted bg-[var(--panel)] p-3 rounded-lg border border-[var(--line)]">
                 {result.loomScript}
               </p>
             </div>
 
             {/* Mensaje Hook para WhatsApp */}
-            <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/10 p-4">
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
               <div className="flex items-center justify-between border-b border-emerald-500/20 pb-2">
-                <span className="flex items-center gap-1.5 font-mono text-xs font-bold uppercase text-emerald-300">
-                  <WhatsAppLogo className="h-3.5 w-3.5" />
+                <span className="adm-title text-xs flex items-center gap-1.5 text-emerald-600 dark:text-emerald-300">
+                  <WhatsAppLogo className="h-3.5 w-3.5 fill-current" />
                   Mensaje Hook de 1 Clic para WhatsApp:
                 </span>
                 <button
                   type="button"
                   onClick={() => handleCopy("wa", result.whatsappHook)}
-                  className="flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-mono text-emerald-300 hover:bg-emerald-500 hover:text-black font-semibold"
+                  className="flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 adm-label text-emerald-600 dark:text-emerald-300 hover:bg-emerald-500 hover:text-white"
                 >
                   {copiedType === "wa" ? <Check size={12} /> : <Copy size={12} />}
                   <span>{copiedType === "wa" ? "¡Copiado!" : "Copiar Hook"}</span>
                 </button>
               </div>
-              <p className="mt-3 font-sans text-xs leading-relaxed text-emerald-200/90 bg-black/40 p-3 rounded-lg border border-emerald-500/20">
+              <p className="mt-3 text-xs leading-relaxed text-foreground bg-[var(--panel)] p-3 rounded-lg border border-[var(--line)]">
                 &ldquo;{result.whatsappHook}&rdquo;
               </p>
             </div>

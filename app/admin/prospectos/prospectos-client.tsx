@@ -3,23 +3,15 @@
 import { useState, useMemo, useEffect } from "react";
 import {
   Search,
-  Filter,
   Copy,
   Check,
   ExternalLink,
   Download,
-  Building2,
   MapPin,
   Sparkles,
-  PhoneCall,
-  DollarSign,
-  TrendingUp,
-  MessageSquare,
-  ChevronDown,
   Edit3,
   Kanban,
   LayoutGrid,
-  Zap,
 } from "lucide-react";
 import { prospectLeads, type ProspectLead } from "@/data/prospects";
 import { WhatsAppLogo } from "@/components/icons/whatsapp-logo";
@@ -44,27 +36,27 @@ export type LeadStatus = "nuevo" | "contactado" | "en_charla" | "ganado" | "desc
 const STATUS_CONFIG: Record<LeadStatus, { label: string; badge: string; dot: string }> = {
   nuevo: {
     label: "Sin contactar",
-    badge: "border-zinc-700 bg-zinc-800/80 text-zinc-300",
+    badge: "border-[var(--line)] bg-[var(--well)] text-muted",
     dot: "bg-zinc-400",
   },
   contactado: {
     label: "Mensaje enviado",
-    badge: "border-amber-500/40 bg-amber-500/15 text-amber-300",
+    badge: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-300",
     dot: "bg-amber-400",
   },
   en_charla: {
     label: "En conversación",
-    badge: "border-sky-500/40 bg-sky-500/15 text-sky-300",
+    badge: "border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-300",
     dot: "bg-sky-400",
   },
   ganado: {
     label: "¡Cliente ganado!",
-    badge: "border-emerald-500/50 bg-emerald-500/20 text-emerald-300 font-bold",
+    badge: "border-emerald-500/40 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold",
     dot: "bg-emerald-400",
   },
   descartado: {
     label: "Descartado",
-    badge: "border-red-500/30 bg-red-500/10 text-red-400/80",
+    badge: "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400",
     dot: "bg-red-400",
   },
 };
@@ -223,9 +215,9 @@ export function ProspectosClient() {
       {/* Header Bar */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+          <h2 className="adm-title text-lg text-foreground flex items-center gap-2">
             <span>Radar de Prospectos Locales</span>
-            <span className="rounded-full bg-accent/15 px-2.5 py-0.5 text-xs font-mono text-accent">
+            <span className="rounded-full bg-accent/15 px-2.5 py-0.5 adm-label text-accent">
               {prospectLeads.length} leads calificados
             </span>
           </h2>
@@ -243,9 +235,9 @@ export function ProspectosClient() {
               setShowAiQualifier((v) => !v);
               sound.pop();
             }}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-mono transition-all ${
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 adm-label transition-all ${
               showAiQualifier
-                ? "border-accent bg-accent text-black font-bold shadow-md shadow-accent/20"
+                ? "border-accent bg-accent text-background font-bold shadow-sm"
                 : "border-accent/40 bg-accent/10 text-accent hover:bg-accent/20"
             }`}
           >
@@ -254,14 +246,14 @@ export function ProspectosClient() {
           </button>
 
           {/* View Mode Toggle: Kanban vs Table */}
-          <div className="inline-flex rounded-full border border-white/10 bg-black/40 p-0.5 text-xs font-mono">
+          <div className="inline-flex rounded-full border border-[var(--line)] bg-[var(--well-soft)] p-0.5 text-xs">
             <button
               type="button"
               onClick={() => {
                 setViewMode("kanban");
                 sound.tick();
               }}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors ${
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors adm-label ${
                 viewMode === "kanban"
                   ? "bg-foreground text-background font-semibold"
                   : "text-muted hover:text-foreground"
@@ -276,7 +268,7 @@ export function ProspectosClient() {
                 setViewMode("table");
                 sound.tick();
               }}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors ${
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors adm-label ${
                 viewMode === "table"
                   ? "bg-foreground text-background font-semibold"
                   : "text-muted hover:text-foreground"
@@ -291,7 +283,7 @@ export function ProspectosClient() {
           <button
             type="button"
             onClick={handleDownloadCsv}
-            className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-xs font-mono text-foreground hover:bg-white/10 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line-strong)] bg-[var(--well)] px-3.5 py-1.5 adm-label text-foreground hover:bg-[var(--panel-2)] transition-colors"
           >
             <Download size={13} />
             <span>CSV ({filtered.length})</span>
@@ -308,35 +300,35 @@ export function ProspectosClient() {
 
       {/* KPI Cards & Pipeline Overview */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 backdrop-blur-sm">
-          <p className="text-xs font-mono text-muted uppercase">Prospectos Filtrados</p>
-          <p className="mt-1 text-2xl font-bold text-foreground font-mono">{filtered.length}</p>
+        <div className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-4">
+          <p className="adm-label text-[10px]">Prospectos Filtrados</p>
+          <p className="adm-num mt-1 text-2xl font-bold text-foreground">{filtered.length}</p>
         </div>
-        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/10 p-4 backdrop-blur-sm">
-          <p className="text-xs font-mono text-emerald-400 uppercase">Pipeline en Juego</p>
-          <p className="mt-1 text-2xl font-bold text-emerald-300 font-mono">
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+          <p className="adm-label text-[10px] text-emerald-600 dark:text-emerald-400">Pipeline en Juego</p>
+          <p className="adm-num mt-1 text-2xl font-bold text-emerald-600 dark:text-emerald-300">
             USD ${totalPipelineUsd.toLocaleString("es-AR")}
           </p>
         </div>
-        <div className="rounded-2xl border border-sky-500/20 bg-sky-950/10 p-4 backdrop-blur-sm">
-          <p className="text-xs font-mono text-sky-400 uppercase">Contactados / Charla</p>
-          <p className="mt-1 text-2xl font-bold text-sky-300 font-mono">
+        <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 p-4">
+          <p className="adm-label text-[10px] text-sky-600 dark:text-sky-400">Contactados / Charla</p>
+          <p className="adm-num mt-1 text-2xl font-bold text-sky-600 dark:text-sky-300">
             {statusCounts.contactado + statusCounts.en_charla}{" "}
             <span className="text-xs font-normal text-muted">de {prospectLeads.length}</span>
           </p>
         </div>
-        <div className="rounded-2xl border border-accent/20 bg-accent/10 p-4 backdrop-blur-sm">
-          <p className="text-xs font-mono text-accent uppercase">Clientes Ganados</p>
-          <p className="mt-1 text-2xl font-bold text-foreground font-mono">
+        <div className="rounded-xl border border-accent/30 bg-accent/10 p-4">
+          <p className="adm-label text-[10px] text-accent">Clientes Ganados</p>
+          <p className="adm-num mt-1 text-2xl font-bold text-foreground">
             {statusCounts.ganado}{" "}
             <span className="text-xs font-normal text-muted">cerrados</span>
           </p>
         </div>
       </div>
 
-      {/* Selector de Estado tipo CRM (para filtrar la vista grilla o kanban) */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 pb-3">
-        <span className="text-xs font-mono text-muted mr-1">Filtrar estado:</span>
+      {/* Selector de Estado tipo CRM */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-[var(--line)] pb-3">
+        <span className="adm-label text-[10px] mr-1">Filtrar estado:</span>
         {STATUS_FILTER_OPTIONS.map((opt) => {
           const isSelected = statusFilter === opt.id;
           const count = opt.id === "todos" ? prospectLeads.length : statusCounts[opt.id];
@@ -348,14 +340,14 @@ export function ProspectosClient() {
                 setStatusFilter(opt.id);
                 sound.tick();
               }}
-              className={`rounded-full px-3 py-1 text-xs font-mono transition-colors flex items-center gap-1.5 ${
+              className={`rounded-full px-3 py-1 adm-label transition-colors flex items-center gap-1.5 ${
                 isSelected
                   ? "bg-foreground text-background font-semibold"
-                  : "border border-white/10 bg-white/5 text-muted hover:text-foreground"
+                  : "border border-[var(--line)] bg-[var(--well)] text-muted hover:text-foreground hover:border-[var(--line-strong)]"
               }`}
             >
               <span>{opt.label}</span>
-              <span className="text-[10px] opacity-60">({count})</span>
+              <span className="text-[9.5px] opacity-60">({count})</span>
             </button>
           );
         })}
@@ -371,12 +363,12 @@ export function ProspectosClient() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por nombre, dirección o problema..."
-            className="w-full rounded-full border border-white/10 bg-black/40 py-2 pr-4 pl-10 text-xs font-mono text-foreground placeholder:text-muted/60 focus:border-accent focus:outline-none"
+            className="w-full rounded-full border border-[var(--line-strong)] bg-[var(--well)] py-2 pr-4 pl-10 text-xs text-foreground placeholder:text-muted/60 focus:border-accent focus:outline-none"
           />
         </div>
 
         {/* City Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 admin-scroll">
           {CITIES.map((city) => (
             <button
               key={city}
@@ -385,10 +377,10 @@ export function ProspectosClient() {
                 setSelectedCity(city);
                 sound.tick();
               }}
-              className={`rounded-full px-3 py-1.5 text-xs font-mono whitespace-nowrap transition-colors ${
+              className={`rounded-full px-3 py-1.5 adm-label whitespace-nowrap transition-colors ${
                 selectedCity === city
-                  ? "bg-accent text-black font-semibold"
-                  : "border border-white/10 bg-white/5 text-muted hover:text-foreground"
+                  ? "bg-accent text-background font-semibold"
+                  : "border border-[var(--line)] bg-[var(--well)] text-muted hover:text-foreground"
               }`}
             >
               {city}
@@ -403,7 +395,7 @@ export function ProspectosClient() {
             setSelectedCategory(e.target.value as (typeof CATEGORIES)[number]);
             sound.tick();
           }}
-          className="rounded-full border border-white/10 bg-black/40 px-3 py-1.5 text-xs font-mono text-foreground focus:border-accent focus:outline-none"
+          className="rounded-full border border-[var(--line-strong)] bg-[var(--well)] px-3 py-1.5 adm-label text-foreground focus:border-accent focus:outline-none"
         >
           {CATEGORIES.map((cat) => (
             <option key={cat} value={cat}>
@@ -438,40 +430,40 @@ export function ProspectosClient() {
             return (
               <div
                 key={lead.id}
-                className={`flex flex-col justify-between rounded-2xl border p-5 transition-all shadow-sm ${
+                className={`flex flex-col justify-between rounded-xl border p-4 transition-all ${
                   currentStatus === "ganado"
-                    ? "border-emerald-500/50 bg-emerald-950/10"
+                    ? "border-emerald-500/40 bg-emerald-500/5"
                     : currentStatus === "en_charla"
-                    ? "border-sky-500/40 bg-sky-950/10"
-                    : "border-white/10 bg-white/[0.02] hover:border-white/20"
+                    ? "border-sky-500/40 bg-sky-500/5"
+                    : "border-[var(--line)] bg-[var(--panel)] hover:border-[var(--line-strong)]"
                 }`}
               >
                 <div>
                   {/* Header: Location & Category */}
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 text-xs text-muted">
-                      <MapPin size={13} className="text-accent shrink-0" />
+                    <div className="flex items-center gap-1.5 adm-label text-[10px]">
+                      <MapPin size={12} className="text-accent shrink-0" />
                       <span className="font-medium text-foreground">
                         {lead.city}, {lead.province}
                       </span>
                       <span>·</span>
                       <span className="truncate max-w-[120px]">{lead.category}</span>
                     </div>
-                    <span className="font-mono text-xs font-semibold text-emerald-400">
+                    <span className="adm-num text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                       ~USD {lead.estimatedBudgetUsd}
                     </span>
                   </div>
 
                   {/* Status Switcher Bar */}
-                  <div className="mt-3 flex items-center justify-between gap-2 border-y border-white/10 py-2">
+                  <div className="mt-3 flex items-center justify-between gap-2 border-y border-[var(--line)] py-2">
                     <div className="flex items-center gap-1.5">
                       <span className={`h-2 w-2 rounded-full ${statusMeta.dot}`} />
-                      <span className="text-[11px] font-mono text-muted uppercase">Estado:</span>
+                      <span className="adm-label text-[9.5px]">Estado:</span>
                     </div>
                     <select
                       value={currentStatus}
                       onChange={(e) => updateStatus(lead.id, e.target.value as LeadStatus)}
-                      className={`rounded-md border px-2 py-0.5 text-xs font-mono focus:outline-none ${statusMeta.badge}`}
+                      className={`rounded-md border px-2 py-0.5 adm-label text-[9.5px] focus:outline-none ${statusMeta.badge}`}
                     >
                       <option value="nuevo">⚪ Sin contactar</option>
                       <option value="contactado">🟡 Mensaje enviado</option>
@@ -483,7 +475,7 @@ export function ProspectosClient() {
 
                   {/* Business Name */}
                   <div className="mt-3">
-                    <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                    <h3 className="adm-title text-sm text-foreground flex items-center gap-2">
                       <span>{lead.name}</span>
                       {lead.currentSite && (
                         <a
@@ -493,21 +485,21 @@ export function ProspectosClient() {
                           className="text-muted hover:text-accent transition-colors"
                           title="Visitar web actual"
                         >
-                          <ExternalLink size={13} />
+                          <ExternalLink size={12} />
                         </a>
                       )}
                     </h3>
-                    <p className="mt-0.5 text-xs text-muted font-mono">{lead.address}</p>
+                    <p className="mt-0.5 adm-label text-[10px] text-muted">{lead.address}</p>
                   </div>
 
                   {/* Pain Point & Diagnosis */}
-                  <div className="mt-4 rounded-xl border border-white/5 bg-black/40 p-3 text-xs">
-                    <div className="flex items-center gap-1.5 font-semibold text-amber-300 font-mono">
-                      <Sparkles size={13} />
+                  <div className="mt-3 rounded-lg border border-[var(--line)] bg-[var(--well)] p-2.5 text-xs">
+                    <div className="flex items-center gap-1.5 adm-label text-[10px] text-amber-600 dark:text-amber-300">
+                      <Sparkles size={12} />
                       <span>Problema detectado:</span>
                     </div>
-                    <p className="mt-1 text-muted/90 leading-relaxed font-sans">{lead.painPoint}</p>
-                    <div className="mt-2.5 pt-2 border-t border-white/5 text-[11px] text-accent/90">
+                    <p className="mt-1 text-muted text-[11.5px] leading-relaxed">{lead.painPoint}</p>
+                    <div className="mt-2 pt-2 border-t border-[var(--line)] text-[11px] text-accent">
                       <strong>Propuesta Se7en:</strong> {lead.recommendedSolution}
                     </div>
                   </div>
@@ -520,14 +512,14 @@ export function ProspectosClient() {
                           defaultValue={leadNote}
                           id={`note-input-${lead.id}`}
                           placeholder="Anotá acá feedback, objeciones o fecha de reunión..."
-                          className="w-full rounded-lg border border-white/10 bg-black/60 p-2 text-xs text-foreground placeholder:text-muted/40 focus:border-accent focus:outline-none font-mono"
+                          className="w-full rounded-lg border border-[var(--line-strong)] bg-[var(--well)] p-2 text-xs text-foreground placeholder:text-muted/60 focus:border-accent focus:outline-none"
                           rows={2}
                         />
                         <div className="flex justify-end gap-2">
                           <button
                             type="button"
                             onClick={() => setEditingNoteId(null)}
-                            className="rounded-md px-2 py-1 text-[11px] font-mono text-muted hover:text-foreground"
+                            className="rounded-md px-2 py-1 adm-label text-muted hover:text-foreground"
                           >
                             Cancelar
                           </button>
@@ -540,7 +532,7 @@ export function ProspectosClient() {
                               if (el) updateNote(lead.id, el.value.trim());
                               setEditingNoteId(null);
                             }}
-                            className="rounded-md bg-accent px-2.5 py-1 text-[11px] font-mono text-black font-semibold"
+                            className="rounded-md bg-accent px-2.5 py-1 text-[11px] font-semibold text-background"
                           >
                             Guardar
                           </button>
@@ -549,16 +541,16 @@ export function ProspectosClient() {
                     ) : (
                       <div
                         onClick={() => setEditingNoteId(lead.id)}
-                        className="group flex cursor-pointer items-start justify-between rounded-lg border border-dashed border-white/10 bg-black/30 p-2 text-[11px] hover:border-white/20 transition-colors"
+                        className="group flex cursor-pointer items-start justify-between rounded-lg border border-dashed border-[var(--line)] bg-[var(--well)] p-2 text-[11px] hover:border-[var(--line-strong)] transition-colors"
                       >
                         <div className="flex-1 pr-2">
                           {leadNote ? (
-                            <p className="font-mono text-sky-300">
-                              <span className="font-bold">Nota:</span> {leadNote}
+                            <p className="text-sky-600 dark:text-sky-300 text-xs">
+                              <span className="adm-label text-[9.5px] text-sky-500 font-bold">Nota:</span> {leadNote}
                             </p>
                           ) : (
-                            <p className="font-mono text-muted/40 italic">
-                              + Agregar nota interna (click acá)...
+                            <p className="adm-label text-[10px] text-muted/60 italic">
+                              + Agregar nota interna...
                             </p>
                           )}
                         </div>
@@ -572,24 +564,24 @@ export function ProspectosClient() {
                 </div>
 
                 {/* Footer Buttons: Copy Pitch & WhatsApp */}
-                <div className="mt-4 flex items-center gap-2 border-t border-white/10 pt-3">
+                <div className="mt-4 flex items-center gap-2 border-t border-[var(--line)] pt-3">
                   <button
                     type="button"
                     onClick={() => handleCopyPitch(lead)}
-                    className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-full border py-1.5 px-3 text-xs font-mono transition-colors ${
+                    className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-full border py-1.5 px-3 adm-label text-[10px] transition-colors ${
                       isCopied
-                        ? "border-emerald-500 bg-emerald-500/20 text-emerald-300"
-                        : "border-white/10 bg-white/5 text-foreground hover:bg-white/10"
+                        ? "border-emerald-500 bg-emerald-500/20 text-emerald-600 dark:text-emerald-300"
+                        : "border-[var(--line-strong)] bg-[var(--well)] text-foreground hover:bg-[var(--panel-2)]"
                     }`}
                   >
-                    {isCopied ? <Check size={13} /> : <Copy size={13} />}
+                    {isCopied ? <Check size={12} /> : <Copy size={12} />}
                     <span>{isCopied ? "¡Copiado!" : "Copiar Guión"}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => handleOpenWhatsApp(lead)}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-full bg-emerald-500 hover:bg-emerald-400 py-1.5 px-4 text-xs font-mono font-bold text-black transition-colors shadow-sm"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-full bg-emerald-600 text-white dark:bg-emerald-500 dark:text-black hover:opacity-90 py-1.5 px-4 text-xs font-semibold transition-opacity shadow-sm"
                   >
                     <WhatsAppLogo className="h-3.5 w-3.5 fill-current" />
                     <span>WhatsApp</span>
@@ -602,7 +594,7 @@ export function ProspectosClient() {
       )}
 
       {filtered.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-white/10 p-12 text-center text-muted font-mono text-xs">
+        <div className="rounded-xl border border-dashed border-[var(--line)] p-12 text-center text-muted adm-label">
           No se encontraron prospectos con esos filtros.
         </div>
       )}

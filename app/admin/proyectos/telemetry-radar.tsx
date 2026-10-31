@@ -1,19 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { m } from "framer-motion";
 import {
-  Activity,
-  Globe,
-  ShieldCheck,
-  CheckCircle2,
   ExternalLink,
   Copy,
   Check,
   RefreshCw,
-  Gauge,
-  Sparkles,
-  Zap,
 } from "lucide-react";
 import { useSoundFx } from "@/lib/use-sound-fx";
 
@@ -22,7 +14,7 @@ interface MonitoredSite {
   name: string;
   slug: string;
   url: string;
-  status: "200 OK" | "200 OK" | "warning";
+  status: "200 OK";
   latencyMs: number;
   lighthouseScore: number;
   sslDaysLeft: number;
@@ -113,7 +105,7 @@ export function TelemetryRadar() {
       setSites((prev) =>
         prev.map((s) => ({
           ...s,
-          latencyMs: Math.floor(Math.random() * 60) + 140, // 140ms a 200ms
+          latencyMs: Math.floor(Math.random() * 60) + 140,
         }))
       );
       setTesting(false);
@@ -130,21 +122,21 @@ export function TelemetryRadar() {
   };
 
   return (
-    <div className="rounded-3xl border border-white/[0.08] bg-white/[0.015] p-5 md:p-7 backdrop-blur-md">
+    <div className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-5 md:p-6">
       {/* Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--line)] pb-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 font-mono text-[11px] text-emerald-400 uppercase tracking-wider">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 adm-label text-emerald-600 dark:text-emerald-400">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inset-0 rounded-full bg-emerald-400 opacity-75" />
               <span className="relative h-2 w-2 rounded-full bg-emerald-500" />
             </span>
-            Datadog / Vercel Edge Telemetry Radar
+            Telemetría de Borde · Se7en OS
           </div>
-          <h3 className="mt-2 text-lg font-bold text-foreground">
+          <h3 className="adm-title mt-2 text-base text-foreground">
             Monitoreo en Vivo de Sitios en Producción
           </h3>
-          <p className="text-xs text-muted/70 mt-0.5">
+          <p className="mt-1 text-xs text-muted">
             Salud de servidores, latencia de borde (TTFB), certificados SSL y enlaces de acceso para clientes.
           </p>
         </div>
@@ -153,27 +145,27 @@ export function TelemetryRadar() {
           type="button"
           onClick={handleRunPingTest}
           disabled={testing}
-          className="flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-xs font-mono font-bold text-black transition-all hover:bg-foreground disabled:opacity-50"
+          className="flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-xs font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           <RefreshCw size={13} className={testing ? "animate-spin" : ""} />
-          <span>{testing ? "Midiendo latencia..." : "Test de Latencia Global ⚡"}</span>
+          <span>{testing ? "Midiendo latencia..." : "Test de Latencia ⚡"}</span>
         </button>
       </div>
 
       {/* Grid de Sitios Monitoreados */}
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {sites.map((site) => {
           const isCopied = copiedSlug === site.slug;
           return (
             <div
               key={site.id}
-              className="flex flex-col justify-between rounded-2xl border border-white/[0.08] bg-black/50 p-4 transition-all hover:border-white/20 hover:bg-black/70"
+              className="flex flex-col justify-between rounded-xl border border-[var(--line)] bg-[var(--panel-2)] p-4 transition-all hover:border-[var(--line-strong)] hover:bg-[var(--panel-3)]"
             >
               <div>
                 {/* Cabecera del Proyecto */}
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                    <h4 className="adm-title text-sm text-foreground flex items-center gap-1.5">
                       <span>{site.name}</span>
                       <a
                         href={site.url}
@@ -184,47 +176,47 @@ export function TelemetryRadar() {
                         <ExternalLink size={12} />
                       </a>
                     </h4>
-                    <p className="font-mono text-[11px] text-muted/60 mt-0.5">{site.category}</p>
+                    <p className="adm-label text-[10px] text-muted mt-1">{site.category}</p>
                   </div>
 
                   {/* Estado HTTP */}
-                  <span className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] text-emerald-300 font-bold">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  <span className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 adm-label text-[9.5px] text-emerald-600 dark:text-emerald-300 font-bold">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                     {site.status}
                   </span>
                 </div>
 
                 {/* Métricas: Latencia, Google Score, SSL */}
-                <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-black/60 p-2.5 font-mono text-center text-xs border border-white/[0.04]">
+                <div className="mt-4 grid grid-cols-3 gap-2 rounded-lg bg-[var(--well)] p-2.5 text-center text-xs border border-[var(--line)]">
                   <div>
-                    <span className="text-[10px] text-muted/60 block">Latencia</span>
-                    <span className="font-bold text-emerald-400">{site.latencyMs} ms</span>
+                    <span className="adm-label text-[9.5px] block">Latencia</span>
+                    <span className="adm-num text-sm text-emerald-600 dark:text-emerald-400 font-bold">{site.latencyMs} ms</span>
                   </div>
-                  <div className="border-x border-white/10">
-                    <span className="text-[10px] text-muted/60 block">PageSpeed</span>
-                    <span className="font-bold text-foreground">{site.lighthouseScore}/100</span>
+                  <div className="border-x border-[var(--line)]">
+                    <span className="adm-label text-[9.5px] block">PageSpeed</span>
+                    <span className="adm-num text-sm font-bold text-foreground">{site.lighthouseScore}/100</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-muted/60 block">SSL Válido</span>
-                    <span className="font-bold text-muted/80">{site.sslDaysLeft} d</span>
+                    <span className="adm-label text-[9.5px] block">SSL Válido</span>
+                    <span className="adm-num text-sm text-muted">{site.sslDaysLeft} d</span>
                   </div>
                 </div>
               </div>
 
               {/* Botón de Acceso al Portal de Cliente */}
-              <div className="mt-4 flex items-center justify-between border-t border-white/[0.06] pt-3">
-                <span className="text-[11px] font-mono text-muted/60">Portal del cliente:</span>
+              <div className="mt-4 flex items-center justify-between border-t border-[var(--line)] pt-3">
+                <span className="adm-label text-[10px]">Portal del cliente:</span>
                 <button
                   type="button"
                   onClick={() => handleCopyPortalLink(site.slug)}
-                  className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-mono transition-colors ${
+                  className={`flex items-center gap-1 rounded-full border px-2.5 py-1 adm-label text-[10px] transition-colors ${
                     isCopied
-                      ? "border-emerald-500 bg-emerald-500/20 text-emerald-300 font-semibold"
-                      : "border-white/10 bg-white/5 text-muted hover:text-foreground hover:bg-white/10"
+                      ? "border-emerald-500 bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 font-bold"
+                      : "border-[var(--line-strong)] bg-[var(--well)] text-muted hover:text-foreground hover:border-foreground"
                   }`}
                 >
                   {isCopied ? <Check size={12} /> : <Copy size={12} />}
-                  <span>{isCopied ? "¡Enlace copiado!" : "Copiar Enlace"}</span>
+                  <span>{isCopied ? "¡Copiado!" : "Copiar Enlace"}</span>
                 </button>
               </div>
             </div>
