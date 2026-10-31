@@ -12,11 +12,13 @@ import {
   Edit3,
   Kanban,
   LayoutGrid,
+  Calculator,
 } from "lucide-react";
 import { prospectLeads, type ProspectLead } from "@/data/prospects";
 import { WhatsAppLogo } from "@/components/icons/whatsapp-logo";
 import { ProspectosKanban } from "./prospectos-kanban";
 import { AiQualifier } from "./ai-qualifier";
+import { PadelRoiCalculator } from "./padel-roi-calculator";
 import { useSoundFx } from "@/lib/use-sound-fx";
 import { Chip, Segmented, btn, btnPrimary, btnSecondary, searchInput, kpiRow, cn } from "../kit";
 
@@ -77,6 +79,7 @@ const STATUS_FILTER_OPTIONS: { id: "todos" | LeadStatus; label: string }[] = [
 export function ProspectosClient() {
   const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
   const [showAiQualifier, setShowAiQualifier] = useState(false);
+  const [showRoiCalc, setShowRoiCalc] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedCity, setSelectedCity] = useState<(typeof CITIES)[number]>("Todas");
   const [selectedCategory, setSelectedCategory] = useState<(typeof CATEGORIES)[number]>("Todas");
@@ -232,6 +235,24 @@ export function ProspectosClient() {
 
         {/* Action Controls: AI Copilot, View Switcher, CSV Export */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* ROI Pádel Calculator Button */}
+          <button
+            type="button"
+            onClick={() => {
+              setShowRoiCalc((v) => !v);
+              sound.pop();
+            }}
+            className={cn(
+              "focus-ring inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-semibold whitespace-nowrap transition-colors",
+              showRoiCalc
+                ? "bg-accent text-background"
+                : "border border-[var(--line-strong)] text-foreground hover:border-foreground"
+            )}
+          >
+            <Calculator size={13} className={showRoiCalc ? "fill-current" : "text-accent"} />
+            <span>Calculadora ROI Pádel</span>
+          </button>
+
           {/* AI Qualifier Button */}
           <button
             type="button"
@@ -279,6 +300,13 @@ export function ProspectosClient() {
       {showAiQualifier && (
         <div className="animate-in fade-in duration-300">
           <AiQualifier />
+        </div>
+      )}
+
+      {/* Padel ROI Calculator Drawer */}
+      {showRoiCalc && (
+        <div className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-5 animate-in fade-in duration-300">
+          <PadelRoiCalculator />
         </div>
       )}
 

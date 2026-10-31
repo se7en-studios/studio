@@ -13,6 +13,7 @@ import {
   Copy,
   Check,
   Sparkles,
+  Calculator,
   ExternalLink,
   Phone,
   Zap,
@@ -26,8 +27,34 @@ import {
 import type { ProspectLead } from "@/data/prospects";
 import type { LeadStatus } from "./prospectos-client";
 import { WhatsAppLogo } from "@/components/icons/whatsapp-logo";
+import { PadelRoiCalculator } from "./padel-roi-calculator";
 import { useSoundFx } from "@/lib/use-sound-fx";
 import { cn } from "../kit";
+
+function getDynamicPitch(lead: ProspectLead, template: "original" | "roi_padel" | "gastro" | "industria"): string {
+  if (template === "roi_padel") {
+    return `Hola equipo de ${lead.name}! ¿Cómo están? Les escribe Franco de Se7en Studio acá en Catriel (desarrollamos la plataforma de reservas de Muzzaga Pádel: se7en.com.ar/work/muzzaga).
+
+Estuvimos calculando la ocupación de sus canchas en ${lead.city}: con un promedio habitual de 15% de cancelaciones sin aviso previo, el club deja de percibir cerca de $800.000 ARS a $1.200.000 ARS por mes en turnos vacíos.
+
+Con nuestro turnero web los jugadores señan el 50% por Mercado Pago al reservar y les llega la confirmación por WhatsApp en 3 clics. El club recupera ese dinero mes a mes y la inversión del software se amortiza sola en menos de 45 días.
+
+¿Tienen 2 minutos para ver la demo funcionando en el celular?`;
+  }
+  if (template === "gastro") {
+    return `Hola equipo de ${lead.name}! ¿Cómo va todo? Les escribe Franco de Se7en Studio en la región.
+Notamos que tienen una gran propuesta gastronómica en ${lead.city}. Desarrollamos cartas digitales interactivas con sistema de Take Away y pedidos que le llegan al WhatsApp de cocina con la comanda y el pago calculado en 1 clic (se7en.com.ar/para/gastronomia), sin pagar el 30% de comisión de PedidosYa.
+
+¿Les gustaría probar una demo de 60 segundos para ver cómo aumentaría la velocidad de sus pedidos?`;
+  }
+  if (template === "industria") {
+    return `Hola directivos de ${lead.name}! Les escribe Franco de Se7en Studio.
+Vemos la actividad y capacidad técnica que tienen en ${lead.city} para el sector industrial y de servicios. Diseñamos plataformas corporativas de ultra velocidad (Next.js 16 + Cloudflare Edge) preparadas para licitaciones y catálogo B2B que cargan en menos de 0.5s: se7en.com.ar/services.
+
+¿Podemos coordinar una breve llamada esta semana para mostrarles cómo presentar la empresa ante operadoras?`;
+  }
+  return lead.pitch;
+}
 
 interface KanbanProps {
   leads: ProspectLead[];
@@ -98,6 +125,8 @@ export function ProspectosKanban({
   const [activeDossierLead, setActiveDossierLead] = useState<ProspectLead | null>(null);
   const [dossierTab, setDossierTab] = useState<"estrategia" | "guion" | "bitacora">("estrategia");
   const [copiedPitch, setCopiedPitch] = useState(false);
+  const [selectedPitchTemplate, setSelectedPitchTemplate] = useState<"original" | "roi_padel" | "gastro" | "industria">("original");
+  const [showDossierRoiCalc, setShowDossierRoiCalc] = useState(false);
 
   const handleOpenDossier = (lead: ProspectLead) => {
     setActiveDossierLead(lead);
@@ -391,6 +420,16 @@ export function ProspectosKanban({
               </div>
 
               <div className="flex items-center gap-3">
+                <a
+                  href="/admin/pedidos"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent hover:bg-accent hover:text-white transition-colors"
+                  title="Crear borrador de propuesta interactiva para este cliente"
+                >
+                  <Sparkles size={12} />
+                  <span>Crear Propuesta</span>
+                </a>
                 <div className="text-right hidden sm:block">
                   <span className="adm-label text-[10px] block text-muted">Ticket Estimado</span>
                   <span className="adm-num text-lg font-bold text-emerald-600 dark:text-emerald-400">
@@ -532,14 +571,72 @@ export function ProspectosKanban({
 
             {dossierTab === "guion" && (
               <div className="space-y-4">
+                {/* Selector de Plantilla de Outreach */}
+                <div className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <span className="adm-label text-[10px] text-muted uppercase tracking-wider">
+                      Plantilla de Enfoque Comercial:
+                    </span>
+                    {activeDossierLead.category === "Club de Pádel & Deporte" && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowDossierRoiCalc((v) => !v);
+                          sound.pop();
+                        }}
+                        className="inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-[10.5px] font-semibold text-accent hover:bg-accent hover:text-white transition-colors"
+                      >
+                        <Calculator size={11} />
+                        <span>{showDossierRoiCalc ? "Ocultar ROI" : "Simular ROI de Canchas"}</span>
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {[
+                      { id: "original", label: "Original a Medida" },
+                      { id: "roi_padel", label: "Pádel & Turnero (ROI)" },
+                      { id: "gastro", label: "Gastronomía & Take Away" },
+                      { id: "industria", label: "Industria B2B Petrolera" },
+                    ].map((tpl) => (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedPitchTemplate(tpl.id as any);
+                          sound.tick();
+                        }}
+                        className={`rounded-full px-2.5 py-1 text-[11px] transition-colors ${
+                          selectedPitchTemplate === tpl.id
+                            ? "bg-foreground text-background font-semibold"
+                            : "border border-[var(--line)] bg-[var(--well)] text-muted hover:text-foreground hover:border-[var(--line-strong)]"
+                        }`}
+                      >
+                        {tpl.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Simulador ROI embebido si está activo */}
+                {showDossierRoiCalc && (
+                  <div className="rounded-xl border border-[var(--line)] bg-[var(--panel-2)] p-4 animate-in fade-in duration-300">
+                    <PadelRoiCalculator
+                      initialClubName={activeDossierLead.name}
+                      initialPhone={activeDossierLead.phone}
+                    />
+                  </div>
+                )}
+
+                {/* Caja de Pitch Dinámico */}
                 <div className="rounded-xl border border-[var(--line)] bg-[var(--well)] p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="adm-label text-[10.5px] text-muted uppercase tracking-wider">
-                      Guión de Mensaje de Apertura (WhatsApp Hook)
+                    <span className="adm-label text-[10.5px] text-muted uppercase tracking-wider flex items-center gap-1">
+                      <Zap size={11} className="text-accent" />
+                      Guión Activo (${selectedPitchTemplate.replace("_", " ").toUpperCase()})
                     </span>
                     <button
                       type="button"
-                      onClick={() => handleCopyPitch(activeDossierLead.pitch)}
+                      onClick={() => handleCopyPitch(getDynamicPitch(activeDossierLead, selectedPitchTemplate))}
                       className="flex items-center gap-1 rounded-full border border-[var(--line-strong)] bg-[var(--panel)] px-2.5 py-1 text-xs adm-label text-foreground hover:bg-[var(--panel-2)] transition-colors"
                     >
                       {copiedPitch ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
@@ -547,7 +644,7 @@ export function ProspectosKanban({
                     </button>
                   </div>
                   <div className="rounded-lg bg-[var(--panel)] border border-[var(--line)] p-3 text-xs leading-relaxed text-foreground font-mono whitespace-pre-wrap">
-                    {activeDossierLead.pitch}
+                    {getDynamicPitch(activeDossierLead, selectedPitchTemplate)}
                   </div>
                 </div>
 
@@ -555,7 +652,11 @@ export function ProspectosKanban({
                   <button
                     type="button"
                     onClick={() => {
-                      onOpenWhatsApp(activeDossierLead);
+                      const dynamicPitch = getDynamicPitch(activeDossierLead, selectedPitchTemplate);
+                      sound.pop();
+                      const phone = activeDossierLead.phone.replace(/\D/g, "");
+                      const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(dynamicPitch)}`;
+                      window.open(waUrl, "_blank", "noopener,noreferrer");
                       const current = leadStatuses[activeDossierLead.id] || "nuevo";
                       if (current === "nuevo") {
                         handleMove(activeDossierLead.id, "contactado");
@@ -564,7 +665,7 @@ export function ProspectosKanban({
                     className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 text-white dark:bg-emerald-500 dark:text-black py-3 px-4 text-xs font-bold transition-opacity hover:opacity-90 shadow-sm"
                   >
                     <WhatsAppLogo className="h-4 w-4 fill-current" />
-                    <span>Abrir WhatsApp con Pitch Preparado</span>
+                    <span>Abrir WhatsApp con Pitch Activo</span>
                   </button>
 
                   {activeDossierLead.phone && (

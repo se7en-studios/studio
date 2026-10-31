@@ -486,6 +486,102 @@ export const industries: IndustrySolution[] = [
       },
     ],
   },
+  {
+    slug: "clubes-de-padel",
+    name: "Clubes de Pádel & Complejos Deportivos",
+    heroBadge: "Software y Páginas Web para Pádel en Argentina",
+    title: "Páginas Web y Turneros para Clubes de Pádel: Canchas Llenas y Señas 24/7",
+    subtitle:
+      "Dejá de responder 150 mensajes por día en WhatsApp y de perder turnos por cancelaciones a último momento. Desarrollamos la plataforma web de reservas a medida para tu club con cobro automático de seña por Mercado Pago, grilla en vivo y fixture de torneos. La misma solución que creamos para Muzzaga Pádel.",
+    metaDescription:
+      "Diseño web y sistema de reservas online para clubes de pádel en Argentina. Grilla horaria en tiempo real, cobro de seña con Mercado Pago, confirmación automática por WhatsApp y fixture de torneos.",
+    painPoints: [
+      {
+        problem: "Cancelaciones de último momento sin compensación",
+        consequence: "Te dejan la cancha vacía a las 20hs y perdés el valor total del turno sin poder reubicarlo.",
+        solution: "Cobro automático de seña obligatoria vía Mercado Pago antes de confirmar el turno.",
+      },
+      {
+        problem: "Colapso de WhatsApp en horarios pico",
+        consequence: "Perdés 2 horas por tarde contestando '¿tenés cancha a las 19?' y cuando respondés ya alquilaron en otro club.",
+        solution: "Grilla horaria interactiva donde los jugadores ven las canchas libres en vivo y reservan en 3 clics.",
+      },
+      {
+        problem: "Gestión desordenada de turnos fijos y torneos",
+        consequence: "Cuadernos de papel o planillas de Excel que se pisan, socios disconformes y cobros pendientes.",
+        solution: "Panel digital con turnos semanales fijos, recordatorios automáticos al capitán y armado de torneos americanos.",
+      },
+    ],
+    features: [
+      {
+        title: "Grilla Horaria en Tiempo Real",
+        description: "Visualización instantánea de canchas libres y ocupadas, adaptada a celulares con carga ultra rápida.",
+        icon: "Clock",
+      },
+      {
+        title: "Cobro de Seña Automático",
+        description: "Integración nativa con Mercado Pago: seña obligatoria retenida para garantizar la asistencia.",
+        icon: "ShieldCheck",
+      },
+      {
+        title: "Avisos por WhatsApp Express",
+        description: "Notificación automática al WhatsApp del jugador con la reserva, cancha asignada y código de acceso.",
+        icon: "Zap",
+      },
+      {
+        title: "Carta Digital QR para Cantina",
+        description: "Menú interactivo para el tercer tiempo: bebidas, picadas y paletas con pedido directo a la barra.",
+        icon: "Sparkles",
+      },
+    ],
+    comparisons: [
+      {
+        aspect: "Comisiones por turno",
+        traditional: "Apps genéricas que te cobran 10% a 15% de comisión por cada turno que se juega en tu cancha.",
+        se7en: "Plataforma 100% propia. Cero comisiones por turno: todo el dinero entra directo a tu cuenta.",
+      },
+      {
+        aspect: "Fidelización de jugadores",
+        traditional: "Tus clientes ven la publicidad de otros clubes de pádel dentro de la misma aplicación.",
+        se7en: "Tu marca es la única protagonista. Tus jugadores solo ven tus canchas, tus torneos y tu cantina.",
+      },
+      {
+        aspect: "Velocidad de reserva",
+        traditional: "Mandar un audio, esperar 40 minutos a que responda el canchero y perder el horario.",
+        se7en: "Reserva cerrada en 15 segundos desde cualquier celular, las 24 horas del día.",
+      },
+    ],
+    deliverables: [
+      "Web oficial del club con diseño 'Mobile-First' de alta velocidad",
+      "Turnero interactivo multipista (cristal, sintético, indoor)",
+      "Módulo de cobro de señas vía Mercado Pago integrado",
+      "Confirmación y recordatorio automático por WhatsApp",
+      "Sistema de gestión de turnos fijos semanales para socios",
+      "Calculadora de partidos y torneos americanos (como en Muzzaga Pádel)",
+      "Carta digital QR para cantina y tercer tiempo",
+    ],
+    timeline: "7 a 14 días",
+    priceRange: "Desde USD 1.200 (o equivalente en pesos)",
+    whatsappMessage: "Hola Franco! Tengo un club / complejo de pádel y quiero cotizar la web con turnero interactivo y cobro de señas de Se7en.",
+    faqs: [
+      {
+        question: "¿Tengo que pagar comisiones mensuales por cada turno vendido?",
+        answer: "No. A diferencia de aplicaciones de terceros que se quedan con un porcentaje de tu facturación todos los meses, en Se7en el software es 100% tuyo. La plata de las señas entra directamente a tu cuenta de Mercado Pago sin intermediarios.",
+      },
+      {
+        question: "¿Qué pasa con los turnos fijos de los socios de todas las semanas?",
+        answer: "El sistema permite bloquear horarios recurrentes para socios o turnos fijos. Cada semana se les envía un recordatorio automático para confirmar su asistencia.",
+      },
+      {
+        question: "¿Los jugadores necesitan instalarse una aplicación pesada?",
+        answer: "No. Funciona como una Progressive Web App en cualquier navegador móvil (Safari, Chrome). No ocupa memoria en el teléfono del jugador y abre instantáneamente.",
+      },
+      {
+        question: "¿Se pueden cargar torneos relámpago o torneos de fin de semana?",
+        answer: "Sí. Incluimos módulo de torneos y certámenes americanos donde los jugadores se inscriben en duplas, visualizan el fixture y siguen los resultados en vivo.",
+      },
+    ],
+  },
 ];
 
 export function getIndustryBySlug(slug: string): IndustrySolution | undefined {
