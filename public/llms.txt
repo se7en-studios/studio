@@ -63,6 +63,9 @@ Todos los proyectos incluyen diseño exclusivo en Figma, desarrollo a medida en 
   - [Catriel & Río Negro](https://www.se7en.com.ar/ciudades/catriel): Páginas para hotelería, gastronomía y complejos deportivos en Catriel.
   - [San Rafael, Mendoza](https://www.se7en.com.ar/ciudades/san-rafael): Tiendas online para bodegas, turismo, cabañas e inmobiliarias en el sur mendocino.
   - [Mendoza & Cuyo](https://www.se7en.com.ar/ciudades/mendoza): Desarrollo web de alta conversión para marcas, empresas vitivinícolas y corporativas.
+  - [Cipolletti & Cinco Saltos](https://www.se7en.com.ar/ciudades/cipolletti): Páginas web y tiendas online para comercios y servicios en Cipolletti.
+  - [General Roca & Alto Valle](https://www.se7en.com.ar/ciudades/general-roca): Desarrollo web para agroindustria, empaques y bodegas de General Roca.
+  - [Bariloche & Turismo](https://www.se7en.com.ar/ciudades/bariloche): Sitios bilingües de alta gama para hoteles, cabañas y turismo en Bariloche.
 - [Calculadora de Pérdida por Comisiones](https://www.se7en.com.ar/calculadora-comisiones): Herramienta interactiva para calcular cuánto dinero pierde un negocio por mes en comisiones de PedidosYa, Mercado Libre y plataformas cerradas.
 - [Portada (Español)](https://www.se7en.com.ar/): Definición del estudio, trabajos en producción, servicios, proceso de 4 semanas, equipo y preguntas frecuentes.
 - [English Version — Custom Software & Product Studio](https://www.se7en.com.ar/en): Información completa en inglés para fundadores y empresas internacionales (Nearshore Next.js & AI Product Studio).

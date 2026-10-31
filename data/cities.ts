@@ -245,6 +245,162 @@ export const cities: CitySEO[] = [
       longitude: -68.8458,
     },
   },
+  {
+    slug: "cipolletti",
+    name: "Cipolletti",
+    province: "Río Negro",
+    region: "Alto Valle de Río Negro",
+    title: "Desarrollo Web en Cipolletti: Páginas y Tiendas para Empresas y Comercios",
+    subtitle:
+      "Diseñamos y programamos páginas web y tiendas online para empresas, comercios, clínicas y servicios en Cipolletti, Fernández Oro y Cinco Saltos. Carga antes de 1 segundo en celular y trato directo con los fundadores.",
+    metaDescription:
+      "Desarrollo de páginas web y tiendas online en Cipolletti y Alto Valle. Sitios corporativos, pedidos por WhatsApp, e-commerce sin comisiones y máxima velocidad.",
+    localProof:
+      "Desarrollamos proyectos activos en el Alto Valle de Río Negro y Neuquén como Pravilo Argentina y plataformas de reservas locales con entrega en menos de 3 semanas.",
+    sectors: [
+      {
+        title: "Comercios y Locales de Indumentaria",
+        description: "Tiendas online para vender sin pagar comisiones por venta, con cobros directos por Mercado Pago.",
+      },
+      {
+        title: "Empresas de Servicios y Profesionales",
+        description: "Sitios institucionales para estudios contables, jurídicos y empresas de logística para captar clientes en Google.",
+      },
+      {
+        title: "Salud, Estética y Consultorios",
+        description: "Páginas con reserva de turnos online y recordatorios automáticos por WhatsApp.",
+      },
+    ],
+    localCases: [
+      {
+        name: "Pravilo Argentina",
+        description: "Sitio web e identidad digital para el centro de entrenamiento de movilidad en el Alto Valle.",
+        slug: "pravilo",
+      },
+    ],
+    faqs: [
+      {
+        question: "¿Cuánto tardan en entregar una página en Cipolletti?",
+        answer: "Una página web institucional se entrega lista y publicada en 7 a 10 días hábiles. Una tienda online o sistema de turnos toma entre 2 y 3 semanas.",
+      },
+      {
+        question: "¿Por qué no usar una plantilla genérica?",
+        answer: "Las plantillas genéricas tardan 5 segundos en abrir en el celular y alejan a los clientes. Nosotros programamos desde cero con Next.js 16 para que abra en menos de 1 segundo.",
+      },
+      {
+        question: "¿Cómo coordinamos las reuniones?",
+        answer: "Hablamos por WhatsApp y videollamadas directas con Franco y Fede (los dos fundadores), sin intermediarios ni demoras.",
+      },
+    ],
+    geo: {
+      latitude: -38.9339,
+      longitude: -67.9903,
+    },
+  },
+  {
+    slug: "general-roca",
+    name: "General Roca",
+    province: "Río Negro",
+    region: "Alto Valle de Río Negro",
+    title: "Desarrollo Web en General Roca: Páginas para Empresas, Agro y Comercios",
+    subtitle:
+      "Desarrollamos páginas web de alta conversión para empresas agroindustriales, comercios, bodegas y clínicas en General Roca, Cervantes y Allen. Código propio y posicionamiento en Google.",
+    metaDescription:
+      "Diseño y desarrollo web en General Roca, Río Negro. Páginas corporativas para empresas, bodegas, comercios y agroindustria del Alto Valle.",
+    localProof:
+      "Trabajamos con empresas y marcas de Río Negro creando webs ultra rápidas que generan consultas directas por WhatsApp desde el primer día.",
+    sectors: [
+      {
+        title: "Agroindustria, Fruticultura y Empaques",
+        description: "Sitios corporativos de alto nivel para exportación y relaciones comerciales con compradores del país y del exterior.",
+      },
+      {
+        title: "Comercios y Gastronomía de Roca",
+        description: "Menú digital QR para salón y tienda online propia para vender sin intermediarios costosos.",
+      },
+      {
+        title: "Clínicas y Centros Médicos",
+        description: "Portales de pacientes y reserva ágil de turnos sin hacer esperar en el teléfono.",
+      },
+    ],
+    localCases: [
+      {
+        name: "Muzzaga Pádel",
+        description: "Sistema web de reservas online en tiempo real en la provincia de Río Negro.",
+        slug: "muzzaga",
+      },
+    ],
+    faqs: [
+      {
+        question: "¿La web incluye factura para empresas?",
+        answer: "Sí, emitimos factura para empresas y sociedades de Río Negro y todo el país.",
+      },
+      {
+        question: "¿Qué garantía tenemos tras la entrega?",
+        answer: "Todos nuestros proyectos incluyen 30 días de garantía sin costo para cualquier ajuste o calibración.",
+      },
+      {
+        question: "¿Cómo nos encuentran en Google los clientes de Roca?",
+        answer: "Configuramos todo el SEO local, coordenadas y etiquetas técnicas para que cuando alguien busque tus servicios aparezcas en los primeros puestos.",
+      },
+    ],
+    geo: {
+      latitude: -39.0333,
+      longitude: -67.5833,
+    },
+  },
+  {
+    slug: "bariloche",
+    name: "Bariloche",
+    province: "Río Negro",
+    region: "Patagonia Andina",
+    title: "Desarrollo Web en Bariloche: Páginas para Hotelería, Turismo y Gastronomía",
+    subtitle:
+      "Diseño y desarrollo de sitios web de primer nivel para hoteles, complejos de cabañas, cervecerías, chocolaterías y turismo en San Carlos de Bariloche y Villa La Angostura. Bilingüe (ES/EN) y reservas directas.",
+    metaDescription:
+      "Desarrollo web en Bariloche para hoteles, cabañas, turismo aventura y gastronomía. Páginas bilingües con reservas directas y 0% comisiones a agencias.",
+    localProof:
+      "Creamos plataformas visuales cinematográficas con fotografía inmersiva y tiempos de carga instantáneos para turismo nacional e internacional.",
+    sectors: [
+      {
+        title: "Hoteles, Hostels y Cabañas",
+        description: "Motor de reservas directas por WhatsApp o web para ahorrar hasta un 20% de comisión de Booking y Airbnb.",
+      },
+      {
+        title: "Turismo Aventura y Excursiones",
+        description: "Venta de paquetes, salidas de trekking y excursiones con cobros online anticipados en pesos y dólares.",
+      },
+      {
+        title: "Chocolaterías, Cervecerías y Gastronomía",
+        description: "Tienda online de productos regionales con envíos a todo el país y menú QR digital.",
+      },
+    ],
+    localCases: [
+      {
+        name: "Pravilo Argentina",
+        description: "Sitio web cinematográfico con estética cuidada y foco en turismo y bienestar.",
+        slug: "pravilo",
+      },
+    ],
+    faqs: [
+      {
+        question: "¿Permite recibir reservas directas sin pagar comisiones?",
+        answer: "Totalmente. El botón de reserva lleva directo a tu WhatsApp o pasarela de cobro, evitando las comisiones del 15% al 20% de Booking y plataformas cerradas.",
+      },
+      {
+        question: "¿Se puede armar en dos idiomas (Español e Inglés)?",
+        answer: "Sí, desarrollamos la arquitectura multi-idioma para que los turistas extranjeros lean el contenido en inglés nativo.",
+      },
+      {
+        question: "¿Cómo se gestionan las fotos de alta calidad?",
+        answer: "Optimizamos cada imagen para que se vea nítida en pantallas Retina pero cargue en menos de 1 segundo incluso con señal de montaña.",
+      },
+    ],
+    geo: {
+      latitude: -41.1335,
+      longitude: -71.3103,
+    },
+  },
 ];
 
 export function getCityBySlug(slug: string): CitySEO | undefined {

@@ -14,6 +14,7 @@ import { RdTeam } from "@/components/rd/team";
 import { RdFaq } from "@/components/rd/faq";
 import { RdContact } from "@/components/rd/contact";
 import { RdFooter } from "@/components/rd/footer";
+import { RdMobileStickyBar } from "@/components/rd/mobile-sticky-bar";
 
 export default function Home() {
   return (
@@ -34,6 +35,7 @@ export default function Home() {
       <RdFaq />
       <RdContact />
       <RdFooter />
+      <RdMobileStickyBar />
     </>
   );
 }
