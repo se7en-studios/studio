@@ -44,9 +44,14 @@ export function AiQualifier() {
 
     setTimeout(() => {
       const input = targetInput.trim();
-      const isPadel = /padel|paddle|cancha|club/i.test(input);
-      const isFood = /resto|bar|cafe|pizza|burger|cerveza|gastro/i.test(input);
+      const isPadel = /padel|paddle|cancha|club|tenis|deport/i.test(input);
+      const isFood = /resto|bar|cafe|pizza|burger|cerveza|gastro|rotiseria|helad|parrilla|buffet/i.test(input);
       const isWine = /bodega|vino|enoturismo/i.test(input);
+      const isOil = /petrol|oil|valvul|fricsa|equipar|ferr|pozo|vaca muerta|hidrocarbur|trans-catriel|ambiental|logistica|tubing|metalurg/i.test(input);
+      const isHotel = /hotel|apart|hospedaje|posada|moras|palax|victoria|alojamiento|cabanas|audorino/i.test(input);
+      const isHealth = /clinic|salud|odontolog|dental|veterinari|huellitas|medico|estetica|cirugi|farmacia/i.test(input);
+      const isConst = /corralon|aridos|construccion|ferreteria|arena|valle|materiales/i.test(input);
+      const isRealEstate = /inmobiliar|propiedad|lote|tasacion|lupa|mq|desarrollo/i.test(input);
 
       let category = "Comercio / Empresa Local";
       let ticket = 1200;
@@ -61,7 +66,33 @@ Armamos un prototipo en 10 segundos donde el cliente abre la web al toque, ve su
 ¿Tienen 2 minutos para ver la demo que les grabé? Abrazo!`;
       let hook = `Hola! ¿Cómo están? Les escribe Franco de Se7en Studio. Les grabé un video de 60 segundos mostrándoles cómo hacer que los clientes que entran a su web les escriban derecho al WhatsApp sin trabas. ¿Se los paso por acá?`;
 
-      if (isPadel) {
+      if (isOil) {
+        category = "Servicios Petroleros & Industria";
+        ticket = 2400;
+        leaks = [
+          "Sin portal corporativo moderno para licitaciones y homologación con operadoras (YPF, Vista, Pan American).",
+          "Falta de fichas técnicas descargables y certificaciones ISO / seguridad accesibles en 1 clic.",
+          "Fuga de contratos corporativos de cuadrillas y equipos por no reflejar capacidad operativa en la web.",
+        ];
+        script = `Hola directivos y equipo de ${input}! Les habla Franco de Se7en Studio.
+Analizamos su presencia en el polo petrolero de Catriel y Vaca Muerta. Cuando una operadora como YPF o Vista evalúa a sus contratistas, exige portales con fichas técnicas descargables, certificaciones de flota y canal corporativo seguro.
+Diseñamos portales industriales de alta velocidad con catálogo de equipos, fichas técnicas en PDF automático y canal B2B directo para contrataciones.
+¿Podemos coordinar una llamada de 10 minutos para mostrarles cómo presentar la ingeniería de su empresa al nivel que exigen las operadoras?`;
+        hook = `Hola! Les escribe Franco de Se7en Studio. Desarrollamos portales B2B e industriales para empresas de servicios en la cuenca de Vaca Muerta. Les preparé una propuesta breve para optimizar su canal de licitaciones y catálogo corporativo. ¿Con quién del área comercial o gerencia puedo coordinar?`;
+      } else if (isHotel) {
+        category = "Hotelería & Alojamiento Corporativo";
+        ticket = 1800;
+        leaks = [
+          "Comisiones del 18% al 22% perdidas en cada noche reservada por Booking o Despegar.",
+          "Sin motor de reservas corporativas directas para empresas de servicios petroleros y cuadrillas.",
+          "Coordinación manual y lenta de check-in / check-out que satura la conserjería.",
+        ];
+        script = `Hola administración de ${input}! Les habla Franco de Se7en Studio.
+Fíjense lo que sucede hoy en Catriel: gran parte de sus reservas ejecutivas y de cuadrillas pasan por intermediarios o mensajes informales que tardan horas en confirmarse.
+Con nuestro motor de reservas directas, las empresas petroleras y viajantes reservan estadías corporativas o habitaciones individuales en 3 clics, con facturación A automática y seña integrada.
+Esto les ahorra cientos de miles de pesos en comisiones de plataformas y asegura ocupación constante. ¿Tienen 2 minutos para ver la demo que les armé?`;
+        hook = `Hola! Les escribe Franco de Se7en Studio. Analicé el sistema de reservas de su hotel y les preparé una demo de 60s para capturar reservas corporativas directas sin pagar comisiones a plataformas. ¿Se las envío por acá?`;
+      } else if (isPadel) {
         category = "Club de Pádel & Deporte";
         ticket = 1600;
         leaks = [
@@ -95,6 +126,50 @@ En un local de su volumen, esto significa ahorrarse más de $1.800.000 ARS por m
           "Sin motor de reservas para visitas a bodega y degustaciones.",
           "Tienda online atada a plantillas genéricas sin experiencia inmersiva para compradores del exterior.",
         ];
+        script = `Hola equipo de ${input}! Les habla Franco de Se7en Studio.
+Sus vinos tienen una calidad excepcional, pero cuando un turista o distribuidor entra a su web desde Buenos Aires o el exterior, la experiencia visual no refleja la elegancia de la bodega.
+Desarrollamos experiencias de enoturismo interactivas con reservas de degustaciones en tiempo real y tienda directa con pasarela multimoneda.
+¿Tienen unos minutos para ver cómo transformar su presencia digital en una vidriera internacional a la altura de su marca?`;
+        hook = `Hola! Les escribe Franco de Se7en Studio. Les armamos una demo de reservas de enoturismo y catálogo digital premium para bodegas de la región. ¿Se las comparto para que la vean con el equipo de marketing?`;
+      } else if (isHealth) {
+        category = "Salud & Especialidades Médicas";
+        ticket = 1500;
+        leaks = [
+          "Líneas telefónicas y WhatsApp saturados de pacientes pidiendo y cancelando turnos.",
+          "Alto porcentaje de ausentismo por falta de confirmaciones y recordatorios automáticos.",
+          "Sin cartilla médica digital ni portal de derivaciones y estudios claros.",
+        ];
+        script = `Hola equipo de ${input}! Les habla Franco de Se7en Studio.
+En consultorios y clínicas de la región, la secretaria pasa el 70% del tiempo respondiendo mensajes repetitivos de horarios de médicos y obras sociales.
+Implementamos un portal de autogestión de turnos médicos con confirmación automática por WhatsApp y cartilla interactiva por especialidad.
+Los pacientes eligen el profesional en 3 clics y el ausentismo se reduce más de un 40%. ¿Les preparo una demo de 1 minuto para ver cómo funcionaría en su centro?`;
+        hook = `Hola! Les escribe Franco de Se7en Studio. Desarrollamos turneros médicos interactivos con confirmación automática por WhatsApp para reducir ausentismo y liberar las líneas del consultorio. ¿Les comparto una demo breve?`;
+      } else if (isConst) {
+        category = "Construcción & Corralón de Materiales";
+        ticket = 1700;
+        leaks = [
+          "Pérdida de ventas en obras y proyectos por no contar con catálogo de precios de materiales actualizado.",
+          "Cotizaciones manuales que tardan hasta 24hs en responderse.",
+          "Sin calculador de acopio ni cotizador interactivo de fletes a yacimientos o barrios.",
+        ];
+        script = `Hola equipo de ${input}! Les habla Franco de Se7en Studio.
+Hoy los constructores y contratistas necesitan saber stock y precios de materiales en el momento exacto en que están en obra.
+Desarrollamos cotizadores interactivos para corralones donde el cliente carga las bolsas de cemento, hierro o áridos, calcula el flete y envía el pedido listo para facturar por WhatsApp.
+Esto multiplica las ventas de mostrador y agiliza los pedidos grandes de obras. ¿Les muestro cómo funciona la demo que armamos?`;
+        hook = `Hola! Les escribe Franco de Se7en Studio. Diseñamos cotizadores digitales para corralones y distribuidores de materiales para que los constructores les pidan cotizaciones cerradas por WhatsApp al instante. ¿Les mando una muestra?`;
+      } else if (isRealEstate) {
+        category = "Inmobiliaria & Desarrollos Urbanos";
+        ticket = 1900;
+        leaks = [
+          "Dependencia de portales inmobiliarios pagos (Zonaprop/Argenprop) con costo mensual elevado.",
+          "Filtros de búsqueda torpes que frustran a quien busca lotes, alquileres petroleros o casas.",
+          "Propiedades sin ficha interactiva optimizada para compartir en historias o por WhatsApp.",
+        ];
+        script = `Hola equipo de ${input}! Les habla Franco de Se7en Studio.
+En Catriel y el Valle, la demanda de alquileres para empresas petroleras y venta de lotes se mueve a través de recomendaciones rápidas.
+Diseñamos buscadores inmobiliarios hiper-rápidos con mapa satelital interactivo, fichas con fotos HD en menos de 0.8s y botón de consulta directa por propiedad a su WhatsApp.
+¿Les comparto una demo para que vean cómo mostrar sus captaciones con una velocidad 5 veces superior a los portales tradicionales?`;
+        hook = `Hola! Les escribe Franco de Se7en Studio. Diseñamos portales inmobiliarios ultra-rápidos con mapa interactivo y fichas directas a WhatsApp para captar clientes corporativos y compradores de lotes. ¿Tienen 1 minuto para que les pase una demo?`;
       }
 
       setResult({

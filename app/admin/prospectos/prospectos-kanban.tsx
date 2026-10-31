@@ -9,6 +9,14 @@ import {
   X,
   Send,
   CheckCircle2,
+  FileText,
+  Copy,
+  Check,
+  Sparkles,
+  ExternalLink,
+  Phone,
+  Zap,
+  ArrowRight,
 } from "lucide-react";
 import type { ProspectLead } from "@/data/prospects";
 import type { LeadStatus } from "./prospectos-client";
@@ -81,6 +89,15 @@ export function ProspectosKanban({
   const sound = useSoundFx();
   const [activeNoteLead, setActiveNoteLead] = useState<ProspectLead | null>(null);
   const [tempNote, setTempNote] = useState("");
+  const [activeDossierLead, setActiveDossierLead] = useState<ProspectLead | null>(null);
+  const [dossierTab, setDossierTab] = useState<"estrategia" | "guion" | "bitacora">("estrategia");
+  const [copiedPitch, setCopiedPitch] = useState(false);
+
+  const handleOpenDossier = (lead: ProspectLead) => {
+    setActiveDossierLead(lead);
+    setTempNote(leadNotes[lead.id] || "");
+    sound.tick();
+  };
 
   const handleOpenNoteModal = (lead: ProspectLead) => {
     setActiveNoteLead(lead);
@@ -89,10 +106,21 @@ export function ProspectosKanban({
   };
 
   const handleSaveModalNote = () => {
-    if (!activeNoteLead) return;
-    onSaveNote(activeNoteLead.id, tempNote);
-    setActiveNoteLead(null);
-    sound.success();
+    if (activeNoteLead) {
+      onSaveNote(activeNoteLead.id, tempNote);
+      setActiveNoteLead(null);
+      sound.success();
+    } else if (activeDossierLead) {
+      onSaveNote(activeDossierLead.id, tempNote);
+      sound.success();
+    }
+  };
+
+  const handleCopyPitch = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedPitch(true);
+    sound.tick();
+    setTimeout(() => setCopiedPitch(false), 2000);
   };
 
   const handleMove = (id: string, newStatus: LeadStatus) => {
@@ -164,7 +192,10 @@ export function ProspectosKanban({
                         className="group relative rounded-xl border border-[var(--line)] bg-[var(--panel-2)] p-3.5 transition-all hover:border-[var(--line-strong)] hover:bg-[var(--panel-3)]"
                       >
                         {/* Cabecera de la Tarjeta */}
-                        <div className="flex items-start justify-between gap-2">
+                        <div
+                          onClick={() => handleOpenDossier(lead)}
+                          className="flex items-start justify-between gap-2 cursor-pointer"
+                        >
                           <div>
                             <p className="adm-title text-[13px] text-foreground group-hover:text-accent transition-colors">
                               {lead.name}
@@ -187,7 +218,10 @@ export function ProspectosKanban({
                         </div>
 
                         {/* Valor del Ticket y Estado Actual */}
-                        <div className="mt-2.5 flex items-center justify-between border-t border-[var(--line)] pt-2 text-xs">
+                        <div
+                          onClick={() => handleOpenDossier(lead)}
+                          className="mt-2.5 flex items-center justify-between border-t border-[var(--line)] pt-2 text-xs cursor-pointer"
+                        >
                           <span className="adm-label text-[10px]">Ticket est.:</span>
                           <span className="adm-num text-sm text-foreground">
                             USD ${lead.estimatedBudgetUsd.toLocaleString("es-AR")}
@@ -195,7 +229,10 @@ export function ProspectosKanban({
                         </div>
 
                         {/* Fuga / Diagnóstico rápido */}
-                        <p className="mt-2 text-[12px] leading-relaxed text-muted bg-[var(--well)] p-2 rounded-lg border border-[var(--line)]">
+                        <p
+                          onClick={() => handleOpenDossier(lead)}
+                          className="mt-2 text-[12px] leading-relaxed text-muted bg-[var(--well)] p-2 rounded-lg border border-[var(--line)] cursor-pointer hover:border-[var(--line-strong)] transition-colors"
+                        >
                           💡 {lead.painPoint}
                         </p>
 
@@ -223,6 +260,17 @@ export function ProspectosKanban({
                             >
                               <WhatsAppLogo className="h-3 w-3 fill-current" />
                               <span>WhatsApp</span>
+                            </button>
+
+                            {/* Botón Ficha Completa */}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDossier(lead)}
+                              title="Abrir Ficha de Inteligencia B2B completa"
+                              className="flex items-center gap-1 rounded-full border border-[var(--line-strong)] bg-[var(--well)] px-2 py-1 text-[10.5px] text-muted hover:text-foreground hover:border-foreground transition-colors"
+                            >
+                              <FileText size={12} />
+                              <span className="hidden sm:inline">Ficha</span>
                             </button>
 
                             {/* Botón Nota */}
@@ -291,6 +339,272 @@ export function ProspectosKanban({
           );
         })}
       </div>
+
+      {/* Modal Ficha de Inteligencia B2B Completa (Quick Peek Dossier) */}
+      <AnimatePresence>
+        {activeDossierLead && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md">
+            <m.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="w-full max-w-3xl rounded-2xl border border-[var(--line-strong)] bg-[var(--panel)] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              {/* Cabecera del Dossier */}
+              <div className="border-b border-[var(--line)] bg-[var(--well)] px-6 py-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-accent/15 border border-accent/30 px-2.5 py-0.5 adm-label text-[10px] text-accent">
+                        {activeDossierLead.category}
+                      </span>
+                      <span className="adm-label text-[11px] text-muted flex items-center gap-1">
+                        <MapPin size={11} className="text-accent" />
+                        {activeDossierLead.city}, {activeDossierLead.province}
+                      </span>
+                    </div>
+                    <h3 className="adm-title mt-1.5 text-xl text-foreground flex items-center gap-2">
+                      <span>{activeDossierLead.name}</span>
+                      {activeDossierLead.currentSite && (
+                        <a
+                          href={activeDossierLead.currentSite}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-muted hover:text-accent transition-colors"
+                          title="Visitar web actual"
+                        >
+                          <ExternalLink size={14} />
+                        </a>
+                      )}
+                    </h3>
+                    <p className="adm-label mt-1 text-[11px] text-muted">
+                      {activeDossierLead.address} · Tel: {activeDossierLead.phone}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="text-right hidden sm:block">
+                      <span className="adm-label text-[10px] block text-muted">Ticket Estimado</span>
+                      <span className="adm-num text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                        USD ${activeDossierLead.estimatedBudgetUsd.toLocaleString("es-AR")}
+                      </span>
+                      <span className="adm-label text-[10px] block text-muted">
+                        ~${((activeDossierLead.estimatedBudgetUsd * FX_RATE) / 1000000).toFixed(2)}M ARS
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveDossierLead(null)}
+                      className="rounded-full p-1.5 text-muted hover:text-foreground hover:bg-[var(--panel-2)] transition-colors"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Stepper del Ciclo de Ventas */}
+                <div className="mt-4 pt-4 border-t border-[var(--line)]">
+                  <div className="flex items-center justify-between gap-1 overflow-x-auto pb-1 admin-scroll">
+                    {COLUMNS.map((col) => {
+                      const currentStatus = leadStatuses[activeDossierLead.id] || "nuevo";
+                      const isCurrent = currentStatus === col.id;
+
+                      return (
+                        <button
+                          key={col.id}
+                          type="button"
+                          onClick={() => handleMove(activeDossierLead.id, col.id)}
+                          className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] transition-all shrink-0 ${
+                            isCurrent
+                              ? "bg-foreground text-background font-bold shadow-sm"
+                              : "border border-[var(--line)] bg-[var(--panel)] text-muted hover:text-foreground hover:border-[var(--line-strong)]"
+                          }`}
+                        >
+                          <span>{col.icon}</span>
+                          <span>{col.title}</span>
+                          {isCurrent && <CheckCircle2 size={12} className="shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Selector de Pestañas */}
+              <div className="flex border-b border-[var(--line)] bg-[var(--panel)] px-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDossierTab("estrategia");
+                    sound.tick();
+                  }}
+                  className={`flex items-center gap-1.5 border-b-2 py-3 px-3 adm-label text-xs transition-colors ${
+                    dossierTab === "estrategia"
+                      ? "border-accent text-accent font-bold"
+                      : "border-transparent text-muted hover:text-foreground"
+                  }`}
+                >
+                  <Sparkles size={13} />
+                  <span>Diagnóstico & Solución</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDossierTab("guion");
+                    sound.tick();
+                  }}
+                  className={`flex items-center gap-1.5 border-b-2 py-3 px-3 adm-label text-xs transition-colors ${
+                    dossierTab === "guion"
+                      ? "border-accent text-accent font-bold"
+                      : "border-transparent text-muted hover:text-foreground"
+                  }`}
+                >
+                  <Zap size={13} />
+                  <span>Outreach & WhatsApp</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDossierTab("bitacora");
+                    sound.tick();
+                  }}
+                  className={`flex items-center gap-1.5 border-b-2 py-3 px-3 adm-label text-xs transition-colors ${
+                    dossierTab === "bitacora"
+                      ? "border-accent text-accent font-bold"
+                      : "border-transparent text-muted hover:text-foreground"
+                  }`}
+                >
+                  <Edit3 size={13} />
+                  <span>Bitácora Interna</span>
+                </button>
+              </div>
+
+              {/* Contenido de la Pestaña Activa */}
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-17rem)] admin-scroll space-y-4">
+                {dossierTab === "estrategia" && (
+                  <div className="space-y-4">
+                    {/* Estado Digital Actual */}
+                    <div className="rounded-xl border border-[var(--line)] bg-[var(--well)] p-4">
+                      <span className="adm-label text-[10px] text-muted uppercase tracking-wider block mb-1">
+                        Estado Digital Detectado
+                      </span>
+                      <p className="adm-title text-sm text-foreground">
+                        {activeDossierLead.websiteStatus}
+                      </p>
+                    </div>
+
+                    {/* Fuga de Dinero & Dolor */}
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+                      <span className="adm-label text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                        <Sparkles size={12} />
+                        Dolor Crítico & Fuga de Ventas
+                      </span>
+                      <p className="text-[13px] leading-relaxed text-foreground">
+                        {activeDossierLead.painPoint}
+                      </p>
+                    </div>
+
+                    {/* Solución Arquitectónica Se7en */}
+                    <div className="rounded-xl border border-accent/40 bg-accent/5 p-4">
+                      <span className="adm-label text-[10px] text-accent font-bold uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                        <Zap size={12} />
+                        Propuesta de Valor & Solución Se7en
+                      </span>
+                      <p className="text-[13px] leading-relaxed text-foreground">
+                        {activeDossierLead.recommendedSolution}
+                      </p>
+                      <div className="mt-3 pt-3 border-t border-[var(--line)] flex flex-wrap items-center gap-2 text-xs text-muted">
+                        <span className="adm-label text-[10px]">Stack Sugerido:</span>
+                        <span className="rounded-md bg-[var(--well)] px-2 py-0.5 border border-[var(--line)]">Next.js 16</span>
+                        <span className="rounded-md bg-[var(--well)] px-2 py-0.5 border border-[var(--line)]">Tailwind CSS</span>
+                        <span className="rounded-md bg-[var(--well)] px-2 py-0.5 border border-[var(--line)]">Cloudflare Edge</span>
+                        <span className="rounded-md bg-[var(--well)] px-2 py-0.5 border border-[var(--line)]">WhatsApp Direct API</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {dossierTab === "guion" && (
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-[var(--line)] bg-[var(--well)] p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="adm-label text-[10.5px] text-muted uppercase tracking-wider">
+                          Guión de Mensaje de Apertura (WhatsApp Hook)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyPitch(activeDossierLead.pitch)}
+                          className="flex items-center gap-1 rounded-full border border-[var(--line-strong)] bg-[var(--panel)] px-2.5 py-1 text-xs adm-label text-foreground hover:bg-[var(--panel-2)] transition-colors"
+                        >
+                          {copiedPitch ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                          <span>{copiedPitch ? "¡Copiado!" : "Copiar"}</span>
+                        </button>
+                      </div>
+                      <div className="rounded-lg bg-[var(--panel)] border border-[var(--line)] p-3 text-xs leading-relaxed text-foreground font-mono whitespace-pre-wrap">
+                        {activeDossierLead.pitch}
+                      </div>
+                    </div>
+
+                    {/* Disparadores Directos */}
+                    <div className="flex flex-wrap items-center gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onOpenWhatsApp(activeDossierLead);
+                          const current = leadStatuses[activeDossierLead.id] || "nuevo";
+                          if (current === "nuevo") {
+                            handleMove(activeDossierLead.id, "contactado");
+                          }
+                        }}
+                        className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 text-white dark:bg-emerald-500 dark:text-black py-3 px-4 text-xs font-bold transition-opacity hover:opacity-90 shadow-sm"
+                      >
+                        <WhatsAppLogo className="h-4 w-4 fill-current" />
+                        <span>Abrir WhatsApp con Pitch Preparado</span>
+                      </button>
+
+                      {activeDossierLead.phone && (
+                        <a
+                          href={`tel:${activeDossierLead.phone}`}
+                          className="flex items-center gap-1.5 rounded-xl border border-[var(--line-strong)] bg-[var(--well)] py-3 px-4 text-xs font-semibold text-foreground hover:bg-[var(--panel-2)] transition-colors"
+                        >
+                          <Phone size={14} />
+                          <span>Llamar</span>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {dossierTab === "bitacora" && (
+                  <div className="space-y-4">
+                    <label className="adm-label block text-xs">
+                      Notas internas, objeciones y compromisos de reunión:
+                    </label>
+                    <textarea
+                      value={tempNote}
+                      onChange={(e) => setTempNote(e.target.value)}
+                      placeholder="Ej: Conversé con el gerente. Le interesa armar un turnero similar a Muzzaga Pádel. Coordinamos demo para este viernes..."
+                      rows={5}
+                      className="w-full rounded-xl border border-[var(--line-strong)] bg-[var(--well)] p-3 text-xs text-foreground placeholder:text-muted/60 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                    />
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={handleSaveModalNote}
+                        className="flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-xs font-bold text-background transition-colors hover:bg-foreground"
+                      >
+                        <Send size={13} />
+                        <span>Guardar Bitácora</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </m.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Modal para editar nota de prospecto */}
       <AnimatePresence>
