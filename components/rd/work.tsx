@@ -23,7 +23,7 @@ import { brandFonts } from "@/lib/brand-fonts";
 import { caseBrand } from "@/lib/en-vivo";
 import { PhoneScreen } from "@/components/work/phone-screen";
 import type { Project, ProjectBrand } from "@/types";
-import { EASE_OUT, RdButton, RdLines } from "./primitives";
+import { EASE_OUT, RdButton, RdLines, RdRoll } from "./primitives";
 
 // Trabajos: las tarjetas flotan en un anillo 3D, como tarjetas en órbita. En
 // desktop son apaisadas, con la captura de la compu, y el anillo gira con el
@@ -361,9 +361,21 @@ function Orbit({ compact }: { compact: boolean }) {
                   <ArrowRight size={22} aria-hidden />
                 </Link>
               ) : project ? (
-                <RdButton href={`/work/${project.slug}`} variant="ghost">
-                  Ver caso
-                </RdButton>
+                <div className="flex items-center gap-2">
+                  {project.url && (
+                    <a
+                      href={project.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rd-btn rd-btn--ghost text-xs hidden sm:inline-flex"
+                    >
+                      <RdRoll>Probar en vivo ↗</RdRoll>
+                    </a>
+                  )}
+                  <RdButton href={`/work/${project.slug}`} variant="ghost">
+                    Ver caso
+                  </RdButton>
+                </div>
               ) : (
                 <RdButton href="#contacto">Contanos tu idea</RdButton>
               )}

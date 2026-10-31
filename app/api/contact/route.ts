@@ -4,6 +4,7 @@ import { insertLead, type NewLead } from "@/lib/admin/db";
 import { intakeLead } from "@/lib/admin/intake";
 import { cleanPublicPhone, contactFrom, meetingLabel, parseMeeting } from "@/lib/admin/sales-shared";
 import { allowRequest, clientIp } from "@/lib/rate-limit";
+import { notifyLead } from "@/lib/notify";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_FIELD = 200;
@@ -120,6 +121,19 @@ export async function POST(request: Request) {
             notice: { title: "Llamada agendada", message: `Pidieron una llamada para el ${meetingLabel(meetingAt)}.` },
           })
         : await insertLead(row);
+
+  // Notificación instantánea a Telegram si está configurado
+  notifyLead({
+    name: lead.name,
+    email: lead.email,
+    phone: phone || undefined,
+    company: lead.company || undefined,
+    projectType: lead.projectType,
+    budget: lead.budget,
+    timeline: lead.timeline,
+    source,
+    idea: lead.idea,
+  }).catch(() => {});
 
   const resendApiKey = process.env.RESEND_API_KEY;
   if (!resendApiKey) {

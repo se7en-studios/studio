@@ -759,6 +759,121 @@ const channel = supabase
       buttonLabel: "Pedir diagnóstico gratuito",
     },
   },
+  {
+    slug: "como-automatizar-reservas-de-canchas-de-padel-sin-pagar-comisiones",
+    title: "Cómo automatizar reservas de canchas de pádel online sin pagar comisiones mensuales",
+    excerpt:
+      "Guía práctica para clubes y complejos de pádel en Argentina: cómo reemplazar la coordinación manual por WhatsApp con un sistema web propio de reservas en tiempo real y cobro de señas por Mercado Pago.",
+    publishedAt: "Octubre 2026",
+    publishedIso: "2026-10-31",
+    readTime: "4 min de lectura",
+    category: "Negocios & Automatización",
+    author: {
+      name: "Franco Riquero",
+      role: "Fundador · Desarrollo en Se7en Studio",
+    },
+    tags: ["Clubes de Pádel", "Reservas Online", "Mercado Pago", "Turnos Automáticos", "Argentina"],
+    directAnswer:
+      "Para automatizar las reservas de canchas de pádel sin pagar comisiones mensuales a apps cerradas, los clubes implementan una web propia de reservas conectada a Mercado Pago y WhatsApp. Los jugadores ven la disponibilidad en tiempo real en su celular, eligen cancha y horario en menos de 1 minuto y la confirmación llega automáticamente al WhatsApp del club y del jugador con la seña acreditada al instante.",
+    content: [
+      {
+        heading: "El problema de responder 150 mensajes de WhatsApp por día en el club",
+        paragraphs: [
+          "Cualquier dueño o recepcionista de un complejo de pádel conoce la pesadilla de las 18:00 a las 21:00 hs: 30 personas preguntando '¿tenés libre a las 19?', responder mensajes manuales uno por uno, anotar en un cuaderno o Excel y sufrir cuando un grupo cancela media hora antes sin haber dejado seña.",
+          "Las aplicaciones cerradas de turnos prometen resolver esto, pero cobran mensualidades fijas costosas o comisiones de hasta el 5% por turno, obligando a los jugadores a descargarse una app pesada que muchos no quieren instalar.",
+        ],
+      },
+      {
+        heading: "La solución propia: Web directa en el link de Instagram (Caso Muzzaga Pádel)",
+        paragraphs: [
+          "En Se7en Studio desarrollamos el sistema web de reservas de Muzzaga Pádel en Catriel, Río Negro. En lugar de descargar una aplicación, el jugador toca el link en la biografía de Instagram o el enlace de WhatsApp y ve la grilla interactiva en menos de 0.5 segundos.",
+          "El jugador elige la cancha (indoor o outdoor), selecciona el horario disponible, paga la seña con Mercado Pago y el sistema genera el comprobante y el mensaje listo para WhatsApp. Cero comisiones mensuales para el club y la web es 100% propiedad del complejo.",
+        ],
+      },
+    ],
+    faqs: [
+      {
+        id: "padel-comisiones",
+        question: "¿Se7en Studio cobra algún porcentaje por cada turno reservado?",
+        answer:
+          "No, 0% de comisiones por reserva. Toda la plata de los turnos y señas va directamente a la cuenta de Mercado Pago o banco del club. El software es 100% tuyo.",
+      },
+      {
+        id: "padel-tiempo",
+        question: "¿Cuánto tarda en implementarse el sistema de reservas para mi club?",
+        answer:
+          "Entre 1 y 2 semanas. Te entregamos la web configurada con tus canchas, horarios, tarifas de mañana y noche, y el link listo para colocar en Instagram y WhatsApp.",
+      },
+    ],
+    relatedSlugs: [
+      "sistema-de-turnos-y-reservas-online-con-sena-por-mercadopago-y-whatsapp",
+      "como-vender-por-internet-sin-pagar-comisiones-de-mercadolibre-ni-pedidosya",
+    ],
+    relatedComparisonSlugs: ["se7en-vs-agencia-tradicional"],
+    ctaService: {
+      title: "Ver caso de éxito de Muzzaga Pádel",
+      description: "Probá cómo funciona el sistema de reservas en tiempo real y cotizalo para tu club.",
+      href: "/work/muzzaga",
+      buttonLabel: "Ver caso Muzzaga Pádel",
+    },
+  },
+  {
+    slug: "cuanto-cuesta-hacer-una-pagina-web-en-neuquen-y-rio-negro",
+    title: "¿Cuánto cuesta hacer una página web en Neuquén y Río Negro en 2026?",
+    excerpt:
+      "Comparativa de costos reales para empresas, inmobiliarias, bodegas y comercios del Alto Valle: agencias tradicionales vs freelancers vs desarrollo de ingeniería a medida.",
+    publishedAt: "Octubre 2026",
+    publishedIso: "2026-10-31",
+    readTime: "5 min de lectura",
+    category: "Precios & Mercado Local",
+    author: {
+      name: "Federico Martín",
+      role: "Fundador · Producto y Diseño en Se7en Studio",
+    },
+    tags: ["Desarrollo Web Neuquén", "Río Negro", "Precios Web 2026", "Alto Valle", "SEO Local"],
+    directAnswer:
+      "En Neuquén y Río Negro, el costo de hacer una página web oscila entre $400.000 ARS (plantillas básicas de freelancers) y $5.000.000+ ARS en agencias tradicionales corporativas. En Se7en Studio, una Landing Page de alta velocidad y conversión arranca en USD 1.200 (~$1.6M ARS), una Tienda Online sin comisiones en USD 2.400 (~$3.2M ARS) y un sistema web de reservas o plataforma en USD 2.800, con entrega garantizada en 1 a 3 semanas y trato directo con los dos fundadores en la Patagonia.",
+    content: [
+      {
+        heading: "El panorama del desarrollo web en el Alto Valle y la Patagonia",
+        paragraphs: [
+          "Neuquén Capital, Cipolletti, General Roca y el corredor petrolero hacia Añelo tienen una actividad comercial e industrial altísima, pero gran parte de las webs locales son viejas, lentas y tardan más de 5 segundos en cargar en un teléfono con conexión 4G.",
+          "Esto representa una oportunidad enorme: una empresa de servicios, inmobiliaria o comercio que cuente con una web en Next.js 16 que abra en 0.5 segundos supera inmediatamente al 95% de sus competidores en Google y transmite un estándar de confianza internacional.",
+        ],
+      },
+      {
+        heading: "Por qué elegir un estudio técnico local frente a agencias de Buenos Aires",
+        paragraphs: [
+          "Contratar agencias de Buenos Aires suele implicar presupuestos inflados, llamadas impersonales con ejecutivos de cuenta y semanas de demora. En Se7en Studio operamos directamente desde la Patagonia: entendemos el ritmo del Alto Valle, conocemos los rubros locales (petróleo, agro, enoturismo, pádel y comercio) y te atendemos por WhatsApp en 24 horas hábiles.",
+        ],
+      },
+    ],
+    faqs: [
+      {
+        id: "local-tiempos",
+        question: "¿Cuánto tardan en tener la web online para una empresa en Neuquén?",
+        answer:
+          "Entre 7 y 14 días hábiles para una página corporativa o landing page. Antes de arrancar firmamos la fecha de entrega por escrito.",
+      },
+      {
+        id: "local-presupuesto",
+        question: "¿Cómo puedo calcular el presupuesto exacto para mi negocio?",
+        answer:
+          "Podés ingresar a nuestro cotizador interactivo en se7en.com.ar/cotizador y calcular el precio en pesos y dólares según tu rubro en 1 minuto.",
+      },
+    ],
+    relatedSlugs: [
+      "cuanto-cuesta-hacer-una-pagina-web-a-medida-en-argentina",
+      "de-4-8s-a-0-4s-por-que-nextjs-16-supera-a-wordpress",
+    ],
+    relatedComparisonSlugs: ["se7en-vs-agencia-tradicional"],
+    ctaService: {
+      title: "Cotizá la web de tu negocio en 1 minuto",
+      description: "Obtené el presupuesto estimado en pesos o dólares y la fecha de entrega al instante.",
+      href: "/cotizador",
+      buttonLabel: "Calcular presupuesto en 1 min",
+    },
+  },
 ];
 
 export function getPostBySlug(slug: string): BlogPost | undefined {
