@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { m, AnimatePresence } from "framer-motion";
 import {
   Sparkles,
   Zap,
@@ -246,14 +245,8 @@ Diseñamos buscadores inmobiliarios hiper-rápidos con mapa satelital interactiv
       </form>
 
       {/* Resultado Forense en Tiempo Real */}
-      <AnimatePresence>
-        {result && (
-          <m.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            className="mt-6 space-y-5 rounded-xl border border-[var(--line-strong)] bg-[var(--panel-2)] p-5"
-          >
+      {result && (
+        <div className="mt-6 space-y-5 rounded-xl border border-[var(--line-strong)] bg-[var(--panel-2)] p-5 animate-in fade-in duration-200">
             {/* Cabecera del Resultado */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] pb-3">
               <div>
@@ -341,9 +334,8 @@ Diseñamos buscadores inmobiliarios hiper-rápidos con mapa satelital interactiv
                 &ldquo;{result.whatsappHook}&rdquo;
               </p>
             </div>
-          </m.div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 }
