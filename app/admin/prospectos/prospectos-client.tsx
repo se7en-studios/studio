@@ -18,6 +18,7 @@ import { WhatsAppLogo } from "@/components/icons/whatsapp-logo";
 import { ProspectosKanban } from "./prospectos-kanban";
 import { AiQualifier } from "./ai-qualifier";
 import { useSoundFx } from "@/lib/use-sound-fx";
+import { Chip, Segmented, btn, btnPrimary, btnSecondary, searchInput, kpiRow, cn } from "../kit";
 
 const CITIES = ["Todas", "Catriel", "Neuquén", "Cipolletti", "Plottier", "San Rafael", "Mendoza"] as const;
 const CATEGORIES = [
@@ -218,19 +219,19 @@ export function ProspectosClient() {
       {/* Header Bar */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h2 className="adm-title text-lg text-foreground flex items-center gap-2">
-            <span>Radar de Prospectos Locales</span>
-            <span className="rounded-full bg-accent/15 px-2.5 py-0.5 adm-label text-accent">
-              {prospectLeads.length} leads calificados
+          <div className="flex items-center gap-2">
+            <h2 className="adm-title text-[20px] text-foreground">Radar de Prospectos Locales</h2>
+            <span className="rounded-full border border-[var(--line-strong)] px-2 py-px font-mono text-[10.5px] text-muted">
+              {prospectLeads.length} analizados
             </span>
-          </h2>
-          <p className="mt-1 text-xs text-muted">
-            Empresas y clubes de Catriel, Neuquén, San Rafael y Mendoza analizados con dolores concretos y guión de apertura.
+          </div>
+          <p className="mt-1 text-[12px] text-muted">
+            Empresas y clubes de Catriel, Neuquén, San Rafael y Mendoza con diagnósticos de dolor y propuestas a medida.
           </p>
         </div>
 
         {/* Action Controls: AI Copilot, View Switcher, CSV Export */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           {/* AI Qualifier Button */}
           <button
             type="button"
@@ -238,55 +239,35 @@ export function ProspectosClient() {
               setShowAiQualifier((v) => !v);
               sound.pop();
             }}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 adm-label transition-all ${
+            className={cn(
+              "focus-ring inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-semibold whitespace-nowrap transition-colors",
               showAiQualifier
-                ? "border-accent bg-accent text-background font-bold shadow-sm"
-                : "border-accent/40 bg-accent/10 text-accent hover:bg-accent/20"
-            }`}
+                ? "bg-accent text-background"
+                : "border border-[var(--line-strong)] text-foreground hover:border-foreground"
+            )}
           >
-            <Sparkles size={13} />
+            <Sparkles size={13} className={showAiQualifier ? "fill-current" : "text-accent"} />
             <span>AI Copilot</span>
           </button>
 
           {/* View Mode Toggle: Kanban vs Table */}
-          <div className="inline-flex rounded-full border border-[var(--line)] bg-[var(--well-soft)] p-0.5 text-xs">
-            <button
-              type="button"
-              onClick={() => {
-                setViewMode("kanban");
-                sound.tick();
-              }}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors adm-label ${
-                viewMode === "kanban"
-                  ? "bg-foreground text-background font-semibold"
-                  : "text-muted hover:text-foreground"
-              }`}
-            >
-              <Kanban size={13} />
-              <span>Kanban</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setViewMode("table");
-                sound.tick();
-              }}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors adm-label ${
-                viewMode === "table"
-                  ? "bg-foreground text-background font-semibold"
-                  : "text-muted hover:text-foreground"
-              }`}
-            >
-              <LayoutGrid size={13} />
-              <span>Grilla</span>
-            </button>
-          </div>
+          <Segmented
+            value={viewMode}
+            onChange={(v) => {
+              setViewMode(v);
+              sound.tick();
+            }}
+            options={[
+              { id: "kanban", label: <span className="flex items-center gap-1.5"><Kanban size={13} /> Tablero</span> },
+              { id: "table", label: <span className="flex items-center gap-1.5"><LayoutGrid size={13} /> Lista</span> },
+            ]}
+          />
 
           {/* CSV Export */}
           <button
             type="button"
             onClick={handleDownloadCsv}
-            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line-strong)] bg-[var(--well)] px-3.5 py-1.5 adm-label text-foreground hover:bg-[var(--panel-2)] transition-colors"
+            className={btnSecondary}
           >
             <Download size={13} />
             <span>CSV ({filtered.length})</span>
@@ -302,92 +283,81 @@ export function ProspectosClient() {
       )}
 
       {/* KPI Cards & Pipeline Overview */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-4">
-          <p className="adm-label text-[10px]">Prospectos Filtrados</p>
-          <p className="adm-num mt-1 text-2xl font-bold text-foreground">{filtered.length}</p>
+      <div className={kpiRow}>
+        <div className="adm-in block rounded-xl border border-[var(--line)] bg-[var(--panel)] p-4">
+          <p className="font-mono text-[10.5px] uppercase tracking-[0.13em] text-muted">Prospectos Filtrados</p>
+          <p className="adm-num mt-3 text-[36px] leading-[0.9] text-foreground tabular-nums">{filtered.length}</p>
+          <p className="mt-2 text-[12px] text-muted">de {prospectLeads.length} en base</p>
         </div>
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
-          <p className="adm-label text-[10px] text-emerald-600 dark:text-emerald-400">Pipeline en Juego</p>
-          <p className="adm-num mt-1 text-2xl font-bold text-emerald-600 dark:text-emerald-300">
-            USD ${totalPipelineUsd.toLocaleString("es-AR")}
+        <div className="adm-in block rounded-xl border border-[var(--line)] bg-[var(--panel)] p-4">
+          <p className="font-mono text-[10.5px] uppercase tracking-[0.13em] text-muted">Pipeline en Juego</p>
+          <p className="adm-num mt-3 text-[36px] leading-[0.9] text-emerald-600 dark:text-emerald-400 tabular-nums">
+            ${Math.round(totalPipelineUsd / 1000)}k <span className="text-[15px] font-normal text-muted">USD</span>
           </p>
+          <p className="mt-2 text-[12px] text-muted">~${((totalPipelineUsd * 1350) / 1000000).toFixed(1)}M ARS</p>
         </div>
-        <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 p-4">
-          <p className="adm-label text-[10px] text-sky-600 dark:text-sky-400">Contactados / Charla</p>
-          <p className="adm-num mt-1 text-2xl font-bold text-sky-600 dark:text-sky-300">
-            {statusCounts.contactado + statusCounts.en_charla}{" "}
-            <span className="text-xs font-normal text-muted">de {prospectLeads.length}</span>
+        <div className="adm-in block rounded-xl border border-[var(--line)] bg-[var(--panel)] p-4">
+          <p className="font-mono text-[10.5px] uppercase tracking-[0.13em] text-muted">En Contacto Activo</p>
+          <p className="adm-num mt-3 text-[36px] leading-[0.9] text-sky-600 dark:text-sky-400 tabular-nums">
+            {statusCounts.contactado + statusCounts.en_charla}
           </p>
+          <p className="mt-2 text-[12px] text-muted">Loom enviado o en charla</p>
         </div>
-        <div className="rounded-xl border border-accent/30 bg-accent/10 p-4">
-          <p className="adm-label text-[10px] text-accent">Clientes Ganados</p>
-          <p className="adm-num mt-1 text-2xl font-bold text-foreground">
-            {statusCounts.ganado}{" "}
-            <span className="text-xs font-normal text-muted">cerrados</span>
+        <div className="adm-in block rounded-xl border border-[var(--line)] bg-[var(--panel)] p-4">
+          <p className="font-mono text-[10.5px] uppercase tracking-[0.13em] text-accent">Clientes Ganados</p>
+          <p className="adm-num mt-3 text-[36px] leading-[0.9] text-accent tabular-nums">
+            {statusCounts.ganado}
           </p>
+          <p className="mt-2 text-[12px] text-muted">deals cerrados con seña</p>
         </div>
       </div>
 
       {/* Selector de Estado tipo CRM */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-[var(--line)] pb-3">
-        <span className="adm-label text-[10px] mr-1">Filtrar estado:</span>
-        {STATUS_FILTER_OPTIONS.map((opt) => {
-          const isSelected = statusFilter === opt.id;
-          const count = opt.id === "todos" ? prospectLeads.length : statusCounts[opt.id];
-          return (
-            <button
-              key={opt.id}
-              type="button"
-              onClick={() => {
-                setStatusFilter(opt.id);
-                sound.tick();
-              }}
-              className={`rounded-full px-3 py-1 adm-label transition-colors flex items-center gap-1.5 ${
-                isSelected
-                  ? "bg-foreground text-background font-semibold"
-                  : "border border-[var(--line)] bg-[var(--well)] text-muted hover:text-foreground hover:border-[var(--line-strong)]"
-              }`}
-            >
-              <span>{opt.label}</span>
-              <span className="text-[9.5px] opacity-60">({count})</span>
-            </button>
-          );
-        })}
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-[var(--line)] pb-3">
+        <span className="adm-label text-[10.5px] mr-1 text-muted">Etapa:</span>
+        {STATUS_FILTER_OPTIONS.map((opt) => (
+          <Chip
+            key={opt.id}
+            on={statusFilter === opt.id}
+            onClick={() => {
+              setStatusFilter(opt.id);
+              sound.tick();
+            }}
+          >
+            <span>{opt.label}</span>
+            <span className="font-mono text-[10px] opacity-70">
+              ({opt.id === "todos" ? prospectLeads.length : statusCounts[opt.id]})
+            </span>
+          </Chip>
+        ))}
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
         {/* Search */}
-        <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+        <label className="relative flex min-w-[200px] flex-1 items-center">
+          <Search size={14} className="pointer-events-none absolute left-3 text-muted" />
           <input
-            type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre, dirección o problema..."
-            className="w-full rounded-full border border-[var(--line-strong)] bg-[var(--well)] py-2 pr-4 pl-10 text-xs text-foreground placeholder:text-muted/60 focus:border-accent focus:outline-none"
+            placeholder="Buscar por nombre, rubro, dirección o problema…"
+            className={searchInput}
           />
-        </div>
+        </label>
 
         {/* City Filter Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 admin-scroll">
           {CITIES.map((city) => (
-            <button
+            <Chip
               key={city}
-              type="button"
+              on={selectedCity === city}
               onClick={() => {
                 setSelectedCity(city);
                 sound.tick();
               }}
-              className={`rounded-full px-3 py-1.5 adm-label whitespace-nowrap transition-colors ${
-                selectedCity === city
-                  ? "bg-accent text-background font-semibold"
-                  : "border border-[var(--line)] bg-[var(--well)] text-muted hover:text-foreground"
-              }`}
             >
               {city}
-            </button>
+            </Chip>
           ))}
         </div>
 
@@ -398,7 +368,8 @@ export function ProspectosClient() {
             setSelectedCategory(e.target.value as (typeof CATEGORIES)[number]);
             sound.tick();
           }}
-          className="rounded-full border border-[var(--line-strong)] bg-[var(--well)] px-3 py-1.5 adm-label text-foreground focus:border-accent focus:outline-none"
+          aria-label="Rubro"
+          className="focus-ring rounded-lg border border-[var(--line)] bg-[var(--panel)] px-2.5 py-2 text-[12px] text-foreground"
         >
           {CATEGORIES.map((cat) => (
             <option key={cat} value={cat}>
@@ -466,13 +437,14 @@ export function ProspectosClient() {
                     <select
                       value={currentStatus}
                       onChange={(e) => updateStatus(lead.id, e.target.value as LeadStatus)}
-                      className={`rounded-md border px-2 py-0.5 adm-label text-[9.5px] focus:outline-none ${statusMeta.badge}`}
+                      aria-label="Estado del prospecto"
+                      className={`rounded-full border px-2.5 py-0.5 adm-label text-[10px] focus:outline-none ${statusMeta.badge}`}
                     >
-                      <option value="nuevo">⚪ Sin contactar</option>
-                      <option value="contactado">🟡 Mensaje enviado</option>
-                      <option value="en_charla">🔵 En conversación</option>
-                      <option value="ganado">🟢 ¡Cliente ganado!</option>
-                      <option value="descartado">🔴 Descartado</option>
+                      <option value="nuevo">Sin contactar</option>
+                      <option value="contactado">Mensaje enviado</option>
+                      <option value="en_charla">En conversación</option>
+                      <option value="ganado">¡Cliente ganado!</option>
+                      <option value="descartado">Descartado</option>
                     </select>
                   </div>
 

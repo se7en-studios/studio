@@ -9,6 +9,7 @@ import {
   Gauge,
 } from "lucide-react";
 import { useSoundFx } from "@/lib/use-sound-fx";
+import { Segmented } from "../kit";
 
 const FX_RATE = 1350; // Cotización dólar de referencia
 
@@ -75,45 +76,30 @@ export function FinancialCockpit() {
       {/* Header del Cockpit */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--line)] pb-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-3 py-1 adm-label text-accent">
-            <Gauge size={13} />
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 font-mono text-[10.5px] uppercase tracking-[0.12em] text-accent">
+            <Gauge size={12} />
             Cockpit Financiero · Se7en OS
           </div>
-          <h3 className="adm-title mt-2 text-base text-foreground">
+          <h3 className="adm-title mt-2 text-[18px] text-foreground">
             Simulador de Runway, MRR & Dividendos
           </h3>
-          <p className="mt-1 text-xs text-muted">
+          <p className="mt-1 text-[12px] text-muted">
             Modelá el ritmo de ventas mensual para proyectar facturación, recurrencia y reparto limpio entre socios.
           </p>
         </div>
 
         {/* Currency Switcher */}
-        <div className="inline-flex rounded-full border border-[var(--line)] bg-[var(--well-soft)] p-0.5 text-xs">
-          <button
-            type="button"
-            onClick={() => {
-              setCurrency("USD");
-              sound.tick();
-            }}
-            className={`rounded-full px-3 py-1 transition-colors adm-label ${
-              currency === "USD" ? "bg-foreground text-background font-semibold" : "text-muted hover:text-foreground"
-            }`}
-          >
-            USD Dólares
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setCurrency("ARS");
-              sound.tick();
-            }}
-            className={`rounded-full px-3 py-1 transition-colors adm-label ${
-              currency === "ARS" ? "bg-foreground text-background font-semibold" : "text-muted hover:text-foreground"
-            }`}
-          >
-            ARS Pesos
-          </button>
-        </div>
+        <Segmented
+          value={currency}
+          onChange={(v) => {
+            setCurrency(v);
+            sound.tick();
+          }}
+          options={[
+            { id: "USD", label: "USD Dólares" },
+            { id: "ARS", label: "ARS Pesos" },
+          ]}
+        />
       </div>
 
       {/* Grid: Sliders de Control a la Izquierda vs Métricas Proyectadas a la Derecha */}

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useSoundFx } from "@/lib/use-sound-fx";
 import { useToast } from "../../overlay";
+import { btn, btnPrimary, btnSecondary, cn } from "../../kit";
 
 type QACheck = {
   id: string;
@@ -164,17 +165,17 @@ Desarrollado y Audita por Se7en Studios · www.se7enstudios.com`;
           <button
             onClick={runAudit}
             disabled={isRunning}
-            className="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--well)] px-3 py-1.5 text-[12px] font-medium text-foreground transition-colors hover:border-[var(--line-strong)] disabled:opacity-50"
+            className={cn(btnSecondary, "text-[12px] py-1 px-3")}
           >
             <RefreshCw size={13} className={isRunning ? "animate-spin text-accent" : "text-muted"} />
-            {isRunning ? "Auditando..." : "Re-auditar"}
+            {isRunning ? "Auditando…" : "Re-auditar"}
           </button>
 
           <button
             onClick={copyTrophyReport}
-            className="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-3 py-1.5 text-[12px] font-medium text-foreground transition-colors hover:bg-accent/25"
+            className={cn(btnPrimary, "text-[12px] py-1 px-3")}
           >
-            {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+            {copied ? <Check size={13} className="text-background" /> : <Copy size={13} />}
             {copied ? "¡Copiado para Cliente!" : "Copiar Certificado"}
           </button>
         </div>

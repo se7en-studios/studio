@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useSoundFx } from "@/lib/use-sound-fx";
 import { WhatsAppLogo } from "@/components/icons/whatsapp-logo";
+import { btnPrimary, btnSecondary, searchInput, cn } from "../kit";
 
 interface AiQualifierResult {
   businessName: string;
@@ -199,46 +200,46 @@ Diseñamos buscadores inmobiliarios hiper-rápidos con mapa satelital interactiv
       {/* Cabecera */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] pb-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-3 py-1 adm-label text-accent">
-            <Sparkles size={13} />
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 font-mono text-[10.5px] uppercase tracking-[0.12em] text-accent">
+            <Sparkles size={12} />
             Se7en AI Copilot & Lead Intelligence
           </div>
-          <h3 className="adm-title mt-2 text-base text-foreground">
+          <h3 className="adm-title mt-2 text-[17px] text-foreground">
             Cualificador Forense de Prospectos & Guiones
           </h3>
-          <p className="mt-1 text-xs text-muted">
+          <p className="mt-1 text-[12px] text-muted">
             Ingresá el nombre, Instagram o web de cualquier negocio para generar la auditoría de 60s y el mensaje de apertura.
           </p>
         </div>
       </div>
 
       {/* Input de Búsqueda */}
-      <form onSubmit={handleAnalyze} className="mt-5 flex gap-2 sm:gap-3">
-        <div className="relative flex-1">
-          <Globe className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+      <form onSubmit={handleAnalyze} className="mt-4 flex gap-2 sm:gap-3">
+        <label className="relative flex flex-1 items-center">
+          <Globe size={14} className="pointer-events-none absolute left-3 text-muted" />
           <input
             type="text"
             value={targetInput}
             onChange={(e) => setTargetInput(e.target.value)}
-            placeholder="Ej: Impacto Pádel Cipolletti, Cervecería Owe, Bodega del Fin del Mundo..."
-            className="w-full rounded-full border border-[var(--line-strong)] bg-[var(--well)] py-2 pr-4 pl-10 text-xs text-foreground placeholder:text-muted/60 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+            placeholder="Ej: Impacto Pádel Cipolletti, Cervecería Owe, Bodega del Fin del Mundo, FRICSA S.A..."
+            className={searchInput}
           />
-        </div>
+        </label>
 
         <button
           type="submit"
           disabled={analyzing || !targetInput.trim()}
-          className="flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-xs font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-40 shrink-0"
+          className={cn(btnPrimary, "shrink-0")}
         >
           {analyzing ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Analizando...</span>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <span>Analizando…</span>
             </>
           ) : (
             <>
-              <Zap className="h-4 w-4 fill-current" />
-              <span>Auditar con IA ⚡</span>
+              <Zap className="h-3.5 w-3.5 fill-current" />
+              <span>Auditar con IA</span>
             </>
           )}
         </button>

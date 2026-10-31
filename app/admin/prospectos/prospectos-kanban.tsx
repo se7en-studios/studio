@@ -17,11 +17,17 @@ import {
   Phone,
   Zap,
   ArrowRight,
+  Inbox,
+  Video,
+  MessageSquare,
+  Trophy,
+  XCircle,
 } from "lucide-react";
 import type { ProspectLead } from "@/data/prospects";
 import type { LeadStatus } from "./prospectos-client";
 import { WhatsAppLogo } from "@/components/icons/whatsapp-logo";
 import { useSoundFx } from "@/lib/use-sound-fx";
+import { cn } from "../kit";
 
 interface KanbanProps {
   leads: ProspectLead[];
@@ -37,42 +43,42 @@ const COLUMNS: {
   title: string;
   badge: string;
   accent: string;
-  icon: string;
+  icon: React.ReactNode;
 }[] = [
   {
     id: "nuevo",
     title: "Sin Contactar",
     badge: "border-[var(--line)] bg-[var(--well)] text-muted",
     accent: "text-muted",
-    icon: "📥",
+    icon: <Inbox size={13} className="text-muted shrink-0" />,
   },
   {
     id: "contactado",
     title: "Loom / Enviado",
-    badge: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-300",
+    badge: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400",
     accent: "text-amber-600 dark:text-amber-400",
-    icon: "🎥",
+    icon: <Video size={13} className="text-amber-600 dark:text-amber-400 shrink-0" />,
   },
   {
     id: "en_charla",
     title: "En Conversación",
-    badge: "border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-300",
+    badge: "border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400",
     accent: "text-sky-600 dark:text-sky-400",
-    icon: "💬",
+    icon: <MessageSquare size={13} className="text-sky-600 dark:text-sky-400 shrink-0" />,
   },
   {
     id: "ganado",
     title: "¡Cliente Ganado!",
     badge: "border-emerald-500/40 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold",
     accent: "text-emerald-600 dark:text-emerald-400",
-    icon: "🏆",
+    icon: <Trophy size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />,
   },
   {
     id: "descartado",
     title: "Descartado",
-    badge: "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400",
-    accent: "text-red-600 dark:text-red-400",
-    icon: "❌",
+    badge: "border-[var(--line)] bg-[var(--well)] text-muted",
+    accent: "text-muted",
+    icon: <XCircle size={13} className="text-muted shrink-0" />,
   },
 ];
 
@@ -150,8 +156,8 @@ export function ProspectosKanban({
               <div className="border-b border-[var(--line)] pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-base">{col.icon}</span>
-                    <h3 className="adm-title text-[12px] text-foreground">
+                    <span className="shrink-0">{col.icon}</span>
+                    <h3 className="adm-title text-[13px] text-foreground">
                       {col.title}
                     </h3>
                   </div>
@@ -229,12 +235,16 @@ export function ProspectosKanban({
                         </div>
 
                         {/* Fuga / Diagnóstico rápido */}
-                        <p
+                        <div
                           onClick={() => handleOpenDossier(lead)}
-                          className="mt-2 text-[12px] leading-relaxed text-muted bg-[var(--well)] p-2 rounded-lg border border-[var(--line)] cursor-pointer hover:border-[var(--line-strong)] transition-colors"
+                          className="mt-2 rounded-lg border border-[var(--line)] bg-[var(--well)] p-2.5 text-[12px] leading-relaxed text-muted cursor-pointer hover:border-[var(--line-strong)] transition-colors"
                         >
-                          💡 {lead.painPoint}
-                        </p>
+                          <div className="flex items-center gap-1 font-mono text-[9.5px] uppercase tracking-wider text-muted mb-1">
+                            <Sparkles size={10} className="text-accent shrink-0" />
+                            <span>Diagnóstico</span>
+                          </div>
+                          <p className="text-foreground text-[12px] leading-snug">{lead.painPoint}</p>
+                        </div>
 
                         {/* Nota interna si existe */}
                         {note && (
@@ -317,9 +327,10 @@ export function ProspectosKanban({
                                 type="button"
                                 onClick={() => handleMove(lead.id, "ganado")}
                                 title="¡Cerrar como Cliente Ganado!"
-                                className="rounded-full border border-emerald-500/40 bg-emerald-500/20 px-2.5 py-0.5 adm-label text-[9.5px] font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-black"
+                                className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/20 px-2.5 py-0.5 adm-label text-[9.5px] font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-black transition-colors"
                               >
-                                🏆 Ganado!
+                                <Trophy size={11} className="shrink-0" />
+                                <span>Ganado</span>
                               </button>
                             )}
 
@@ -436,9 +447,9 @@ export function ProspectosKanban({
                 setDossierTab("estrategia");
                 sound.tick();
               }}
-              className={`flex items-center gap-1.5 border-b-2 py-3 px-3 adm-label text-xs transition-colors ${
+              className={`flex items-center gap-1.5 border-b-2 py-3 px-3 font-mono text-[10.5px] uppercase tracking-[0.12em] transition-colors ${
                 dossierTab === "estrategia"
-                  ? "border-accent text-accent font-bold"
+                  ? "border-accent text-accent font-semibold"
                   : "border-transparent text-muted hover:text-foreground"
               }`}
             >
@@ -451,9 +462,9 @@ export function ProspectosKanban({
                 setDossierTab("guion");
                 sound.tick();
               }}
-              className={`flex items-center gap-1.5 border-b-2 py-3 px-3 adm-label text-xs transition-colors ${
+              className={`flex items-center gap-1.5 border-b-2 py-3 px-3 font-mono text-[10.5px] uppercase tracking-[0.12em] transition-colors ${
                 dossierTab === "guion"
-                  ? "border-accent text-accent font-bold"
+                  ? "border-accent text-accent font-semibold"
                   : "border-transparent text-muted hover:text-foreground"
               }`}
             >
@@ -466,9 +477,9 @@ export function ProspectosKanban({
                 setDossierTab("bitacora");
                 sound.tick();
               }}
-              className={`flex items-center gap-1.5 border-b-2 py-3 px-3 adm-label text-xs transition-colors ${
+              className={`flex items-center gap-1.5 border-b-2 py-3 px-3 font-mono text-[10.5px] uppercase tracking-[0.12em] transition-colors ${
                 dossierTab === "bitacora"
-                  ? "border-accent text-accent font-bold"
+                  ? "border-accent text-accent font-semibold"
                   : "border-transparent text-muted hover:text-foreground"
               }`}
             >
