@@ -29,6 +29,9 @@ const CATEGORIES = [
   "Hotelería & Cabañas",
   "Gastronomía & Cervecería",
   "Comercio & Gourmet",
+  "Servicios Petroleros & Industria",
+  "Salud & Estética",
+  "Construcción & Corralón",
 ] as const;
 
 export type LeadStatus = "nuevo" | "contactado" | "en_charla" | "ganado" | "descartado";
