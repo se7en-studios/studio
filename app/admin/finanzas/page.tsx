@@ -16,6 +16,7 @@ import { listTools } from "@/lib/admin/tools";
 import { dayKey } from "@/lib/admin/task-shared";
 import { AdminGate, PageHeader, SetupNotice } from "../ui";
 import { FinanceSetup } from "./setup";
+import { FinancialCockpit } from "./financial-cockpit";
 import { TABS } from "./tabs";
 import { FinanceView } from "./view";
 
@@ -76,6 +77,7 @@ export default async function FinanzasPage({
         pesos o en dólares y siempre con el equivalente en la otra moneda. Los
         cobros que cargás en cada proyecto entran solos.
       </PageHeader>
+      <FinancialCockpit />
       {!setup && cobros.length > 0 && (
         <SetupNotice
           reason={`Falta correr supabase/finance-v4.sql en Supabase: hay ${cobros.length === 1 ? "un cobro de proyecto" : `${cobros.length} cobros de proyectos`} en la tabla vieja.`}

@@ -7,6 +7,7 @@ import { PageHeader } from "../kit";
 import { AdminGate, SetupNotice } from "../ui";
 import { NewProject } from "./new-project";
 import { ProjectsView, type Scope } from "./view";
+import { TelemetryRadar } from "./telemetry-radar";
 
 export const metadata: Metadata = { title: "Proyectos" };
 
@@ -35,6 +36,7 @@ export default async function ProyectosPage({ searchParams }: { searchParams: Pr
         Todos los proyectos del estudio: en qué etapa está cada uno, quién lo lleva, cuánto falta y para cuándo.
       </PageHeader>
       {(setup || stateSetup) && <SetupNotice reason={(setup ?? stateSetup) as string} />}
+      <TelemetryRadar />
       <ProjectsView projects={projects} states={Object.fromEntries(states)} editable={!stateSetup && !setup} initialScope={scope} />
     </div>
   );
