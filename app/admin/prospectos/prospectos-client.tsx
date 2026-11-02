@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Download, Sparkles, Kanban, LayoutGrid, Calculator, FileText } from "lucide-react";
+import { Search, Download, Sparkles, Kanban, LayoutGrid, Calculator, FileText, Snowflake } from "lucide-react";
 import { prospectLeads, type ProspectLead } from "@/data/prospects";
 import { ProspectosKanban } from "./prospectos-kanban";
 import { AiQualifier } from "./ai-qualifier";
@@ -11,7 +11,8 @@ import { useSoundFx } from "@/lib/use-sound-fx";
 import type { LeadOwner } from "@/lib/admin/db";
 import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
 import type { ProspectState, ProspectStatus } from "@/lib/admin/prospect-shared";
-import { updateProspectNote, updateProspectStatus } from "./actions";
+import { COLD_DAYS, coldDays, contactedToday } from "@/lib/admin/prospect-followup";
+import { contactProspect, updateProspectNote, updateProspectStatus } from "./actions";
 import { TemplatesDialog } from "./templates-dialog";
 import { pickTemplate, renderTemplate, templateVars, type ProspectTemplate } from "@/lib/admin/prospect-template-shared";
 import { useStoredChoice } from "../overlay";
@@ -66,6 +67,10 @@ export function ProspectosClient({
   const [state, setState] = useState(initialState);
   const [seen, setSeen] = useState(initialState);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // «Ahora», para los días sin respuesta; se actualiza con cada lectura periódica.
+  const [now, setNow] = useState(() => Date.now());
+  const [whoFilter, setWhoFilter] = useState<"todos" | LeadOwner>("todos");
+  const [coldOnly, setColdOnly] = useState(false);
 
   // Lo que llega del servidor (lo que cargó el otro) pisa lo local.
   if (seen !== initialState) {
@@ -75,7 +80,9 @@ export function ProspectosClient({
 
   useEffect(() => {
     const id = setInterval(() => {
-      if (document.visibilityState === "visible") router.refresh();
+      if (document.visibilityState !== "visible") return;
+      setNow(Date.now());
+      router.refresh();
     }, POLL_MS);
     return () => clearInterval(id);
   }, [router]);
@@ -122,6 +129,23 @@ export function ProspectosClient({
     );
   };
 
+  // Le escribió: pasa a «contactado» si era nuevo (no pisa una charla ni un cierre) y queda
+  // anotado cuándo y quién.
+  const touch = (leadId: string) => {
+    const before = state[leadId];
+    const at = new Date().toISOString();
+    save(
+      leadId,
+      {
+        status: !before || before.status === "nuevo" ? "contactado" : before.status,
+        last_contact_at: at,
+        last_contact_by: me,
+        ...(before?.contacted_by ? {} : { contacted_by: me, contacted_at: at }),
+      },
+      () => contactProspect(leadId),
+    );
+  };
+
   const updateNote = (leadId: string, note: string) =>
     save(leadId, { note, note_by: note ? me : null, note_at: note ? new Date().toISOString() : null }, () =>
       updateProspectNote(leadId, note),
@@ -145,8 +169,7 @@ export function ProspectosClient({
     const phone = lead.phone.replace(/\D/g, "");
     const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(text ?? buildMessage(lead).text)}`;
     window.open(waUrl, "_blank", "noopener,noreferrer");
-    // Sólo avanza si todavía no estaba contactado: no pisa una charla ni un cierre.
-    if ((leadStatuses[lead.id] || "nuevo") === "nuevo") updateStatus(lead.id, "contactado");
+    touch(lead.id);
   };
 
   const filtered = useMemo(() => {
@@ -156,14 +179,16 @@ export function ProspectosClient({
       const leadStatus = leadStatuses[item.id] || "nuevo";
       const matchStatus = statusFilter === "todos" || leadStatus === statusFilter;
       const q = search.toLowerCase().trim();
+      const matchWho = whoFilter === "todos" || state[item.id]?.contacted_by === whoFilter;
+      const matchCold = !coldOnly || coldDays(state[item.id], now) !== null;
       const matchSearch =
         !q ||
         item.name.toLowerCase().includes(q) ||
         item.address.toLowerCase().includes(q) ||
         item.painPoint.toLowerCase().includes(q);
-      return matchCity && matchCategory && matchStatus && matchSearch;
+      return matchCity && matchCategory && matchStatus && matchWho && matchCold && matchSearch;
     });
-  }, [search, selectedCity, selectedCategory, statusFilter, leadStatuses]);
+  }, [search, selectedCity, selectedCategory, statusFilter, leadStatuses, whoFilter, coldOnly, state, now]);
 
   // Contadores de estado
   const statusCounts = useMemo(() => {
@@ -174,6 +199,9 @@ export function ProspectosClient({
     });
     return counts;
   }, [leadStatuses]);
+
+  const today = useMemo(() => contactedToday(Object.values(state), now), [state, now]);
+  const coldCount = useMemo(() => Object.values(state).filter((r) => coldDays(r, now) !== null).length, [state, now]);
 
   const contacted = useMemo(() => {
     const rows = Object.values(state).filter((r) => r.contacted_by);
@@ -308,7 +336,7 @@ export function ProspectosClient({
       )}
 
       {/* Números */}
-      <div className={cn(kpiRow, "md:grid-cols-4")}>
+      <div className={cn(kpiRow, "md:grid-cols-3 xl:grid-cols-6")}>
         <Kpi
           label="Sin contactar"
           value={statusCounts.nuevo}
@@ -316,6 +344,29 @@ export function ProspectosClient({
           hint={`de ${prospectLeads.length} en base`}
         />
         <Kpi label="Contactados" value={contacted.total} hint={contacted.split} />
+        <Kpi
+          label="Hoy"
+          value={Object.values(today).reduce((a, n) => a + n, 0)}
+          hint={PEOPLE_IDS.map((id) => `${PEOPLE[id].name} ${today[id]}`).join(" · ")}
+        />
+        <button
+          type="button"
+          onClick={() => {
+            setColdOnly((v) => !v);
+            sound.tick();
+          }}
+          aria-pressed={coldOnly}
+          title={`Contactados sin respuesta hace ${COLD_DAYS} días o más. Tocá para filtrarlos.`}
+          className={cn("focus-ring rounded-xl text-left", coldOnly && "ring-1 ring-amber-400/60")}
+        >
+          <Kpi
+            label={coldOnly ? "Para retomar · filtrando" : "Para retomar"}
+            value={coldCount}
+            tone={coldCount > 0 ? "amber" : undefined}
+            hint={`${COLD_DAYS}+ días sin respuesta`}
+            icon={<Snowflake size={14} />}
+          />
+        </button>
         <Kpi label="Ganados" value={statusCounts.ganado} tone={statusCounts.ganado ? "green" : undefined} hint="Cerrados con seña" />
         <Kpi
           label="Valor en juego"
@@ -396,6 +447,20 @@ export function ProspectosClient({
               <span className="font-mono text-[11px] opacity-70">{statusCounts[st.id]}</span>
             </Chip>
           ))}
+          <span className="mx-1 h-4 w-px bg-[var(--line-strong)]" aria-hidden />
+          <span className="text-[12px] text-muted">Contactó</span>
+          {(["todos", ...PEOPLE_IDS] as const).map((id) => (
+            <Chip
+              key={id}
+              on={whoFilter === id}
+              onClick={() => {
+                setWhoFilter(id);
+                sound.tick();
+              }}
+            >
+              {id === "todos" ? "Todos" : PEOPLE[id].name}
+            </Chip>
+          ))}
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
@@ -438,6 +503,7 @@ export function ProspectosClient({
           onStatusChange={updateStatus}
           onSaveNote={updateNote}
           onOpenWhatsApp={handleOpenWhatsApp}
+          now={now}
           templates={templates}
           buildMessage={buildMessage}
         />
@@ -451,6 +517,7 @@ export function ProspectosClient({
               lead={lead}
               status={leadStatuses[lead.id] || "nuevo"}
               meta={state[lead.id]}
+              now={now}
               copied={copiedId === lead.id}
               onStatus={updateStatus}
               onNote={updateNote}

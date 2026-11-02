@@ -21,6 +21,9 @@ export type ProspectState = {
   status: ProspectStatus;
   contacted_by: LeadOwner | null;
   contacted_at: string | null;
+  /** Última vez que se le escribió y quién (sin supabase/prospectos-v2.sql, llegan sin dato). */
+  last_contact_at?: string | null;
+  last_contact_by?: LeadOwner | null;
   note: string;
   note_by: LeadOwner | null;
   note_at: string | null;
