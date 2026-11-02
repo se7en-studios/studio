@@ -29,7 +29,7 @@ export async function setProspectStatus(
   const db = client();
   const { data: prev, error: readErr } = await db
     .from("prospect_state")
-    .select("contacted_by")
+    .select("status, contacted_by")
     .eq("lead_id", leadId)
     .maybeSingle();
   if (readErr) fail(readErr);
@@ -42,6 +42,34 @@ export async function setProspectStatus(
         lead_id: leadId,
         status,
         ...(firstContact ? { contacted_by: by, contacted_at: now } : {}),
+        // Pasar a «contactado» o «en charla» cuenta como haberle escrito.
+        ...((status === "contactado" || status === "en_charla") && prev?.status !== status ? { last_contact_at: now, last_contact_by: by } : {}),
+        updated_by: by,
+        updated_at: now,
+      },
+      { onConflict: "lead_id" },
+    )
+    .select("*")
+    .single();
+  if (error) fail(error);
+  return data as ProspectState;
+}
+
+/** Le escribió (abrió WhatsApp): pasa a «contactado» si era nuevo y queda anotado cuándo y quién. */
+export async function touchProspect(leadId: string, by: LeadOwner): Promise<ProspectState> {
+  const db = client();
+  const { data: prev, error: readErr } = await db.from("prospect_state").select("status, contacted_by").eq("lead_id", leadId).maybeSingle();
+  if (readErr) fail(readErr);
+  const now = new Date().toISOString();
+  const { data, error } = await db
+    .from("prospect_state")
+    .upsert(
+      {
+        lead_id: leadId,
+        status: !prev || prev.status === "nuevo" ? "contactado" : prev.status,
+        ...(prev?.contacted_by ? {} : { contacted_by: by, contacted_at: now }),
+        last_contact_at: now,
+        last_contact_by: by,
         updated_by: by,
         updated_at: now,
       },

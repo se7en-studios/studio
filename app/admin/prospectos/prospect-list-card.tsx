@@ -7,12 +7,14 @@ import {
   Edit3,
   ExternalLink,
   MapPin,
+  Snowflake,
   Sparkles,
 } from "lucide-react";
 import type { ProspectLead } from "@/data/prospects";
 import { WhatsAppLogo } from "@/components/icons/whatsapp-logo";
 import { PEOPLE } from "@/lib/admin/people";
 import { whoWhen, type ProspectState } from "@/lib/admin/prospect-shared";
+import { coldDays } from "@/lib/admin/prospect-followup";
 import { Face, btnPrimary, btnSecondary, cn, input, usd } from "../kit";
 import { STAGE, STAGES } from "./stages";
 import type { LeadStatus } from "./prospectos-client";
@@ -22,6 +24,7 @@ export function ProspectListCard({
   lead,
   status,
   meta,
+  now,
   copied,
   onStatus,
   onNote,
@@ -31,6 +34,7 @@ export function ProspectListCard({
   lead: ProspectLead;
   status: LeadStatus;
   meta?: ProspectState;
+  now: number;
   copied: boolean;
   onStatus: (id: string, status: LeadStatus) => void;
   onNote: (id: string, note: string) => void;
@@ -40,6 +44,7 @@ export function ProspectListCard({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const note = meta?.note ?? "";
+  const cold = coldDays(meta, now);
 
   const edit = () => {
     setDraft(note);
@@ -107,6 +112,12 @@ export function ProspectListCard({
             <span className="truncate">
               Contactó {whoWhen(meta.contacted_by, meta.contacted_at)}
             </span>
+          </span>
+        )}
+
+        {cold !== null && (
+          <span className="flex items-center gap-1.5 rounded-md bg-amber-400/[0.07] px-2 py-1 text-[11px] text-amber-300">
+            <Snowflake size={12} className="shrink-0" /> Sin respuesta hace {cold} días
           </span>
         )}
 

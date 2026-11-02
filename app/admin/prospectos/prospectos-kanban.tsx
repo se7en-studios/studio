@@ -15,12 +15,14 @@ import {
   Phone,
   PhoneOff,
   Shuffle,
-  Zap,
+  Snowflake,
+  Zap,
 } from "lucide-react";
 import type { ProspectLead } from "@/data/prospects";
 import type { LeadStatus } from "./prospectos-client";
 import { PEOPLE } from "@/lib/admin/people";
 import { whoWhen, type ProspectState } from "@/lib/admin/prospect-shared";
+import { coldDays, lastContactAt } from "@/lib/admin/prospect-followup";
 import { WhatsAppLogo } from "@/components/icons/whatsapp-logo";
 import { PadelRoiCalculator } from "./padel-roi-calculator";
 import { useSoundFx } from "@/lib/use-sound-fx";
@@ -36,6 +38,8 @@ interface KanbanProps {
   onStatusChange: (id: string, status: LeadStatus) => void;
   onSaveNote: (id: string, note: string) => void;
   onOpenWhatsApp: (lead: ProspectLead, text?: string) => void;
+  /** «Ahora» (ms), para contar los días sin respuesta. */
+  now: number;
   templates: ProspectTemplate[];
   /** Arma el mensaje de un prospecto: `pick` es una plantilla, «auto» (al azar) u «original». */
   buildMessage: (lead: ProspectLead, pick?: string) => { id: string; text: string };
@@ -54,6 +58,7 @@ function BoardCard({
   lead,
   status,
   meta,
+  cold,
   onOpen,
   onNote,
   onMove,
@@ -62,6 +67,8 @@ function BoardCard({
   lead: ProspectLead;
   status: LeadStatus;
   meta?: ProspectState;
+  /** Días sin respuesta si ya es para retomar. */
+  cold: number | null;
   onOpen: (lead: ProspectLead) => void;
   onNote: (lead: ProspectLead) => void;
   onMove: (id: string, status: LeadStatus) => void;
@@ -88,6 +95,14 @@ function BoardCard({
           <span className="mt-2 flex items-center gap-1.5 rounded-md bg-sky-400/[0.07] px-2 py-1 text-[11px] text-sky-300">
             <Face who={meta.contacted_by} size={14} />
             <span className="truncate">Contactó {whoWhen(meta.contacted_by, meta.contacted_at)}</span>
+          </span>
+        )}
+        {meta?.last_contact_at && meta.last_contact_by && meta.last_contact_at !== meta.contacted_at && (
+          <span className="mt-2 block truncate text-[11px] text-muted">Último mensaje: {whoWhen(meta.last_contact_by, meta.last_contact_at)}</span>
+        )}
+        {cold !== null && (
+          <span className="mt-2 flex items-center gap-1.5 rounded-md bg-amber-400/[0.07] px-2 py-1 text-[11px] text-amber-300">
+            <Snowflake size={12} className="shrink-0" /> Sin respuesta hace {cold} días
           </span>
         )}
         {note && (
@@ -162,6 +177,7 @@ export function ProspectosKanban({
   onStatusChange,
   onSaveNote,
   onOpenWhatsApp,
+  now,
   templates,
   buildMessage,
 }: KanbanProps) {
@@ -220,6 +236,10 @@ export function ProspectosKanban({
       <div className="grid grid-cols-1 gap-3 pb-6 md:grid-cols-2 xl:grid-cols-3 min-[1800px]:grid-cols-6">
         {STAGES.map((col) => {
           const colLeads = leads.filter((l) => (leadStatuses[l.id] || "nuevo") === col.id);
+          // Los contactados: arriba los que llevan más tiempo sin respuesta.
+          if (col.id === "contactado") {
+            colLeads.sort((a, b) => (lastContactAt(leadState[a.id]) ?? "").localeCompare(lastContactAt(leadState[b.id]) ?? ""));
+          }
           const totalUsd = colLeads.reduce((acc, l) => acc + l.estimatedBudgetUsd, 0);
           return (
             <section key={col.id} className="min-w-0 rounded-xl border border-[var(--line)] bg-white/[0.012] p-2">
@@ -236,6 +256,7 @@ export function ProspectosKanban({
                     lead={lead}
                     status={col.id}
                     meta={leadState[lead.id]}
+                    cold={coldDays(leadState[lead.id], now)}
                     onOpen={handleOpenDossier}
                     onNote={handleOpenNoteModal}
                     onMove={handleMove}
