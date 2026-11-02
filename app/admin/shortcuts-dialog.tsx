@@ -60,7 +60,7 @@ export function ShortcutsDialog({ onClose }: { onClose: () => void }) {
         <div>
           <div className="flex items-center justify-between mb-3">
             <span className="adm-label text-[11px] text-muted">Navegación Relámpago (Secuencia G + Tecla)</span>
-            <span className="text-[11px] text-muted">Presiona 'G' y luego la letra</span>
+            <span className="text-[11px] text-muted">Presiona «G» y luego la letra</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
             {NAV_SHORTCUTS.map((s) => (

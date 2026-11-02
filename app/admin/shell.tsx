@@ -184,7 +184,7 @@ export function AdminShell({
 
   useEffect(() => {
     let gActive = false;
-    let gTimer: any = null;
+    let gTimer: ReturnType<typeof setTimeout> | null = null;
 
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
