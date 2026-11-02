@@ -31,6 +31,17 @@
   .cs-ticker__track { animation: cs-marquee 60s linear infinite; }
   .cs-ticker:hover .cs-ticker__track { animation-play-state: paused; }
 
+  /* Stickers del rubro detrás de la captura de cada caso: lugar y giro por variables
+     (en celular todas las tarjetas usan el reparto angosto), sombra de papel pegado
+     y, al pasar el mouse, se abren hacia afuera. */
+  .cs-sticker { position: absolute; left: var(--nx); top: var(--ny); width: var(--nw); translate: -50% -50%; rotate: var(--nr); --px: var(--ndx); --py: var(--ndy); }
+  @media (min-width: 640px) {
+    .cs-sticker--wide { left: var(--x); top: var(--y); width: var(--w); rotate: var(--r); --px: var(--dx); --py: var(--dy); }
+  }
+  .cs-sticker__push { display: block; transition: transform 0.8s var(--ease-out); }
+  .group:hover .cs-sticker__push { transform: translate(var(--px), var(--py)) scale(1.07); }
+  .cs-sticker__img { display: block; width: 100%; height: auto; filter: drop-shadow(0 14px 18px rgb(0 0 0 / 0.3)) drop-shadow(0 2px 3px rgb(0 0 0 / 0.2)); }
+
   /* Lienzo de piezas: grilla de puntos de editor. */
   .cs-canvas { background-color: #0f0f11; background-image: radial-gradient(#f2eee61f 1px, transparent 1.2px); background-size: 22px 22px; }
   .cs-piece { touch-action: none; cursor: grab; }

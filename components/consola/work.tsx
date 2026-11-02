@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { projects } from "@/data/projects";
+import { stickers } from "@/data/stickers";
 import type { Project } from "@/types";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 import { RdButton, RdLines, RdReveal } from "@/components/rd/primitives";
@@ -80,6 +81,7 @@ function WorkCard({ project: p, wide }: { project: Project; wide: boolean }) {
             "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
         }}
       />
+      <Stickers slug={p.slug} wide={wide} />
       {/* En celular todas van con teléfono: la ventana de escritorio no entra. */}
       {wide ? (
         <>
@@ -102,7 +104,7 @@ function WorkCard({ project: p, wide }: { project: Project; wide: boolean }) {
         }}
       />
 
-      <span className="rd-label absolute top-5 right-5 rounded-full border border-current/30 px-2.5 py-1 text-[10px] opacity-80">
+      <span className="rd-label absolute top-5 right-5 rounded-full px-2.5 py-1 text-[10px]" style={{ background: fg, color: accent }}>
         {p.year}
       </span>
       <span className="absolute inset-x-5 bottom-5 flex items-end justify-between gap-4 md:inset-x-6 md:bottom-6">
@@ -128,6 +130,98 @@ function WorkCard({ project: p, wide }: { project: Project; wide: boolean }) {
         </span>
       </span>
     </Link>
+  );
+}
+
+/**
+ * Dónde cae cada sticker: centro (x, y) y ancho, en % de la tarjeta, y giro.
+ * Rodean la captura y se esconden un poco detrás de ella o del borde, como
+ * pegados sobre la mesa. La ancha deja libres los costados de la ventana; la
+ * angosta (y la ancha en celular, que también va con teléfono), los del teléfono.
+ */
+type Slot = [x: number, y: number, w: number, rot: number];
+const SLOTS_WIDE: Slot[] = [
+  [8, 22, 13, -12],
+  [13, 50, 14, 8],
+  [5, 72, 11, -5],
+  [92, 28, 13, 12],
+  [87, 56, 14, -9],
+  [96, 78, 10, 6],
+  [30, 5, 10, 14],
+  [70, 4, 11, -10],
+];
+const SLOTS_NARROW: Slot[] = [
+  [13, 15, 25, -12],
+  [21, 40, 22, 10],
+  [8, 63, 21, -6],
+  [87, 14, 23, 12],
+  [80, 39, 24, -8],
+  [93, 62, 21, 6],
+  [27, 79, 17, 14],
+  [74, 80, 17, -12],
+];
+
+/** Mezcla fija por caso (no cambia entre servidor y cliente): cada tarjeta arranca con otro objeto. */
+function order(slug: string, n: number) {
+  let s = [...slug].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+  const idx = Array.from({ length: n }, (_, i) => i);
+  for (let i = n - 1; i > 0; i--) {
+    s = (s * 1103515245 + 12345) >>> 0;
+    const j = s % (i + 1);
+    [idx[i], idx[j]] = [idx[j], idx[i]];
+  }
+  return idx;
+}
+
+/**
+ * Stickers del rubro de cada caso detrás de la captura (fotos de Flow, ver
+ * scripts/stickers.mjs). Cada lámina trae los mismos 8 objetos dos veces
+ * (a y b): se toma uno de cada objeto, alternando la versión. Al pasar el
+ * mouse se abren un poco hacia afuera.
+ */
+function Stickers({ slug, wide }: { slug: string; wide: boolean }) {
+  const all = stickers[slug];
+  if (!all?.length) return null;
+  const half = all.length / 2;
+  const pick = order(slug, half).map((k, i) => all[i % 2 ? k + half : k]);
+  return (
+    <span aria-hidden className="pointer-events-none absolute inset-0">
+      {SLOTS_NARROW.map((n, i) => {
+        const s = pick[i % pick.length];
+        const w = SLOTS_WIDE[i];
+        const style = {
+          "--nx": `${n[0]}%`,
+          "--ny": `${n[1]}%`,
+          "--nw": `${n[2]}%`,
+          "--nr": `${n[3]}deg`,
+          "--ndx": `${(n[0] - 50) / 2.5}px`,
+          "--ndy": `${(n[1] - 50) / 2.5}px`,
+          "--x": `${w[0]}%`,
+          "--y": `${w[1]}%`,
+          "--w": `${w[2]}%`,
+          "--r": `${w[3]}deg`,
+          "--dx": `${(w[0] - 50) / 2.5}px`,
+          "--dy": `${(w[1] - 50) / 2.5}px`,
+        } as CSSProperties;
+        // Cada uno flota a su ritmo.
+        const bob = { animationDelay: `${-i * 0.8}s`, animationDuration: `${6 + (i % 3)}s` };
+        return (
+          <span key={i} className={`cs-sticker ${wide ? "cs-sticker--wide" : ""}`} style={style}>
+            <span className="cs-sticker__push">
+              <Image
+                src={s.src}
+                alt=""
+                width={s.w}
+                height={s.h}
+                sizes="(min-width: 1024px) 12vw, 25vw"
+                className="cs-sticker__img cs-bob"
+                style={bob}
+              />
+            </span>
+          </span>
+        );
+      })}
+    </span>
   );
 }
 
