@@ -41,7 +41,14 @@ export function CsCall() {
             role="Desarrollo"
             delay="0s"
           >
-            <Image src={franco.src} alt={franco.name} fill sizes="(min-width: 768px) 25vw, 60vw" className="object-cover" />
+            {/* Su foto es vertical y de cuerpo entero: se acerca a la cara, como una cámara de videollamada. */}
+            <Image
+              src={franco.src}
+              alt={franco.name}
+              fill
+              sizes="(min-width: 768px) 25vw, 60vw"
+              className="origin-[50%_14%] scale-[1.5] object-cover object-[50%_4%]"
+            />
           </Tile>
           <Tile
             className="top-[73%] right-[-5%] w-[58%] rotate-[4deg] md:top-[5%] md:right-[2%] md:w-[24%]"
@@ -49,7 +56,13 @@ export function CsCall() {
             role="Producto y diseño"
             delay="-2s"
           >
-            <Image src={federico.src} alt={federico.name} fill sizes="(min-width: 768px) 25vw, 60vw" className="object-cover" />
+            <Image
+              src={federico.src}
+              alt={federico.name}
+              fill
+              sizes="(min-width: 768px) 25vw, 60vw"
+              className="object-cover object-[50%_30%]"
+            />
           </Tile>
           {apex && (
             <Tile
