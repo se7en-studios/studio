@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Search,
   Copy,
@@ -20,6 +21,10 @@ import { ProspectosKanban } from "./prospectos-kanban";
 import { AiQualifier } from "./ai-qualifier";
 import { PadelRoiCalculator } from "./padel-roi-calculator";
 import { useSoundFx } from "@/lib/use-sound-fx";
+import type { LeadOwner } from "@/lib/admin/db";
+import { PEOPLE } from "@/lib/admin/people";
+import { whoWhen, type ProspectState, type ProspectStatus } from "@/lib/admin/prospect-shared";
+import { updateProspectNote, updateProspectStatus } from "./actions";
 import { Chip, Segmented, btn, btnPrimary, btnSecondary, searchInput, kpiRow, cn } from "../kit";
 
 const CITIES = ["Todas", "Catriel", "25 de Mayo", "Neuquén", "Cipolletti", "Plottier", "San Rafael", "Mendoza"] as const;
@@ -37,7 +42,10 @@ const CATEGORIES = [
   "Construcción & Corralón",
 ] as const;
 
-export type LeadStatus = "nuevo" | "contactado" | "en_charla" | "ganado" | "descartado";
+export type LeadStatus = ProspectStatus;
+
+// Cada cuánto se vuelve a leer lo que cargó el otro, con la pestaña a la vista.
+const POLL_MS = 20_000;
 
 const STATUS_CONFIG: Record<LeadStatus, { label: string; badge: string; dot: string }> = {
   nuevo: {
@@ -65,6 +73,11 @@ const STATUS_CONFIG: Record<LeadStatus, { label: string; badge: string; dot: str
     badge: "border adm-badge-red",
     dot: "bg-red-400",
   },
+  numero_equivocado: {
+    label: "Número equivocado",
+    badge: "border-[var(--line)] bg-[var(--well)] text-muted",
+    dot: "bg-orange-400",
+  },
 };
 
 const STATUS_FILTER_OPTIONS: { id: "todos" | LeadStatus; label: string }[] = [
@@ -74,9 +87,10 @@ const STATUS_FILTER_OPTIONS: { id: "todos" | LeadStatus; label: string }[] = [
   { id: "en_charla", label: "En charla" },
   { id: "ganado", label: "Ganados" },
   { id: "descartado", label: "Descartados" },
+  { id: "numero_equivocado", label: "Nº equivocado" },
 ];
 
-export function ProspectosClient() {
+export function ProspectosClient({ initialState, me }: { initialState: Record<string, ProspectState>; me: LeadOwner }) {
   const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
   const [showAiQualifier, setShowAiQualifier] = useState(false);
   const [showRoiCalc, setShowRoiCalc] = useState(false);
@@ -88,53 +102,79 @@ export function ProspectosClient() {
 
   const sound = useSoundFx();
 
-  // Estados persistidos en localStorage
-  const [leadStatuses, setLeadStatuses] = useState<Record<string, LeadStatus>>({});
-  const [leadNotes, setLeadNotes] = useState<Record<string, string>>({});
+  const router = useRouter();
+  const [state, setState] = useState(initialState);
+  const [seen, setSeen] = useState(initialState);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
 
-  // Carga inicial de localStorage
+  // Lo que llega del servidor (lo que cargó el otro) pisa lo local.
+  if (seen !== initialState) {
+    setSeen(initialState);
+    setState(initialState);
+  }
+
   useEffect(() => {
-    try {
-      const savedStatuses = localStorage.getItem("se7en_leads_status");
-      if (savedStatuses) setLeadStatuses(JSON.parse(savedStatuses));
-      const savedNotes = localStorage.getItem("se7en_leads_notes");
-      if (savedNotes) setLeadNotes(JSON.parse(savedNotes));
-    } catch (e) {
-      console.error("Error reading lead data from localStorage", e);
-    }
-  }, []);
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") router.refresh();
+    }, POLL_MS);
+    return () => clearInterval(id);
+  }, [router]);
+
+  const leadStatuses = useMemo(
+    () => Object.fromEntries(Object.entries(state).map(([id, s]) => [id, s.status])) as Record<string, LeadStatus>,
+    [state],
+  );
+  const leadNotes = useMemo(() => Object.fromEntries(Object.entries(state).map(([id, s]) => [id, s.note])), [state]);
+
+  // Optimista: se ve al instante y, si el servidor falla, vuelve a lo anterior.
+  const save = (leadId: string, optimistic: Partial<ProspectState>, run: () => Promise<ProspectState>) => {
+    const before = state[leadId];
+    const blank: ProspectState = {
+      lead_id: leadId,
+      status: "nuevo",
+      contacted_by: null,
+      contacted_at: null,
+      note: "",
+      note_by: null,
+      note_at: null,
+      updated_by: null,
+      updated_at: new Date().toISOString(),
+    };
+    setSaveError(null);
+    setState((s) => ({ ...s, [leadId]: { ...blank, ...s[leadId], ...optimistic } }));
+    run()
+      .then((row) => setState((s) => ({ ...s, [leadId]: row })))
+      .catch((e: unknown) => {
+        setState((s) => {
+          const rest = Object.fromEntries(Object.entries(s).filter(([id]) => id !== leadId));
+          return before ? { ...rest, [leadId]: before } : rest;
+        });
+        setSaveError(e instanceof Error ? e.message : "No se pudo guardar.");
+      });
+  };
 
   const updateStatus = (leadId: string, status: LeadStatus) => {
-    setLeadStatuses((prev) => {
-      const next = { ...prev, [leadId]: status };
-      try {
-        localStorage.setItem("se7en_leads_status", JSON.stringify(next));
-      } catch (e) {
-        console.error("Error saving lead status", e);
-      }
-      return next;
-    });
+    const first = status !== "nuevo" && !state[leadId]?.contacted_by;
+    save(
+      leadId,
+      { status, ...(first ? { contacted_by: me, contacted_at: new Date().toISOString() } : {}) },
+      () => updateProspectStatus(leadId, status),
+    );
   };
 
-  const updateNote = (leadId: string, note: string) => {
-    setLeadNotes((prev) => {
-      const next = { ...prev, [leadId]: note };
-      try {
-        localStorage.setItem("se7en_leads_notes", JSON.stringify(next));
-      } catch (e) {
-        console.error("Error saving lead note", e);
-      }
-      return next;
-    });
-  };
+  const updateNote = (leadId: string, note: string) =>
+    save(leadId, { note, note_by: note ? me : null, note_at: note ? new Date().toISOString() : null }, () =>
+      updateProspectNote(leadId, note),
+    );
 
   const handleOpenWhatsApp = (lead: ProspectLead) => {
     sound.pop();
     const phone = lead.phone.replace(/\D/g, "");
     const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(lead.pitch)}`;
     window.open(waUrl, "_blank", "noopener,noreferrer");
-    updateStatus(lead.id, "contactado");
+    // Sólo avanza si todavía no estaba contactado: no pisa una charla ni un cierre.
+    if ((leadStatuses[lead.id] || "nuevo") === "nuevo") updateStatus(lead.id, "contactado");
   };
 
   const filtered = useMemo(() => {
@@ -155,7 +195,7 @@ export function ProspectosClient() {
 
   // Contadores de estado
   const statusCounts = useMemo(() => {
-    const counts = { nuevo: 0, contactado: 0, en_charla: 0, ganado: 0, descartado: 0 };
+    const counts = { nuevo: 0, contactado: 0, en_charla: 0, ganado: 0, descartado: 0, numero_equivocado: 0 };
     prospectLeads.forEach((lead) => {
       const st = leadStatuses[lead.id] || "nuevo";
       counts[st] = (counts[st] || 0) + 1;
@@ -179,6 +219,8 @@ export function ProspectosClient() {
     const headers = [
       "Nombre",
       "Estado",
+      "Contactó",
+      "Fecha de contacto",
       "Ciudad",
       "Provincia",
       "Rubro",
@@ -189,11 +231,14 @@ export function ProspectosClient() {
       "Problema Detectado",
       "Solución Recomendada",
       "Notas Internas",
+      "Nota de",
     ];
 
     const rows = filtered.map((l) => [
       `"${l.name.replace(/"/g, '""')}"`,
       `"${STATUS_CONFIG[leadStatuses[l.id] || "nuevo"].label}"`,
+      `"${state[l.id]?.contacted_by ? PEOPLE[state[l.id].contacted_by!].name : ""}"`,
+      `"${state[l.id]?.contacted_at ? state[l.id].contacted_at!.slice(0, 10) : ""}"`,
       `"${l.city}"`,
       `"${l.province}"`,
       `"${l.category}"`,
@@ -204,6 +249,7 @@ export function ProspectosClient() {
       `"${l.painPoint.replace(/"/g, '""')}"`,
       `"${l.recommendedSolution.replace(/"/g, '""')}"`,
       `"${(leadNotes[l.id] || "").replace(/"/g, '""')}"`,
+      `"${state[l.id]?.note_by ? PEOPLE[state[l.id].note_by!].name : ""}"`,
     ]);
 
     const csvContent = "\uFEFF" + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
@@ -219,6 +265,12 @@ export function ProspectosClient() {
 
   return (
     <div className="space-y-6">
+      {saveError && (
+        <div role="alert" className="rounded-lg border adm-badge-red px-3 py-2 text-[12px]">
+          No se pudo guardar el último cambio: {saveError}
+        </div>
+      )}
+
       {/* Header Bar */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
@@ -413,6 +465,7 @@ export function ProspectosClient() {
           leads={filtered}
           leadStatuses={leadStatuses}
           leadNotes={leadNotes}
+          leadState={state}
           onStatusChange={updateStatus}
           onSaveNote={updateNote}
           onOpenWhatsApp={handleOpenWhatsApp}
@@ -427,6 +480,7 @@ export function ProspectosClient() {
             const currentStatus = leadStatuses[lead.id] || "nuevo";
             const statusMeta = STATUS_CONFIG[currentStatus];
             const leadNote = leadNotes[lead.id] || "";
+            const meta = state[lead.id];
             const isEditingNote = editingNoteId === lead.id;
 
             return (
@@ -473,8 +527,14 @@ export function ProspectosClient() {
                       <option value="en_charla">En conversación</option>
                       <option value="ganado">¡Cliente ganado!</option>
                       <option value="descartado">Descartado</option>
+                      <option value="numero_equivocado">Número equivocado</option>
                     </select>
                   </div>
+                  {meta?.contacted_by && (
+                    <p className="mt-2 adm-label text-[10px] text-muted">
+                      Contactó: <span className="text-foreground">{whoWhen(meta.contacted_by, meta.contacted_at)}</span>
+                    </p>
+                  )}
 
                   {/* Business Name */}
                   <div className="mt-3">
@@ -549,7 +609,7 @@ export function ProspectosClient() {
                         <div className="flex-1 pr-2">
                           {leadNote ? (
                             <p className="text-sky-600 dark:text-sky-300 text-xs">
-                              <span className="adm-label text-[9.5px] text-sky-500 font-bold">Nota:</span> {leadNote}
+                              <span className="adm-label text-[9.5px] text-sky-500 font-bold">Nota{meta?.note_by ? ` de ${PEOPLE[meta.note_by].name}` : ""}:</span> {leadNote}
                             </p>
                           ) : (
                             <p className="adm-label text-[10px] text-muted/60 italic">

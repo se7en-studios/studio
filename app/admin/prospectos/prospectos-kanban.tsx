@@ -16,6 +16,7 @@ import {
   Calculator,
   ExternalLink,
   Phone,
+  PhoneOff,
   Zap,
   ArrowRight,
   Inbox,
@@ -26,6 +27,8 @@ import {
 } from "lucide-react";
 import type { ProspectLead } from "@/data/prospects";
 import type { LeadStatus } from "./prospectos-client";
+import { PEOPLE } from "@/lib/admin/people";
+import { whoWhen, type ProspectState } from "@/lib/admin/prospect-shared";
 import { WhatsAppLogo } from "@/components/icons/whatsapp-logo";
 import { PadelRoiCalculator } from "./padel-roi-calculator";
 import { useSoundFx } from "@/lib/use-sound-fx";
@@ -60,6 +63,7 @@ interface KanbanProps {
   leads: ProspectLead[];
   leadStatuses: Record<string, LeadStatus>;
   leadNotes: Record<string, string>;
+  leadState: Record<string, ProspectState>;
   onStatusChange: (id: string, status: LeadStatus) => void;
   onSaveNote: (id: string, note: string) => void;
   onOpenWhatsApp: (lead: ProspectLead) => void;
@@ -107,6 +111,13 @@ const COLUMNS: {
     accent: "text-muted",
     icon: <XCircle size={13} className="text-muted shrink-0" />,
   },
+  {
+    id: "numero_equivocado",
+    title: "Número Equivocado",
+    badge: "border-[var(--line)] bg-[var(--well)] text-muted",
+    accent: "text-orange-600 dark:text-orange-400",
+    icon: <PhoneOff size={13} className="text-orange-600 dark:text-orange-400 shrink-0" />,
+  },
 ];
 
 const FX_RATE = 1350;
@@ -115,6 +126,7 @@ export function ProspectosKanban({
   leads,
   leadStatuses,
   leadNotes,
+  leadState,
   onStatusChange,
   onSaveNote,
   onOpenWhatsApp,
@@ -169,8 +181,8 @@ export function ProspectosKanban({
 
   return (
     <div className="relative">
-      {/* Tablero Kanban Scrollable Horizontal */}
-      <div className="flex gap-4 overflow-x-auto pb-6 pt-2 snap-x admin-scroll">
+      {/* Tablero Kanban: todas las columnas a la vista, se acomodan según el ancho */}
+      <div className="grid grid-cols-1 gap-3 pb-6 pt-2 md:grid-cols-2 xl:grid-cols-3 min-[1800px]:grid-cols-6">
         {COLUMNS.map((col) => {
           const colLeads = leads.filter((l) => (leadStatuses[l.id] || "nuevo") === col.id);
           const totalUsd = colLeads.reduce((acc, l) => acc + (l.estimatedBudgetUsd || 1200), 0);
@@ -179,7 +191,7 @@ export function ProspectosKanban({
           return (
             <div
               key={col.id}
-              className="flex w-80 shrink-0 flex-col rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5 sm:w-88"
+              className="flex min-w-0 flex-col rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5"
             >
               {/* Cabecera de Columna con Rollup Financiero */}
               <div className="border-b border-[var(--line)] pb-3">
@@ -219,6 +231,7 @@ export function ProspectosKanban({
                   colLeads.map((lead) => {
                     const status = leadStatuses[lead.id] || "nuevo";
                     const note = leadNotes[lead.id];
+                    const meta = leadState[lead.id];
                     const isHot = status === "contactado" || status === "en_charla";
 
                     return (
@@ -263,6 +276,12 @@ export function ProspectosKanban({
                           </span>
                         </div>
 
+                        {meta?.contacted_by && (
+                          <p className="mt-2 adm-label text-[10px] text-muted">
+                            Contactó: <span className="text-foreground">{whoWhen(meta.contacted_by, meta.contacted_at)}</span>
+                          </p>
+                        )}
+
                         {/* Fuga / Diagnóstico rápido */}
                         <div
                           onClick={() => handleOpenDossier(lead)}
@@ -278,7 +297,7 @@ export function ProspectosKanban({
                         {/* Nota interna si existe */}
                         {note && (
                           <div className="mt-2 rounded-lg bg-[var(--well)] border border-sky-500/20 p-2 text-[11px] text-sky-600 dark:text-sky-300">
-                            <span className="adm-label text-[9.5px] text-sky-500 font-bold">Nota:</span> {note}
+                            <span className="adm-label text-[9.5px] text-sky-500 font-bold">Nota{meta?.note_by ? ` de ${PEOPLE[meta.note_by].name}` : ""}:</span> {note}
                           </div>
                         )}
 
@@ -363,6 +382,29 @@ export function ProspectosKanban({
                               </button>
                             )}
 
+                            {(status === "nuevo" || status === "contactado") && (
+                              <button
+                                type="button"
+                                onClick={() => handleMove(lead.id, "numero_equivocado")}
+                                title="Marcar como número equivocado"
+                                aria-label="Marcar como número equivocado"
+                                className="rounded-full border border-[var(--line-strong)] bg-[var(--well)] p-1 text-muted hover:text-foreground hover:border-foreground"
+                              >
+                                <PhoneOff size={12} />
+                              </button>
+                            )}
+
+                            {status === "numero_equivocado" && (
+                              <button
+                                type="button"
+                                onClick={() => handleMove(lead.id, "nuevo")}
+                                title="Volver a Sin contactar (con el número corregido)"
+                                className="rounded-full border border-[var(--line-strong)] bg-[var(--well)] px-2 py-0.5 adm-label text-[9.5px] text-muted hover:text-foreground hover:border-foreground"
+                              >
+                                ← Reabrir
+                              </button>
+                            )}
+
                             {status === "ganado" && (
                               <span className="adm-label text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                                 <CheckCircle2 size={12} /> Cerrado
@@ -416,6 +458,9 @@ export function ProspectosKanban({
                 </h3>
                 <p className="adm-label mt-1 text-[11px] text-muted">
                   {activeDossierLead.address} · Tel: {activeDossierLead.phone}
+                  {leadState[activeDossierLead.id]?.contacted_by && (
+                    <> · Contactó {whoWhen(leadState[activeDossierLead.id].contacted_by, leadState[activeDossierLead.id].contacted_at)}</>
+                  )}
                 </p>
               </div>
 
@@ -602,7 +647,7 @@ export function ProspectosKanban({
                         key={tpl.id}
                         type="button"
                         onClick={() => {
-                          setSelectedPitchTemplate(tpl.id as any);
+                          setSelectedPitchTemplate(tpl.id as typeof selectedPitchTemplate);
                           sound.tick();
                         }}
                         className={`rounded-full px-2.5 py-1 text-[11px] transition-colors ${
@@ -686,6 +731,11 @@ export function ProspectosKanban({
                 <label className="adm-label block text-xs">
                   Notas internas, objeciones y compromisos de reunión:
                 </label>
+                {leadState[activeDossierLead.id]?.note_by && (
+                  <p className="adm-label text-[10px] text-muted">
+                    Última nota: {whoWhen(leadState[activeDossierLead.id].note_by, leadState[activeDossierLead.id].note_at)}
+                  </p>
+                )}
                 <textarea
                   value={tempNote}
                   onChange={(e) => setTempNote(e.target.value)}
