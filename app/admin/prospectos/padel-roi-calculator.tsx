@@ -134,7 +134,7 @@ Con nuestro turnero web los jugadores señan el 50% por Mercado Pago al reservar
         {/* COLUMNA IZQUIERDA: SLIDERS */}
         <div className="space-y-4 lg:col-span-6">
           <div className="rounded-xl border border-[var(--line)] bg-[var(--well)] p-4 space-y-4">
-            <span className="adm-label text-[10.5px] uppercase tracking-wider text-muted block mb-1">
+            <span className="adm-label text-[11px] uppercase tracking-wider text-muted block mb-1">
               Parámetros Operativos del Club
             </span>
 
@@ -168,7 +168,7 @@ Con nuestro turnero web los jugadores señan el 50% por Mercado Pago al reservar
                 }}
                 className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-[var(--line-strong)] accent-accent"
               />
-              <div className="flex justify-between adm-label text-[9.5px]">
+              <div className="flex justify-between adm-label text-[11px]">
                 <span>1 cancha</span>
                 <span>4 canchas</span>
                 <span>8 canchas</span>
@@ -193,7 +193,7 @@ Con nuestro turnero web los jugadores señan el 50% por Mercado Pago al reservar
                 }}
                 className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-[var(--line-strong)] accent-accent"
               />
-              <div className="flex justify-between adm-label text-[9.5px]">
+              <div className="flex justify-between adm-label text-[11px]">
                 <span>3 turnos (tarde)</span>
                 <span>6 turnos (habitual)</span>
                 <span>10 turnos (full día)</span>
@@ -220,7 +220,7 @@ Con nuestro turnero web los jugadores señan el 50% por Mercado Pago al reservar
                 }}
                 className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-[var(--line-strong)] accent-accent"
               />
-              <div className="flex justify-between adm-label text-[9.5px]">
+              <div className="flex justify-between adm-label text-[11px]">
                 <span>$8.000 ARS</span>
                 <span>$14.000 ARS</span>
                 <span>$26.000 ARS</span>
@@ -231,7 +231,7 @@ Con nuestro turnero web los jugadores señan el 50% por Mercado Pago al reservar
             <div className="space-y-1.5 pt-2 border-t border-[var(--line)]">
               <div className="flex justify-between items-baseline">
                 <span className="text-xs text-muted">Turnos cancelados sin aviso (%):</span>
-                <span className="adm-num text-sm text-red-600 dark:text-red-400 font-semibold">{tasaCancelacion}%</span>
+                <span className="adm-num text-sm text-red-400 font-semibold">{tasaCancelacion}%</span>
               </div>
               <input
                 type="range"
@@ -245,7 +245,7 @@ Con nuestro turnero web los jugadores señan el 50% por Mercado Pago al reservar
                 }}
                 className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-[var(--line-strong)] accent-red-500"
               />
-              <div className="flex justify-between adm-label text-[9.5px]">
+              <div className="flex justify-between adm-label text-[11px]">
                 <span>5% (bajo)</span>
                 <span>15% (habitual)</span>
                 <span>30% (caótico)</span>
@@ -259,28 +259,28 @@ Con nuestro turnero web los jugadores señan el 50% por Mercado Pago al reservar
           <div className="grid gap-3 sm:grid-cols-2">
             {/* Tarjeta 1: Fuga Actual Mensual */}
             <div className="rounded-xl border adm-badge-red p-4">
-              <span className="adm-label text-[10px] uppercase tracking-wider block">
+              <span className="adm-label text-[11px] uppercase tracking-wider block">
                 Fuga Mensual sin Seña
               </span>
               <p className="adm-num mt-1 text-2xl font-bold">
                 -${Math.round(metrics.perdidaMensual / 1000).toLocaleString("es-AR")}k{" "}
                 <span className="text-xs font-normal">ARS/mes</span>
               </p>
-              <span className="mt-1 block adm-label text-[10px]">
+              <span className="mt-1 block adm-label text-[11px]">
                 {metrics.turnosPerdidos} turnos vacíos cada 30 días
               </span>
             </div>
 
             {/* Tarjeta 2: Dinero Recuperado con Se7en */}
             <div className="rounded-xl border adm-badge-green p-4">
-              <span className="adm-label text-[10px] uppercase tracking-wider block">
+              <span className="adm-label text-[11px] uppercase tracking-wider block">
                 Recuperado con Se7en
               </span>
               <p className="adm-num mt-1 text-2xl font-bold">
                 +${Math.round(metrics.recuperadoMensual / 1000).toLocaleString("es-AR")}k{" "}
                 <span className="text-xs font-normal">ARS/mes</span>
               </p>
-              <span className="mt-1 block adm-label text-[10px]">
+              <span className="mt-1 block adm-label text-[11px]">
                 Seña 50% Mercado Pago asegurada
               </span>
             </div>
@@ -293,27 +293,27 @@ Con nuestro turnero web los jugadores señan el 50% por Mercado Pago al reservar
                 <Sparkles size={14} className="text-accent" />
                 Retorno de Inversión (ROI) Garantizado
               </span>
-              <span className="adm-label text-[10px] text-accent font-bold">
+              <span className="adm-label text-[11px] text-accent font-bold">
                 Amortización: {metrics.diasAmortizacion} días
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div>
-                <span className="adm-label text-[10px] text-muted block">Ahorro Anual Neto:</span>
-                <span className="adm-num text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                <span className="adm-label text-[11px] text-muted block">Ahorro Anual Neto:</span>
+                <span className="adm-num text-lg font-bold text-emerald-400">
                   +${((metrics.recuperadoAnual) / 1000000).toFixed(1)}M ARS
                 </span>
               </div>
               <div>
-                <span className="adm-label text-[10px] text-muted block">Tiempo en WhatsApp ahorrado:</span>
+                <span className="adm-label text-[11px] text-muted block">Tiempo en WhatsApp ahorrado:</span>
                 <span className="adm-num text-lg font-bold text-foreground">
                   ~45 hs/mes
                 </span>
               </div>
             </div>
 
-            <p className="text-[11.5px] leading-relaxed text-muted pt-1">
+            <p className="text-[12px] leading-relaxed text-muted pt-1">
               Al cobrar la seña obligatoria de forma automática, el jugador asume el compromiso del turno. Las canchas no quedan vacías y el canchero no atiende mensajes en horarios de partido.
             </p>
           </div>
@@ -321,7 +321,7 @@ Con nuestro turnero web los jugadores señan el 50% por Mercado Pago al reservar
           {/* Caja con el Pitch Matemático Listo para WhatsApp */}
           <div className="rounded-xl border border-[var(--line)] bg-[var(--well)] p-3.5 space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="adm-label text-[10px] uppercase tracking-wider text-muted flex items-center gap-1">
+              <span className="adm-label text-[11px] uppercase tracking-wider text-muted flex items-center gap-1">
                 <Zap size={12} className="text-accent" />
                 Pitch Matemático Generado
               </span>
@@ -330,7 +330,7 @@ Con nuestro turnero web los jugadores señan el 50% por Mercado Pago al reservar
                 onClick={handleCopyPitch}
                 className="flex items-center gap-1 rounded-full border border-[var(--line-strong)] bg-[var(--panel)] px-2.5 py-0.5 text-[11px] adm-label text-foreground hover:bg-[var(--panel-2)] transition-colors"
               >
-                {copied ? <Check size={11} className="text-emerald-500" /> : <Copy size={11} />}
+                {copied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
                 <span>{copied ? "¡Copiado!" : "Copiar"}</span>
               </button>
             </div>
@@ -343,7 +343,7 @@ Con nuestro turnero web los jugadores señan el 50% por Mercado Pago al reservar
               <button
                 type="button"
                 onClick={handleOpenWhatsApp}
-                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 text-white dark:bg-emerald-500 dark:text-black py-2.5 px-3 text-xs font-bold transition-opacity hover:opacity-90 shadow-sm"
+                className="focus-ring flex flex-1 items-center justify-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-2.5 text-[13px] font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/20"
               >
                 <WhatsAppLogo className="h-3.5 w-3.5 fill-current" />
                 <span>Enviar Pitch por WhatsApp</span>
@@ -355,3 +355,4 @@ Con nuestro turnero web los jugadores señan el 50% por Mercado Pago al reservar
     </div>
   );
 }
+

@@ -200,7 +200,7 @@ Diseñamos buscadores inmobiliarios hiper-rápidos con mapa satelital interactiv
       {/* Cabecera */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] pb-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 font-mono text-[10.5px] uppercase tracking-[0.12em] text-accent">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.12em] text-accent">
             <Sparkles size={12} />
             Se7en AI Copilot & Lead Intelligence
           </div>
@@ -255,19 +255,19 @@ Diseñamos buscadores inmobiliarios hiper-rápidos con mapa satelital interactiv
                   Diagnóstico IA Completado
                 </span>
                 <h4 className="adm-title mt-1 text-lg text-foreground">{result.businessName}</h4>
-                <p className="adm-label text-[10.5px] text-muted mt-0.5">
+                <p className="adm-label text-[11px] text-muted mt-0.5">
                   Rubro: {result.category} · {result.city}
                 </p>
               </div>
 
               <div className="flex items-center gap-3">
                 <div className="rounded-xl border border-[var(--line)] bg-[var(--well)] px-3 py-1.5 text-right">
-                  <span className="adm-label text-[9.5px] block">Ticket sugerido:</span>
+                  <span className="adm-label text-[11px] block">Ticket sugerido:</span>
                   <span className="adm-num text-sm text-accent">USD ${result.estimatedTicketUsd}</span>
                 </div>
 
-                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-right text-emerald-600 dark:text-emerald-300">
-                  <span className="adm-label text-[9.5px] block text-emerald-600 dark:text-emerald-400">
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-right text-emerald-300">
+                  <span className="adm-label text-[11px] block text-emerald-400">
                     Probabilidad de cierre:
                   </span>
                   <span className="adm-num text-sm font-bold">{result.winProbability}% (Alta)</span>
@@ -278,7 +278,7 @@ Diseñamos buscadores inmobiliarios hiper-rápidos con mapa satelital interactiv
             {/* 3 Fugas Críticas */}
             <div>
               <p className="adm-label mb-2 flex items-center gap-1.5 text-foreground">
-                <AlertTriangle size={13} className="text-amber-500" />
+                <AlertTriangle size={13} className="text-amber-300" />
                 3 Fugas Críticas Detectadas en su Negocio Actual:
               </p>
               <div className="space-y-2">
@@ -306,7 +306,7 @@ Diseñamos buscadores inmobiliarios hiper-rápidos con mapa satelital interactiv
                   onClick={() => handleCopy("loom", result.loomScript)}
                   className="flex items-center gap-1 rounded-full border border-[var(--line-strong)] bg-[var(--panel)] px-2.5 py-1 adm-label text-muted hover:text-foreground"
                 >
-                  {copiedType === "loom" ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                  {copiedType === "loom" ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
                   <span>{copiedType === "loom" ? "¡Copiado!" : "Copiar Guión"}</span>
                 </button>
               </div>
@@ -318,14 +318,14 @@ Diseñamos buscadores inmobiliarios hiper-rápidos con mapa satelital interactiv
             {/* Mensaje Hook para WhatsApp */}
             <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
               <div className="flex items-center justify-between border-b border-emerald-500/20 pb-2">
-                <span className="adm-title text-xs flex items-center gap-1.5 text-emerald-600 dark:text-emerald-300">
+                <span className="adm-title text-xs flex items-center gap-1.5 text-emerald-300">
                   <WhatsAppLogo className="h-3.5 w-3.5 fill-current" />
                   Mensaje Hook de 1 Clic para WhatsApp:
                 </span>
                 <button
                   type="button"
                   onClick={() => handleCopy("wa", result.whatsappHook)}
-                  className="flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 adm-label text-emerald-600 dark:text-emerald-300 hover:bg-emerald-500 hover:text-white"
+                  className="flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 adm-label text-emerald-300 hover:bg-emerald-500/20"
                 >
                   {copiedType === "wa" ? <Check size={12} /> : <Copy size={12} />}
                   <span>{copiedType === "wa" ? "¡Copiado!" : "Copiar Hook"}</span>
