@@ -11,7 +11,7 @@ import { useSoundFx } from "@/lib/use-sound-fx";
 import type { LeadOwner } from "@/lib/admin/db";
 import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
 import type { ProspectState, ProspectStatus } from "@/lib/admin/prospect-shared";
-import { COLD_DAYS, coldDays, contactedToday } from "@/lib/admin/prospect-followup";
+import { COLD_DAYS, coldDays, contactedToday, daysSinceContact, templateKindFor } from "@/lib/admin/prospect-followup";
 import { contactProspect, updateProspectNote, updateProspectStatus } from "./actions";
 import { TemplatesDialog } from "./templates-dialog";
 import { pickTemplate, renderTemplate, templateVars, type ProspectTemplate } from "@/lib/admin/prospect-template-shared";
@@ -156,12 +156,15 @@ export function ProspectosClient({
   const [choice, setChoice] = useStoredChoice<string>("se7en_prospect_msg", "auto", ["auto", "original", ...templates.map((t) => t.id)]);
   const lastTemplate = useRef<string | null>(null);
 
+  // Si todavía no le escribió: una plantilla de primer mensaje. Si ya le escribió: una de seguimiento.
   const buildMessage = (lead: ProspectLead, pick: string = choice): { id: string; text: string } => {
-    if (pick === "original") return { id: "original", text: lead.pitch };
-    const tpl = templates.find((t) => t.id === pick) ?? pickTemplate(templates, lastTemplate.current);
+    const st = state[lead.id];
+    const kind = templateKindFor(st?.status);
+    if (kind === "primero" && pick === "original") return { id: "original", text: lead.pitch };
+    const tpl = templates.find((t) => t.id === pick && t.kind === kind) ?? pickTemplate(templates, lastTemplate.current, kind);
     if (!tpl) return { id: "original", text: lead.pitch };
     lastTemplate.current = tpl.id;
-    return { id: tpl.id, text: renderTemplate(tpl.body, templateVars(lead, PEOPLE[me].name)) };
+    return { id: tpl.id, text: renderTemplate(tpl.body, templateVars(lead, PEOPLE[me].name, daysSinceContact(st, now))) };
   };
 
   const handleOpenWhatsApp = (lead: ProspectLead, text?: string) => {
@@ -388,7 +391,7 @@ export function ProspectosClient({
             />
           </label>
           <label className="flex items-center gap-2 text-[12px] text-muted">
-            Mensaje
+            Primer mensaje
             <select
               value={choice}
               onChange={(e) => {
@@ -399,7 +402,9 @@ export function ProspectosClient({
               className="focus-ring rounded-full border border-[var(--line-strong)] bg-[var(--panel)] px-3 py-1.5 text-[13px] text-foreground"
             >
               <option value="auto">Variar entre plantillas</option>
-              {templates.map((t) => (
+              {templates
+                .filter((t) => t.kind === "primero")
+                .map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
                   {t.active ? "" : " (pausada)"}

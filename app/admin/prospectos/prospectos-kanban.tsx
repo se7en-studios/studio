@@ -16,13 +16,13 @@ import {
   PhoneOff,
   Shuffle,
   Snowflake,
-  Zap,
+  Zap,
 } from "lucide-react";
 import type { ProspectLead } from "@/data/prospects";
 import type { LeadStatus } from "./prospectos-client";
 import { PEOPLE } from "@/lib/admin/people";
 import { whoWhen, type ProspectState } from "@/lib/admin/prospect-shared";
-import { coldDays, lastContactAt } from "@/lib/admin/prospect-followup";
+import { coldDays, lastContactAt, templateKindFor } from "@/lib/admin/prospect-followup";
 import { WhatsAppLogo } from "@/components/icons/whatsapp-logo";
 import { PadelRoiCalculator } from "./padel-roi-calculator";
 import { useSoundFx } from "@/lib/use-sound-fx";
@@ -438,7 +438,7 @@ export function ProspectosKanban({
                 {/* Qué plantilla se usa para este prospecto */}
                 <div className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3">
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                    <span className="adm-label">Plantilla del mensaje</span>
+                    <span className="adm-label">{templateKindFor(leadStatuses[activeDossierLead.id]) === "seguimiento" ? "Plantilla de seguimiento" : "Plantilla del primer mensaje"}</span>
                     {activeDossierLead.category === "Club de Pádel & Deporte" && (
                       <Chip
                         on={showDossierRoiCalc}
@@ -463,7 +463,7 @@ export function ProspectosKanban({
                       <Shuffle size={12} /> Otra variante
                     </Chip>
                     {templates
-                      .filter((t) => t.active)
+                      .filter((t) => t.active && t.kind === templateKindFor(leadStatuses[activeDossierLead.id]))
                       .map((t) => (
                         <Chip
                           key={t.id}
@@ -476,6 +476,7 @@ export function ProspectosKanban({
                           {t.name}
                         </Chip>
                       ))}
+                    {templateKindFor(leadStatuses[activeDossierLead.id]) === "primero" && (
                     <Chip
                       on={dossierMsg?.id === "original"}
                       onClick={() => {
@@ -485,6 +486,7 @@ export function ProspectosKanban({
                     >
                       Guion largo
                     </Chip>
+                    )}
                   </div>
                 </div>
 

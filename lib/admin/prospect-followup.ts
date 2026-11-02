@@ -31,3 +31,13 @@ export function contactedToday(states: ProspectState[], now: number): Record<Lea
   }
   return out;
 }
+
+/** Hace cuántos días se le escribió por última vez; null si no hay dato. */
+export function daysSinceContact(s: ProspectState | undefined, now: number): number | null {
+  const at = lastContactAt(s);
+  return at ? Math.max(0, Math.floor((now - new Date(at).getTime()) / DAY_MS)) : null;
+}
+
+/** El mensaje que corresponde: el primero, o el de seguimiento si ya se le escribió. */
+export const templateKindFor = (status: ProspectState["status"] | undefined): "primero" | "seguimiento" =>
+  status === "contactado" || status === "en_charla" ? "seguimiento" : "primero";

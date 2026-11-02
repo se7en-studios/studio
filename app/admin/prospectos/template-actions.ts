@@ -6,6 +6,7 @@ import {
   BODY_MAX,
   NAME_MAX,
   type ProspectTemplate,
+  type TemplateKind,
 } from "@/lib/admin/prospect-template-shared";
 import {
   insertTemplate,
@@ -35,10 +36,12 @@ function clean(input: { name?: string; body?: string }) {
 export async function createTemplate(input: {
   name: string;
   body: string;
+  kind: TemplateKind;
 }): Promise<ProspectTemplate> {
   const me = await requireSession();
+  if (input.kind !== "primero" && input.kind !== "seguimiento") throw new Error("Tipo de plantilla inválido.");
   const c = clean(input);
-  return insertTemplate({ name: c.name!, body: c.body! }, me.who);
+  return insertTemplate({ name: c.name!, body: c.body!, kind: input.kind }, me.who);
 }
 
 export async function updateTemplate(
