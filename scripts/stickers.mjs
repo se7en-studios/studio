@@ -1,8 +1,8 @@
 // Recorta los stickers de los casos (el fondo de las tarjetas de /consola) a
-// partir de las láminas de Flow: fotos de objetos con borde blanco troquelado
-// sobre verde croma, dos filas de cuatro por lámina y dos láminas por caso
-// (<slug>-a.jpg y <slug>-b.jpg). Saca el verde, separa cada sticker y lo
-// guarda en public/projects/stickers/<slug>-NN.webp; las medidas van a
+// partir de las láminas de Flow: fotos de objetos recortados sobre magenta (o
+// verde) croma, dos filas de cuatro por lámina y dos láminas por caso
+// (<slug>-a.jpg y <slug>-b.jpg). Saca el fondo (scripts/croma.mjs), separa cada objeto y lo
+// guarda en public/projects/stickers/v2/<slug>-NN.webp; las medidas van a
 // data/stickers.ts.
 //
 //   node scripts/stickers.mjs "C:/Users/feder/OneDrive/Escritorio/stickers-casos"
@@ -11,73 +11,19 @@
 import { createRequire } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
+import { keyOf, keyed } from "./croma.mjs";
 
 const require = createRequire(import.meta.url);
 const sharp = require("sharp");
 const SRC = process.argv[2];
 if (!SRC) throw new Error("Falta la carpeta de las láminas");
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/(\w:)/, "$1")), "..");
-const OUT_DIR = path.join(ROOT, "public/projects/stickers");
+// La carpeta lleva versión: si se rehacen los stickers con el mismo nombre, Next serviría los viejos de su caché.
+const OUT_DIR = path.join(ROOT, "public/projects/stickers/v2");
 const OUT_TS = path.join(ROOT, "data/stickers.ts");
 /** Lado más largo de cada sticker, en px: en la tarjeta se ven a ~160 px con densidad 2. */
 const MAX = 360;
 const PAD = 4;
-
-/** Qué tan "fondo" es un píxel: 0 = verde croma puro, 1 = cualquier otra cosa. */
-function solid(r, g, b) {
-  const m = g > 30 ? Math.max(r, b) / g : 1;
-  return Math.max(0, Math.min(1, (m - 0.25) / 0.2));
-}
-
-/**
- * Saca el verde. Sólo el que toca los bordes de la lámina: el borde blanco
- * del sticker encierra lo de adentro, así una hoja o la lechuga de una
- * hamburguesa no se borran aunque sean verdes. En el contorno, el verde que
- * queda se apaga.
- */
-async function keyed(file) {
-  const { data, info } = await sharp(file).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-  const { width: w, height: h } = info;
-  const bg = new Uint8Array(w * h);
-  const stack = [];
-  const push = (i) => {
-    if (bg[i]) return;
-    if (solid(data[i * 4], data[i * 4 + 1], data[i * 4 + 2]) >= 0.98) return;
-    bg[i] = 1;
-    stack.push(i);
-  };
-  for (let x = 0; x < w; x++) {
-    push(x);
-    push((h - 1) * w + x);
-  }
-  for (let y = 0; y < h; y++) {
-    push(y * w);
-    push(y * w + w - 1);
-  }
-  // El verde que queda encerrado en un hueco (el asa de una pava, entre las
-  // hélices de un dron) también es fondo: el croma puro arranca su propio
-  // relleno. Una hoja de verdad tiene mucho más rojo y azul.
-  for (let i = 0; i < w * h; i++) {
-    const r = data[i * 4], g = data[i * 4 + 1], b = data[i * 4 + 2];
-    if (g > 170 && Math.max(r, b) < g * 0.22) push(i);
-  }
-  while (stack.length) {
-    const i = stack.pop();
-    const x = i % w;
-    if (x > 0) push(i - 1);
-    if (x < w - 1) push(i + 1);
-    if (i >= w) push(i - w);
-    if (i < w * (h - 1)) push(i + w);
-  }
-  for (let i = 0; i < w * h; i++) {
-    if (!bg[i]) continue;
-    const r = data[i * 4], g = data[i * 4 + 1], b = data[i * 4 + 2];
-    const a = solid(r, g, b);
-    if (g > Math.max(r, b)) data[i * 4 + 1] = Math.max(r, b);
-    data[i * 4 + 3] = Math.round(a * 255);
-  }
-  return { data, w, h };
-}
 
 /** Los stickers: manchas conectadas grandes, en orden de lectura (fila de arriba y después la de abajo). */
 function blobs({ data, w, h }) {
@@ -104,6 +50,21 @@ function blobs({ data, w, h }) {
     }
     if (n > w * h * 0.004) out.push({ x0, y0, x1, y1, n });
   }
+  // Un objeto hecho de partes sueltas (las dos correas de levantamiento) es una
+  // sola pieza: se juntan las manchas que quedan a menos de NEAR px.
+  const NEAR = Math.round(w * 0.005);
+  for (let merged = true; merged; ) {
+    merged = false;
+    for (let i = 0; i < out.length && !merged; i++) {
+      for (let j = i + 1; j < out.length && !merged; j++) {
+        const a = out[i], b = out[j];
+        if (a.x0 - NEAR > b.x1 || b.x0 - NEAR > a.x1 || a.y0 - NEAR > b.y1 || b.y0 - NEAR > a.y1) continue;
+        out[i] = { x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1), n: a.n + b.n };
+        out.splice(j, 1);
+        merged = true;
+      }
+    }
+  }
   const row = h / 2;
   return out.sort((a, b) => {
     const ra = (a.y0 + a.y1) / 2 > row, rb = (b.y0 + b.y1) / 2 > row;
@@ -116,7 +77,8 @@ const sheets = fs.readdirSync(SRC).filter((f) => /^[a-z0-9-]+-[ab]\.(jpe?g|png)$
 const manifest = {};
 for (const f of sheets) {
   const slug = f.replace(/-[ab]\.\w+$/, "");
-  const img = await keyed(path.join(SRC, f));
+  const file = path.join(SRC, f);
+  const img = await keyed(file, [await keyOf(file)]);
   const found = blobs(img);
   if (found.length !== 8) console.warn(`${f}: ${found.length} stickers (se esperaban 8)`);
   const full = sharp(img.data, { raw: { width: img.w, height: img.h, channels: 4 } });
@@ -133,7 +95,7 @@ for (const f of sheets) {
       .resize(ow, oh)
       .webp({ quality: 80, alphaQuality: 90 })
       .toFile(path.join(OUT_DIR, name));
-    list.push({ src: `/projects/stickers/${name}`, w: ow, h: oh });
+    list.push({ src: `/projects/stickers/v2/${name}`, w: ow, h: oh });
   }
   console.log(`${f}: ${found.length}`);
 }

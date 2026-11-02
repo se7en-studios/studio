@@ -40,7 +40,12 @@
   }
   .cs-sticker__push { display: block; transition: transform 0.8s var(--ease-out); }
   .group:hover .cs-sticker__push { transform: translate(var(--px), var(--py)) scale(1.07); }
-  .cs-sticker__img { display: block; width: 100%; height: auto; filter: drop-shadow(0 14px 18px rgb(0 0 0 / 0.3)) drop-shadow(0 2px 3px rgb(0 0 0 / 0.2)); }
+  /* La luz viene de arriba a la derecha (como en las fotos de Flow y el degradé de la
+     tarjeta): la sombra cae abajo a la izquierda, una de contacto y otra larga y suave. */
+  .cs-sticker__img { display: block; width: 100%; height: auto; filter: drop-shadow(-3px 5px 4px rgb(0 0 0 / 0.28)) drop-shadow(-14px 24px 22px rgb(0 0 0 / 0.32)); }
+  .cs-phone { filter: drop-shadow(-6px 10px 8px rgb(0 0 0 / 0.3)) drop-shadow(-24px 42px 40px rgb(0 0 0 / 0.45)); }
+  /* Luz de estudio sobre toda la tarjeta: un haz desde arriba a la derecha y la esquina contraria en penumbra. */
+  .cs-light { background: radial-gradient(70% 60% at 88% 0%, rgb(255 255 255 / 0.38), transparent 70%), radial-gradient(80% 70% at 0% 100%, rgb(0 0 0 / 0.28), transparent 70%); mix-blend-mode: soft-light; }
 
   /* Lienzo de piezas: grilla de puntos de editor. */
   .cs-canvas { background-color: #0f0f11; background-image: radial-gradient(#f2eee61f 1px, transparent 1.2px); background-size: 22px 22px; }

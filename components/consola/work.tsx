@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { projects } from "@/data/projects";
 import { stickers } from "@/data/stickers";
+import { iphoneMarco } from "@/data/iphone-marco";
 import type { Project } from "@/types";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 import { RdButton, RdLines, RdReveal } from "@/components/rd/primitives";
@@ -95,6 +96,7 @@ function WorkCard({ project: p, wide }: { project: Project; wide: boolean }) {
       ) : (
         <PhoneShot project={p} />
       )}
+      <span aria-hidden className="cs-light pointer-events-none absolute inset-0" />
       {/* Velo del color de marca abajo, para que el nombre se lea sobre la captura. */}
       <span
         aria-hidden
@@ -246,7 +248,7 @@ function BrowserShot({ project: p }: { project: Project }) {
 
   const host = p.url.replace(/^https?:\/\//, "").replace(/\/$/, "");
   return (
-    <span className="absolute top-[9%] left-1/2 block w-[80%] -translate-x-1/2 overflow-hidden rounded-t-[14px] bg-[#0b0b0c] shadow-[0_40px_80px_-30px_rgba(0,0,0,0.6)] transition-transform duration-700 ease-(--ease-out) group-hover:-translate-y-2 lg:w-[72%]">
+    <span className="absolute top-[9%] left-1/2 block w-[80%] -translate-x-1/2 overflow-hidden rounded-t-[14px] bg-[#0b0b0c] shadow-[-24px_44px_80px_-30px_rgba(0,0,0,0.65)] transition-transform duration-700 ease-(--ease-out) group-hover:-translate-y-2 lg:w-[72%]">
       <span className="flex h-8 items-center gap-1.5 bg-[#1a1a1c] px-3">
         <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
         <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
@@ -292,33 +294,48 @@ const STATUS_BAR: Record<string, string> = {
 };
 
 /**
- * Teléfono inclinado con la captura de celular del caso. La pantalla es la
- * barra de estado (con la isla) más la captura entera (390×790) a lo ancho:
- * nada se recorta y la isla no tapa el encabezado del sitio. Las medidas van
- * en cqw (ancho de la pantalla) para que el teléfono se vea igual en cualquier tamaño.
+ * Teléfono inclinado: el marco es una foto real de iPhone (Flow, ver
+ * scripts/iphone-marco.mjs) y la pantalla va detrás, en el hueco medido. La
+ * pantalla es la barra de estado más la captura entera (390×790) a lo ancho:
+ * nada se recorta y la isla del marco cae sobre la barra, no sobre el sitio.
+ * Las medidas de adentro van en cqw (ancho de la pantalla).
  */
 function PhoneShot({ project: p }: { project: Project }) {
   const mobile = p.screens?.mobile;
   const bar = STATUS_BAR[p.slug] ?? "#0b0b0c";
   const ink = onAccent(bar);
+  const { screen } = iphoneMarco;
   return (
-    <span className="absolute top-[6%] left-1/2 block w-[40%] -translate-x-1/2 rotate-[-7deg] rounded-[16%/7.5%] bg-[#0b0b0c] p-[2.6%] shadow-[0_50px_70px_-25px_rgba(0,0,0,0.65)] ring-1 ring-white/10 transition-transform duration-700 ease-(--ease-out) group-hover:rotate-[-3deg] group-hover:-translate-y-2">
-      <span className="relative block overflow-hidden rounded-[13%/6%] [container-type:inline-size]">
-        <span className="relative flex h-[13cqw] items-center justify-between px-[8.5cqw]" style={{ background: bar, color: ink }}>
+    <span
+      className="cs-phone absolute top-[7%] left-1/2 block w-[33%] -translate-x-1/2 rotate-[-7deg] transition-transform duration-700 ease-(--ease-out) group-hover:rotate-[-3deg] group-hover:-translate-y-2"
+      style={{ aspectRatio: `${iphoneMarco.w} / ${iphoneMarco.h}` }}
+    >
+      <span
+        className="absolute flex flex-col overflow-hidden [container-type:inline-size]"
+        style={{
+          left: `${screen.x}%`,
+          top: `${screen.y}%`,
+          width: `${screen.w}%`,
+          height: `${screen.h}%`,
+          borderRadius: "12% / 5.5%",
+          background: bar,
+        }}
+      >
+        <span className="flex flex-1 items-center justify-between px-[9cqw]" style={{ color: ink }}>
           <span className="text-[4.1cqw] font-semibold tracking-[-0.02em] tabular-nums" style={{ fontFamily: "system-ui, sans-serif" }}>
             9:41
           </span>
           <StatusIcons />
-          <span className="absolute top-[2.6cqw] left-1/2 h-[9.5cqw] w-[32cqw] -translate-x-1/2 rounded-full bg-black" />
         </span>
         {mobile ? (
-          <Image src={mobile} alt="" width={390} height={790} sizes="(min-width: 1024px) 18vw, 45vw" className="block h-auto w-full" />
+          <Image src={mobile} alt="" width={390} height={790} sizes="(min-width: 1024px) 16vw, 40vw" className="block h-auto w-full shrink-0" />
         ) : (
-          <span className="relative block aspect-[390/790]">
-            <Image src={p.image} alt="" fill sizes="(min-width: 1024px) 18vw, 45vw" className="object-cover object-top" />
+          <span className="relative block aspect-[390/790] shrink-0">
+            <Image src={p.image} alt="" fill sizes="(min-width: 1024px) 16vw, 40vw" className="object-cover object-top" />
           </span>
         )}
       </span>
+      <Image src={iphoneMarco.src} alt="" fill sizes="(min-width: 1024px) 16vw, 40vw" className="pointer-events-none select-none" />
     </span>
   );
 }
