@@ -1,0 +1,65 @@
+/* «Consola»: propuesta de rediseño. Reusa los tokens de .rd (rd.css) y suma lo suyo bajo .cs. */
+@layer components {
+  .cs {
+    --cs-panel: clamp(300px, 26vw, 380px);
+    --cs-top: 84px;
+    --cs-radius: 28px;
+    --cs-card: #121214;
+    --cs-card-2: #18181b;
+    background: #070708;
+  }
+
+  /* Titular condensado enorme: la misma Archivo, con el eje de ancho al mínimo. */
+  .cs-cond { font-family: var(--font-wide), system-ui, sans-serif; font-variation-settings: "wdth" 62; font-weight: 800; text-transform: uppercase; letter-spacing: -0.012em; line-height: 0.84; }
+  .cs-cond .rd-serif { font-size: 1.08em; line-height: 0.7; letter-spacing: -0.03em; }
+  .cs-h2 { font-family: var(--font-wide), system-ui, sans-serif; font-variation-settings: "wdth" 100; font-weight: 500; letter-spacing: -0.035em; line-height: 0.98; }
+  .cs-h2 .rd-serif { font-size: 1.1em; }
+
+  /* Tarjeta base: el bento del panel y los bloques de la columna. */
+  .cs-card { background: var(--cs-card); border: 1px solid #f2eee614; border-radius: 22px; }
+  .cs-card--link { transition: border-color 0.4s var(--ease-out), background-color 0.4s var(--ease-out); }
+  .cs-card--link:hover, .cs-card--link:focus-visible { border-color: #ff4d2e66; background: var(--cs-card-2); }
+
+  /* El panel-consola: un aparato con su manija arriba. */
+  .cs-device { background: #0b0b0c; border: 1px solid #f2eee61f; border-radius: 34px; box-shadow: 0 0 0 6px #070708, 0 0 0 7px #f2eee60d, 0 30px 80px -30px #000; }
+  .cs-device::before { content: ""; position: absolute; top: 10px; left: 50%; width: 46px; height: 4px; translate: -50% 0; border-radius: 99px; background: #f2eee626; }
+  .cs-scroll { scrollbar-width: none; overscroll-behavior: contain; }
+  .cs-scroll::-webkit-scrollbar { display: none; }
+
+  /* Pastilla de testimonios de la barra: corre sola, se frena al pasar el mouse. */
+  .cs-ticker { mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+  .cs-ticker__track { animation: cs-marquee 60s linear infinite; }
+  .cs-ticker:hover .cs-ticker__track { animation-play-state: paused; }
+
+  /* Lienzo de piezas: grilla de puntos de editor. */
+  .cs-canvas { background-color: #0f0f11; background-image: radial-gradient(#f2eee61f 1px, transparent 1.2px); background-size: 22px 22px; }
+  .cs-piece { touch-action: none; cursor: grab; }
+  .cs-piece:active { cursor: grabbing; }
+  .cs-piece[data-selected="true"] > .cs-piece__body { outline: 1.5px solid var(--signal); outline-offset: 4px; }
+  .cs-handle { position: absolute; width: 8px; height: 8px; background: var(--paper); border: 1.5px solid var(--signal); }
+  .cs-cursor-a { animation: cs-wander-a 14s ease-in-out infinite; }
+  .cs-cursor-b { animation: cs-wander-b 17s ease-in-out infinite; }
+
+  /* Llamada: los tiles flotan, cada uno a su ritmo. */
+  .cs-bob { animation: cs-bob 6s ease-in-out infinite; }
+  .cs-react { animation: cs-react 2.2s var(--ease-out) forwards; }
+  .cs-rec { animation: rd-blink 1.6s steps(1) infinite; }
+
+  /* SE7EN del pie con sombra de trama tipo riso: una copia en señal, corrida y punteada. */
+  .cs-riso { position: relative; container-type: inline-size; overflow: hidden; }
+  .cs-riso p { font-size: 25.5cqw; line-height: 0.8; white-space: nowrap; padding: 0.04em 0 0.06em; }
+  .cs-riso__shadow { position: absolute; inset: 0; color: var(--signal); translate: 0.03em 0.025em; mask-image: radial-gradient(circle at center, #000 42%, transparent 46%); mask-size: 6px 6px; -webkit-mask-image: radial-gradient(circle at center, #000 42%, transparent 46%); -webkit-mask-size: 6px 6px; }
+  /* Tinta: papel lleno con motas oscuras sueltas, como una impresión con poca carga. */
+  .cs-riso__ink { position: relative; color: transparent; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.04 0 0 0 0 0.04 0 0 0 0 0.05 0 0 0 7 -4.3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E"), var(--paper); background-clip: text; -webkit-background-clip: text; }
+  .cs-riso__ink .cs-riso__seven { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.04 0 0 0 0 0.04 0 0 0 0 0.05 0 0 0 7 -4.3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E"), var(--signal); background-clip: text; -webkit-background-clip: text; }
+}
+
+@keyframes cs-marquee { to { transform: translateX(-50%); } }
+@keyframes cs-bob { 0%, 100% { translate: 0 -5px; } 50% { translate: 0 5px; } }
+@keyframes cs-react { 0% { opacity: 0; transform: translateY(0) scale(0.6); } 15% { opacity: 1; transform: translateY(-20px) scale(1.15); } 100% { opacity: 0; transform: translateY(-220px) scale(1); } }
+@keyframes cs-wander-a { 0%, 100% { translate: 0 0; } 25% { translate: 120px 60px; } 50% { translate: 40px 140px; } 75% { translate: -60px 40px; } }
+@keyframes cs-wander-b { 0%, 100% { translate: 0 0; } 30% { translate: -140px -40px; } 60% { translate: -60px -120px; } 80% { translate: 30px -50px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .cs-ticker__track, .cs-cursor-a, .cs-cursor-b, .cs-bob, .cs-rec { animation: none; }
+}
