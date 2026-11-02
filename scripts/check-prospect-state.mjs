@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import "./ts-hook.mjs";
 
-const { COLD_DAYS, coldDays, contactedToday, lastContactAt } = await import("../lib/admin/prospect-followup.ts");
+const { COLD_DAYS, coldDays, contactedToday, lastContactAt, daysSinceContact, templateKindFor } = await import("../lib/admin/prospect-followup.ts");
 
 const DAY = 86_400_000;
 const now = Date.parse("2026-11-04T15:00:00-03:00");
@@ -37,5 +37,15 @@ const t = contactedToday(
   now,
 );
 assert.deepEqual(t, { franco: 1, federico: 2 });
+
+// Días desde el último contacto, y qué tipo de mensaje corresponde según la etapa.
+assert.equal(daysSinceContact(undefined, now), null);
+assert.equal(daysSinceContact(row({ contacted_at: ago(4) }), now), 4);
+assert.equal(daysSinceContact(row({ contacted_at: ago(4), last_contact_at: ago(2) }), now), 2);
+assert.equal(templateKindFor(undefined), "primero");
+assert.equal(templateKindFor("nuevo"), "primero");
+assert.equal(templateKindFor("numero_equivocado"), "primero");
+assert.equal(templateKindFor("contactado"), "seguimiento");
+assert.equal(templateKindFor("en_charla"), "seguimiento");
 
 console.log("estado de prospectos: ok");
