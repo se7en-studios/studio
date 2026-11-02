@@ -19,6 +19,7 @@ export const SECTIONS = [
   { id: "piezas", label: "Piezas" },
   { id: "notas", label: "Notas" },
   { id: "equipo", label: "Equipo" },
+  { id: "faq", label: "Preguntas" },
   { id: "contacto", label: "Contacto" },
 ] as const;
 

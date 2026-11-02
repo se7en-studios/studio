@@ -53,6 +53,8 @@ const nextConfig: NextConfig = {
       { source: "/design-system", destination: "/tech", permanent: true },
       { source: "/playground", destination: "/tech", permanent: true },
       { source: "/roi", destination: "/pricing", permanent: true },
+      // La propuesta «Consola» se probó en /consola antes de pasar a ser la home.
+      { source: "/consola", destination: "/", permanent: true },
     ];
   },
 };

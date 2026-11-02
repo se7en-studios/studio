@@ -125,7 +125,7 @@ function Reel() {
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/75 via-transparent to-black/30" />
 
         {/* Segmentos tipo historia: uno por caso. */}
-        <div className="absolute inset-x-4 top-4 flex gap-1.5 md:inset-x-6 md:top-6">
+        <div className="absolute inset-x-4 top-1 flex gap-1.5 md:inset-x-6 md:top-6">
           {REEL.map((r, k) => (
             <button
               key={r.slug}
@@ -135,7 +135,7 @@ function Reel() {
                 setI(k);
               }}
               aria-label={`Ver ${r.name}`}
-              className="h-5 flex-1 py-2"
+              className="h-10 flex-1 py-[18px] md:h-5 md:py-2"
             >
               <span className="block h-[3px] overflow-hidden rounded-full bg-white/25">
                 <span

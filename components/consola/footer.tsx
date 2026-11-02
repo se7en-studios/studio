@@ -70,7 +70,7 @@ export function CsFooter() {
         </div>
         <div className="md:col-span-3">
           <p className="rd-label text-[10px] text-(--paper)/45">Contacto</p>
-          <a href={`mailto:${SITE.email}`} className="rd-body rd-link mt-3 inline-block text-[1.05rem] break-all text-(--paper)">
+          <a href={`mailto:${SITE.email}`} className="rd-body rd-link mt-1 inline-flex min-h-10 items-center text-[1.05rem] break-all text-(--paper)">
             {SITE.email}
           </a>
           <p className="rd-body mt-4 text-[1.05rem] leading-snug text-(--paper)/80">
@@ -83,10 +83,11 @@ export function CsFooter() {
         </div>
         <div className="md:col-span-4">
           <p className="rd-label text-[10px] text-(--paper)/45">Mapa</p>
-          <ul className="rd-body mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-[1.1rem]">
+          <ul className="rd-body mt-2 grid grid-cols-2 gap-x-6 text-[1.1rem]">
             {MAP.map((l) => (
               <li key={l.href}>
-                <Link href={l.href} className="rd-link">
+                {/* Alto de 40 px: se tocan con el dedo. */}
+                <Link href={l.href} className="rd-link inline-flex min-h-10 items-center">
                   {l.label}
                 </Link>
               </li>

@@ -51,7 +51,7 @@ function Logo() {
   const small = useScrolled();
   return (
     <Link
-      href="/consola"
+      href="/"
       aria-label="Se7en Studio, inicio"
       data-small={small}
       className="cs-logo rd-display flex items-baseline text-[1.65rem] leading-none tracking-[-0.04em]"

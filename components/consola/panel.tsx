@@ -47,6 +47,7 @@ const VIEWS: Record<SectionId, () => ReactNode> = {
   piezas: () => <PiezasView />,
   notas: () => <NotasView />,
   equipo: () => <EquipoView />,
+  faq: () => <FaqView />,
   contacto: () => <ContactoView />,
 };
 
@@ -161,7 +162,7 @@ function InicioView() {
         </AnimatePresence>
       </Link>
 
-      <Link href="/#en-vivo" className="cs-card cs-card--link group relative block overflow-hidden p-4">
+      <a href="#en-vivo" className="cs-card cs-card--link group relative block overflow-hidden p-4">
         <div className="flex items-center gap-2">
           <span className="relative flex h-2 w-2">
             <span className="rd-ping absolute inset-0 rounded-full bg-(--signal)" />
@@ -173,7 +174,7 @@ function InicioView() {
           La oficina está abierta. <span className="rd-serif text-[1.15em]">Entrá al mapa</span> y paseá por el estudio.
         </p>
         <ArrowUpRight size={16} aria-hidden className="absolute top-4 right-4 text-(--paper)/50 transition-transform group-hover:rotate-45" />
-      </Link>
+      </a>
 
       <div className="cs-card p-4">
         <Tag>Trabajamos con</Tag>
@@ -325,6 +326,30 @@ function NotasView() {
           </li>
         ))}
       </ul>
+    </>
+  );
+}
+
+function FaqView() {
+  return (
+    <>
+      <div className="cs-card p-4">
+        <Tag>Preguntas</Tag>
+        <p className="rd-body mt-3 text-[1.05rem] leading-tight">
+          ¿No está tu duda? <span className="rd-serif text-[1.15em] text-(--signal)">Escribinos</span> y te respondemos en 24 h.
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <WhatsAppButton />
+        <MailButton />
+      </div>
+      <Link href="/cotizador" className="cs-card cs-card--link flex items-center justify-between p-4">
+        <span>
+          <span className="rd-body block text-[14px] text-(--paper)">Cotizá tu web en 1 minuto</span>
+          <span className="rd-body block text-[12px] text-(--paper)/55">Un estimado antes de hablar con nosotros</span>
+        </span>
+        <ArrowUpRight size={16} aria-hidden />
+      </Link>
     </>
   );
 }
@@ -528,7 +553,7 @@ export function PanelMenu({ onPick }: { onPick: () => void }) {
           { href: "/cotizador", label: "Cotizador" },
           { href: "/blog", label: "Blog" },
           { href: "/work", label: "Casos" },
-          { href: "/", label: "Home actual" },
+          { href: "/clasica", label: "Home anterior" },
         ].map((l) => (
           <Link key={l.href} href={l.href} className="cs-card cs-card--link rd-body flex items-center justify-between p-3 text-[13px]">
             {l.label}
