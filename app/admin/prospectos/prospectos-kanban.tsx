@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Dialog } from "../overlay";
 import {
   MapPin,
@@ -13,6 +14,7 @@ import {
   Calculator,
   ExternalLink,
   Phone,
+  Inbox,
   PhoneOff,
   Shuffle,
   Snowflake,
@@ -38,6 +40,10 @@ interface KanbanProps {
   onStatusChange: (id: string, status: LeadStatus) => void;
   onSaveNote: (id: string, note: string) => void;
   onOpenWhatsApp: (lead: ProspectLead, text?: string) => void;
+  /** Crea el pedido a partir del prospecto. */
+  onPromote: (id: string) => void;
+  /** Abre el formulario para editar un prospecto cargado desde el panel. */
+  onEdit: (lead: ProspectLead) => void;
   /** «Ahora» (ms), para contar los días sin respuesta. */
   now: number;
   templates: ProspectTemplate[];
@@ -51,6 +57,9 @@ const NEXT: Partial<Record<LeadStatus, { to: LeadStatus; label: string }>> = {
   en_charla: { to: "ganado", label: "Ganado" },
 };
 
+/** Lo que viaja al arrastrar una tarjeta de una etapa a otra. */
+const DRAG_TYPE = "application/x-se7en-prospect";
+
 const ICON_BTN = "focus-ring rounded-md p-1.5 transition-colors";
 
 /** Una tarjeta del tablero: lo justo para decidir a quién escribir y ver quién ya lo hizo. */
@@ -63,6 +72,8 @@ function BoardCard({
   onNote,
   onMove,
   onWhatsApp,
+  onPromote,
+  onDragEnd,
 }: {
   lead: ProspectLead;
   status: LeadStatus;
@@ -73,11 +84,20 @@ function BoardCard({
   onNote: (lead: ProspectLead) => void;
   onMove: (id: string, status: LeadStatus) => void;
   onWhatsApp: (lead: ProspectLead) => void;
+  onPromote: (id: string) => void;
+  onDragEnd: () => void;
 }) {
   const next = NEXT[status];
   const note = meta?.note;
   return (
-    <article className="group rounded-lg border border-[var(--line)] bg-[var(--panel)] p-3 shadow-[var(--shadow-card)] transition-[border-color,transform] hover:-translate-y-px hover:border-[var(--line-strong)]">
+    <article
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData(DRAG_TYPE, lead.id);
+        e.dataTransfer.effectAllowed = "move";
+      }}
+      onDragEnd={onDragEnd}
+      className="group cursor-grab active:cursor-grabbing rounded-lg border border-[var(--line)] bg-[var(--panel)] p-3 shadow-[var(--shadow-card)] transition-[border-color,transform] hover:-translate-y-px hover:border-[var(--line-strong)]">
       <button type="button" onClick={() => onOpen(lead)} className="focus-ring block w-full text-left">
         <p className="text-[13px] leading-snug font-medium">{lead.name}</p>
         <p className="mt-1 flex items-center gap-1 text-[12px] text-muted">
@@ -99,6 +119,11 @@ function BoardCard({
         )}
         {meta?.last_contact_at && meta.last_contact_by && meta.last_contact_at !== meta.contacted_at && (
           <span className="mt-2 block truncate text-[11px] text-muted">Último mensaje: {whoWhen(meta.last_contact_by, meta.last_contact_at)}</span>
+        )}
+        {meta?.pedido_id && (
+          <span className="mt-2 flex items-center gap-1.5 rounded-md bg-emerald-400/[0.07] px-2 py-1 text-[11px] text-emerald-300">
+            <Inbox size={12} className="shrink-0" /> Ya es un pedido
+          </span>
         )}
         {cold !== null && (
           <span className="mt-2 flex items-center gap-1.5 rounded-md bg-amber-400/[0.07] px-2 py-1 text-[11px] text-amber-300">
@@ -132,6 +157,26 @@ function BoardCard({
           >
             <Edit3 size={14} />
           </button>
+          {meta?.pedido_id ? (
+            <Link
+              href={`/admin/pedidos?pedido=${meta.pedido_id}`}
+              title="Ver el pedido"
+              className="focus-ring inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[12px] text-emerald-300 transition-colors hover:bg-emerald-400/10"
+            >
+              <Inbox size={13} /> Pedido →
+            </Link>
+          ) : (
+            status === "en_charla" && (
+              <button
+                type="button"
+                onClick={() => onPromote(lead.id)}
+                title="Crear el pedido a partir de este prospecto"
+                className="focus-ring inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[12px] text-muted transition-colors hover:bg-accent/10 hover:text-accent"
+              >
+                <Inbox size={13} /> A Pedidos
+              </button>
+            )
+          )}
           {(status === "nuevo" || status === "contactado") && (
             <button
               type="button"
@@ -177,6 +222,8 @@ export function ProspectosKanban({
   onStatusChange,
   onSaveNote,
   onOpenWhatsApp,
+  onPromote,
+  onEdit,
   now,
   templates,
   buildMessage,
@@ -187,6 +234,7 @@ export function ProspectosKanban({
   const [activeDossierLead, setActiveDossierLead] = useState<ProspectLead | null>(null);
   const [dossierTab, setDossierTab] = useState<"estrategia" | "guion" | "bitacora">("estrategia");
   const [copiedPitch, setCopiedPitch] = useState(false);
+  const [dragOver, setDragOver] = useState<LeadStatus | null>(null);
   const [dossierMsg, setDossierMsg] = useState<{ id: string; text: string } | null>(null);
   const [showDossierRoiCalc, setShowDossierRoiCalc] = useState(false);
 
@@ -242,7 +290,28 @@ export function ProspectosKanban({
           }
           const totalUsd = colLeads.reduce((acc, l) => acc + l.estimatedBudgetUsd, 0);
           return (
-            <section key={col.id} className="min-w-0 rounded-xl border border-[var(--line)] bg-white/[0.012] p-2">
+            <section
+              key={col.id}
+              onDragOver={(e) => {
+                if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                if (dragOver !== col.id) setDragOver(col.id);
+              }}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(null);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(null);
+                const id = e.dataTransfer.getData(DRAG_TYPE);
+                if (id && (leadStatuses[id] || "nuevo") !== col.id) handleMove(id, col.id);
+              }}
+              className={cn(
+                "min-w-0 rounded-xl border p-2 transition-colors",
+                dragOver === col.id ? "border-accent/50 bg-accent/[0.05]" : "border-[var(--line)] bg-white/[0.012]",
+              )}
+            >
               <header className="flex items-center gap-2 px-1.5 pt-1 pb-2.5">
                 <span className={cn("h-2 w-2 rounded-full", col.dot)} />
                 <h2 className="adm-title text-[12px]">{col.label}</h2>
@@ -261,12 +330,14 @@ export function ProspectosKanban({
                     onNote={handleOpenNoteModal}
                     onMove={handleMove}
                     onWhatsApp={onOpenWhatsApp}
+                    onPromote={onPromote}
+                    onDragEnd={() => setDragOver(null)}
                   />
                 ))}
               </div>
               {!colLeads.length && (
                 <p className="rounded-lg border border-dashed border-[var(--line)] px-3 py-3.5 text-center text-[12px] text-muted">
-                  Sin prospectos en esta etapa.
+                  Soltá un prospecto acá para pasarlo a {col.label.toLowerCase()}.
                 </p>
               )}
             </section>
@@ -317,6 +388,30 @@ export function ProspectosKanban({
               </div>
 
               <div className="flex items-center gap-3">
+                {activeDossierLead.custom && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onEdit(activeDossierLead);
+                      setActiveDossierLead(null);
+                    }}
+                    className={btnSecondary}
+                  >
+                    <Edit3 size={12} />
+                    <span>Editar</span>
+                  </button>
+                )}
+                {leadState[activeDossierLead.id]?.pedido_id ? (
+                  <Link href={`/admin/pedidos?pedido=${leadState[activeDossierLead.id].pedido_id}`} className={cn(btnSecondary, "hidden md:inline-flex")}>
+                    <Inbox size={12} />
+                    <span>Ver pedido</span>
+                  </Link>
+                ) : (
+                  <button type="button" onClick={() => onPromote(activeDossierLead.id)} className={cn(btnSecondary, "hidden md:inline-flex")}>
+                    <Inbox size={12} />
+                    <span>Pasar a Pedidos</span>
+                  </button>
+                )}
                 <a
                   href="/admin/pedidos"
                   target="_blank"

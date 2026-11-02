@@ -24,6 +24,8 @@ export type ProspectState = {
   /** Última vez que se le escribió y quién (sin supabase/prospectos-v2.sql, llegan sin dato). */
   last_contact_at?: string | null;
   last_contact_by?: LeadOwner | null;
+  /** El pedido que se creó a partir de este prospecto (sin supabase/prospectos-v3.sql, sin dato). */
+  pedido_id?: string | null;
   note: string;
   note_by: LeadOwner | null;
   note_at: string | null;

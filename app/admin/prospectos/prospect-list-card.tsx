@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
   Check,
   Copy,
   Edit3,
   ExternalLink,
+  Inbox,
   MapPin,
   Snowflake,
   Sparkles,
@@ -30,6 +32,8 @@ export function ProspectListCard({
   onNote,
   onWhatsApp,
   onCopy,
+  onPromote,
+  onEdit,
 }: {
   lead: ProspectLead;
   status: LeadStatus;
@@ -40,6 +44,9 @@ export function ProspectListCard({
   onNote: (id: string, note: string) => void;
   onWhatsApp: (lead: ProspectLead) => void;
   onCopy: (lead: ProspectLead) => void;
+  onPromote: (id: string) => void;
+  /** Editar un prospecto cargado desde el panel. */
+  onEdit: (lead: ProspectLead) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -81,6 +88,11 @@ export function ProspectListCard({
               </span>
             </p>
             <p className="mt-0.5 text-[12px] text-muted">{lead.address}</p>
+            {lead.custom && (
+              <button type="button" onClick={() => onEdit(lead)} className="focus-ring mt-1 rounded-md text-[12px] text-muted underline-offset-2 hover:text-foreground hover:underline">
+                Editar datos
+              </button>
+            )}
           </div>
           <span className="adm-num shrink-0 text-[14px] text-emerald-400">
             {usd(lead.estimatedBudgetUsd)}
@@ -105,6 +117,21 @@ export function ProspectListCard({
             ))}
           </select>
         </div>
+
+        {meta?.pedido_id ? (
+          <Link
+            href={`/admin/pedidos?pedido=${meta.pedido_id}`}
+            className="focus-ring flex items-center gap-1.5 rounded-md bg-emerald-400/[0.07] px-2 py-1 text-[11px] text-emerald-300 transition-colors hover:bg-emerald-400/10"
+          >
+            <Inbox size={12} className="shrink-0" /> Ya es un pedido · Ver →
+          </Link>
+        ) : (
+          status === "en_charla" && (
+            <button type="button" onClick={() => onPromote(lead.id)} className={cn(btnSecondary, "w-full")}>
+              <Inbox size={14} /> Pasar a Pedidos
+            </button>
+          )
+        )}
 
         {meta?.contacted_by && (
           <span className="flex items-center gap-1.5 rounded-md bg-sky-400/[0.07] px-2 py-1 text-[11px] text-sky-300">

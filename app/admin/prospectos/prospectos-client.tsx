@@ -2,8 +2,9 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Download, Sparkles, Kanban, LayoutGrid, Calculator, FileText, Snowflake } from "lucide-react";
+import { Search, Download, Sparkles, Kanban, LayoutGrid, Calculator, FileText, Plus, Snowflake } from "lucide-react";
 import { prospectLeads, type ProspectLead } from "@/data/prospects";
+import { orderedCategories, orderedCities } from "@/lib/admin/prospect-lead-shared";
 import { ProspectosKanban } from "./prospectos-kanban";
 import { AiQualifier } from "./ai-qualifier";
 import { PadelRoiCalculator } from "./padel-roi-calculator";
@@ -12,28 +13,14 @@ import type { LeadOwner } from "@/lib/admin/db";
 import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
 import type { ProspectState, ProspectStatus } from "@/lib/admin/prospect-shared";
 import { COLD_DAYS, coldDays, contactedToday, daysSinceContact, templateKindFor } from "@/lib/admin/prospect-followup";
-import { contactProspect, updateProspectNote, updateProspectStatus } from "./actions";
+import { contactProspect, promoteProspect, updateProspectNote, updateProspectStatus } from "./actions";
+import { ProspectFormDialog } from "./prospect-form-dialog";
 import { TemplatesDialog } from "./templates-dialog";
 import { pickTemplate, renderTemplate, templateVars, type ProspectTemplate } from "@/lib/admin/prospect-template-shared";
-import { useStoredChoice } from "../overlay";
-import { Chip, Kpi, PageHeader, Segmented, btnSecondary, cn, kpiRow, searchInput, usdShort } from "../kit";
+import { useStoredChoice, useToast } from "../overlay";
+import { Chip, Kpi, PageHeader, Segmented, btnPrimary, btnSecondary, cn, kpiRow, searchInput, usdShort } from "../kit";
 import { ProspectListCard } from "./prospect-list-card";
 import { FX_RATE, STAGE, STAGES } from "./stages";
-
-const CITIES = ["Todas", "Catriel", "25 de Mayo", "Neuquén", "Cipolletti", "Plottier", "San Rafael", "Mendoza"] as const;
-const CATEGORIES = [
-  "Todas",
-  "Club de Pádel & Deporte",
-  "Gimnasio & Entrenamiento",
-  "Inmobiliaria",
-  "Bodega & Enoturismo",
-  "Hotelería & Cabañas",
-  "Gastronomía & Cervecería",
-  "Comercio & Gourmet",
-  "Servicios Petroleros & Industria",
-  "Salud & Estética",
-  "Construcción & Corralón",
-] as const;
 
 export type LeadStatus = ProspectStatus;
 
@@ -45,23 +32,35 @@ export function ProspectosClient({
   me,
   templates,
   templatesReady,
+  customLeads,
+  customReady,
 }: {
   initialState: Record<string, ProspectState>;
   me: LeadOwner;
   templates: ProspectTemplate[];
   templatesReady: boolean;
+  /** Los prospectos cargados desde el panel (se suman a los de data/prospects.ts). */
+  customLeads: ProspectLead[];
+  /** false si falta correr supabase/prospectos-v3.sql. */
+  customReady: boolean;
 }) {
   const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
   const [showAiQualifier, setShowAiQualifier] = useState(false);
   const [showRoiCalc, setShowRoiCalc] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [search, setSearch] = useState("");
-  const [selectedCity, setSelectedCity] = useState<(typeof CITIES)[number]>("Todas");
-  const [selectedCategory, setSelectedCategory] = useState<(typeof CATEGORIES)[number]>("Todas");
+  const [selectedCity, setSelectedCity] = useState("Todas");
+  const [selectedCategory, setSelectedCategory] = useState("Todas");
+  const [formLead, setFormLead] = useState<ProspectLead | "new" | null>(null);
   const [statusFilter, setStatusFilter] = useState<"todos" | LeadStatus>("todos");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const sound = useSoundFx();
+  const flash = useToast();
+
+  const allLeads = useMemo(() => [...prospectLeads, ...customLeads], [customLeads]);
+  const cities = useMemo(() => ["Todas", ...orderedCities(allLeads.map((l) => l.city))], [allLeads]);
+  const categories = useMemo(() => ["Todas", ...orderedCategories(allLeads.map((l) => l.category))], [allLeads]);
 
   const router = useRouter();
   const [state, setState] = useState(initialState);
@@ -146,6 +145,17 @@ export function ProspectosClient({
     );
   };
 
+  // Crea el pedido (una sola vez) y deja enlazado el prospecto.
+  const promote = (leadId: string) => {
+    setSaveError(null);
+    promoteProspect(leadId)
+      .then((row) => {
+        setState((s) => ({ ...s, [leadId]: row }));
+        flash("Pasó a Pedidos", "ok");
+      })
+      .catch((e: unknown) => setSaveError(e instanceof Error ? e.message : "No se pudo pasar a Pedidos."));
+  };
+
   const updateNote = (leadId: string, note: string) =>
     save(leadId, { note, note_by: note ? me : null, note_at: note ? new Date().toISOString() : null }, () =>
       updateProspectNote(leadId, note),
@@ -176,7 +186,7 @@ export function ProspectosClient({
   };
 
   const filtered = useMemo(() => {
-    return prospectLeads.filter((item) => {
+    return allLeads.filter((item) => {
       const matchCity = selectedCity === "Todas" || item.city === selectedCity;
       const matchCategory = selectedCategory === "Todas" || item.category === selectedCategory;
       const leadStatus = leadStatuses[item.id] || "nuevo";
@@ -191,17 +201,17 @@ export function ProspectosClient({
         item.painPoint.toLowerCase().includes(q);
       return matchCity && matchCategory && matchStatus && matchWho && matchCold && matchSearch;
     });
-  }, [search, selectedCity, selectedCategory, statusFilter, leadStatuses, whoFilter, coldOnly, state, now]);
+  }, [allLeads, search, selectedCity, selectedCategory, statusFilter, leadStatuses, whoFilter, coldOnly, state, now]);
 
   // Contadores de estado
   const statusCounts = useMemo(() => {
     const counts = { nuevo: 0, contactado: 0, en_charla: 0, ganado: 0, descartado: 0, numero_equivocado: 0 };
-    prospectLeads.forEach((lead) => {
+    allLeads.forEach((lead) => {
       const st = leadStatuses[lead.id] || "nuevo";
       counts[st] = (counts[st] || 0) + 1;
     });
     return counts;
-  }, [leadStatuses]);
+  }, [allLeads, leadStatuses]);
 
   const today = useMemo(() => contactedToday(Object.values(state), now), [state, now]);
   const coldCount = useMemo(() => Object.values(state).filter((r) => coldDays(r, now) !== null).length, [state, now]);
@@ -308,6 +318,9 @@ export function ProspectosClient({
             <button type="button" onClick={handleDownloadCsv} className={btnSecondary}>
               <Download size={14} /> CSV
             </button>
+            <button type="button" onClick={() => setFormLead("new")} className={btnPrimary}>
+              <Plus size={14} /> Nuevo prospecto
+            </button>
           </>
         }
       >
@@ -321,6 +334,16 @@ export function ProspectosClient({
       )}
 
       {showAiQualifier && <AiQualifier />}
+
+      {formLead && (
+        <ProspectFormDialog
+          lead={formLead === "new" ? undefined : formLead}
+          ready={customReady}
+          cities={cities.filter((c) => c !== "Todas")}
+          onClose={() => setFormLead(null)}
+          onSaved={() => router.refresh()}
+        />
+      )}
 
       {showTemplates && (
         <TemplatesDialog
@@ -344,7 +367,7 @@ export function ProspectosClient({
           label="Sin contactar"
           value={statusCounts.nuevo}
           tone={statusCounts.nuevo > 0 ? "accent" : undefined}
-          hint={`de ${prospectLeads.length} en base`}
+          hint={`de ${allLeads.length} en base`}
         />
         <Kpi label="Contactados" value={contacted.total} hint={contacted.split} />
         <Kpi
@@ -436,7 +459,7 @@ export function ProspectosClient({
             }}
           >
             Todos
-            <span className="font-mono text-[11px] opacity-70">{prospectLeads.length}</span>
+            <span className="font-mono text-[11px] opacity-70">{allLeads.length}</span>
           </Chip>
           {STAGES.map((st) => (
             <Chip
@@ -469,7 +492,7 @@ export function ProspectosClient({
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
-          {CITIES.map((city) => (
+          {cities.map((city) => (
             <Chip
               key={city}
               on={selectedCity === city}
@@ -484,13 +507,13 @@ export function ProspectosClient({
           <select
             value={selectedCategory}
             onChange={(e) => {
-              setSelectedCategory(e.target.value as (typeof CATEGORIES)[number]);
+              setSelectedCategory(e.target.value);
               sound.tick();
             }}
             aria-label="Rubro"
             className="focus-ring ml-auto rounded-full border border-[var(--line-strong)] bg-[var(--panel)] px-3 py-1 text-[12px] text-foreground"
           >
-            {CATEGORIES.map((cat) => (
+            {categories.map((cat) => (
               <option key={cat} value={cat}>
                 {cat === "Todas" ? "Todos los rubros" : cat}
               </option>
@@ -509,6 +532,8 @@ export function ProspectosClient({
           onSaveNote={updateNote}
           onOpenWhatsApp={handleOpenWhatsApp}
           now={now}
+          onPromote={promote}
+          onEdit={setFormLead}
           templates={templates}
           buildMessage={buildMessage}
         />
@@ -523,6 +548,8 @@ export function ProspectosClient({
               status={leadStatuses[lead.id] || "nuevo"}
               meta={state[lead.id]}
               now={now}
+              onPromote={promote}
+              onEdit={setFormLead}
               copied={copiedId === lead.id}
               onStatus={updateStatus}
               onNote={updateNote}

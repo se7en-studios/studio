@@ -3,6 +3,8 @@ import { panelSession } from "@/lib/admin/auth";
 import { PanelNotReady } from "@/lib/admin/panel";
 import type { ProspectState } from "@/lib/admin/prospect-shared";
 import { listProspectState } from "@/lib/admin/prospects";
+import type { ProspectLead } from "@/data/prospects";
+import { listCustomLeads } from "@/lib/admin/prospect-leads";
 import { DEFAULT_TEMPLATES, type ProspectTemplate } from "@/lib/admin/prospect-template-shared";
 import { listTemplates } from "@/lib/admin/prospect-templates";
 import { AdminGate } from "../ui";
@@ -35,6 +37,16 @@ export default async function ProspectosPage() {
     templatesReady = false;
   }
 
+  // Los prospectos cargados desde el panel: sin su tabla (prospectos-v3.sql) el radar anda igual con los fijos.
+  let customLeads: ProspectLead[] = [];
+  let customReady = true;
+  try {
+    customLeads = await listCustomLeads();
+  } catch (e) {
+    if (!(e instanceof PanelNotReady)) throw e;
+    customReady = false;
+  }
+
   if (setup) {
     return (
       <div className="rounded-xl border border-dashed border-[var(--line)] p-8 text-[13px] text-muted">
@@ -51,5 +63,5 @@ export default async function ProspectosPage() {
     );
   }
 
-  return <ProspectosClient initialState={state} me={me.who} templates={templates} templatesReady={templatesReady} />;
+  return <ProspectosClient initialState={state} me={me.who} templates={templates} templatesReady={templatesReady} customLeads={customLeads} customReady={customReady} />;
 }

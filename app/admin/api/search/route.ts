@@ -46,7 +46,7 @@ export function GET() {
         prospects: staticProspects,
       };
 
-    const [leads, clients, names, tasks, messages, movements] = await Promise.all([
+    const [leads, clients, names, tasks, messages, movements, customProspects] = await Promise.all([
       c.from("leads").select("id, name, company, status").order("created_at", { ascending: false }).limit(RECENT),
       c.from("panel_clients").select("id, name").order("name").limit(RECENT),
       projectNames(),
@@ -57,6 +57,8 @@ export function GET() {
         .select("id, kind, category, description, amount, currency, occurred_on")
         .order("occurred_on", { ascending: false })
         .limit(RECENT),
+      // Los prospectos cargados desde el panel (sin prospectos-v3.sql la tabla no existe y queda vacío).
+      c.from("prospect_leads").select("id, name, city, category").limit(RECENT),
     ]);
     const leadRows = (leads.data ?? []) as SearchIndex["leads"];
     const leadName = new Map(leadRows.map((l) => [l.id, l.name]));
@@ -86,7 +88,7 @@ export function GET() {
         label: f.description || categoryLabel(f.kind, f.category),
         hint: `${f.kind === "costo" ? "−" : "+"}${fmt(Number(f.amount), f.currency)} · ${f.occurred_on}`,
       })),
-      prospects: staticProspects,
+      prospects: [...staticProspects, ...((customProspects.data ?? []) as SearchIndex["prospects"])],
     };
   });
 }
