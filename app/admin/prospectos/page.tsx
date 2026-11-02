@@ -3,6 +3,8 @@ import { panelSession } from "@/lib/admin/auth";
 import { PanelNotReady } from "@/lib/admin/panel";
 import type { ProspectState } from "@/lib/admin/prospect-shared";
 import { listProspectState } from "@/lib/admin/prospects";
+import { DEFAULT_TEMPLATES, type ProspectTemplate } from "@/lib/admin/prospect-template-shared";
+import { listTemplates } from "@/lib/admin/prospect-templates";
 import { AdminGate } from "../ui";
 import { ProspectosClient } from "./prospectos-client";
 
@@ -23,6 +25,16 @@ export default async function ProspectosPage() {
     setup = e.message;
   }
 
+  // Sin su tabla (prospect-templates.sql) el radar anda igual con las sugeridas, sin poder editarlas.
+  let templates: ProspectTemplate[] = DEFAULT_TEMPLATES;
+  let templatesReady = true;
+  try {
+    templates = await listTemplates();
+  } catch (e) {
+    if (!(e instanceof PanelNotReady)) throw e;
+    templatesReady = false;
+  }
+
   if (setup) {
     return (
       <div className="rounded-xl border border-dashed border-[var(--line)] p-8 text-[13px] text-muted">
@@ -39,5 +51,5 @@ export default async function ProspectosPage() {
     );
   }
 
-  return <ProspectosClient initialState={state} me={me.who} />;
+  return <ProspectosClient initialState={state} me={me.who} templates={templates} templatesReady={templatesReady} />;
 }

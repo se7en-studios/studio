@@ -1,0 +1,81 @@
+// Plantillas del primer mensaje (tabla prospect_templates). Igual que panel.ts
+// usa la service role key: NUNCA importar este archivo desde un componente de cliente.
+import type { LeadOwner } from "./db";
+import { client, failMissing } from "./panel";
+import {
+  DEFAULT_TEMPLATES,
+  type ProspectTemplate,
+} from "./prospect-template-shared";
+
+const fail = failMissing(
+  "Falta correr supabase/prospect-templates.sql en Supabase.",
+);
+const COLUMNS = "id, name, body, active";
+
+/**
+ * Todas, las más viejas primero. La primera vez (tabla vacía) se cargan las
+ * sugeridas; como no se puede borrar la última, después nunca vuelve a quedar vacía.
+ */
+export async function listTemplates(): Promise<ProspectTemplate[]> {
+  const read = () =>
+    client()
+      .from("prospect_templates")
+      .select(COLUMNS)
+      .order("created_at")
+      .order("id");
+  let { data, error } = await read();
+  if (error) fail(error);
+  if (!data?.length) {
+    // ignoreDuplicates: si dos pantallas cargan a la vez, no se duplican.
+    const seeded = await client()
+      .from("prospect_templates")
+      .upsert(DEFAULT_TEMPLATES, { onConflict: "id", ignoreDuplicates: true });
+    if (seeded.error) fail(seeded.error);
+    ({ data, error } = await read());
+    if (error) fail(error);
+  }
+  return data as ProspectTemplate[];
+}
+
+export async function insertTemplate(
+  input: Pick<ProspectTemplate, "name" | "body">,
+  by: LeadOwner,
+): Promise<ProspectTemplate> {
+  const { data, error } = await client()
+    .from("prospect_templates")
+    .insert({ ...input, created_by: by, updated_by: by })
+    .select(COLUMNS)
+    .single();
+  if (error) fail(error);
+  return data as ProspectTemplate;
+}
+
+export async function patchTemplate(
+  id: string,
+  patch: Partial<Pick<ProspectTemplate, "name" | "body" | "active">>,
+  by: LeadOwner,
+): Promise<ProspectTemplate> {
+  const { data, error } = await client()
+    .from("prospect_templates")
+    .update({ ...patch, updated_by: by, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select(COLUMNS)
+    .single();
+  if (error) fail(error);
+  return data as ProspectTemplate;
+}
+
+/** No borra la última: el radar siempre tiene con qué armar el mensaje. */
+export async function removeTemplate(id: string): Promise<void> {
+  const { count, error: countErr } = await client()
+    .from("prospect_templates")
+    .select("id", { count: "exact", head: true });
+  if (countErr) fail(countErr);
+  if ((count ?? 0) <= 1)
+    throw new Error("Tiene que quedar al menos una plantilla.");
+  const { error } = await client()
+    .from("prospect_templates")
+    .delete()
+    .eq("id", id);
+  if (error) fail(error);
+}
