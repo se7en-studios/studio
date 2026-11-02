@@ -1,33 +1,20 @@
 export interface ProspectLead {
   id: string;
   name: string;
-  city: "Catriel" | "25 de Mayo" | "Neuquén" | "Cipolletti" | "Plottier" | "San Rafael" | "Mendoza";
-  province: "Río Negro" | "La Pampa" | "Neuquén" | "Mendoza";
-  category:
-    | "Club de Pádel & Deporte"
-    | "Gimnasio & Entrenamiento"
-    | "Inmobiliaria"
-    | "Bodega & Enoturismo"
-    | "Hotelería & Cabañas"
-    | "Gastronomía & Cervecería"
-    | "Comercio & Gourmet"
-    | "Servicios Petroleros & Industria"
-    | "Salud & Estética"
-    | "Construcción & Corralón";
+  city: string;
+  province: string;
+  category: string;
   address: string;
   phone: string;
   whatsapp: string;
   currentSite?: string;
-  websiteStatus:
-    | "Sin sitio web propio"
-    | "Sitio lento / desactualizado"
-    | "Catálogo sin WhatsApp directo"
-    | "Dependencia de portales terceros"
-    | "Turnos manuales por chat";
+  websiteStatus: string;
   painPoint: string;
   recommendedSolution: string;
   estimatedBudgetUsd: number;
   pitch: string;
+  /** true si se cargó desde el panel (se puede editar y borrar). */
+  custom?: boolean;
 }
 
 export const prospectLeads: ProspectLead[] = [
