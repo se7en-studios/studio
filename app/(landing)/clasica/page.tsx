@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { RdHero } from "@/components/rd/hero";
 import { RdMarquee } from "@/components/rd/marquee";
 import { RdManifesto } from "@/components/rd/manifesto";
@@ -17,6 +18,13 @@ import { RdFaq } from "@/components/rd/faq";
 import { RdContact } from "@/components/rd/contact";
 import { RdFooter } from "@/components/rd/footer";
 import { RdMobileStickyBar } from "@/components/rd/mobile-sticky-bar";
+
+// La home anterior (hasta nov. 2026), guardada para comparar. La home es ahora la consola: app/(consola)/page.tsx.
+export const metadata: Metadata = {
+  title: { absolute: "Se7en Studio — Home anterior" },
+  robots: { index: false, follow: false },
+  alternates: { canonical: "/clasica" },
+};
 
 export default function Home() {
   return (

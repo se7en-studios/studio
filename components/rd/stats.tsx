@@ -78,11 +78,11 @@ function CountUp({ value }: { value: string }) {
   const num = parseInt(value, 10);
   const hasNum = !isNaN(num);
 
+  // Sin número, sin movimiento o fuera de pantalla se muestra el valor tal cual.
+  const still = !hasNum || reduced || !inView;
+
   useEffect(() => {
-    if (!hasNum || reduced || !inView) {
-      setDisplay(value);
-      return;
-    }
+    if (still) return;
     const controls = animate(0, num, {
       duration: 1.6,
       ease: COUNT_EASE,
@@ -92,7 +92,7 @@ function CountUp({ value }: { value: string }) {
       },
     });
     return () => controls.stop();
-  }, [hasNum, inView, num, reduced, value]);
+  }, [still, num, value]);
 
-  return <span ref={ref}>{display}</span>;
+  return <span ref={ref}>{still ? value : display}</span>;
 }

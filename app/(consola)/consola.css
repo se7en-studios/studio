@@ -1,0 +1,112 @@
+/* «Consola»: propuesta de rediseño. Reusa los tokens de .rd (rd.css) y suma lo suyo bajo .cs. */
+@layer components {
+  .cs {
+    --cs-panel: clamp(300px, 26vw, 380px);
+    --cs-top: 84px;
+    --cs-radius: 28px;
+    --cs-card: #121214;
+    --cs-card-2: #18181b;
+    background: #070708;
+  }
+
+  /* Titular condensado enorme: la misma Archivo, con el eje de ancho al mínimo. */
+  .cs-cond { font-family: var(--font-wide), system-ui, sans-serif; font-variation-settings: "wdth" 62; font-weight: 800; text-transform: uppercase; letter-spacing: -0.012em; line-height: 0.84; }
+  .cs-cond .rd-serif { font-size: 1.08em; line-height: 0.7; letter-spacing: -0.03em; }
+  .cs-h2 { font-family: var(--font-wide), system-ui, sans-serif; font-variation-settings: "wdth" 100; font-weight: 500; letter-spacing: -0.035em; line-height: 0.98; }
+  .cs-h2 .rd-serif { font-size: 1.1em; }
+
+  /* Tarjeta base: el bento del panel y los bloques de la columna. */
+  .cs-card { background: var(--cs-card); border: 1px solid #f2eee614; border-radius: 22px; }
+  .cs-card--link { transition: border-color 0.4s var(--ease-out), background-color 0.4s var(--ease-out); }
+  .cs-card--link:hover, .cs-card--link:focus-visible { border-color: #ff4d2e66; background: var(--cs-card-2); }
+
+  /* El panel-consola: un aparato con su manija arriba. */
+  .cs-device { background: #0b0b0c; border: 1px solid #f2eee61f; border-radius: 34px; box-shadow: 0 0 0 6px #070708, 0 0 0 7px #f2eee60d, 0 30px 80px -30px #000; }
+  .cs-device::before { content: ""; position: absolute; top: 10px; left: 50%; width: 46px; height: 4px; translate: -50% 0; border-radius: 99px; background: #f2eee626; }
+  .cs-scroll { scrollbar-width: none; overscroll-behavior: contain; }
+  .cs-scroll::-webkit-scrollbar { display: none; }
+
+
+  /* Stickers del rubro detrás de la captura de cada caso: lugar y giro por variables
+     (en celular todas las tarjetas usan el reparto angosto), sombra de papel pegado
+     y, al pasar el mouse, se abren hacia afuera. */
+  .cs-sticker { position: absolute; left: var(--nx); top: var(--ny); width: var(--nw); translate: -50% -50%; rotate: var(--nr); --px: var(--ndx); --py: var(--ndy); }
+  @media (min-width: 640px) {
+    .cs-sticker--wide { left: var(--x); top: var(--y); width: var(--w); rotate: var(--r); --px: var(--dx); --py: var(--dy); }
+  }
+  .cs-sticker__push { display: block; transition: transform 0.8s var(--ease-out); }
+  .group:hover .cs-sticker__push { transform: translate(var(--px), var(--py)) scale(1.07); }
+  /* La luz viene de arriba a la derecha (como en las fotos de Flow y el degradé de la
+     tarjeta): la sombra cae abajo a la izquierda, una de contacto y otra larga y suave. */
+  .cs-sticker__img { display: block; width: 100%; height: auto; filter: drop-shadow(-3px 5px 4px rgb(0 0 0 / 0.28)) drop-shadow(-14px 24px 22px rgb(0 0 0 / 0.32)); }
+  .cs-phone { filter: drop-shadow(-6px 10px 8px rgb(0 0 0 / 0.3)) drop-shadow(-24px 42px 40px rgb(0 0 0 / 0.45)); }
+  /* Luz de estudio sobre toda la tarjeta: un haz desde arriba a la derecha y la esquina contraria en penumbra. */
+  .cs-light { background: radial-gradient(70% 60% at 88% 0%, rgb(255 255 255 / 0.38), transparent 70%), radial-gradient(80% 70% at 0% 100%, rgb(0 0 0 / 0.28), transparent 70%); mix-blend-mode: soft-light; }
+
+  /* Lienzo de piezas: grilla de puntos de editor. */
+  .cs-canvas { background-color: #0f0f11; background-image: radial-gradient(#f2eee61f 1px, transparent 1.2px); background-size: 22px 22px; }
+  .cs-piece { touch-action: none; cursor: grab; }
+  .cs-piece:active { cursor: grabbing; }
+  .cs-piece[data-selected="true"] > .cs-piece__body { outline: 1.5px solid var(--signal); outline-offset: 4px; }
+  .cs-handle { position: absolute; width: 8px; height: 8px; background: var(--paper); border: 1.5px solid var(--signal); }
+  .cs-cursor-a { animation: cs-wander-a 14s ease-in-out infinite; }
+  .cs-cursor-b { animation: cs-wander-b 17s ease-in-out infinite; }
+
+  /* Llamada: los tiles flotan, cada uno a su ritmo. */
+  .cs-bob { animation: cs-bob 6s ease-in-out infinite; }
+  .cs-react { animation: cs-react 2.2s var(--ease-out) forwards; }
+  .cs-rec { animation: rd-blink 1.6s steps(1) infinite; }
+
+  /* SE7EN del pie con sombra de trama tipo riso: una copia en señal, corrida y punteada. */
+  .cs-riso { position: relative; container-type: inline-size; overflow: hidden; }
+  .cs-riso p { font-size: 25.5cqw; line-height: 0.8; white-space: nowrap; padding: 0.04em 0 0.06em; }
+  .cs-riso__shadow { position: absolute; inset: 0; color: var(--signal); translate: 0.03em 0.025em; mask-image: radial-gradient(circle at center, #000 42%, transparent 46%); mask-size: 6px 6px; -webkit-mask-image: radial-gradient(circle at center, #000 42%, transparent 46%); -webkit-mask-size: 6px 6px; }
+  /* Tinta: papel lleno con motas oscuras sueltas, como una impresión con poca carga. */
+  .cs-riso__ink { position: relative; color: transparent; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.04 0 0 0 0 0.04 0 0 0 0 0.05 0 0 0 7 -4.3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E"), var(--paper); background-clip: text; -webkit-background-clip: text; }
+  .cs-riso__ink .cs-riso__seven { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.04 0 0 0 0 0.04 0 0 0 0 0.05 0 0 0 7 -4.3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E"), var(--signal); background-clip: text; -webkit-background-clip: text; }
+}
+
+@keyframes cs-bob { 0%, 100% { translate: 0 -5px; } 50% { translate: 0 5px; } }
+@keyframes cs-react { 0% { opacity: 0; transform: translateY(0) scale(0.6); } 15% { opacity: 1; transform: translateY(-20px) scale(1.15); } 100% { opacity: 0; transform: translateY(-220px) scale(1); } }
+@keyframes cs-wander-a { 0%, 100% { translate: 0 0; } 25% { translate: 120px 60px; } 50% { translate: 40px 140px; } 75% { translate: -60px 40px; } }
+@keyframes cs-wander-b { 0%, 100% { translate: 0 0; } 30% { translate: -140px -40px; } 60% { translate: -60px -120px; } 80% { translate: 30px -50px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .cs-cursor-a, .cs-cursor-b, .cs-bob, .cs-rec { animation: none; }
+}
+
+/* La pared se arrastra en los dos ejes con el mouse; con el dedo, el vertical sigue siendo el scroll de la página. */
+@layer components {
+  .cs-wall { touch-action: pan-y; }
+  .cs-wall:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; }
+}
+
+/* El logo se pliega a S7N al bajar: las E (y «Studio») se cierran de ancho y se desvanecen. */
+@layer components {
+  .cs-logo__fold { display: inline-block; overflow: hidden; vertical-align: bottom; max-width: 1.2em; transition: max-width 0.55s var(--ease-io), opacity 0.35s var(--ease-out), margin 0.55s var(--ease-io); }
+  .cs-logo .rd-label.cs-logo__fold { max-width: 6em; }
+  .cs-logo[data-small="true"] .cs-logo__fold { max-width: 0; opacity: 0; margin-left: 0; }
+  .cs-logo > span:first-child { transition: letter-spacing 0.55s var(--ease-io); }
+  .cs-logo[data-small="true"] > span:first-child { letter-spacing: 0.01em; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs-logo__fold { transition: none; }
+}
+
+/* La palabra SE7EN del pie (components/consola/marca.tsx). */
+@layer components {
+  .cs-marca { perspective: 1400px; padding-bottom: 2%; }
+  .cs-marca__stage { transform-style: preserve-3d; transform-origin: 50% 100%; transition: transform 1.4s var(--ease-out), opacity 1s var(--ease-out), filter 1.2s var(--ease-out); }
+  .cs-marca[data-shown="false"] .cs-marca__stage { transform: translateY(38%) rotateX(58deg) scale(0.92); opacity: 0; filter: blur(8px); }
+  .cs-marca__word { transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transform-style: preserve-3d; filter: drop-shadow(-10px 22px 22px rgb(0 0 0 / 0.55)); }
+  .cs-marca__shine { -webkit-mask: var(--mask) center / 100% 100% no-repeat; mask: var(--mask) center / 100% 100% no-repeat; background: linear-gradient(105deg, transparent calc(var(--shine, 50%) - 14%), rgb(255 255 255 / 0.55) var(--shine, 50%), transparent calc(var(--shine, 50%) + 14%)); mix-blend-mode: soft-light; }
+  .cs-marca__floor { margin-top: -0.4%; height: 0; padding-bottom: 9%; overflow: hidden; transform: scaleY(-1); opacity: 0.22; filter: blur(2px); -webkit-mask-image: linear-gradient(to top, #000, transparent 38%); mask-image: linear-gradient(to top, #000, transparent 38%); }
+  .cs-marca__floor img { position: absolute; bottom: 0; transform: rotateY(var(--ry, 0deg)); }
+  .cs-marca__glow { background: radial-gradient(closest-side, rgb(255 77 46 / 0.55), rgb(255 77 46 / 0.12) 60%, transparent); filter: blur(30px); animation: cs-glow 4.5s ease-in-out infinite; }
+  .cs-marca__shadow { top: 47%; background: radial-gradient(closest-side, rgb(0 0 0 / 0.7), transparent); filter: blur(10px); z-index: -1; }
+}
+@keyframes cs-glow { 0%, 100% { opacity: 0.7; transform: translateX(-50%) scale(1); } 50% { opacity: 1; transform: translateX(-50%) scale(1.12); } }
+@media (prefers-reduced-motion: reduce) {
+  .cs-marca__stage { transition: none; }
+  .cs-marca__glow { animation: none; }
+}
