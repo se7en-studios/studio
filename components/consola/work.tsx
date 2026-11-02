@@ -246,14 +246,15 @@ function BrowserShot({ project: p }: { project: Project }) {
 
   const host = p.url.replace(/^https?:\/\//, "").replace(/\/$/, "");
   return (
-    <span className="absolute inset-x-[6%] top-[9%] bottom-[-6%] block overflow-hidden rounded-t-[14px] bg-[#0b0b0c] shadow-[0_40px_80px_-30px_rgba(0,0,0,0.6)] transition-transform duration-700 ease-(--ease-out) group-hover:-translate-y-2 sm:inset-x-[10%] lg:inset-x-[14%]">
+    <span className="absolute top-[9%] left-1/2 block w-[80%] -translate-x-1/2 overflow-hidden rounded-t-[14px] bg-[#0b0b0c] shadow-[0_40px_80px_-30px_rgba(0,0,0,0.6)] transition-transform duration-700 ease-(--ease-out) group-hover:-translate-y-2 lg:w-[72%]">
       <span className="flex h-8 items-center gap-1.5 bg-[#1a1a1c] px-3">
         <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
         <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
         <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
         <span className="rd-body mx-auto rounded-md bg-white/[0.07] px-3 py-0.5 text-[11px] text-white/60">{host}</span>
       </span>
-      <span className="relative block h-[calc(100%-2rem)]">
+      {/* La pantalla con la proporción de la captura (16:10): entera a lo ancho; si sobra, se corta abajo con la tarjeta. */}
+      <span className="relative block aspect-[16/10]">
         {p.video ? (
           <video
             ref={ref}
@@ -275,15 +276,71 @@ function BrowserShot({ project: p }: { project: Project }) {
   );
 }
 
-/** Teléfono inclinado con la captura de celular del caso. */
+/**
+ * Color de la barra de estado de cada caso: el del borde de arriba de su
+ * captura de celular, como lo pinta Safari con el color del sitio.
+ */
+const STATUS_BAR: Record<string, string> = {
+  "altum-sci": "#f6f7fc",
+  "apex-ai": "#0e0e0d",
+  "iphone-vita": "#f5f5f7",
+  muzzaga: "#0c0c12",
+  "pone-la-pava": "#467650",
+  pravilo: "#0c0a0b",
+  sentinel: "#050810",
+  takefyy: "#211312",
+};
+
+/**
+ * Teléfono inclinado con la captura de celular del caso. La pantalla es la
+ * barra de estado (con la isla) más la captura entera (390×790) a lo ancho:
+ * nada se recorta y la isla no tapa el encabezado del sitio. Las medidas van
+ * en cqw (ancho de la pantalla) para que el teléfono se vea igual en cualquier tamaño.
+ */
 function PhoneShot({ project: p }: { project: Project }) {
-  const src = p.screens?.mobile ?? p.image;
+  const mobile = p.screens?.mobile;
+  const bar = STATUS_BAR[p.slug] ?? "#0b0b0c";
+  const ink = onAccent(bar);
   return (
-    <span className="absolute top-[6%] left-1/2 block aspect-[390/844] w-[40%] -translate-x-1/2 rotate-[-7deg] rounded-[2.2rem] bg-[#0b0b0c] p-[7px] shadow-[0_50px_70px_-25px_rgba(0,0,0,0.65)] transition-transform duration-700 ease-(--ease-out) group-hover:rotate-[-3deg] group-hover:-translate-y-2">
-      <span className="relative block h-full w-full overflow-hidden rounded-[1.8rem]">
-        <Image src={src} alt="" fill sizes="(min-width: 1024px) 18vw, 45vw" className="object-cover object-top" />
-        <span className="absolute top-2 left-1/2 h-[18px] w-[34%] -translate-x-1/2 rounded-full bg-black" />
+    <span className="absolute top-[6%] left-1/2 block w-[40%] -translate-x-1/2 rotate-[-7deg] rounded-[16%/7.5%] bg-[#0b0b0c] p-[2.6%] shadow-[0_50px_70px_-25px_rgba(0,0,0,0.65)] ring-1 ring-white/10 transition-transform duration-700 ease-(--ease-out) group-hover:rotate-[-3deg] group-hover:-translate-y-2">
+      <span className="relative block overflow-hidden rounded-[13%/6%] [container-type:inline-size]">
+        <span className="relative flex h-[13cqw] items-center justify-between px-[8.5cqw]" style={{ background: bar, color: ink }}>
+          <span className="text-[4.1cqw] font-semibold tracking-[-0.02em] tabular-nums" style={{ fontFamily: "system-ui, sans-serif" }}>
+            9:41
+          </span>
+          <StatusIcons />
+          <span className="absolute top-[2.6cqw] left-1/2 h-[9.5cqw] w-[32cqw] -translate-x-1/2 rounded-full bg-black" />
+        </span>
+        {mobile ? (
+          <Image src={mobile} alt="" width={390} height={790} sizes="(min-width: 1024px) 18vw, 45vw" className="block h-auto w-full" />
+        ) : (
+          <span className="relative block aspect-[390/790]">
+            <Image src={p.image} alt="" fill sizes="(min-width: 1024px) 18vw, 45vw" className="object-cover object-top" />
+          </span>
+        )}
       </span>
+    </span>
+  );
+}
+
+/** Señal, wifi y batería de la barra de estado, en el color del texto. */
+function StatusIcons() {
+  return (
+    <span className="flex items-center gap-[1.4cqw]">
+      <svg viewBox="0 0 18 12" className="h-[2.9cqw] w-auto" fill="currentColor" aria-hidden>
+        <rect x="0" y="8" width="3" height="4" rx="0.8" />
+        <rect x="5" y="5.5" width="3" height="6.5" rx="0.8" />
+        <rect x="10" y="3" width="3" height="9" rx="0.8" />
+        <rect x="15" y="0" width="3" height="12" rx="0.8" />
+      </svg>
+      <svg viewBox="0 0 16 12" className="h-[2.9cqw] w-auto" fill="currentColor" aria-hidden>
+        <path d="M8 2.2c2.5 0 4.8 1 6.5 2.6l1.2-1.3A11 11 0 0 0 8 .4 11 11 0 0 0 .3 3.5l1.2 1.3A9.2 9.2 0 0 1 8 2.2Zm0 3.6c1.5 0 2.9.6 3.9 1.5l1.2-1.3A7.4 7.4 0 0 0 8 4a7.4 7.4 0 0 0-5.1 2l1.2 1.3c1-.9 2.4-1.5 3.9-1.5Zm0 3.6c.6 0 1.1.2 1.5.5L8 11.6 6.5 9.9c.4-.3.9-.5 1.5-.5Z" />
+      </svg>
+      <svg viewBox="0 0 27 13" className="h-[3cqw] w-auto" aria-hidden>
+        <rect x="0.5" y="0.5" width="23" height="12" rx="3.5" fill="none" stroke="currentColor" strokeOpacity="0.4" />
+        <rect x="2" y="2" width="20" height="9" rx="2.2" fill="currentColor" />
+        <path d="M25 4.5v4c.8-.3 1.4-1.1 1.4-2s-.6-1.7-1.4-2Z" fill="currentColor" fillOpacity="0.45" />
+      </svg>
     </span>
   );
 }
