@@ -6,7 +6,7 @@ import {
   MapPin,
   Edit3,
   X,
-  Send,
+  Send,
   Copy,
   Check,
   Sparkles,
@@ -14,7 +14,8 @@ import {
   ExternalLink,
   Phone,
   PhoneOff,
-  Zap,
+  Shuffle,
+  Zap,
 } from "lucide-react";
 import type { ProspectLead } from "@/data/prospects";
 import type { LeadStatus } from "./prospectos-client";
@@ -25,31 +26,7 @@ import { PadelRoiCalculator } from "./padel-roi-calculator";
 import { useSoundFx } from "@/lib/use-sound-fx";
 import { Chip, Face, btnPrimary, btnSecondary, cn, input as inputCls, usd, usdShort } from "../kit";
 import { FX_RATE, STAGES } from "./stages";
-
-function getDynamicPitch(lead: ProspectLead, template: "original" | "roi_padel" | "gastro" | "industria"): string {
-  if (template === "roi_padel") {
-    return `Hola equipo de ${lead.name}! ¿Cómo están? Les escribe Franco de Se7en Studio acá en Catriel (desarrollamos la plataforma de reservas de Muzzaga Pádel: se7en.com.ar/work/muzzaga).
-
-Estuvimos calculando la ocupación de sus canchas en ${lead.city}: con un promedio habitual de 15% de cancelaciones sin aviso previo, el club deja de percibir cerca de $800.000 ARS a $1.200.000 ARS por mes en turnos vacíos.
-
-Con nuestro turnero web los jugadores señan el 50% por Mercado Pago al reservar y les llega la confirmación por WhatsApp en 3 clics. El club recupera ese dinero mes a mes y la inversión del software se amortiza sola en menos de 45 días.
-
-¿Tienen 2 minutos para ver la demo funcionando en el celular?`;
-  }
-  if (template === "gastro") {
-    return `Hola equipo de ${lead.name}! ¿Cómo va todo? Les escribe Franco de Se7en Studio en la región.
-Notamos que tienen una gran propuesta gastronómica en ${lead.city}. Desarrollamos cartas digitales interactivas con sistema de Take Away y pedidos que le llegan al WhatsApp de cocina con la comanda y el pago calculado en 1 clic (se7en.com.ar/para/gastronomia), sin pagar el 30% de comisión de PedidosYa.
-
-¿Les gustaría probar una demo de 60 segundos para ver cómo aumentaría la velocidad de sus pedidos?`;
-  }
-  if (template === "industria") {
-    return `Hola directivos de ${lead.name}! Les escribe Franco de Se7en Studio.
-Vemos la actividad y capacidad técnica que tienen en ${lead.city} para el sector industrial y de servicios. Diseñamos plataformas corporativas de ultra velocidad (Next.js 16 + Cloudflare Edge) preparadas para licitaciones y catálogo B2B que cargan en menos de 0.5s: se7en.com.ar/services.
-
-¿Podemos coordinar una breve llamada esta semana para mostrarles cómo presentar la empresa ante operadoras?`;
-  }
-  return lead.pitch;
-}
+import type { ProspectTemplate } from "@/lib/admin/prospect-template-shared";
 
 interface KanbanProps {
   leads: ProspectLead[];
@@ -58,7 +35,10 @@ interface KanbanProps {
   leadState: Record<string, ProspectState>;
   onStatusChange: (id: string, status: LeadStatus) => void;
   onSaveNote: (id: string, note: string) => void;
-  onOpenWhatsApp: (lead: ProspectLead) => void;
+  onOpenWhatsApp: (lead: ProspectLead, text?: string) => void;
+  templates: ProspectTemplate[];
+  /** Arma el mensaje de un prospecto: `pick` es una plantilla, «auto» (al azar) u «original». */
+  buildMessage: (lead: ProspectLead, pick?: string) => { id: string; text: string };
 }
 
 const NEXT: Partial<Record<LeadStatus, { to: LeadStatus; label: string }>> = {
@@ -182,6 +162,8 @@ export function ProspectosKanban({
   onStatusChange,
   onSaveNote,
   onOpenWhatsApp,
+  templates,
+  buildMessage,
 }: KanbanProps) {
   const sound = useSoundFx();
   const [activeNoteLead, setActiveNoteLead] = useState<ProspectLead | null>(null);
@@ -189,11 +171,12 @@ export function ProspectosKanban({
   const [activeDossierLead, setActiveDossierLead] = useState<ProspectLead | null>(null);
   const [dossierTab, setDossierTab] = useState<"estrategia" | "guion" | "bitacora">("estrategia");
   const [copiedPitch, setCopiedPitch] = useState(false);
-  const [selectedPitchTemplate, setSelectedPitchTemplate] = useState<"original" | "roi_padel" | "gastro" | "industria">("original");
+  const [dossierMsg, setDossierMsg] = useState<{ id: string; text: string } | null>(null);
   const [showDossierRoiCalc, setShowDossierRoiCalc] = useState(false);
 
   const handleOpenDossier = (lead: ProspectLead) => {
     setActiveDossierLead(lead);
+    setDossierMsg(buildMessage(lead));
     setTempNote(leadNotes[lead.id] || "");
     sound.tick();
   };
@@ -431,12 +414,10 @@ export function ProspectosKanban({
 
             {dossierTab === "guion" && (
               <div className="space-y-4">
-                {/* Selector de Plantilla de Outreach */}
+                {/* Qué plantilla se usa para este prospecto */}
                 <div className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                    <span className="adm-label text-[11px] text-muted uppercase tracking-wider">
-                      Plantilla de Enfoque Comercial:
-                    </span>
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <span className="adm-label">Plantilla del mensaje</span>
                     {activeDossierLead.category === "Club de Pádel & Deporte" && (
                       <Chip
                         on={showDossierRoiCalc}
@@ -451,82 +432,78 @@ export function ProspectosKanban({
                     )}
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">
-                    {[
-                      { id: "original", label: "Original a Medida" },
-                      { id: "roi_padel", label: "Pádel & Turnero (ROI)" },
-                      { id: "gastro", label: "Gastronomía & Take Away" },
-                      { id: "industria", label: "Industria B2B Petrolera" },
-                    ].map((tpl) => (
-                      <Chip
-                        key={tpl.id}
-                        on={selectedPitchTemplate === tpl.id}
-                        onClick={() => {
-                          setSelectedPitchTemplate(tpl.id as typeof selectedPitchTemplate);
-                          sound.tick();
-                        }}
-                      >
-                        {tpl.label}
-                      </Chip>
-                    ))}
+                    <Chip
+                      on={false}
+                      onClick={() => {
+                        setDossierMsg(buildMessage(activeDossierLead, "auto"));
+                        sound.tick();
+                      }}
+                    >
+                      <Shuffle size={12} /> Otra variante
+                    </Chip>
+                    {templates
+                      .filter((t) => t.active)
+                      .map((t) => (
+                        <Chip
+                          key={t.id}
+                          on={dossierMsg?.id === t.id}
+                          onClick={() => {
+                            setDossierMsg(buildMessage(activeDossierLead, t.id));
+                            sound.tick();
+                          }}
+                        >
+                          {t.name}
+                        </Chip>
+                      ))}
+                    <Chip
+                      on={dossierMsg?.id === "original"}
+                      onClick={() => {
+                        setDossierMsg(buildMessage(activeDossierLead, "original"));
+                        sound.tick();
+                      }}
+                    >
+                      Guion largo
+                    </Chip>
                   </div>
                 </div>
 
-                {/* Simulador ROI embebido si está activo */}
                 {showDossierRoiCalc && (
-                  <div className="rounded-xl border border-[var(--line)] bg-[var(--panel-2)] p-4 animate-in fade-in duration-300">
-                    <PadelRoiCalculator
-                      initialClubName={activeDossierLead.name}
-                      initialPhone={activeDossierLead.phone}
-                    />
+                  <div className="rounded-xl border border-[var(--line)] bg-[var(--panel-2)] p-4">
+                    <PadelRoiCalculator initialClubName={activeDossierLead.name} initialPhone={activeDossierLead.phone} />
                   </div>
                 )}
 
-                {/* Caja de Pitch Dinámico */}
+                {/* El mensaje tal como va a salir */}
                 <div className="rounded-xl border border-[var(--line)] bg-[var(--well)] p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="adm-label text-[11px] text-muted uppercase tracking-wider flex items-center gap-1">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="adm-label flex items-center gap-1">
                       <Zap size={11} className="text-accent" />
-                      Guión activo ({selectedPitchTemplate.replace("_", " ")})
+                      Mensaje
                     </span>
                     <button
                       type="button"
-                      onClick={() => handleCopyPitch(getDynamicPitch(activeDossierLead, selectedPitchTemplate))}
+                      onClick={() => dossierMsg && handleCopyPitch(dossierMsg.text)}
                       className={cn(btnSecondary, "px-2.5 py-1 text-[12px]")}
                     >
                       {copiedPitch ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                      <span>{copiedPitch ? "¡Copiado!" : "Copiar"}</span>
+                      <span>{copiedPitch ? "Copiado" : "Copiar"}</span>
                     </button>
                   </div>
-                  <div className="rounded-lg bg-[var(--panel)] border border-[var(--line)] p-3 text-xs leading-relaxed text-foreground font-mono whitespace-pre-wrap">
-                    {getDynamicPitch(activeDossierLead, selectedPitchTemplate)}
-                  </div>
+                  <p className="text-[13px] leading-relaxed whitespace-pre-wrap text-foreground">{dossierMsg?.text}</p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 pt-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      const dynamicPitch = getDynamicPitch(activeDossierLead, selectedPitchTemplate);
-                      sound.pop();
-                      const phone = activeDossierLead.phone.replace(/\D/g, "");
-                      const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(dynamicPitch)}`;
-                      window.open(waUrl, "_blank", "noopener,noreferrer");
-                      const current = leadStatuses[activeDossierLead.id] || "nuevo";
-                      if (current === "nuevo") {
-                        handleMove(activeDossierLead.id, "contactado");
-                      }
-                    }}
+                    onClick={() => dossierMsg && onOpenWhatsApp(activeDossierLead, dossierMsg.text)}
                     className="focus-ring flex flex-1 items-center justify-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2.5 text-[13px] font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/20"
                   >
                     <WhatsAppLogo className="h-4 w-4 fill-current" />
-                    <span>Abrir WhatsApp con Pitch Activo</span>
+                    <span>Abrir WhatsApp con este mensaje</span>
                   </button>
 
                   {activeDossierLead.phone && (
-                    <a
-                      href={`tel:${activeDossierLead.phone}`}
-                      className="flex items-center gap-1.5 rounded-xl border border-[var(--line-strong)] bg-[var(--well)] py-3 px-4 text-xs font-semibold text-foreground hover:bg-[var(--panel-2)] transition-colors"
-                    >
+                    <a href={`tel:${activeDossierLead.phone}`} className={btnSecondary}>
                       <Phone size={14} />
                       <span>Llamar</span>
                     </a>

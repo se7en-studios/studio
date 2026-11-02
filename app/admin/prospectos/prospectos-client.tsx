@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Download, Sparkles, Kanban, LayoutGrid, Calculator } from "lucide-react";
+import { Search, Download, Sparkles, Kanban, LayoutGrid, Calculator, FileText } from "lucide-react";
 import { prospectLeads, type ProspectLead } from "@/data/prospects";
 import { ProspectosKanban } from "./prospectos-kanban";
 import { AiQualifier } from "./ai-qualifier";
@@ -12,6 +12,9 @@ import type { LeadOwner } from "@/lib/admin/db";
 import { PEOPLE, PEOPLE_IDS } from "@/lib/admin/people";
 import type { ProspectState, ProspectStatus } from "@/lib/admin/prospect-shared";
 import { updateProspectNote, updateProspectStatus } from "./actions";
+import { TemplatesDialog } from "./templates-dialog";
+import { pickTemplate, renderTemplate, templateVars, type ProspectTemplate } from "@/lib/admin/prospect-template-shared";
+import { useStoredChoice } from "../overlay";
 import { Chip, Kpi, PageHeader, Segmented, btnSecondary, cn, kpiRow, searchInput, usdShort } from "../kit";
 import { ProspectListCard } from "./prospect-list-card";
 import { FX_RATE, STAGE, STAGES } from "./stages";
@@ -36,10 +39,21 @@ export type LeadStatus = ProspectStatus;
 // Cada cuánto se vuelve a leer lo que cargó el otro, con la pestaña a la vista.
 const POLL_MS = 20_000;
 
-export function ProspectosClient({ initialState, me }: { initialState: Record<string, ProspectState>; me: LeadOwner }) {
+export function ProspectosClient({
+  initialState,
+  me,
+  templates,
+  templatesReady,
+}: {
+  initialState: Record<string, ProspectState>;
+  me: LeadOwner;
+  templates: ProspectTemplate[];
+  templatesReady: boolean;
+}) {
   const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
   const [showAiQualifier, setShowAiQualifier] = useState(false);
   const [showRoiCalc, setShowRoiCalc] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedCity, setSelectedCity] = useState<(typeof CITIES)[number]>("Todas");
   const [selectedCategory, setSelectedCategory] = useState<(typeof CATEGORIES)[number]>("Todas");
@@ -113,10 +127,23 @@ export function ProspectosClient({ initialState, me }: { initialState: Record<st
       updateProspectNote(leadId, note),
     );
 
-  const handleOpenWhatsApp = (lead: ProspectLead) => {
+  // Qué mensaje se usa al escribir: «auto» elige una plantilla al azar (sin repetir la última),
+  // o una fija, o el guion largo que trae cada prospecto.
+  const [choice, setChoice] = useStoredChoice<string>("se7en_prospect_msg", "auto", ["auto", "original", ...templates.map((t) => t.id)]);
+  const lastTemplate = useRef<string | null>(null);
+
+  const buildMessage = (lead: ProspectLead, pick: string = choice): { id: string; text: string } => {
+    if (pick === "original") return { id: "original", text: lead.pitch };
+    const tpl = templates.find((t) => t.id === pick) ?? pickTemplate(templates, lastTemplate.current);
+    if (!tpl) return { id: "original", text: lead.pitch };
+    lastTemplate.current = tpl.id;
+    return { id: tpl.id, text: renderTemplate(tpl.body, templateVars(lead, PEOPLE[me].name)) };
+  };
+
+  const handleOpenWhatsApp = (lead: ProspectLead, text?: string) => {
     sound.pop();
     const phone = lead.phone.replace(/\D/g, "");
-    const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(lead.pitch)}`;
+    const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(text ?? buildMessage(lead).text)}`;
     window.open(waUrl, "_blank", "noopener,noreferrer");
     // Sólo avanza si todavía no estaba contactado: no pisa una charla ni un cierre.
     if ((leadStatuses[lead.id] || "nuevo") === "nuevo") updateStatus(lead.id, "contactado");
@@ -161,7 +188,7 @@ export function ProspectosClient({ initialState, me }: { initialState: Record<st
   }, [filtered]);
 
   const handleCopyPitch = (lead: ProspectLead) => {
-    navigator.clipboard.writeText(lead.pitch);
+    navigator.clipboard.writeText(buildMessage(lead).text);
     setCopiedId(lead.id);
     sound.tick();
     setTimeout(() => setCopiedId(null), 2500);
@@ -244,6 +271,9 @@ export function ProspectosClient({ initialState, me }: { initialState: Record<st
             >
               <Sparkles size={14} /> AI Copilot
             </button>
+            <button type="button" onClick={() => setShowTemplates(true)} className={btnSecondary}>
+              <FileText size={14} /> Plantillas
+            </button>
             <button type="button" onClick={handleDownloadCsv} className={btnSecondary}>
               <Download size={14} /> CSV
             </button>
@@ -260,6 +290,16 @@ export function ProspectosClient({ initialState, me }: { initialState: Record<st
       )}
 
       {showAiQualifier && <AiQualifier />}
+
+      {showTemplates && (
+        <TemplatesDialog
+          templates={templates}
+          ready={templatesReady}
+          who={PEOPLE[me].name}
+          onClose={() => setShowTemplates(false)}
+          onChanged={() => router.refresh()}
+        />
+      )}
 
       {showRoiCalc && (
         <div className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-5">
@@ -295,6 +335,27 @@ export function ProspectosClient({ initialState, me }: { initialState: Record<st
               placeholder="Buscar por nombre, rubro, dirección o problema…"
               className={searchInput}
             />
+          </label>
+          <label className="flex items-center gap-2 text-[12px] text-muted">
+            Mensaje
+            <select
+              value={choice}
+              onChange={(e) => {
+                setChoice(e.target.value);
+                sound.tick();
+              }}
+              aria-label="Mensaje de apertura"
+              className="focus-ring rounded-full border border-[var(--line-strong)] bg-[var(--panel)] px-3 py-1.5 text-[13px] text-foreground"
+            >
+              <option value="auto">Variar entre plantillas</option>
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                  {t.active ? "" : " (pausada)"}
+                </option>
+              ))}
+              <option value="original">Guion largo de cada prospecto</option>
+            </select>
           </label>
           <Segmented
             value={viewMode}
@@ -377,6 +438,8 @@ export function ProspectosClient({ initialState, me }: { initialState: Record<st
           onStatusChange={updateStatus}
           onSaveNote={updateNote}
           onOpenWhatsApp={handleOpenWhatsApp}
+          templates={templates}
+          buildMessage={buildMessage}
         />
       )}
 
