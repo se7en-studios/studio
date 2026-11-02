@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { AnimatePresence, m } from "framer-motion";
-import { ArrowUpRight, Mail, MessageCircle, X } from "lucide-react";
+import { ArrowUpRight, X } from "lucide-react";
 import { projects } from "@/data/projects";
 import { team, testimonials } from "@/data/team";
 import { blogPosts } from "@/data/blog";
@@ -13,18 +13,15 @@ import { sendLead } from "@/lib/send-lead";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 import { EASE_OUT } from "@/components/rd/primitives";
 import { SECTIONS, useConsola, type SectionId } from "@/components/consola/section";
+import { MailButton, WhatsAppButton } from "@/components/consola/contact-buttons";
 
 // Contenido del panel-consola. Una vista por sección; «Hablemos» lo fija en contacto.
 
 const cases = [...projects].sort((a, b) => a.order - b.order);
 const quotes = testimonials.filter((t) => t.published).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
-const NUMBERS = [
-  { n: String(projects.length), unit: "casos", label: "En producción hoy" },
-  { n: "24", unit: "h", label: "Para responderte" },
-  { n: "1–4", unit: "sem", label: "De la idea a online" },
-  { n: "30", unit: "días", label: "De garantía" },
-];
+/** Color de marca de un caso (o la señal del estudio). */
+const accentOf = (slug?: string) => cases.find((p) => p.slug === slug)?.brand?.accent ?? "#ff4d2e";
 
 export function PanelBody() {
   const { shown } = useConsola();
@@ -69,75 +66,97 @@ function Tag({ children }: { children: ReactNode }) {
   return <p className="rd-label text-[10px] whitespace-nowrap text-(--paper)/45">( {children} )</p>;
 }
 
+/** Miniatura cuadrada de un caso: la parte de arriba de su captura de celular. */
+function Thumb({ slug, size = 40, ring = false }: { slug: string; size?: number; ring?: boolean }) {
+  const p = cases.find((c) => c.slug === slug);
+  if (!p) return null;
+  return (
+    <span
+      className={`relative block shrink-0 overflow-hidden rounded-[30%] bg-(--paper)/10 ${ring ? "ring-2 ring-[#0b0b0c]" : ""}`}
+      style={{ width: size, height: size }}
+    >
+      <Image src={p.screens?.mobile ?? p.image} alt="" fill sizes={`${size * 2}px`} className="object-cover object-top" />
+    </span>
+  );
+}
+
 function InicioView() {
-  const i = useRotate(NUMBERS.length, 2600);
-  const q = useRotate(quotes.length, 5200);
-  const num = NUMBERS[i];
+  const q = useRotate(quotes.length, 5600);
   const quote = quotes[q];
+  const qAccent = accentOf(quote.projectSlug);
   return (
     <>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="cs-card flex aspect-square flex-col justify-between p-4">
-          <AnimatePresence mode="wait" initial={false}>
-            <m.div
-              key={num.label}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.4, ease: EASE_OUT }}
-            >
-              <p className="cs-cond text-[2.9rem] text-(--paper)">
-                {num.n}
-                <span className="rd-body ml-1 text-base font-normal tracking-normal normal-case text-(--paper)/70">
-                  {num.unit}
-                </span>
-              </p>
-              <p className="rd-body mt-1 text-[13px] leading-tight text-(--paper)/80">{num.label}</p>
-            </m.div>
-          </AnimatePresence>
-          <div className="flex items-end justify-between">
-            <Tag>Números</Tag>
-            <span className="flex gap-1" aria-hidden>
-              {NUMBERS.map((_, k) => (
-                <span
-                  key={k}
-                  className={`h-1 w-3 rounded-full transition-colors ${k === i ? "bg-(--signal)" : "bg-(--paper)/15"}`}
-                />
-              ))}
-            </span>
-          </div>
+      {/* Lo primero: cuántos sitios están online, con las caras de cada uno. */}
+      <a href="#trabajos" className="cs-card cs-card--link group relative block overflow-hidden p-4">
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -top-16 -right-10 h-40 w-40 rounded-full bg-[radial-gradient(closest-side,rgb(255_77_46/0.35),transparent)]"
+        />
+        <div className="flex items-start justify-between">
+          <Tag>Online hoy</Tag>
+          <ArrowUpRight size={14} className="text-(--paper)/50 transition-transform group-hover:rotate-45" aria-hidden />
         </div>
-        <div className="cs-card flex aspect-square flex-col justify-between p-4">
-          <p className="rd-body text-[1.15rem] leading-[1.15] tracking-[-0.02em] text-(--paper)">
-            Diseño
+        <div className="mt-2 flex items-end gap-3">
+          <p className="cs-cond text-[4.2rem] leading-[0.8] text-(--paper)">{cases.length}</p>
+          <p className="rd-body pb-1 text-[14px] leading-tight text-(--paper)/75">
+            proyectos en producción,
             <br />
-            Código
-            <br />
-            <span className="rd-serif text-[1.25em] text-(--signal)">Producto</span>
+            <span className="rd-serif text-[1.15em] text-(--signal)">todos en mantenimiento</span>
           </p>
-          <Tag>Hacemos</Tag>
         </div>
+        <div className="mt-4 flex -space-x-2.5">
+          {cases.map((p) => (
+            <Thumb key={p.slug} slug={p.slug} size={34} ring />
+          ))}
+        </div>
+      </a>
+
+      <div className="grid grid-cols-2 gap-3">
+        {[
+          { n: "24", u: "h", l: "para responderte" },
+          { n: "30", u: "días", l: "de garantía" },
+        ].map((k) => (
+          <div key={k.l} className="cs-card p-4">
+            <p className="cs-cond text-[2.6rem] leading-none text-(--paper)">
+              {k.n}
+              <span className="rd-body ml-1 text-[14px] font-normal tracking-normal normal-case text-(--paper)/60">{k.u}</span>
+            </p>
+            <p className="rd-body mt-1.5 text-[12.5px] leading-tight text-(--paper)/70">{k.l}</p>
+          </div>
+        ))}
       </div>
 
+      {/* Testimonio: la cara del caso, la frase y de qué negocio es. */}
       <Link href="/testimonials" className="cs-card cs-card--link block p-4">
         <div className="flex items-center justify-between">
-          <Tag>Clientes</Tag>
-          <ArrowUpRight size={14} className="text-(--paper)/50" aria-hidden />
+          <Tag>Lo que dicen</Tag>
+          <span className="flex gap-1" aria-hidden>
+            {quotes.map((_, k) => (
+              <span key={k} className={`h-1 rounded-full transition-all ${k === q ? "w-4 bg-(--signal)" : "w-1.5 bg-(--paper)/20"}`} />
+            ))}
+          </span>
         </div>
         <AnimatePresence mode="wait" initial={false}>
           <m.div
             key={quote.id}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.35 }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.35, ease: EASE_OUT }}
           >
-            <p className="rd-body mt-3 line-clamp-3 text-[14px] leading-snug text-(--paper)/90">
-              «{quote.quote}»
+            <p className="rd-body mt-3 text-[1.05rem] leading-snug tracking-[-0.01em] text-(--paper)">
+              «{quote.highlight}»
             </p>
-            <p className="rd-label mt-3 text-[10px] text-(--paper)/55">
-              {quote.name} · <span className="text-(--signal)">{quote.company}</span>
-            </p>
+            <p className="rd-body mt-2 line-clamp-2 text-[13px] leading-snug text-(--paper)/60">{quote.quote}</p>
+            <div className="mt-3 flex items-center gap-2.5">
+              {quote.projectSlug && <Thumb slug={quote.projectSlug} size={30} />}
+              <span className="min-w-0">
+                <span className="rd-body block text-[13px] text-(--paper)">{quote.name}</span>
+                <span className="rd-label block text-[9.5px]" style={{ color: qAccent }}>
+                  {quote.company}
+                </span>
+              </span>
+            </div>
           </m.div>
         </AnimatePresence>
       </Link>
@@ -151,29 +170,23 @@ function InicioView() {
           <span className="rd-label text-[10px] text-(--signal)">En vivo</span>
         </div>
         <p className="rd-body mt-3 text-[1.05rem] leading-tight text-(--paper)">
-          La oficina está abierta.{" "}
-          <span className="rd-serif text-[1.15em]">Entrá al mapa</span> y paseá por el estudio.
+          La oficina está abierta. <span className="rd-serif text-[1.15em]">Entrá al mapa</span> y paseá por el estudio.
         </p>
-        <ArrowUpRight
-          size={16}
-          aria-hidden
-          className="absolute top-4 right-4 text-(--paper)/50 transition-transform group-hover:rotate-45"
-        />
+        <ArrowUpRight size={16} aria-hidden className="absolute top-4 right-4 text-(--paper)/50 transition-transform group-hover:rotate-45" />
       </Link>
 
-      <div className="cs-card p-3">
-        <div className="px-1 pb-2">
-          <Tag>Trabajamos con</Tag>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
+      <div className="cs-card p-4">
+        <Tag>Trabajamos con</Tag>
+        {/* Los nombres enteros: antes se cortaban en dos columnas. */}
+        <div className="mt-3 flex flex-wrap gap-1.5">
           {cases.map((p) => (
             <a
               key={p.slug}
               href={`#caso-${p.slug}`}
-              className="flex h-12 items-center gap-2 rounded-xl bg-(--paper)/[0.04] px-3 transition-colors hover:bg-(--paper)/[0.08]"
+              className="rd-body flex items-center gap-1.5 rounded-full border border-(--paper)/12 py-1 pr-3 pl-1 text-[12.5px] text-(--paper)/85 transition-colors hover:border-(--paper)/35 hover:text-(--paper)"
             >
-              <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: p.brand?.accent ?? "var(--signal)" }} />
-              <span className="rd-body truncate text-[12.5px] text-(--paper)/85">{p.name}</span>
+              <Thumb slug={p.slug} size={20} />
+              {p.name}
             </a>
           ))}
         </div>
@@ -182,39 +195,68 @@ function InicioView() {
   );
 }
 
+/** El caso cuya tarjeta está en pantalla, para marcarlo en el índice. */
+function useCaseInView() {
+  const [slug, setSlug] = useState<string | null>(null);
+  useEffect(() => {
+    const els = [...document.querySelectorAll<HTMLElement>('[id^="caso-"]')];
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) if (e.isIntersecting) setSlug(e.target.id.slice(5));
+      },
+      { rootMargin: "-40% 0px -45% 0px" },
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, []);
+  return slug;
+}
+
 function TrabajosView() {
+  const current = useCaseInView();
   return (
     <>
-      <div className="cs-card p-4">
-        <Tag>Índice de casos</Tag>
-        <p className="rd-body mt-3 text-[14px] leading-snug text-(--paper)/75">
-          {cases.length} proyectos, todos online. Tocá uno para ir a su tarjeta.
+      <div className="flex items-end justify-between gap-3 px-1">
+        <p className="rd-body text-[1.15rem] leading-tight tracking-[-0.02em]">
+          {cases.length} casos, <span className="rd-serif text-[1.15em] text-(--signal)">todos online</span>
         </p>
+        <Link href="/work" className="rd-label shrink-0 text-[10px] text-(--paper)/55 hover:text-(--paper)">
+          Ver todos ↗
+        </Link>
       </div>
-      <ol className="cs-card divide-y divide-(--paper)/[0.07] overflow-hidden">
-        {cases.map((p, i) => (
-          <li key={p.slug}>
-            <a
-              href={`#caso-${p.slug}`}
-              className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-(--paper)/[0.04]"
-            >
-              <span className="rd-label w-5 text-[10px] text-(--paper)/40">{String(i + 1).padStart(2, "0")}</span>
-              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: p.brand?.accent ?? "var(--signal)" }} />
-              <span className="min-w-0 flex-1">
-                <span className="rd-body block truncate text-[14px] text-(--paper)">{p.name}</span>
-                <span className="rd-body block truncate text-[11.5px] text-(--paper)/50">{p.category}</span>
-              </span>
-              <span className="rd-label text-[10px] text-(--paper)/40 transition-colors group-hover:text-(--signal)">
-                {p.year}
-              </span>
-            </a>
-          </li>
-        ))}
+      <ol className="flex flex-col gap-2">
+        {cases.map((p, i) => {
+          const on = current === p.slug;
+          const a = p.brand?.accent ?? "#ff4d2e";
+          return (
+            <li key={p.slug}>
+              <a
+                href={`#caso-${p.slug}`}
+                aria-current={on ? "true" : undefined}
+                className={`cs-card group flex items-center gap-3 p-2.5 pr-3.5 transition-[border-color,background-color] duration-300 ${
+                  on ? "bg-(--cs-card-2)" : "hover:bg-(--cs-card-2)"
+                }`}
+                style={on ? { borderColor: `color-mix(in srgb, ${a} 60%, transparent)` } : undefined}
+              >
+                <Thumb slug={p.slug} size={48} />
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2">
+                    <span className="rd-label text-[9.5px] text-(--paper)/35">{String(i + 1).padStart(2, "0")}</span>
+                    <span className="rd-body text-[14.5px] leading-tight text-(--paper)">{p.name}</span>
+                  </span>
+                  <span className="rd-body mt-0.5 block text-[12px] leading-snug text-(--paper)/55">{p.category}</span>
+                </span>
+                <span
+                  className="rd-label shrink-0 rounded-full px-2 py-1 text-[9.5px] transition-colors"
+                  style={on ? { background: a, color: "#0b0b0c" } : { background: "rgb(242 238 230 / 0.06)", color: "rgb(242 238 230 / 0.55)" }}
+                >
+                  {p.year}
+                </span>
+              </a>
+            </li>
+          );
+        })}
       </ol>
-      <Link href="/work" className="cs-card cs-card--link flex items-center justify-between p-4">
-        <span className="rd-body text-[14px]">Ver todos los casos</span>
-        <ArrowUpRight size={16} aria-hidden />
-      </Link>
     </>
   );
 }
@@ -233,8 +275,7 @@ function PiezasView() {
       <div className="cs-card relative overflow-hidden p-4">
         <Tag>Cómo usarlo</Tag>
         <p className="rd-body mt-3 text-[1.05rem] leading-tight">
-          Agarrá cualquier pieza del lienzo y <span className="rd-serif text-[1.15em] text-(--signal)">movela</span>.
-          Todas salieron de proyectos en producción.
+          Arrastrá la pared para <span className="rd-serif text-[1.15em] text-(--signal)">recorrerla</span>. Cada pieza es una función real de un sitio en producción.
         </p>
       </div>
       <div className="cs-card p-4">
@@ -418,19 +459,8 @@ function ContactoView() {
         </button>
       </form>
       <div className="grid grid-cols-2 gap-2">
-        <a
-          href={SITE.whatsapp}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="cs-card cs-card--link flex items-center gap-2 p-3 text-[13px]"
-        >
-          <MessageCircle size={15} className="text-(--signal)" aria-hidden />
-          <span className="rd-body">WhatsApp</span>
-        </a>
-        <a href={`mailto:${SITE.email}`} className="cs-card cs-card--link flex items-center gap-2 p-3 text-[13px]">
-          <Mail size={15} className="text-(--signal)" aria-hidden />
-          <span className="rd-body">Mail</span>
-        </a>
+        <WhatsAppButton />
+        <MailButton />
       </div>
     </>
   );

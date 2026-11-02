@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { AnimatePresence, m } from "framer-motion";
 import { ChevronUp, Plus } from "lucide-react";
 import { testimonials } from "@/data/team";
+import { projects } from "@/data/projects";
+import { useReducedMotion } from "@/lib/use-reduced-motion";
 import { SITE } from "@/data/site";
 import { EASE_OUT } from "@/components/rd/primitives";
 import { PanelBody, PanelMenu } from "@/components/consola/panel";
@@ -32,11 +35,33 @@ export function ConsolaShell({ children }: { children: ReactNode }) {
   );
 }
 
+/** Barra arriba de todo: al bajar, el SE7EN se achica a S7N (las E se pliegan). */
+function useScrolled(px = 40) {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const check = () => setOn(window.scrollY > px);
+    check();
+    window.addEventListener("scroll", check, { passive: true });
+    return () => window.removeEventListener("scroll", check);
+  }, [px]);
+  return on;
+}
+
 function Logo() {
+  const small = useScrolled();
   return (
-    <Link href="/consola" aria-label="Se7en Studio, inicio" className="rd-display flex items-baseline text-[1.65rem] leading-none tracking-[-0.04em]">
-      SE<span className="text-(--signal)">7</span>EN
-      <span className="rd-label ml-2 hidden text-[9px] tracking-[0.18em] text-(--paper)/50 sm:inline">Studio</span>
+    <Link
+      href="/consola"
+      aria-label="Se7en Studio, inicio"
+      data-small={small}
+      className="cs-logo rd-display flex items-baseline text-[1.65rem] leading-none tracking-[-0.04em]"
+    >
+      <span aria-hidden className="flex items-baseline">
+        S<span className="cs-logo__fold">E</span>
+        <span className="text-(--signal)">7</span>
+        <span className="cs-logo__fold">E</span>N
+      </span>
+      <span className="cs-logo__fold rd-label ml-2 hidden text-[9px] tracking-[0.18em] text-(--paper)/50 sm:inline-block">Studio</span>
     </Link>
   );
 }
@@ -81,25 +106,56 @@ function TopBar() {
   );
 }
 
-/** Pastilla de la barra: los testimonios publicados corren de un lado al otro. */
+/**
+ * Pastilla de la barra: un testimonio por vez, con la cara del caso y su
+ * color, que sube y se reemplaza. (Antes corría como marquesina y el texto
+ * entraba y salía cortado por los costados.)
+ */
 function Ticker() {
   const quotes = testimonials.filter((t) => t.published);
-  const items = [...quotes, ...quotes];
+  const reduced = useReducedMotion();
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (reduced) return;
+    const id = window.setInterval(() => setI((v) => (v + 1) % quotes.length), 4200);
+    return () => window.clearInterval(id);
+  }, [quotes.length, reduced]);
+  const t = quotes[i];
+  const p = projects.find((x) => x.slug === t.projectSlug);
+  const accent = p?.brand?.accent ?? "#ff4d2e";
   return (
-    <div className="flex h-11 w-full max-w-[640px] items-center gap-1 rounded-full border border-(--paper)/12 bg-[#0d0d0f] p-1">
+    <div className="flex h-11 w-full max-w-[640px] items-center gap-2 rounded-full border border-(--paper)/12 bg-[#0d0d0f] p-1">
       <span className="rd-label flex h-full shrink-0 items-center gap-1.5 rounded-full bg-(--paper)/[0.07] px-3 text-[10px] text-(--paper)">
         <span className="h-1.5 w-1.5 rounded-full bg-(--signal)" aria-hidden />
         Clientes
       </span>
-      <div className="cs-ticker min-w-0 flex-1 overflow-hidden" aria-label="Lo que dicen nuestros clientes">
-        <ul className="cs-ticker__track flex w-max gap-10 pl-4">
-          {items.map((t, i) => (
-            <li key={i} aria-hidden={i >= quotes.length} className="rd-body text-[12.5px] whitespace-nowrap text-(--paper)/65">
-              «{t.highlight}» <span className="text-(--paper)/40">— {t.name}, {t.company}</span>
-            </li>
-          ))}
-        </ul>
+      <div className="relative h-full min-w-0 flex-1 overflow-hidden" aria-live="off">
+        <AnimatePresence mode="popLayout" initial={false}>
+          <m.div
+            key={t.id}
+            initial={{ y: "100%", opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: "-100%", opacity: 0 }}
+            transition={{ duration: 0.5, ease: EASE_OUT }}
+            className="absolute inset-0 flex items-center gap-2.5"
+          >
+            {p && (
+              <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded-full ring-1 ring-white/15">
+                <Image src={p.screens?.mobile ?? p.image} alt="" fill sizes="56px" className="object-cover object-top" />
+              </span>
+            )}
+            <span className="rd-body min-w-0 truncate text-[13px] text-(--paper)">
+              «{t.highlight}»
+              <span className="ml-2 text-[12px] text-(--paper)/45">
+                {t.name} · <span style={{ color: accent }}>{t.company}</span>
+              </span>
+            </span>
+          </m.div>
+        </AnimatePresence>
       </div>
+      <span className="rd-label hidden shrink-0 text-[9.5px] text-(--paper)/40 tabular-nums xl:inline">
+        {String(i + 1).padStart(2, "0")}/{String(quotes.length).padStart(2, "0")}
+      </span>
       <Link
         href="/testimonials"
         className="rd-body flex h-full shrink-0 items-center gap-1 rounded-full bg-(--paper)/[0.07] px-3.5 text-[12.5px] text-(--paper) transition-colors hover:bg-(--paper)/15"

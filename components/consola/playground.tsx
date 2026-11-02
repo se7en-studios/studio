@@ -1,181 +1,205 @@
 "use client";
 
-import { useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { Hand, MousePointer2, PenTool, Sparkles, Square, Type, Frame } from "lucide-react";
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { Frame, Hand, MousePointer2, PenTool, Sparkles, Square, Type } from "lucide-react";
+import { pared, type PiezaPared } from "@/data/pared";
+import { projects } from "@/data/projects";
+import { useReducedMotion } from "@/lib/use-reduced-motion";
 import { RdButton } from "@/components/rd/primitives";
 import { CsSection } from "@/components/consola/section";
 
-// Piezas: un lienzo de editor con componentes de proyectos reales, hechos en
-// código, que se arrastran. Dos cursores con nombre andan dando vueltas.
+// La pared: un lienzo grande con funciones reales de los casos (capturas de
+// los sitios en vivo y de las apps por dentro, ver scripts/pared.mjs). Se
+// arrastra para recorrerlo; el titular queda quieto en el medio.
 
-type Piece = {
-  id: string;
-  layer: string;
-  /** Posición inicial en escritorio y en celular (en % del lienzo); `mobile: false` la saca del celular. */
-  at: { x: string; y: string; mx: string; my: string; mobile?: false };
-  body: ReactNode;
-};
+const COL = 300;
+const GAP = 30;
+/** Lo que ocupa el nombre de la capa arriba de cada pieza. */
+const LABEL = 24;
+const COLS = 7;
+/** Las capturas de celular son muy altas: se cortan a esto, desde arriba. */
+const MAX_H = 400;
+/** Hueco libre en el medio del lienzo, para el titular. */
+const HOLE = { w: 560, h: 380 };
 
-const PIECES: Piece[] = [
-  {
-    id: "turno",
-    layer: "Muzzaga_Turno",
-    at: { x: "4%", y: "9%", mx: "-8%", my: "3%" },
-    body: (
-      <div className="w-[236px] rounded-2xl bg-[#17120e] p-4 text-[#f6efe6] ring-1 ring-[#E8722A]/40">
-        <p className="rd-label text-[9px] text-[#E8722A]">Cancha 2 · Hoy</p>
-        <p className="rd-body mt-1 text-[15px]">Elegí tu horario</p>
-        <div className="mt-3 grid grid-cols-3 gap-1.5">
-          {["18:00", "19:30", "21:00"].map((h) => (
-            <span
-              key={h}
-              className={`rd-body rounded-lg py-1.5 text-center text-[12px] ${
-                h === "19:30" ? "bg-[#E8722A] text-black" : "bg-white/[0.07]"
-              }`}
-            >
-              {h}
-            </span>
-          ))}
-        </div>
-        <span className="rd-body mt-3 block rounded-lg bg-white py-2 text-center text-[12.5px] font-medium text-black">
-          Reservar con seña
-        </span>
-      </div>
-    ),
-  },
-  {
-    id: "pedido",
-    layer: "Takefyy_Pedido",
-    at: { x: "9%", y: "62%", mx: "-12%", my: "79%" },
-    body: (
-      <div className="w-[230px] rounded-2xl bg-[#fbf7f2] p-4 text-[#1b1410]">
-        <div className="flex items-center justify-between">
-          <p className="rd-body text-[14px] font-medium">Pedido #128</p>
-          <span className="rd-label rounded-full bg-[#FF6B2C]/15 px-2 py-0.5 text-[9px] text-[#c4471a]">Nuevo</span>
-        </div>
-        <ul className="rd-body mt-2 space-y-1 text-[12.5px] text-black/70">
-          <li className="flex justify-between">
-            <span>2× Lomito completo</span>
-          </li>
-          <li className="flex justify-between">
-            <span>1× Papas rústicas</span>
-          </li>
-        </ul>
-        <span className="rd-body mt-3 block rounded-lg bg-[#25D366] py-2 text-center text-[12.5px] font-medium text-black">
-          Enviar por WhatsApp
-        </span>
-      </div>
-    ),
-  },
-  {
-    id: "stock",
-    layer: "PoneLaPava_Stock",
-    at: { x: "72%", y: "6%", mx: "60%", my: "-1%" },
-    body: (
-      <div className="w-[200px] overflow-hidden rounded-2xl bg-[#efe5d4] text-[#2b2116]">
-        <div className="relative h-24 bg-[radial-gradient(circle_at_50%_70%,#C8A46E,#8a6a3f)]">
-          <span className="rd-label absolute top-2 left-2 rounded-full bg-[#2b2116] px-2 py-0.5 text-[9px] text-[#efe5d4]">
-            Quedan 3
-          </span>
-        </div>
-        <div className="p-3">
-          <p className="rd-body text-[14px] font-medium">Mate Imperial</p>
-          <p className="rd-body text-[12px] text-black/55">Calabaza y virola de alpaca</p>
-        </div>
-      </div>
-    ),
-  },
-  {
-    id: "alerta",
-    layer: "Sentinel_Alerta",
-    at: { x: "76%", y: "44%", mx: "0%", my: "0%", mobile: false },
-    body: (
-      <div className="flex w-[210px] items-center gap-3 rounded-2xl bg-[#0d1a14] p-3.5 text-[#dff8ea] ring-1 ring-[#94F1BE]/30">
-        <span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#94F1BE]/10">
-          <span className="rd-ping absolute inset-2 rounded-full bg-[#ff5a3c]/60" />
-          <span className="relative h-2.5 w-2.5 rounded-full bg-[#ff5a3c]" />
-        </span>
-        <span>
-          <span className="rd-body block text-[13.5px]">Foco detectado</span>
-          <span className="rd-label block text-[9px] text-[#94F1BE]">Hace 4 min · satélite</span>
-        </span>
-      </div>
-    ),
-  },
-  {
-    id: "semana",
-    layer: "Apex_Semana",
-    at: { x: "68%", y: "70%", mx: "52%", my: "81%" },
-    body: (
-      <div className="w-[230px] rounded-2xl bg-[#F5C400] p-4 text-black">
-        <p className="rd-label text-[9px]">Semana 3 · Acumulación</p>
-        <div className="mt-3 flex h-14 items-end gap-1.5">
-          {[40, 62, 55, 78, 70, 90, 30].map((h, i) => (
-            <span key={i} className="flex-1 rounded-sm bg-black/85" style={{ height: `${h}%` }} />
-          ))}
-        </div>
-        <p className="rd-body mt-2 text-[12px] text-black/70">Volumen +12% vs. la anterior</p>
-      </div>
-    ),
-  },
-  {
-    id: "cotizador",
-    layer: "Se7en_Cotizador",
-    at: { x: "36%", y: "3%", mx: "0%", my: "0%", mobile: false },
-    body: (
-      <div className="w-[220px] rounded-2xl bg-(--signal) p-4 text-(--ink)">
-        <p className="rd-label text-[9px]">Cotizador</p>
-        <p className="rd-body mt-1 text-[14px] font-medium">Tienda online</p>
-        <div className="relative mt-3 h-1.5 rounded-full bg-black/20">
-          <span className="absolute inset-y-0 left-0 w-[58%] rounded-full bg-black" />
-          <span className="absolute top-1/2 left-[58%] h-4 w-4 -translate-1/2 rounded-full border-2 border-black bg-(--signal)" />
-        </div>
-        <p className="rd-label mt-3 text-[9px]">Online en 2–3 semanas</p>
-      </div>
-    ),
-  },
-];
+const accent = Object.fromEntries(projects.map((p) => [p.slug, p.brand?.accent ?? "#ff4d2e"]));
+
+type Placed = PiezaPared & { x: number; y: number; dh: number };
+
+/** Reparte las piezas en columnas (la más corta primero), salteando el hueco del medio. */
+function layout() {
+  const width = COLS * (COL + GAP) + GAP;
+  const total = pared.reduce((s, p) => s + Math.min(MAX_H, (COL * p.h) / p.w) + LABEL + GAP, 0);
+  const height = Math.max(HOLE.h + 700, total / COLS + HOLE.h / 2 + GAP * 2);
+  const hole = { x0: (width - HOLE.w) / 2, x1: (width + HOLE.w) / 2, y0: (height - HOLE.h) / 2, y1: (height + HOLE.h) / 2 };
+  const cols = Array.from({ length: COLS }, (_, i) => ({ x: GAP + i * (COL + GAP), y: GAP + (i % 2) * 70 }));
+  const placed: Placed[] = [];
+  for (const p of pared) {
+    const dh = Math.min(MAX_H, (COL * p.h) / p.w);
+    const c = cols.reduce((a, b) => (b.y < a.y ? b : a));
+    let y = c.y;
+    const inHoleX = c.x < hole.x1 && c.x + COL > hole.x0;
+    if (inHoleX && y < hole.y1 && y + LABEL + dh > hole.y0) y = hole.y1 + GAP;
+    placed.push({ ...p, x: c.x, y, dh });
+    c.y = y + LABEL + dh + GAP;
+  }
+  return { placed, width, height: Math.max(height, ...cols.map((c) => c.y)), hole };
+}
+
+/** El reparto no depende de nada de afuera: se calcula una vez. */
+const { placed, width, height, hole } = layout();
 
 export function CsPlayground() {
-  const [selected, setSelected] = useState<string | null>(null);
-  const top = useRef(10);
+  const reduced = useReducedMotion();
+  const box = useRef<HTMLDivElement>(null);
+  const canvas = useRef<HTMLDivElement>(null);
+  const pos = useRef({ x: 0, y: 0 });
+  const vel = useRef({ x: 0, y: 0 });
+  const drag = useRef<{ id: number; sx: number; sy: number; ox: number; oy: number; t: number; moved: boolean } | null>(null);
+  const moved = useRef(false);
+  const raf = useRef(0);
+  const [grabbing, setGrabbing] = useState(false);
+
+  const apply = () => {
+    const el = canvas.current;
+    if (el) el.style.transform = `translate3d(${pos.current.x}px, ${pos.current.y}px, 0)`;
+  };
+  /** El lienzo no se va del todo: siempre queda un borde de piezas a la vista. */
+  const clamp = (x: number, y: number) => {
+    const b = box.current;
+    if (!b) return { x, y };
+    const m = 120;
+    return {
+      x: Math.min(m, Math.max(b.clientWidth - width - m, x)),
+      y: Math.min(m, Math.max(b.clientHeight - height - m, y)),
+    };
+  };
+
+  // Arranca con el hueco del titular centrado en la pantalla (el lienzo puede ser más alto abajo).
+  useEffect(() => {
+    const center = () => {
+      const b = box.current;
+      if (!b) return;
+      pos.current = clamp(b.clientWidth / 2 - (hole.x0 + hole.x1) / 2, b.clientHeight / 2 - (hole.y0 + hole.y1) / 2);
+      apply();
+    };
+    center();
+    window.addEventListener("resize", center);
+    return () => {
+      window.removeEventListener("resize", center);
+      cancelAnimationFrame(raf.current);
+    };
+  }, []);
+
+  const moveBy = (dx: number, dy: number) => {
+    pos.current = clamp(pos.current.x + dx, pos.current.y + dy);
+    apply();
+  };
+
+  /** Al soltar, sigue un poco con la velocidad que traía. */
+  const glide = () => {
+    if (reduced) return;
+    const step = () => {
+      vel.current.x *= 0.92;
+      vel.current.y *= 0.92;
+      if (Math.abs(vel.current.x) + Math.abs(vel.current.y) < 0.3) return;
+      moveBy(vel.current.x, vel.current.y);
+      raf.current = requestAnimationFrame(step);
+    };
+    raf.current = requestAnimationFrame(step);
+  };
+
+  const onDown = (e: PointerEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest("[data-no-drag]")) return;
+    cancelAnimationFrame(raf.current);
+    drag.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY, ox: pos.current.x, oy: pos.current.y, t: e.timeStamp, moved: false };
+    vel.current = { x: 0, y: 0 };
+  };
+  const onMove = (e: PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    const dx = e.clientX - d.sx, dy = e.clientY - d.sy;
+    if (!d.moved && Math.hypot(dx, dy) > 6) {
+      d.moved = true;
+      setGrabbing(true);
+      e.currentTarget.setPointerCapture(e.pointerId);
+    }
+    if (!d.moved) return;
+    const prev = pos.current;
+    pos.current = clamp(d.ox + dx, d.oy + dy);
+    const dt = Math.max(1, e.timeStamp - d.t);
+    vel.current = { x: ((pos.current.x - prev.x) / dt) * 16, y: ((pos.current.y - prev.y) / dt) * 16 };
+    d.t = e.timeStamp;
+    apply();
+  };
+  const onUp = () => {
+    const d = drag.current;
+    drag.current = null;
+    setGrabbing(false);
+    moved.current = !!d?.moved;
+    if (d?.moved) glide();
+  };
+  const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const k = { ArrowLeft: [80, 0], ArrowRight: [-80, 0], ArrowUp: [0, 80], ArrowDown: [0, -80] }[e.key];
+    if (!k) return;
+    e.preventDefault();
+    moveBy(k[0], k[1]);
+  };
 
   return (
-    <CsSection id="piezas" label="Piezas" className="pt-28 md:pt-40">
-      <div className="cs-canvas relative h-[740px] overflow-hidden rounded-(--cs-radius) border border-(--paper)/[0.07] md:h-[680px]">
-        <p className="rd-body pointer-events-none absolute bottom-7 left-6 hidden items-center gap-2 text-[13px] whitespace-nowrap text-(--paper)/55 md:flex">
-          <Hand size={15} aria-hidden /> Arrastrá las piezas
-        </p>
+    <CsSection id="piezas" label="Funciones de nuestros proyectos" className="pt-28 md:pt-40">
+      <div
+        ref={box}
+        tabIndex={0}
+        role="region"
+        aria-label="Pared de funciones de nuestros proyectos. Arrastrá o usá las flechas para recorrerla."
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onUp}
+        onKeyDown={onKey}
+        // Un arrastre no es un clic: si se movió, no se abre la pieza de abajo.
+        onClickCapture={(e) => {
+          if (moved.current) {
+            e.preventDefault();
+            e.stopPropagation();
+            moved.current = false;
+          }
+        }}
+        className={`cs-wall cs-canvas relative h-[620px] overflow-hidden rounded-(--cs-radius) border border-(--paper)/[0.07] select-none md:h-[720px] ${
+          grabbing ? "cursor-grabbing" : "cursor-grab"
+        }`}
+      >
+        <div ref={canvas} className="absolute top-0 left-0 will-change-transform" style={{ width, height }}>
+          {placed.map((p) => (
+            <WallPiece key={p.layer} piece={p} />
+          ))}
+        </div>
 
+        {/* Penumbra en el medio, para que el titular se lea sobre lo que pasa por abajo. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(30%_28%_at_50%_50%,rgb(15_15_17/0.92),rgb(15_15_17/0.6)_60%,transparent_100%)]"
+        />
         <div className="pointer-events-none absolute inset-0 z-[5] flex flex-col items-center justify-center px-6 text-center">
-          <p className="rd-body mb-4 flex items-center gap-2 text-[13px] text-(--paper)/55 md:hidden">
-            <Hand size={15} aria-hidden /> Arrastrá las piezas
+          <p className="rd-body mb-5 flex items-center gap-2 text-[13px] text-(--paper)/55">
+            <Hand size={15} aria-hidden /> Arrastrá para moverte
           </p>
-          <h2 className="cs-h2 max-w-[13ch] text-[clamp(2rem,4vw,3.6rem)]">
-            Piezas que la gente <span className="rd-serif text-(--signal)">usa</span> todos los días
+          <h2 className="cs-h2 max-w-[15ch] text-[clamp(1.8rem,3.2vw,3rem)]">
+            Funciones que ya <span className="rd-serif text-(--signal)">venden</span> por nuestros clientes
           </h2>
-          <p className="rd-body mt-4 max-w-[32ch] text-[15px] text-(--paper)/65">
-            Cada una salió de un proyecto en producción. Movelas: son código de verdad.
+          <p className="rd-body mt-3 max-w-[34ch] text-[14px] text-(--paper)/65">
+            Paneles, cartas, mapas y turneros en producción. Recorré la pared o tocá una pieza para ver el caso.
           </p>
-          <div className="pointer-events-auto mt-7">
-            <RdButton href="/services">Ver servicios</RdButton>
+          <div data-no-drag className="pointer-events-auto mt-7">
+            <RdButton href="/work">Ver los casos</RdButton>
           </div>
         </div>
 
-        {PIECES.map((piece) => (
-          <Draggable
-            key={piece.id}
-            piece={piece}
-            selected={selected === piece.id}
-            onGrab={() => {
-              setSelected(piece.id);
-              return ++top.current;
-            }}
-          />
-        ))}
-
-        <Cursor name="Franco" className="cs-cursor-a top-[30%] left-[22%]" color="var(--signal)" />
-        <Cursor name="Federico" className="cs-cursor-b top-[64%] left-[64%]" color="var(--paper)" />
+        <Cursor name="Franco" className="cs-cursor-a top-[24%] left-[18%]" color="var(--signal)" />
+        <Cursor name="Federico" className="cs-cursor-b top-[66%] left-[70%]" color="var(--paper)" />
 
         <div
           aria-hidden
@@ -191,7 +215,7 @@ export function CsPlayground() {
           ))}
           <span className="mx-1 hidden h-6 w-px bg-(--paper)/10 sm:block" />
           <span className="rd-label hidden h-9 items-center rounded-xl bg-(--paper)/[0.06] px-3 text-[10px] text-(--paper)/60 sm:flex">
-            {"</>"} Código
+            {"</>"} {pared.length} funciones
           </span>
         </div>
       </div>
@@ -199,59 +223,39 @@ export function CsPlayground() {
   );
 }
 
-function Draggable({
-  piece,
-  selected,
-  onGrab,
-}: {
-  piece: Piece;
-  selected: boolean;
-  onGrab: () => number;
-}) {
-  const el = useRef<HTMLDivElement>(null);
-  const pos = useRef({ x: 0, y: 0 });
-  const drag = useRef<{ id: number; sx: number; sy: number; ox: number; oy: number } | null>(null);
-
+function WallPiece({ piece: p }: { piece: Placed }) {
   return (
-    <div
-      ref={el}
-      className={`cs-piece absolute z-10 left-(--mx) top-(--my) origin-top-left scale-[0.7] select-none md:left-(--x) md:top-(--y) md:block md:scale-100 ${
-        piece.at.mobile === false ? "hidden" : ""
-      }`}
-      style={{ "--x": piece.at.x, "--y": piece.at.y, "--mx": piece.at.mx, "--my": piece.at.my } as CSSProperties}
-      data-selected={selected}
-      onPointerDown={(e) => {
-        const node = el.current;
-        if (!node) return;
-        node.setPointerCapture(e.pointerId);
-        node.style.zIndex = String(onGrab());
-        drag.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY, ox: pos.current.x, oy: pos.current.y };
-      }}
-      onPointerMove={(e) => {
-        const d = drag.current;
-        const node = el.current;
-        if (!d || !node || d.id !== e.pointerId) return;
-        pos.current = { x: d.ox + e.clientX - d.sx, y: d.oy + e.clientY - d.sy };
-        node.style.translate = `${pos.current.x}px ${pos.current.y}px`;
-      }}
-      onPointerUp={() => (drag.current = null)}
-      onPointerCancel={() => (drag.current = null)}
+    <Link
+      href={`/work/${p.slug}`}
+      draggable={false}
+      className="group absolute block"
+      style={{ left: p.x, top: p.y, width: COL }}
     >
-      <p className="rd-label mb-1.5 flex items-center gap-1.5 text-[9px] text-(--paper)/45">
-        <span aria-hidden>◇</span> {piece.layer}
-      </p>
-      <div className="cs-piece__body relative shadow-[0_24px_50px_-20px_#000]">
-        {piece.body}
-        {selected && (
-          <>
-            <span className="cs-handle -top-[8px] -left-[8px]" />
-            <span className="cs-handle -top-[8px] -right-[8px]" />
-            <span className="cs-handle -bottom-[8px] -left-[8px]" />
-            <span className="cs-handle -right-[8px] -bottom-[8px]" />
-          </>
-        )}
-      </div>
-    </div>
+      <span className="rd-label mb-2 flex h-4 items-center gap-1.5 text-[9.5px] text-(--paper)/45 transition-colors group-hover:text-(--paper)/80">
+        <span aria-hidden style={{ color: accent[p.slug] }}>
+          ◆
+        </span>
+        {p.layer}
+      </span>
+      <span
+        className="relative block overflow-hidden rounded-[18px] bg-[#151517] shadow-[-10px_24px_40px_-18px_#000] ring-1 ring-white/10 transition-[transform,box-shadow] duration-500 ease-(--ease-out) group-hover:-translate-y-1 group-hover:ring-2 group-hover:ring-(--signal)/60"
+        style={{ height: p.dh }}
+      >
+        <Image
+          src={p.src}
+          alt={p.caption}
+          width={p.w}
+          height={p.h}
+          draggable={false}
+          sizes="300px"
+          className="pointer-events-none block h-full w-full object-cover object-top"
+        />
+        <span className="rd-body absolute inset-x-3 bottom-3 flex translate-y-2 items-center gap-2 rounded-xl bg-black/70 px-3 py-2 text-[12.5px] text-white opacity-0 backdrop-blur transition-[opacity,transform] duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+          <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: accent[p.slug] }} />
+          {p.caption}
+        </span>
+      </span>
+    </Link>
   );
 }
 
@@ -259,10 +263,7 @@ function Cursor({ name, className, color }: { name: string; className: string; c
   return (
     <div aria-hidden className={`pointer-events-none absolute z-30 ${className}`}>
       <MousePointer2 size={20} fill={color} stroke="#070708" strokeWidth={1.4} />
-      <span
-        className="rd-body ml-4 -mt-1 block rounded-md px-2 py-0.5 text-[12px]"
-        style={{ background: color, color: "#0b0b0c" }}
-      >
+      <span className="rd-body ml-4 -mt-1 block rounded-md px-2 py-0.5 text-[12px]" style={{ background: color, color: "#0b0b0c" }}>
         {name}
       </span>
     </div>
