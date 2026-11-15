@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="es-AR" data-hero="a">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SE7EN Studio · Dos fundadores. Cero intermediarios.</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0b0b0c">
+<link rel="icon" href="/assets/brand/simbolo.png">
+<link rel="apple-touch-icon" href="/assets/brand/simbolo.png">
+<meta name="description" content="Versión de prueba del nuevo sitio de SE7EN, estudio de diseño y desarrollo de Federico Martín y Franco Riquero.">
+<link rel="preload" href="/assets/fonts/archivo-wdth-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/site.css">
+<script>
+  /* Antes del primer pintado: elige el hero y el modo de captura sin parpadeo */
+  (function () {
+    var q = new URLSearchParams(location.search), d = document.documentElement;
+    d.classList.add('js');
+    if (q.get('hero') === 'b') d.dataset.hero = 'b';
+    if (q.has('capture')) d.classList.add('capture');
+    if (q.has('rm')) d.classList.add('rm');
+    if (matchMedia('(hover: none)').matches) d.classList.add('touch');
+  })();
+</script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="rings" viewBox="0 0 100 100">
+      <path d="M50 3A46 47 0 0 0 50 97A31 47 0 0 1 50 3Z" fill="currentColor"/>
+      <path d="M62 7A33 43 0 0 0 62 93A21 43 0 0 1 62 7Z" fill="currentColor"/>
+      <path d="M72 14A22 36 0 0 0 72 86A13 36 0 0 1 72 14Z" fill="currentColor"/>
+      <path d="M80 23A12 27 0 0 0 80 77A6 27 0 0 1 80 23Z" fill="currentColor"/>
+      <ellipse cx="90" cy="50" rx="4.2" ry="11" fill="currentColor"/>
+    </symbol>
+    <symbol id="i-arrow" viewBox="0 0 20 20"><path d="M4 10h11M11 5l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-ext" viewBox="0 0 20 20"><path d="M7 5h8v8M15 5L5 15" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 20 20"><path d="M6 4h3v12H6zM11 4h3v12h-3z" fill="currentColor"/></symbol>
+    <symbol id="i-play" viewBox="0 0 20 20"><path d="M6 4l10 6-10 6z" fill="currentColor"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 20 20"><path d="M12 4l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-next" viewBox="0 0 20 20"><path d="M8 4l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-check" viewBox="0 0 20 20"><path d="M4 10.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2.4"/></symbol>
+    <symbol id="i-drag" viewBox="0 0 20 20"><path d="M7 5l-4 5 4 5M13 5l4 5-4 5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  </defs>
+</svg>
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<header class="nav" data-nav>
+  <div class="nav-in">
+    <a class="nav-logo" href="#top" aria-label="SE7EN Studio, inicio"><img src="/assets/brand/logo.png" alt="" width="800" height="224"></a>
+    <nav class="nav-links" aria-label="Principal">
+      <a href="#proyectos">Proyectos</a>
+      <a href="#servicios">Servicios</a>
+      <a href="#estudio">Estudio</a>
+      <a href="#precios">Precios</a>
+      <a href="#contacto">Contacto</a>
+    </nav>
+    <span class="nav-time tnum" data-time>Catriel · --:--</span>
+    <a class="btn-7 nav-cta nav-cta-d" href="#contacto">Contanos tu idea</a>
+    <a class="btn-7 nav-cta nav-cta-m" href="#contacto">Hablemos</a>
+    <button class="nav-menu" type="button" aria-expanded="false" aria-controls="menu" data-menu-open>Menú <span class="bars" aria-hidden="true"></span></button>
+  </div>
+</header>
+
+<div class="sheet" id="menu" role="dialog" aria-modal="true" aria-label="Menú" hidden>
+  <div class="sheet-top">
+    <img src="/assets/brand/logo.png" alt="SE7EN Studio" width="800" height="224">
+    <button class="sheet-close" type="button" data-menu-close>Cerrar</button>
+  </div>
+  <ul class="sheet-links">
+    <li><a href="#proyectos">Proyectos <span>08</span></a></li>
+    <li><a href="#servicios">Servicios <span>04</span></a></li>
+    <li><a href="#estudio">Estudio <span>2 fundadores</span></a></li>
+    <li><a href="#precios">Precios <span>publicados</span></a></li>
+    <li><a href="#contacto">Contacto <span>directo</span></a></li>
+  </ul>
+  <div class="sheet-foot">
+    <a class="portal-link" href="#oficina" data-portal="office"><svg class="rings" aria-hidden="true"><use href="#rings"/></svg><span>Recorré <b>la oficina interactiva</b></span></a>
+    <div class="row"><a class="btn-7" href="#contacto">Contanos tu idea <svg class="arr" width="18" height="18" aria-hidden="true"><use href="#i-arrow"/></svg></a></div>
+  </div>
+</div>
+
+<main id="main">
+<!-- ═══ HERO ═══ -->
+<section class="hero" id="top" aria-labelledby="h1">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <p class="kicker">Estudio de diseño y desarrollo · <b>Catriel, Patagonia</b></p>
+      <h1 class="h1" id="h1"><span class="h1-a" data-h1a>Dos fundadores.</span><span class="h1-b" data-h1b>Cero intermediarios.</span></h1>
+      <p class="lead">Diseñamos y desarrollamos sitios de marca, tiendas online, plataformas a medida y experiencias interactivas. <span class="serif">Hablás directo con quienes hacen tu proyecto.</span></p>
+      <div class="ctas">
+        <a class="btn-7" href="#contacto">Contanos tu idea <svg class="arr" width="18" height="18" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+        <a class="link-7" href="#proyectos"><span class="l">Ver proyectos</span></a>
+      </div>
+      <div class="founders-mini only-b">
+        <span class="duo"><img src="/assets/team/federico.webp" alt="" width="44" height="44"><img src="/assets/team/franco.webp" alt="" width="44" height="44"></span>
+        <p><b>Federico Martín y Franco Riquero.</b><br>Producto y diseño · Desarrollo</p>
+      </div>
+      <a class="portal-link" href="#oficina" data-portal="office"><svg class="rings" aria-hidden="true"><use href="#rings"/></svg><span>O recorré <b>la oficina interactiva</b></span></a>
+    </div>
+
+    <!-- Hero A · El 7 como vitrina -->
+    <div class="seven only-a" data-seven aria-roledescription="carrusel" aria-label="Proyectos en pantalla">
+      <div class="seven-bar" data-bar>
+        <div class="layer cur"><img src="/assets/shots/muzzaga-2026-10.webp" srcset="/assets/shots/muzzaga-2026-10-800.webp 800w, /assets/shots/muzzaga-2026-10.webp 1600w" sizes="(max-width: 1099px) 92vw, 570px" alt="Sitio de Muzzaga Pádel en computadora" style="--y:27" width="1600" height="1000" fetchpriority="high"></div>
+      </div>
+      <div class="seven-stem" data-stem>
+        <div class="layer cur" style="--c:#0f1a33"><span class="glow"></span>
+          <div class="phone"><img class="scr" src="/assets/phones/muzzaga-mobile-2026-10.webp" alt="Sitio de Muzzaga Pádel en celular" width="600" height="1215"><img class="frm" src="/assets/phones/marco.webp" alt="" width="520" height="1058"></div>
+        </div>
+      </div>
+      <figure class="founder f-fed"><img src="/assets/team/federico-bw.webp" alt="" width="54" height="54"><figcaption><b>Federico Martín</b><span>Producto y diseño</span></figcaption></figure>
+      <figure class="founder f-fra"><img src="/assets/team/franco-bw.webp" alt="" width="54" height="54"><figcaption><b>Franco Riquero</b><span>Desarrollo</span></figcaption></figure>
+    </div>
+
+    <!-- Hero B · Portal -->
+    <div class="tunnel-box only-b" data-tunnel aria-label="Proyectos en pantalla">
+      <div class="tunnel">
+        <svg viewBox="0 0 640 700" aria-hidden="true" data-tunnel-rings></svg>
+      </div>
+    </div>
+  </div>
+  <div class="wrap">
+    <div class="hero-foot">
+      <ul class="svc-line" aria-label="Qué hacemos">
+        <li>Sitios de marca</li><li>Tiendas online</li><li>Plataformas a medida</li><li>IA y automatización</li><li>Experiencias interactivas</li>
+      </ul>
+      <div class="reel-ctl" data-reel-ctl>
+        <span class="num tnum"><b data-reel-i>01</b> / <span data-reel-total>04</span></span>
+        <span><span class="name" data-reel-name>Muzzaga Pádel</span> <span class="what" data-reel-what>· Sitio, reservas y recorrido 3D</span></span>
+        <a class="link-7" href="/casos/muzzaga" data-reel-link><span class="l">Ver caso</span></a>
+        <button class="icon-btn" type="button" data-reel-prev aria-label="Proyecto anterior"><svg aria-hidden="true"><use href="#i-prev"/></svg></button>
+        <button class="icon-btn" type="button" data-reel-next aria-label="Proyecto siguiente"><svg aria-hidden="true"><use href="#i-next"/></svg></button>
+        <button class="icon-btn" type="button" data-reel-pause aria-label="Pausar el cambio automático"><svg aria-hidden="true"><use href="#i-pause"/></svg></button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ PROYECTOS · PARA CLIENTES ═══ -->
+<section class="sec on-paper" id="proyectos" aria-labelledby="h-proy">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="kicker">Proyectos · <b>8 online</b></p>
+      <h2 class="h2" id="h-proy">Productos reales, <em>diseñados y programados</em> por nosotros.</h2>
+      <nav class="proj-tabs" aria-label="Tipo de proyecto">
+        <a href="#clientes" aria-current="true" data-tab>Para clientes <span>5</span></a>
+        <a href="#propios" data-tab>Productos propios <span>3</span></a>
+      </nav>
+      <p class="body">Cinco para clientes y tres propios. Cada uno se muestra con su propia identidad, tal como la diseñamos.</p>
+    </div>
+
+    <div class="stages" id="clientes">
+      <article class="stage st-ppl clip-in" aria-labelledby="t-ppl">
+        <div class="stage-in">
+          <div class="copy">
+            <div class="stage-meta"><span class="n">01</span><span class="badge">Para cliente</span><span>E-commerce · 2026</span></div>
+            <img class="mark" src="/assets/marks/pone-la-pava-mark.png" alt="" width="192" height="190">
+            <h3 class="title" id="t-ppl">El ritual del mate es tuyo.</h3>
+            <p class="stage-desc">Tienda online de Poné La Pava: layout editorial, revelados de producto con movimiento y stock en tiempo real.</p>
+            <div class="stage-links">
+              <a class="link-7" href="/casos/pone-la-pava"><span class="l">Ver caso</span></a>
+              <a class="ext" href="https://ponelapavayerbas.com/" target="_blank" rel="noopener">ponelapavayerbas.com <svg width="14" height="14" aria-hidden="true"><use href="#i-ext"/></svg></a>
+            </div>
+          </div>
+          <div class="media">
+            <div class="browser media-zoom">
+              <video muted playsinline loop preload="none" poster="/assets/video/pone-la-pava-2026-10-poster.webp" data-hover-video aria-label="Recorrido grabado del sitio de Poné La Pava"><source src="/assets/video/pone-la-pava-2026-10.mp4" type="video/mp4"></video>
+              <button class="play-chip" type="button" data-play><svg width="12" height="12" aria-hidden="true"><use href="#i-play"/></svg> Ver en movimiento</button>
+            </div>
+            <div class="phone"><img class="scr" src="/assets/phones/pone-la-pava-mobile-2026-10.webp" alt="Poné La Pava en celular" loading="lazy" width="600" height="1215"><img class="frm" src="/assets/phones/marco.webp" alt="" loading="lazy" width="520" height="1058"></div>
+          </div>
+        </div>
+      </article>
+
+      <div class="pair">
+        <article class="stage st-pra rise" aria-labelledby="t-pra">
+          <div class="stage-in">
+            <div class="stage-meta"><span class="n">02</span><span class="badge">Para cliente</span><span>Sitio web · 2026</span></div>
+            <div class="cine">
+              <img src="/assets/shots/pravilo-2026-09.webp" alt="Sitio de Pravilo" loading="lazy" width="1600" height="1000">
+              <h3 class="title" id="t-pra">Explorá tu cuerpo <i>a otro nivel.</i></h3>
+            </div>
+            <div class="row">
+              <p class="stage-desc">El primer centro Pravilo de Argentina, en Plottier, Neuquén. Identidad cinematográfica con fotografía y video reales.</p>
+              <div class="stage-links"><a class="link-7" href="/casos/pravilo"><span class="l">Ver caso</span></a><a class="ext" href="https://www.pravilo.com.ar/" target="_blank" rel="noopener">pravilo.com.ar <svg width="14" height="14" aria-hidden="true"><use href="#i-ext"/></svg></a></div>
+            </div>
+          </div>
+        </article>
+        <article class="stage st-vit rise" aria-labelledby="t-vit">
+          <div class="stage-in">
+            <div class="stage-meta"><span class="n">03</span><span class="badge">Para cliente</span><span>Tienda online · 2026</span></div>
+            <div>
+              <h3 class="title" id="t-vit">Tu próxima tecnología.</h3>
+              <p class="stage-desc" style="margin-top:10px">iPhone Vita: catálogo por categorías, buscador de iPhone, Plan Canje y un panel propio para cargar productos y precios.</p>
+            </div>
+            <div class="vita">
+              <img class="wide media-zoom" src="/assets/pared/iphonevita-producto.webp" alt="Portada de la tienda de iPhone Vita" loading="lazy" width="720" height="398">
+              <div class="phone"><img class="scr" src="/assets/phones/iphone-vita-mobile-2026-10.webp" alt="Catálogo de iPhone Vita en celular" loading="lazy" width="600" height="1215"><img class="frm" src="/assets/phones/marco.webp" alt="" loading="lazy" width="520" height="1058"></div>
+            </div>
+            <div class="stage-links"><a class="link-7" href="/casos/iphone-vita"><span class="l">Ver caso</span></a><a class="ext" href="https://iphonevita.vercel.app/" target="_blank" rel="noopener">iphonevita.vercel.app <svg width="14" height="14" aria-hidden="true"><use href="#i-ext"/></svg></a></div>
+          </div>
+        </article>
+      </div>
+
+      <article class="stage st-alt rise" aria-labelledby="t-alt">
+        <div class="stage-in">
+          <div style="display:grid;gap:14px">
+            <div class="stage-meta"><span class="n">04</span><span class="badge">Para cliente</span><span>Sitio corporativo · 2025</span></div>
+            <h3 class="title" id="t-alt">Tu inversión, en el corazón <i>de la Patagonia.</i></h3>
+            <p class="stage-desc">Altum Sci, inmobiliaria de Río Negro: un sitio pensado para que compradores e inversores consulten a distancia.</p>
+            <div class="stage-links"><a class="link-7" href="/casos/altum-sci"><span class="l">Ver caso</span></a><a class="ext" href="https://altumsci.com.ar/" target="_blank" rel="noopener">altumsci.com.ar <svg width="14" height="14" aria-hidden="true"><use href="#i-ext"/></svg></a></div>
+          </div>
+          <img class="tile" src="/assets/shots/altum-sci-2026-10-800.webp" alt="Sitio de Altum Sci" loading="lazy" width="800" height="500">
+          <img class="tile" src="/assets/pared/altum-lotes.webp" alt="Mapa de lotes de Altum Sci" loading="lazy" width="720" height="438">
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ MUZZAGA · DESTACADO CON 3D ═══ -->
+<section class="sec mz" id="muzzaga" aria-labelledby="h-mz">
+  <div class="wrap mz-grid">
+    <div class="mz-copy">
+      <p class="kicker">05 · Para cliente · Proyecto destacado</p>
+      <img src="/assets/marks/muzzaga-logo.png" alt="Muzzaga Pádel" style="height:46px;width:auto;align-self:flex-start" width="480" height="248">
+      <h2 class="mz-title" id="h-mz" data-mz-title>El club, <i>antes de pisarlo.</i></h2>
+      <p class="body" data-mz-body>Muzzaga es un club de pádel en Catriel, Río Negro, con dos canchas de cristal. Diseñamos y construimos su sitio, el sistema de reservas y un recorrido 3D de las instalaciones.</p>
+      <ul class="mz-list" data-mz-list>
+        <li>Disponibilidad por día y por cancha</li>
+        <li>Turnos de 90 minutos</li>
+        <li>Confirmación por WhatsApp con seña</li>
+        <li>Recorrido 3D del complejo</li>
+        <li>Canchas Abiertas comunitarias</li>
+        <li>Herramientas para jugadores</li>
+      </ul>
+      <div class="mz-ctas">
+        <button class="btn-3d" type="button" data-portal="tour"><svg class="rings" aria-hidden="true"><use href="#rings"/></svg> Explorar en 3D</button>
+        <a class="link-7" href="/casos/muzzaga"><span class="l">Ver caso</span></a>
+        <a class="ext" href="https://muzzaga-padel-seven.vercel.app/" target="_blank" rel="noopener">Sitio del club <svg width="14" height="14" aria-hidden="true"><use href="#i-ext"/></svg></a>
+      </div>
+    </div>
+    <div class="mz-stage">
+      <div class="mz-view" style="view-transition-name:mz-cover">
+        <video muted playsinline loop preload="none" poster="/assets/muzzaga/preview-3d-poster.webp" data-inview-video aria-label="Vista previa del recorrido 3D de Muzzaga"><source src="/assets/muzzaga/preview-3d-640.mp4" type="video/mp4" media="(max-width: 700px)"><source src="/assets/muzzaga/preview-3d.mp4" type="video/mp4"></video>
+        <span class="tag3d"><i></i> Recorrido 3D · vista previa</span>
+        <button class="open3d" type="button" data-portal="tour" aria-label="Explorar el recorrido 3D"><span><svg class="rings" width="26" height="26" aria-hidden="true"><use href="#rings"/></svg> Explorar en 3D</span></button>
+      </div>
+      <div class="phone mz-phone"><img class="scr" src="/assets/muzzaga/reservas-mobile.jpg" alt="Reserva de turnos de Muzzaga en celular" loading="lazy" width="600" height="1301"><img class="frm" src="/assets/phones/marco.webp" alt="" loading="lazy" width="520" height="1058"></div>
+      <div class="mz-spaces" data-mz-spaces role="group" aria-label="Espacios del recorrido"></div>
+      <p class="mz-note">La vista previa es un video liviano. El recorrido completo carga recién cuando lo abrís.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ PRODUCTOS PROPIOS ═══ -->
+<section class="sec" id="propios" aria-labelledby="h-own">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="kicker">Productos propios · <b>3</b></p>
+      <h2 class="h2" id="h-own">Lo que construimos <em>para nosotros.</em></h2>
+      <p class="body">Productos de los fundadores, en producción. Los diseñamos y programamos de punta a punta.</p>
+    </div>
+    <div class="own-grid">
+      <article class="stage st-own st-apx rise" aria-labelledby="t-apx">
+        <div class="stage-in">
+          <div class="stage-meta"><span class="n">06</span><span class="badge own">Producto propio · Federico</span><span>2026</span></div>
+          <div style="display:grid;gap:12px">
+            <h3 class="title" id="t-apx">Programación seria, <i>no plantillas.</i></h3>
+            <p class="stage-desc">Apex Performance: el coach define la fase, la IA arma cada rutina dentro de ese marco y el atleta la sigue desde el celular.</p>
+            <div class="stage-links"><a class="link-7" href="/casos/apex"><span class="l">Ver caso</span></a><a class="ext" href="https://apexperformance.com.ar/" target="_blank" rel="noopener">apexperformance.com.ar <svg width="14" height="14" aria-hidden="true"><use href="#i-ext"/></svg></a></div>
+          </div>
+          <div class="duo">
+            <img class="panel media-zoom" src="/assets/shots/apex-ai-coach-rutina-2026-10b.webp" alt="Panel del coach en Apex Performance" loading="lazy" width="1600" height="1223">
+            <div class="phone"><img class="scr" src="/assets/phones/apex-ai-atleta-hoy-2026-10.webp" alt="App del atleta en Apex Performance" loading="lazy" width="600" height="1298"><img class="frm" src="/assets/phones/marco.webp" alt="" loading="lazy" width="520" height="1058"></div>
+          </div>
+        </div>
+      </article>
+      <article class="stage st-own st-tky rise" aria-labelledby="t-tky">
+        <div class="stage-in">
+          <div class="stage-meta"><span class="n">07</span><span class="badge own">Producto propio · Franco</span><span>2025</span></div>
+          <div style="display:grid;gap:12px">
+            <h3 class="title" id="t-tky">Tu carta digital. <i>Tus pedidos sin apps.</i></h3>
+            <p class="stage-desc">Takefyy: carta digital y pedidos para restaurantes, con un panel pensado para dueños sin conocimientos técnicos.</p>
+          </div>
+          <div>
+            <div class="cmp" data-cmp style="--p:56">
+              <img class="sk" src="/assets/lines/takefyy-mobile-line.png" alt="Boceto de la pantalla de Takefyy" loading="lazy" width="780" height="1580">
+              <img class="real" src="/assets/phones/takefyy-mobile-2026-10.webp" alt="Pantalla real de Takefyy" loading="lazy" width="600" height="1215">
+              <span class="seam" aria-hidden="true"></span>
+              <span class="lbl l">Boceto</span><span class="lbl r">Producto</span>
+              <button class="handle" type="button" role="slider" aria-label="Comparar boceto y producto" aria-valuemin="0" aria-valuemax="100" aria-valuenow="56"><svg aria-hidden="true"><use href="#i-drag"/></svg></button>
+            </div>
+            <div class="stage-links" style="justify-content:center;margin-top:10px"><a class="link-7" href="/casos/takefyy"><span class="l">Ver caso</span></a><a class="ext" href="https://takefyy.com/" target="_blank" rel="noopener">takefyy.com <svg width="14" height="14" aria-hidden="true"><use href="#i-ext"/></svg></a></div>
+          </div>
+        </div>
+      </article>
+      <article class="stage st-own st-snt rise" aria-labelledby="t-snt">
+        <div class="stage-in">
+          <div style="display:grid;gap:14px">
+            <div class="stage-meta"><span class="n">08</span><span class="badge own">Producto propio · Franco</span><span>2025</span></div>
+            <h3 class="title" id="t-snt">Detectamos incendios en minutos, <i>no en horas.</i></h3>
+            <p class="stage-desc">Sentinel: un mapa interactivo sobre datos satelitales en vivo (NASA FIRMS) con índice de riesgo de incendio.</p>
+            <div class="stage-links"><a class="link-7" href="/casos/sentinel"><span class="l">Ver caso</span></a><a class="ext" href="https://www.sentineltech.com.ar/" target="_blank" rel="noopener">sentineltech.com.ar <svg width="14" height="14" aria-hidden="true"><use href="#i-ext"/></svg></a></div>
+          </div>
+          <div class="media">
+            <div class="browser media-zoom">
+              <video muted playsinline loop preload="none" poster="/assets/video/sentinel-2026-10-poster.webp" data-hover-video aria-label="Recorrido grabado del sitio de Sentinel"><source src="/assets/video/sentinel-2026-10.mp4" type="video/mp4"></video>
+              <button class="play-chip" type="button" data-play><svg width="12" height="12" aria-hidden="true"><use href="#i-play"/></svg> Ver en movimiento</button>
+            </div>
+            <span class="live">Datos en vivo · NASA FIRMS</span>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ OFICINA · PIEZA EXPERIMENTAL ═══ -->
+<section class="sec office" id="oficina" aria-labelledby="h-off">
+  <div class="wrap">
+    <div class="office-head">
+      <div style="display:grid;gap:18px">
+        <p class="pix">Pieza experimental</p>
+        <h2 class="h2" id="h-off">La oficina de SE7EN, <em>en versión jugable.</em></h2>
+      </div>
+      <div>
+        <p class="body">La diseñamos y programamos para mostrar el estudio por dentro: cada sala es un proyecto y entrás con tu propio personaje. Es opcional; todo lo que hay adentro también está en el menú.</p>
+        <div class="office-how"><span><b>Clic o toque</b> en una sala para ver su proyecto</span><span><b>+ y −</b> para acercar</span><span><b>Esc</b> para salir</span></div>
+      </div>
+    </div>
+    <div class="vitrina" data-vitrina>
+      <div class="vit-in">
+        <div class="vit-floor">
+          <img src="/assets/office/office-full.webp" alt="La oficina de SE7EN en vista isométrica, con una sala por proyecto" loading="lazy" width="2514" height="1289">
+          <img class="char" data-char="fed" src="/assets/chars/federico-21.webp" alt="" style="left:41.4%;top:31.5%;width:1.5%" width="70" height="202">
+          <img class="char" data-char="fra" src="/assets/chars/franco-46.webp" alt="" style="left:56.5%;top:48.5%;width:1.4%" width="105" height="199">
+          <img class="char" src="/assets/chars/visita-00.webp" alt="" style="left:75.6%;top:16.5%;width:1.4%" width="51" height="200">
+          <button class="pin" type="button" style="left:54.45%;top:61.3%" data-room="0" aria-label="Sala 01: Takefyy">01</button>
+          <button class="pin" type="button" style="left:39.8%;top:45.3%" data-room="1" aria-label="Sala 02: Apex Performance">02</button>
+          <button class="pin" type="button" style="left:31%;top:53.5%" data-room="2" aria-label="Sala 03: Poné La Pava">03</button>
+          <button class="pin" type="button" style="left:45.8%;top:68.3%" data-room="3" aria-label="Sala 04: Pravilo">04</button>
+          <button class="pin" type="button" style="left:11.9%;top:68.3%" data-room="4" aria-label="Sala 05: Muzzaga Pádel" aria-expanded="true">05</button>
+          <button class="pin" type="button" style="left:28.7%;top:83.9%" data-room="5" aria-label="Sala 06: Sentinel">06</button>
+          <button class="pin" type="button" style="left:22.2%;top:61.3%" data-room="6" aria-label="Sala 07: Altum Sci">07</button>
+          <button class="pin" type="button" style="left:37.8%;top:75.2%" data-room="7" aria-label="Sala 08: iPhone Vita">08</button>
+          <div class="room-card" data-room-card style="left:11.9%;top:68.3%">
+            <span class="pixl">Sala 05</span>
+            <h4>Muzzaga Pádel</h4>
+            <p>Sitio, reservas y recorrido 3D de un club de pádel en Catriel.</p>
+            <a class="link-7" href="/casos/muzzaga"><span class="l">Ver el caso</span></a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ul class="rooms-list" aria-label="Salas de la oficina">
+      <li><a href="/casos/takefyy">01 · Takefyy</a></li><li><a href="/casos/apex">02 · Apex</a></li><li><a href="/casos/pone-la-pava">03 · Poné La Pava</a></li><li><a href="/casos/pravilo">04 · Pravilo</a></li><li><a href="/casos/muzzaga">05 · Muzzaga</a></li><li><a href="/casos/sentinel">06 · Sentinel</a></li><li><a href="/casos/altum-sci">07 · Altum Sci</a></li><li><a href="/casos/iphone-vita">08 · iPhone Vita</a></li>
+    </ul>
+    <div class="office-cta">
+      <button class="btn-7" type="button" data-portal="office">Entrar a la oficina <svg class="arr" width="18" height="18" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+      <p class="alt">¿Preferís ir directo? <a href="#proyectos">Ver todos los proyectos</a></p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ ESTUDIO ═══ -->
+<section class="sec on-paper" id="estudio" aria-labelledby="h-est">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="kicker">Estudio</p>
+      <h2 class="h2" id="h-est">Dos personas. <em>Todo el proceso.</em></h2>
+      <p class="body">Federico lleva producto y diseño; Franco, el desarrollo de punta a punta. Hablás con los dos, sin gerentes de cuenta en el medio.</p>
+    </div>
+    <div class="duo-founders">
+      <article class="fcard rise">
+        <img src="/assets/team/federico.webp" alt="Federico Martín" loading="lazy" width="120" height="120">
+        <div>
+          <h3>Federico Martín</h3>
+          <p class="role">Fundador · Producto y diseño</p>
+          <p>Diseñador y desarrollador de producto. Creó APEX, software de entrenamiento: interfaz, código, pagos e IA. Traduce tu marca en pantallas cuidadas al detalle: tipografía, animación y experiencia.</p>
+          <div class="tags"><span>Producto</span><span>Interfaz</span><span>Animación</span><span>Pagos e IA</span></div>
+        </div>
+      </article>
+      <article class="fcard rise">
+        <img src="/assets/team/franco.webp" alt="Franco Riquero" loading="lazy" width="120" height="120">
+        <div>
+          <h3>Franco Riquero</h3>
+          <p class="role">Fundador · Desarrollo</p>
+          <p>Ingeniero industrial y fundador de dos startups propias (Sentinel y Takefyy). Construye cada producto digital del estudio de punta a punta: desde la base de datos hasta lo que ves en pantalla.</p>
+          <div class="tags"><span>Arquitectura</span><span>Base de datos</span><span>Backend</span><span>Frontend</span></div>
+        </div>
+      </article>
+    </div>
+    <ol class="steps">
+      <li><span class="n">01</span><h3>Descubrir y estrategia</h3><p>Analizamos tu negocio, cómo generás ingresos y a quién le hablás. Definimos qué vamos a construir y qué resultado buscamos.</p></li>
+      <li><span class="n">02</span><h3>Diseñar y prototipar</h3><p>Diseñamos cómo se ve y cómo se usa cada pantalla, con un prototipo que podés recorrer antes de construir nada.</p></li>
+      <li><span class="n">03</span><h3>Construir y animar</h3><p>Programamos tu sitio para que cargue rápido y sin errores, con animaciones suaves y conectado a tus datos.</p></li>
+      <li><span class="n">04</span><h3>Lanzar y optimizar</h3><p>Publicamos, configuramos tu dominio, revisamos velocidad y Google, y te acompañamos después del lanzamiento.</p></li>
+    </ol>
+  </div>
+</section>
+
+<!-- ═══ SERVICIOS ═══ -->
+<section class="sec" id="servicios" aria-labelledby="h-svc">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="kicker">Servicios</p>
+      <h2 class="h2" id="h-svc">Qué podés <em>contratar.</em></h2>
+    </div>
+    <div class="svc-grid">
+      <article class="svc"><span class="n">01</span><h3>Experiencias digitales</h3><p class="tg">Landings y sitios de marca</p><p>Sitios que explican rápido qué hacés y hacen que tu marca se vea como tiene que verse.</p><ul><li>Landing pages</li><li>Sitios corporativos</li><li>Animaciones y detalles</li><li>SEO técnico</li></ul></article>
+      <article class="svc"><span class="n">02</span><h3>E-commerce</h3><p class="tg">Tiendas y catálogos</p><p>Catálogos con stock en tiempo real, checkout por WhatsApp o pasarela de pago y un panel para gestionarlo vos.</p><ul><li>Catálogo interactivo</li><li>Checkout optimizado</li><li>Panel de gestión</li><li>Pagos online</li></ul></article>
+      <article class="svc"><span class="n">03</span><h3>Productos digitales</h3><p class="tg">Plataformas y paneles a medida</p><p>Plataformas web y paneles con usuarios, datos y permisos, pensados para crecer con tu negocio.</p><ul><li>Plataformas a medida</li><li>Paneles de control</li><li>Usuarios y permisos</li><li>Sistema de diseño</li></ul></article>
+      <article class="svc"><span class="n">04</span><h3>IA y automatización</h3><p class="tg">Procesos que se hacen solos</p><p>IA para sacarte de encima tareas repetitivas, conectar tus sistemas y tener tus datos al día.</p><ul><li>Asistentes con IA</li><li>Integraciones</li><li>Datos en tiempo real</li><li>Tareas automáticas</li></ul></article>
+    </div>
+    <div class="svc-foot" id="precios">
+      <a class="btn-ghost" href="https://www.se7en.com.ar/pricing" target="_blank" rel="noopener">Precios publicados y cotizador <svg width="14" height="14" aria-hidden="true"><use href="#i-ext"/></svg></a>
+      <a class="link-7" href="#contacto"><span class="l">¿No sabés qué necesitás? Contanos</span></a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CONTACTO ═══ -->
+<section class="sec on-signal contact" id="contacto" aria-labelledby="h-con">
+  <div class="wrap contact-grid">
+    <div>
+      <p class="kicker">Contacto</p>
+      <h2 class="h2" id="h-con" style="margin-top:14px">Contanos tu idea.</h2>
+      <div class="who">
+        <span style="display:flex"><img src="/assets/team/federico.webp" alt="" width="58" height="58"><img src="/assets/team/franco.webp" alt="" width="58" height="58"></span>
+        <p><b>Te responde uno de los dos fundadores.</b><br>Sin agencias ni cuentas en el medio.</p>
+      </div>
+      <ul class="channels">
+        <li><a href="https://wa.me/5492994247985" target="_blank" rel="noopener">WhatsApp <svg width="14" height="14" aria-hidden="true"><use href="#i-ext"/></svg></a><span>+54 9 299 424 7985</span></li>
+        <li><a href="https://www.instagram.com/se7enstudio.ar/" target="_blank" rel="noopener">Instagram <svg width="14" height="14" aria-hidden="true"><use href="#i-ext"/></svg></a><span>@se7enstudio.ar</span></li>
+        <li><a href="https://www.linkedin.com/company/se7en-ar/" target="_blank" rel="noopener">LinkedIn <svg width="14" height="14" aria-hidden="true"><use href="#i-ext"/></svg></a><span>se7en-ar</span></li>
+      </ul>
+    </div>
+    <form class="form" data-form novalidate>
+      <div class="form-body" style="display:grid;gap:22px">
+        <div>
+          <p class="q" id="q-tipo">¿Qué querés hacer?</p>
+          <div class="chips" role="group" aria-labelledby="q-tipo">
+            <button class="chip" type="button" aria-pressed="true"><svg class="ck" aria-hidden="true"><use href="#i-check"/></svg>Sitio de marca</button>
+            <button class="chip" type="button" aria-pressed="false"><svg class="ck" aria-hidden="true"><use href="#i-check"/></svg>Tienda online</button>
+            <button class="chip" type="button" aria-pressed="false"><svg class="ck" aria-hidden="true"><use href="#i-check"/></svg>Plataforma o app</button>
+            <button class="chip" type="button" aria-pressed="false"><svg class="ck" aria-hidden="true"><use href="#i-check"/></svg>IA y automatización</button>
+            <button class="chip" type="button" aria-pressed="false"><svg class="ck" aria-hidden="true"><use href="#i-check"/></svg>Experiencia interactiva</button>
+            <button class="chip" type="button" aria-pressed="false"><svg class="ck" aria-hidden="true"><use href="#i-check"/></svg>Todavía no sé</button>
+          </div>
+        </div>
+        <div class="fields">
+          <div class="field"><label for="f-nombre">Nombre</label><input id="f-nombre" name="nombre" autocomplete="name" placeholder="Cómo te llamás"></div>
+          <div class="field"><label for="f-contacto">Mail o WhatsApp</label><input id="f-contacto" name="contacto" autocomplete="email" placeholder="Para responderte"></div>
+          <div class="field full"><label for="f-msg">Tu idea</label><textarea id="f-msg" name="mensaje" placeholder="Contanos en dos líneas qué necesitás"></textarea></div>
+          <input class="sr-only" tabindex="-1" autocomplete="off" name="empresa_web" aria-hidden="true">
+        </div>
+        <p class="err" role="alert" data-err></p>
+        <div class="form-foot">
+          <small>Usamos tus datos solo para responderte. <a href="/privacidad">Privacidad</a></small>
+          <button class="btn-7" type="submit">Enviar <svg class="arr" width="18" height="18" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+        </div>
+      </div>
+      <div class="form-ok" role="status">
+        <h3>¡Gracias! Ya lo recibimos.</h3>
+        <p>En el sitio definitivo, acá te escribe Federico o Franco. Esta es una versión de prueba: no se envió ningún dato.</p>
+        <div><button class="btn-ghost" type="button" data-form-again>Escribir otro mensaje</button></div>
+      </div>
+    </form>
+  </div>
+</section>
+</main>
+
+<!-- ═══ FOOTER ═══ -->
+<footer class="foot">
+  <div class="wrap foot-top">
+    <div style="display:grid;gap:22px;align-content:start">
+      <h2 class="h2">¿Arrancamos <em>tu proyecto?</em></h2>
+      <div><a class="btn-7" href="#contacto">Contanos tu idea <svg class="arr" width="18" height="18" aria-hidden="true"><use href="#i-arrow"/></svg></a></div>
+    </div>
+    <div class="foot-col"><h4>Estudio</h4><ul><li><a href="#proyectos">Proyectos</a></li><li><a href="#servicios">Servicios</a></li><li><a href="#precios">Precios</a></li><li><a href="#estudio">Fundadores</a></li><li><a href="#oficina" data-portal="office">Oficina interactiva</a></li></ul></div>
+    <div class="foot-col"><h4>Recursos</h4><ul><li><a href="https://www.se7en.com.ar/blog" target="_blank" rel="noopener">Blog ↗</a></li><li><a href="https://www.se7en.com.ar/cotizador" target="_blank" rel="noopener">Cotizador ↗</a></li><li><a href="https://www.se7en.com.ar/calculadora-comisiones" target="_blank" rel="noopener">Calculadora de comisiones ↗</a></li><li><a href="https://www.se7en.com.ar/audit" target="_blank" rel="noopener">Diagnóstico ↗</a></li></ul></div>
+    <div class="foot-col"><h4>Contacto</h4><ul><li><a href="https://wa.me/5492994247985" target="_blank" rel="noopener">WhatsApp ↗</a></li><li><a href="https://www.instagram.com/se7enstudio.ar/" target="_blank" rel="noopener">Instagram ↗</a></li><li><a href="https://www.linkedin.com/company/se7en-ar/" target="_blank" rel="noopener">LinkedIn ↗</a></li></ul></div>
+  </div>
+  <div class="foot-seven" aria-hidden="true">
+    <div class="bar"><span>Federico Martín</span></div>
+    <div class="stem"><span>Franco Riquero</span></div>
+  </div>
+  <div class="foot-legal wrap">
+    <span>© 2026 Se7en Studio · Catriel, Río Negro, Argentina</span>
+    <span class="motto">Dos fundadores. Cero intermediarios.</span>
+    <a href="/privacidad">Privacidad</a>
+  </div>
+</footer>
+
+<!-- Portal: experiencias que se abren a pedido -->
+<div class="portal-rings" data-portal-rings aria-hidden="true"><svg></svg></div>
+<div class="portal" role="dialog" aria-modal="true" aria-labelledby="portal-t" data-portal-el hidden>
+  <div class="portal-bar">
+    <span class="t"><svg class="rings" aria-hidden="true" style="color:var(--signal)"><use href="#rings"/></svg><span id="portal-t" data-portal-title>Experiencia</span></span>
+    <button class="btn-ghost" type="button" data-portal-close>Volver al sitio · Esc</button>
+  </div>
+  <div class="portal-body" data-portal-body></div>
+  <div class="portal-foot" data-portal-foot></div>
+</div>
+
+<div class="demo" data-demo role="region" aria-label="Controles de la demo">
+  <span class="demo-k" aria-hidden="true">Demo</span>
+  <div class="demo-seg" role="group" aria-label="Elegir el hero">
+    <button type="button" data-set-hero="a" aria-pressed="true">Hero A</button>
+    <button type="button" data-set-hero="b" aria-pressed="false">Hero B</button>
+  </div>
+  <a class="demo-notes" href="/demo">Notas</a>
+</div>
+<div class="toast" data-toast role="status" aria-live="polite"></div>
+
+<script src="/tour-data.js"></script>
+<script src="/site.js"></script>
+<script src="/tour.js"></script>
+</body>
+</html>
