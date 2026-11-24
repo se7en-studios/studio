@@ -33,6 +33,13 @@
   .rd-wrap { width: 100%; padding-inline: var(--gutter); max-width: 1680px; margin-inline: auto; }
   .rd-mask { margin-block: -0.16em -0.08em; padding-block: 0.16em 0.08em; display: block; overflow: hidden; }
 
+  /* SE7EN del footer, como impreso: la letra con grano de tinta y, corrida atrás, una sombra de trama de puntos (un riso mal registrado). */
+  .rd-wordmark { --fill: var(--paper); --dots: var(--signal); position: relative; }
+  .rd-wordmark--signal { --fill: var(--signal); --dots: var(--paper); }
+  .rd-wordmark__fill { position: relative; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.04 0 0 0 0 0.04 0 0 0 0 0.05 2 0 0 0 -1.12'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E") 0 0 / 0.48em 0.48em, var(--fill); }
+  .rd-wordmark__shadow { position: absolute; inset: 0; translate: 0.06em 0.04em; background: radial-gradient(circle, var(--dots) 0 38%, transparent 43%) 0 0 / 0.021em 0.021em; }
+  .rd-wordmark__fill, .rd-wordmark__shadow { display: block; color: transparent; -webkit-background-clip: text; background-clip: text; }
+
   .rd-btn { --btn-bg: var(--signal); --btn-fg: var(--ink); background: var(--btn-bg); height: 3.5rem; color: var(--btn-fg); font-variation-settings: "wdth" 110; letter-spacing: -0.01em; text-transform: uppercase; white-space: nowrap; isolation: isolate; transition: transform 0.5s var(--ease-out); border-radius: 999px; align-items: center; gap: 0.75rem; padding: 0 0.5rem 0 1.6rem; font-size: 0.95rem; font-weight: 700; display: inline-flex; position: relative; overflow: hidden; }
   .rd-btn:before { content: ""; z-index: -1; border-radius: inherit; background: var(--paper); transition: transform 0.55s var(--ease-io); position: absolute; inset: 0; transform: translateY(101%); }
   .rd-btn:hover:before, .rd-btn:focus-visible:before { transform: translateY(0); }

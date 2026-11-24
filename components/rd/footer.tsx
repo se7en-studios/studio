@@ -145,14 +145,15 @@ export function RdFooter() {
         {"SE7EN".split("").map((ch, i) => (
           <span key={i} className="rd-mask">
             <m.span
-              className={`rd-display block text-[29vw] leading-[0.74] ${
-                ch === "7" ? "text-(--signal)" : "text-(--paper)"
+              className={`rd-display rd-wordmark block text-[29vw] leading-[0.74] ${
+                ch === "7" ? "rd-wordmark--signal" : ""
               }`}
               initial={{ y: "100%" }}
               animate={inView ? { y: "12%" } : { y: "100%" }}
               transition={{ duration: 1.2, ease: EASE_OUT, delay: i * 0.07 }}
             >
-              {ch}
+              <span className="rd-wordmark__shadow">{ch}</span>
+              <span className="rd-wordmark__fill">{ch}</span>
             </m.span>
           </span>
         ))}
