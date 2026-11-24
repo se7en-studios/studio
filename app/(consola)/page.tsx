@@ -1,6 +1,7 @@
 import { ConsolaShell } from "@/components/consola/shell";
 import { CsHero } from "@/components/consola/hero";
 import { CsWork } from "@/components/consola/work";
+import { CsOjo } from "@/components/consola/ojo-ascii";
 import { CsPlayground } from "@/components/consola/playground";
 import { CsNotes } from "@/components/consola/notes";
 import { CsCall } from "@/components/consola/call";
@@ -14,6 +15,8 @@ export default function Home() {
     <ConsolaShell>
       <CsHero />
       <CsWork />
+      {/* Un respiro entre los casos y la pared: el ojo en caracteres que termina en el logo. */}
+      <CsOjo />
       <CsPlayground />
       <CsNotes />
       <CsCall />
